@@ -1,0 +1,18 @@
+[package]
+name = "statechronicle-profiles"
+description = "Baseline profile registry: unique assets, consumable stacks, fungible balances, entitlements, meters, marketplace."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+statechronicle-core = { workspace = true }
+statechronicle-domain = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true
