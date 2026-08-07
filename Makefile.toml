@@ -1,0 +1,149 @@
+[tasks.build]
+description = "Build all projects"
+workspace = false
+command = "cargo"
+args = ["build", "--workspace", "--all-features", "${@}"]
+dependencies = ["clean"]
+
+[tasks.format-rust]
+description = "Format Rust code using rustfmt"
+workspace = false
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.format]
+description = "Format Rust code"
+workspace = false
+dependencies = ["format-rust"]
+
+[tasks.format-check]
+description = "Verify code formatting with rustfmt"
+workspace = false
+command = "cargo"
+args = ["fmt", "--check", "--all"]
+
+[tasks.clean]
+description = "Remove build artifacts"
+command = "cargo"
+args = ["clean", "${@}"]
+
+[tasks.bacon]
+description = "Live code checking with bacon"
+workspace = false
+install_crate = "bacon"
+command = "bacon"
+args = ["${@}", "check-all"]
+
+[tasks.audit]
+description = "Security audit for dependencies"
+workspace = false
+install_crate = "cargo-audit"
+command = "cargo"
+args = ["audit", "${@}"]
+
+[tasks.build-prod]
+description = "Build optimized release binaries"
+workspace = false
+command = "cargo"
+args = [
+    "build",
+    "--workspace",
+    "--release",
+    "--all-features",
+    "${@}",
+]
+dependencies = ["clean"]
+
+[tasks.check]
+description = "Quick compilation check without building"
+workspace = false
+command = "cargo"
+args = [
+    "check",
+    "--workspace",
+    "--all-targets",
+    "--all-features",
+    "${@}",
+]
+
+[tasks.test]
+description = "Run all tests using cargo-nextest"
+workspace = false
+install_crate = "cargo-nextest@0.9.123"
+install_crate_args = ["--locked"]
+command = "cargo"
+args = [
+    "nextest",
+    "run",
+    "--workspace",
+    "--all-features",
+    "--no-tests=pass",
+    "${@}",
+]
+
+[tasks.clippy]
+description = "Run clippy with strict rules on the entire workspace"
+workspace = false
+command = "cargo"
+args = [
+    "clippy",
+    "--workspace",
+    "--all-targets",
+    "--all-features",
+    "--locked",
+    "--",
+    "-D",
+    "warnings",
+    "${@}",
+]
+
+[tasks.udeps]
+description = "Find unused dependencies (requires nightly)"
+workspace = false
+install_crate = "cargo-udeps"
+command = "cargo"
+args = ["+nightly", "udeps"]
+
+[tasks.bloat]
+description = "Analyze binary size and bloat"
+workspace = false
+install_crate = "cargo-bloat"
+command = "cargo"
+args = ["bloat", "--release", "${@}"]
+
+[tasks.expand]
+description = "Expand macros to see generated code"
+workspace = false
+install_crate = "cargo-expand"
+command = "cargo"
+args = ["expand", "${@}"]
+
+[tasks.deny]
+description = "Check licenses and security advisories"
+workspace = false
+install_crate = "cargo-deny"
+command = "cargo"
+args = ["deny", "check"]
+
+[tasks.sqlx]
+description = "Run raw SQLx CLI commands; pass explicit --source and per-slice --database-url"
+workspace = false
+install_crate = "sqlx-cli"
+command = "sqlx"
+args = ["${@}"]
+
+[tasks.fuzz]
+description = "Run fuzzing tests on specified targets"
+workspace = false
+install_crate = "cargo-fuzz"
+command = "cargo"
+args = ["+nightly", "fuzz", "${@}"]
+
+[tasks.run-statechronicle-http]
+description = "Run the StateChronicle HTTP server"
+workspace = false
+command = "bash"
+args = [
+    "-lc",
+    "set -o pipefail; set -a; if [ -f .env.local ]; then source .env.local; elif [ -f .env ]; then source .env; fi; set +a; CLICOLOR_FORCE=1 CARGO_TERM_COLOR=always cargo run --bin statechronicle-http 2>&1 | sed -u $'s/^/\\x1b[1;36m[statechronicle-http]\\x1b[0m /'",
+]

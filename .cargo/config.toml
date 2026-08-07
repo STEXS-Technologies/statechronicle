@@ -1,0 +1,4 @@
+# Force frame pointers on all profiles so perf(1) can unwind the stack.
+# Overhead is negligible (≤1–3%) and enables precise call-chain profiling.
+[target.'cfg(all())']
+rustflags = ["-C", "force-frame-pointers=y"]
