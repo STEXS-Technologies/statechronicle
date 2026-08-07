@@ -1,7 +1,7 @@
 //! Accumulator error type.
 //!
 //! Failures from checkpoint construction, built with `thiserror`. The
-//! per-tenant sparse Merkle tree itself is total — its API never errors.
+//! per-tenant sparse Merkle tree itself is total. Its API never errors.
 
 use thiserror::Error;
 

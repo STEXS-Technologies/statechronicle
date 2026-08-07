@@ -12,16 +12,16 @@
 
 StateChronicle is a verifiable resource-state protocol and platform that must:
 
-1. **Compose with stexs** — stexs is the parent platform; StateChronicle must follow the
+1. **Compose with stexs**: stexs is the parent platform; StateChronicle must follow the
    same structural conventions so it can be absorbed or consumed cleanly.
-2. **Mirror sibling workspaces** — stexs, shardline, and trustgrant each organize code as
+2. **Mirror sibling workspaces**: stexs, shardline, and trustgrant each organize code as
    bounded contexts (stexs `crates/slices/*`, trustgrant per-stage crates, shardline
    per-protocol-frontend crates).
-3. **Support many resource state models** — unique assets, consumable stacks, fungible
-   balances, entitlements, meters, listings, escrow — each is a natural bounded context.
-4. **Enable independent testing** — each state model and each platform feature must be
+3. **Support many resource state models**: unique assets, consumable stacks, fungible
+   balances, entitlements, meters, listings, escrow; each is a natural bounded context.
+4. **Enable independent testing**: each state model and each platform feature must be
    testable in isolation.
-5. **Be monolith-friendly** — a modular monolith that can decompose later without
+5. **Be monolith-friendly**: a modular monolith that can decompose later without
    re-architecting.
 
 Traditional horizontal layering (Controllers → Services → Repositories) scatters feature
@@ -35,12 +35,16 @@ hard to audit.
 
 Each bounded context is a vertical slice. Slices live in two tiers:
 
-1. **Protocol core slices** — one crate per protocol concern (intent, executor, commit,
+1. **Protocol core slices**: one crate per protocol concern (intent, executor, commit,
    accumulator, proof, profiles). These are pure; they contain no transport or
-   persistence.
-2. **Platform slices** — one crate per domain bounded context under `crates/slices/*`
-   (ledger, inventory, economy, entitlement, marketplace, tenant), each containing the
-   full hexagonal stack for that context.
+   persistence. The `statechronicle` umbrella crate re-exports them as the consumer's
+   single entry point.
+2. **Platform slices**: in the stexs platform these are one crate per domain bounded
+   context under `crates/slices/*` (ledger, inventory, economy, entitlement, marketplace,
+   tenant), each containing the full hexagonal stack for that context. StateChronicle the
+   standalone workspace does **not** ship platform slices; the protocol crates replace the
+   `inventory_ledger` bounded context, and the platform slices live in the consuming
+   platform (stexs), not here.
 
 Platform slice layout (stexs convention):
 
@@ -57,21 +61,22 @@ crates/slices/<name>/src/
 
 ### Slice Principles
 
-1. **One slice = one bounded context** — e.g. `economy` owns fungible balances and
+1. **One slice = one bounded context**: e.g. `economy` owns fungible balances and
    currency transfers; `inventory` owns unique assets and consumable stacks.
-2. **Complete feature ownership** — all code for a feature lives in one crate.
-3. **Explicit dependencies** — cross-slice communication only via ports/gateways composed
+2. **Complete feature ownership**: all code for a feature lives in one crate.
+3. **Explicit dependencies**: cross-slice communication only via ports/gateways composed
    at the composition root, or via the shared kernel.
-4. **Independent testing** — each slice is unit/integration tested in isolation with
+4. **Independent testing**: each slice is unit/integration tested in isolation with
    in-memory fakes.
-5. **Clear boundaries** — slices never import each other's internals.
+5. **Clear boundaries**: slices never import each other's internals.
 
 ### Cross-Slice Communication
 
-- **Domain events** — published via `EventPublisher`/outbox; other slices subscribe.
-- **Public API contracts** — explicit gateway ports when synchronous calls are needed.
-- **Shared kernel** — transport-agnostic primitives in `statechronicle-shared`; HTTP-only
-  contracts in `statechronicle-shared-http`.
+- **Domain events**: published via `EventPublisher`/outbox; other slices subscribe.
+- **Public API contracts**: explicit gateway ports when synchronous calls are needed.
+- **Shared kernel**: transport-agnostic primitives in `statechronicle-core`/
+  `statechronicle-domain`; HTTP-only concerns live in the consuming platform's own
+  shared kernel, never in this workspace.
 
 ---
 
@@ -86,11 +91,11 @@ crates/slices/<name>/src/
 
 ### Why Vertical Slices Wins
 
-1. **Protocol auditability** — each state machine's transition rules live in one place.
-2. **Composition with stexs** — identical `slices/*` convention makes integration natural.
+1. **Protocol auditability**: each state machine's transition rules live in one place.
+2. **Composition with stexs**: identical `slices/*` convention makes integration natural.
 3. **Profile-based specialization** (protocol §20) maps directly to slice boundaries.
-4. **Monolith-first** — modular monolith now, service extraction later if needed.
-5. **Reduced cognitive load** — understand an entire state model in one crate.
+4. **Monolith-first**: modular monolith now, service extraction later if needed.
+5. **Reduced cognitive load**: understand an entire state model in one crate.
 
 ---
 
@@ -115,7 +120,8 @@ crates/slices/<name>/src/
 **Mitigations:**
 
 - Pure protocol core crates hold shared mechanics; slices are thin application layers.
-- `statechronicle-shared` kernel + `statechronicle-shared-http` boundary.
+- `statechronicle-core`/`statechronicle-domain` kernel; the consuming platform owns any
+  HTTP/shared boundary.
 - Cross-cutting middleware at the composition root.
 - Architectural guardrails + code review checklist.
 
@@ -124,6 +130,9 @@ crates/slices/<name>/src/
 ## Implementation Notes
 
 ### Workspace Membership
+
+This workspace's members are the pure protocol crates plus the umbrella crate and the
+fuzz targets:
 
 ```toml
 [workspace]
@@ -137,17 +146,15 @@ members = [
     "crates/statechronicle-proof",
     "crates/statechronicle-profiles",
     "crates/statechronicle-ports",
-    "crates/statechronicle-shared",
-    "crates/statechronicle-shared-http",
-    "crates/statechronicle-http",
-    "crates/slices/ledger",
-    "crates/slices/inventory",
-    "crates/slices/economy",
-    "crates/slices/entitlement",
-    "crates/slices/marketplace",
-    "crates/slices/tenant",
+    "crates/statechronicle",
+    "fuzz",
 ]
 ```
+
+There is no `statechronicle-shared`, `statechronicle-shared-http`,
+`statechronicle-http`, or `crates/slices/*` here. Platform slices and the HTTP
+composition root are owned by the consuming platform (stexs), which wires these
+protocol crates through `statechronicle-ports` at its own composition root.
 
 ### Cross-Slice Boundary Enforcement
 
@@ -155,8 +162,8 @@ members = [
 // ❌ FORBIDDEN: direct import from another slice's internals
 use crate::slices::economy::domain::balance::Balance;
 
-// ✅ ALLOWED: import from shared kernel
-use statechronicle_shared::types::SubjectId;
+// ✅ ALLOWED: import from the protocol core kernel
+use statechronicle_domain::subject::SubjectId;
 
 // ✅ ALLOWED: communicate via ports composed at the root
 economy_port.debit(subject, amount).await?;
@@ -166,9 +173,10 @@ economy_port.debit(subject, amount).await?;
 
 - Pure core crates: inline unit tests for transition determinism + integration tests
   against in-memory fake ports.
-- Slices: unit tests with fake adapters (`RecordingXGateway`, `InMemoryXRepository`).
-- Composition root: e2e flows (mint → transfer → proof → verify) in
-  `statechronicle-http/tests/e2e/`.
+- Umbrella crate: the e2e lane (`crates/statechronicle/tests/e2e.rs`) runs the full
+  lifecycle through the real crates with in-memory port fakes.
+- Platform slices (stexs-owned): unit tests with fake adapters; the consuming platform's
+  composition root runs its own e2e flows.
 
 ---
 

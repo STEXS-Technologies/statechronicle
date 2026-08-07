@@ -2,7 +2,7 @@
 //!
 //! Two independent roots commit a batch:
 //!
-//! - [`event_root`] — a balanced Merkle root over the BCS canonical bytes of
+//! - [`event_root`]: a balanced Merkle root over the BCS canonical bytes of
 //!   each event. The tree mirrors the accumulator's node convention
 //!   (ADR-005): leaves are `H(0x11 || event_digest)` (the
 //!   `LEAF_NODE_TAG` domain byte, with no key for events) and internal nodes
@@ -10,7 +10,7 @@
 //!   odd node count duplicates its last node, exactly like the checkpoint
 //!   tree. A single event therefore roots at its own leaf hash.
 //!
-//! - [`compute_state_root`] — the sparse Merkle state root produced by
+//! - [`compute_state_root`]: the sparse Merkle state root produced by
 //!   inserting the batch's [`StateUpdate`]s into a [`StateAccumulator`]
 //!   (ADR-005). Keys are derived per event from its after-state: subject-held
 //!   state types (consumable stack, fungible balance, entitlement, metered
@@ -179,7 +179,7 @@ pub fn compute_state_root(updates: &[StateUpdate]) -> Result<StateRoot, CommitEr
 /// replay equation for a commit chain (protocol §14).
 ///
 /// `prior_updates` must be the full accumulated leaf set committed before
-/// `current_updates` — i.e. the union of every earlier commit's updates. Both
+/// `current_updates`, i.e. the union of every earlier commit's updates. Both
 /// declared roots are re-derived and compared fail-closed.
 ///
 /// # Errors
@@ -214,7 +214,7 @@ pub fn verify_state_root_continuity(
     Ok(())
 }
 
-/// `H(0x11 || event_digest)` — the event tree leaf, mirroring the
+/// `H(0x11 || event_digest)`: the event tree leaf, mirroring the
 /// accumulator's `LEAF_NODE_TAG` domain separation (ADR-005 §2). Events have
 /// no SMT key, so the leaf covers only the event's canonical digest.
 fn event_leaf_hash(event_digest: [u8; 32]) -> [u8; 32] {

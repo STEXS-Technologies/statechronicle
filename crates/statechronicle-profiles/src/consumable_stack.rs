@@ -1,6 +1,6 @@
 //! Consumable stack profile.
 //!
-//! Stacked quantities that are consumed by use (protocol §20.2). A stack
+//! Stacked quantities that are consumed by use (protocol §20.4). A stack
 //! carries a `subject`, a `quantity`, and a `unit` in its projected payload.
 //! Quantities are canonical non-negative integer strings; the protocol bans
 //! floating-point economic state (§10.3).
@@ -30,23 +30,23 @@ const OPERATIONS: &[&str] = &[
     "stack.adjust",
 ];
 
-/// Rule set for [`StateType::ConsumableStack`] (protocol §20.2).
+/// Rule set for [`StateType::ConsumableStack`] (protocol §20.4).
 ///
 /// A stack has no status: every operation except `stack.create` requires an
 /// existing resource, and quantity rules are applied per operation:
 ///
-/// * `stack.create` — unborn resource with `subject`, non-negative `quantity`,
+/// * `stack.create`: unborn resource with `subject`, non-negative `quantity`,
 ///   and `unit` inputs.
-/// * `stack.credit` — existing resource; `quantity` is a non-negative integer.
-/// * `stack.debit` / `stack.consume` — existing resource; `quantity` must be
+/// * `stack.credit`: existing resource; `quantity` is a non-negative integer.
+/// * `stack.debit` / `stack.consume`: existing resource; `quantity` must be
 ///   strictly positive and no greater than the current quantity.
-/// * `stack.transfer` — existing resource; `to_subject` plus a strictly
+/// * `stack.transfer`: existing resource; `to_subject` plus a strictly
 ///   positive `quantity` no greater than the current quantity.
-/// * `stack.reserve` — existing resource; strictly positive `quantity` no
+/// * `stack.reserve`: existing resource; strictly positive `quantity` no
 ///   greater than the current quantity.
-/// * `stack.release` — existing resource; strictly positive `quantity`.
-/// * `stack.adjust` — existing resource; new non-negative `quantity`.
-/// * `stack.expire` — existing resource; terminal, no quantity required.
+/// * `stack.release`: existing resource; strictly positive `quantity`.
+/// * `stack.adjust`: existing resource; new non-negative `quantity`.
+/// * `stack.expire`: existing resource; terminal, no quantity required.
 ///
 /// A stack never holds negative quantity, and amounts that would exceed the
 /// current quantity are rejected with

@@ -9,17 +9,16 @@ convention used by `stexs` (`docs/DESIGN/ADR/`).
 | --- | --- | --- |
 | [ADR-001](ADR-001-VERTICAL_SLICE_ARCHITECTURE.md) | Vertical Slice Architecture as Primary Code Organization | Draft |
 | [ADR-002](ADR-002-HEXAGONAL_ARCHITECTURE.md) | Hexagonal Architecture (Ports & Adapters) for Domain Isolation | Draft |
-| [ADR-003](ADR-003-TRUSTGRANT_PORTS_ONLY.md) | TrustGrant Integration — Ports Only, Wired at the stexs Root | Draft |
-| [ADR-004](ADR-004-CANONICALIZATION_HASHING_SIGNATURE.md) | Canonical Serialization, Hashing, and Signature Baseline — BCS | Draft |
-| [ADR-005](ADR-005-STATE_ACCUMULATOR.md) | Baseline State Accumulator — Sparse Merkle Tree (SMT) | Accepted |
+| [ADR-003](ADR-003-TRUSTGRANT_PORTS_ONLY.md) | TrustGrant Integration: Ports Only, Wired at the stexs Root | Draft |
+| [ADR-004](ADR-004-CANONICALIZATION_HASHING_SIGNATURE.md) | Canonical Serialization, Hashing, and Signature Baseline: BCS | Draft |
+| [ADR-005](ADR-005-STATE_ACCUMULATOR.md) | Baseline State Accumulator: Sparse Merkle Tree (SMT) | Accepted |
 | [ADR-006](ADR-006-PROTOCOL_DECISIONS_V0.md) | Protocol Decisions for v0 (§36 Resolution) | Accepted |
 
 ## Proposed / Pending
 
-- Commit authority representation through TrustGrant — protocol §36 open question 2
-  (default yes, wired by stexs; see ADR-003).
-- Minimum revocation freshness window for authority-bound transitions.
-- Storage contract / backend selection (PostgreSQL baseline) — protocol §27/§35.
+- Storage contract / backend selection (PostgreSQL baseline): protocol §27/§35. (The
+  logical stores are resolved as `statechronicle-ports` traits; concrete backend choice
+  is the consumer's, so this row remains informational.)
 
 ## Process
 

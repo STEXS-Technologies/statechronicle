@@ -49,7 +49,7 @@ fn arb_key() -> impl Strategy<Value = StateKey> {
 }
 
 /// Generates a BCS-encodable claimed state: a JSON object of short ASCII
-/// string fields (no floats — the protocol bans floating-point state).
+/// string fields (no floats, since the protocol bans floating-point state).
 fn arb_state() -> impl Strategy<Value = serde_json::Value> {
     fn arb_ascii() -> impl Strategy<Value = String> {
         prop::collection::vec(prop::char::range('a', 'z'), 1..=12)

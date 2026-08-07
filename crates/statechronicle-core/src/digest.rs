@@ -105,7 +105,7 @@ impl ContentDigest {
 ///
 /// This is the protocol's `digest()` (§17 / ADR-004): SHA-256 over the
 /// canonical BCS bytes of a protocol object. Deterministic: the same input
-/// always produces the same digest, and the function is total — it never
+/// always produces the same digest, and the function is total. It never
 /// fails or panics.
 pub fn hash_bytes(bytes: &[u8]) -> ContentDigest {
     ContentDigest::new(Sha256::digest(bytes).into())

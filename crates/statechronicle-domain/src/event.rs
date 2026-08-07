@@ -155,7 +155,7 @@ mod tests {
     fn bcs_canonicalization_is_deterministic() {
         // The `state` payload is `serde_json::Value`, which is BCS-encodable
         // but not BCS-decodable (BCS is not self-describing, ADR-004), so the
-        // BCS check is encode-side determinism — the property signing relies on.
+        // BCS check is encode-side determinism, the property signing relies on.
         let event = sample_event();
         let first = bcs::to_bytes(&event).unwrap();
         let second = bcs::to_bytes(&event).unwrap();

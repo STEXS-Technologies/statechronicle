@@ -1,7 +1,7 @@
 //! Port trait for the current-state index (protocol §9).
 //!
 //! Serves the derived current state projection of resources. A projection is
-//! a deterministic function of the append-only event history — the index is
+//! a deterministic function of the append-only event history. The index is
 //! never the source of truth (§27 logical stores).
 
 use async_trait::async_trait;

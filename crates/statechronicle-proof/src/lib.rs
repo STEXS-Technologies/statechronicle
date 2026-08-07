@@ -9,13 +9,13 @@
 //!
 //! # Architecture
 //!
-//! - [`bundle`] — assembling builders that produce the domain
+//! - [`bundle`]: assembling builders that produce the domain
 //!   [`ResourceStateProof`] envelope (protocol §16.2).
-//! - [`verify`] — pure verifiers: [`verify::verify_proof`],
+//! - [`verify`]: pure verifiers: [`verify::verify_proof`],
 //!   [`verify::verify_inclusion`],
 //!   [`verify::verify_commit_signature_with_key`],
 //!   [`verify::verify_ownership`], and [`verify::verify_bundle`].
-//! - [`service`] — [`service::ProofService`] / [`service::ProofPorts`], the
+//! - [`service`]: [`service::ProofService`] / [`service::ProofPorts`], the
 //!   async composition layer over the proof/state/commit/snapshot ports.
 //!
 //! [`ResourceStateProof`]: statechronicle_domain::proof::ResourceStateProof

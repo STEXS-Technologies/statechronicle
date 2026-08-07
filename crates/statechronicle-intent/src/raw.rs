@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 /// The client-submitted intent payload before schema validation (protocol
 /// §11.1).
 ///
-/// Field values are kept in their raw wire form — strings, numbers, and
-/// unparsed JSON values — so the parse stage only needs to prove the payload
+/// Field values are kept in their raw wire form (strings, numbers, and
+/// unparsed JSON values), so the parse stage only needs to prove the payload
 /// is JSON-shaped. Typed construction happens in [`crate::validate`], where
 /// every id, nonce, timestamp, and proof is checked against its protocol
 /// constraints and failures are reported as field-level errors.

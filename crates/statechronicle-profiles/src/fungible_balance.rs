@@ -1,8 +1,8 @@
 //! Fungible balance profile.
 //!
-//! Divisible balances supporting credit, debit, and transfer (protocol §20.3).
+//! Divisible balances supporting credit, debit, and transfer (protocol §20.5).
 //! A balance carries a `subject`, a `balance`, and a `unit` in its projected
-//! payload. All amounts are canonical non-negative integer strings — the
+//! payload. All amounts are canonical non-negative integer strings. The
 //! protocol bans floating-point economic state (§10.3), so any float anywhere
 //! is rejected fail-closed.
 
@@ -32,25 +32,25 @@ const OPERATIONS: &[&str] = &[
     "balance.convert",
 ];
 
-/// Rule set for [`StateType::FungibleBalance`] (protocol §20.3).
+/// Rule set for [`StateType::FungibleBalance`] (protocol §20.5).
 ///
 /// A balance has no status: every operation except `balance.create` requires
 /// an existing resource. Amount rules:
 ///
-/// * `balance.create` — unborn resource with `subject`, non-negative `balance`,
+/// * `balance.create`: unborn resource with `subject`, non-negative `balance`,
 ///   and `unit` inputs.
-/// * `balance.mint` / `balance.burn` — existing resource; strictly positive
+/// * `balance.mint` / `balance.burn`: existing resource; strictly positive
 ///   `amount`, plus a non-empty `authorized_by` input (central-bank-style
 ///   authorization).
-/// * `balance.credit` / `balance.release` — existing resource; strictly
+/// * `balance.credit` / `balance.release`: existing resource; strictly
 ///   positive `amount`.
-/// * `balance.debit` / `balance.spend` — existing resource; strictly positive
+/// * `balance.debit` / `balance.spend`: existing resource; strictly positive
 ///   `amount` no greater than the current balance.
-/// * `balance.transfer` — existing resource; `to_subject` plus a strictly
+/// * `balance.transfer`: existing resource; `to_subject` plus a strictly
 ///   positive `amount` no greater than the current balance.
-/// * `balance.reserve` — existing resource; strictly positive `amount` no
+/// * `balance.reserve`: existing resource; strictly positive `amount` no
 ///   greater than the current balance.
-/// * `balance.convert` — existing resource; `to_unit` plus a strictly positive
+/// * `balance.convert`: existing resource; `to_unit` plus a strictly positive
 ///   `amount` no greater than the current balance.
 ///
 /// Debits and spends beyond the current balance are rejected with

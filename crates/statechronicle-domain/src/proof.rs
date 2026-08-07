@@ -262,8 +262,8 @@ mod tests {
 
     #[test]
     fn bcs_canonicalization_is_deterministic() {
-        // `claimed_state` is `serde_json::Value` — BCS-encodable but not
-        // BCS-decodable (BCS is not self-describing, ADR-004) — so the BCS
+        // `claimed_state` is `serde_json::Value`, BCS-encodable but not
+        // BCS-decodable (BCS is not self-describing, ADR-004), so the BCS
         // check is encode-side determinism.
         let proof = sample_proof();
         let first = bcs::to_bytes(&proof).unwrap();

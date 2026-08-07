@@ -7,7 +7,7 @@
 //! `currency.transfer`, `stack.consume`). The `inputs` map is also
 //! profile-defined; it is stored as a `BTreeMap` so BCS canonicalization sorts
 //! keys deterministically. Floats in `inputs` fail BCS canonicalization
-//! fail-closed — the protocol bans floating-point economic state (§10.3).
+//! fail-closed. The protocol bans floating-point economic state (§10.3).
 //!
 //! The `Intent` struct deliberately excludes the `signature` field: per the
 //! ADR-004 structural envelope rule (§2) a signature covers only the body, so
@@ -250,7 +250,7 @@ pub enum SignatureAlg {
 /// A signing-key identifier (protocol §11.1 signature block).
 ///
 /// The `did:key:` convention from the protocol examples is documented but not
-/// enforced at the domain layer — only non-emptiness and length are validated.
+/// enforced at the domain layer. Only non-emptiness and length are validated.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct KeyId(pub String);
 
@@ -362,7 +362,7 @@ fn validate_key_id(value: &str) -> Result<(), DomainError> {
 
 /// A detached signature block (ADR-004 structural envelope).
 ///
-/// The signature covers only the BCS canonical bytes of the signed body — never
+/// The signature covers only the BCS canonical bytes of the signed body, never
 /// this block itself (ADR-004 §2).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignatureBlock {

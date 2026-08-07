@@ -79,7 +79,7 @@ async fn cross_tenant_debit_credit_commits_per_tenant() {
         .unwrap();
     harness.index.apply(&b[0], StateType::FungibleBalance);
 
-    // Both legs share one intent id — the cross-tenant linkage.
+    // Both legs share one intent id, the cross-tenant linkage.
     let intents = vec![
         cross_balance_transfer(
             alpha.clone(),
@@ -320,7 +320,7 @@ async fn fully_replayed_cross_tenant_batch_aborts_and_rolls_back() {
         .unwrap();
     harness.index.apply(&b[0], StateType::FungibleBalance);
 
-    // Both legs share one intent id — the cross-tenant linkage.
+    // Both legs share one intent id, the cross-tenant linkage.
     let intents = vec![
         cross_balance_transfer(
             alpha.clone(),

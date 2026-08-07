@@ -2,7 +2,7 @@
 //!
 //! Signs the BCS canonical bytes of a `Commit` body with the commit authority
 //! key and wraps body + signature in the `Signed<Commit>` envelope. Per the
-//! structural envelope rule (ADR-004 §2), the signature covers only the body —
+//! structural envelope rule (ADR-004 §2), the signature covers only the body,
 //! never a `signature` field.
 
 use ed25519_dalek::{SigningKey, VerifyingKey};

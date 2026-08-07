@@ -10,12 +10,12 @@
 //! `get_subject_state` but no write operation. [`persist`] therefore derives
 //! the current-state projections via [`projections_for`] and leaves applying
 //! them to the composition root's index adapter (e.g. inside its
-//! `TransactionManager`) — the documented integration point for projection
+//! `TransactionManager`), the documented integration point for projection
 //! writes in this workspace.
 //!
 //! The `Commit` body carries only `event_count` and `event_merkle_root`
 //! (protocol §13.1), not the events themselves, so [`persist`] takes the
-//! committed events (with their state types) from the caller — the executor
+//! committed events (with their state types) from the caller: the executor
 //! that assembled the batch.
 
 use statechronicle_domain::commit::{Commit, ScopeKind};

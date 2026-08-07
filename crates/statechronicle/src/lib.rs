@@ -16,7 +16,7 @@
 //! wire their own storage, authority, and transport backends (intent store,
 //! event store, commit store, state index, proof index, snapshot store, tenant
 //! store, TrustGrant evaluator, transaction manager, event publisher). Those
-//! traits are wired into the engine at the consumer's composition root — this
+//! traits are wired into the engine at the consumer's composition root. This
 //! crate ships no storage, HTTP, or authority implementation.
 
 #![deny(unsafe_code)]

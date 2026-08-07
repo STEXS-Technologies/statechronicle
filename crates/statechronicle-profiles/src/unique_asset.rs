@@ -1,6 +1,6 @@
 //! Unique asset profile.
 //!
-//! Singleton resources with ownership rules (protocol §20.1). A unique asset
+//! Singleton resources with ownership rules (protocol §20.2). A unique asset
 //! carries an `owner` and a `status` in its projected payload and moves through
 //! an explicit transition table. Hard delete is never permitted: `burn` is the
 //! only terminal destructive transition and it requires owner authorization.
@@ -67,7 +67,7 @@ const OPERATIONS: &[&str] = &[
 /// authority proof; the profile's own rules then gate consent and state.
 const AUTHORITY_REQUIRED: &[&str] = &["asset.transfer", "asset.burn"];
 
-/// Rule set for [`StateType::UniqueAsset`] (protocol §20.1).
+/// Rule set for [`StateType::UniqueAsset`] (protocol §20.2).
 ///
 /// # Transition table
 ///

@@ -2,8 +2,8 @@
 //!
 //! Orders events within a commit deterministically so replays reproduce
 //! identical histories (protocol §13.3). The canonical key is
-//! `(resource_id, after.version)` — the resource first, then the resource's
-//! state version, which reflects that resource's progression — with
+//! `(resource_id, after.version)`, the resource first then the resource's
+//! state version (which reflects that resource's progression), with
 //! `event_id` (unique) as the final tie-breaker. The key is total, so the
 //! same event set always sorts identically independent of input order.
 //!

@@ -7,8 +7,8 @@
 //! commits; and recovery never rewrites accepted event objects without
 //! preserving audit history.
 //!
-//! This module supplies the pure, fail-closed predicates — [`detect_fork`],
-//! [`check_chain_continuity`], and [`validate_no_event_rewrite`] — plus the
+//! This module supplies the pure, fail-closed predicates ([`detect_fork`],
+//! [`check_chain_continuity`], and [`validate_no_event_rewrite`]) plus the
 //! [`ForkEvidence`] value record an implementation persists append-only.
 //! Nothing here performs persistence or policy; those are the platform's job.
 
@@ -28,8 +28,8 @@ use crate::error::CommitError;
 /// Detects a fork under `previous`: two candidates claiming the same parent
 /// and sequence with different commit ids (protocol §31).
 ///
-/// Returns `Ok` when there is no ambiguity — different parents, different
-/// sequences, or identical commit ids.
+/// Returns `Ok` when there is no ambiguity (different parents, different
+/// sequences, or identical commit ids).
 ///
 /// # Errors
 ///

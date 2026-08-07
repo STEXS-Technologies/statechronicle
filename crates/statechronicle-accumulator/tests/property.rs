@@ -86,7 +86,7 @@ proptest! {
         wrong_digest in prop::array::uniform32(any::<u8>()),
     ) {
         // Build a tree that provably contains `key` (or does not), then show
-        // that a leaf built over `wrong_digest` cannot verify — unless the
+        // that a leaf built over `wrong_digest` cannot verify, unless the
         // wrong digest is exactly the stored one (astronomically unlikely) or
         // the tree is empty and the proof is an empty non-membership slot.
         let mut acc = StateAccumulator::empty();

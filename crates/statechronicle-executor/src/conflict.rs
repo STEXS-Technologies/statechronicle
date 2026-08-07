@@ -2,7 +2,7 @@
 //!
 //! Pure, deterministic gates evaluated by the pipeline before any transition
 //! is accepted. Every function here is total: malformed input produces an
-//! [`ExecutorError`] variant — never a panic. Each gate mirrors one line of
+//! [`ExecutorError`] variant, never a panic. Each gate mirrors one line of
 //! protocol §18.2's "must fail closed" list.
 
 use std::collections::BTreeMap;

@@ -62,7 +62,7 @@ impl Signature {
 /// Signs the canonical bytes with the given Ed25519 signing key.
 ///
 /// Per ADR-004 the signature covers the BCS canonical representation of the
-/// signed body — never a `signature` field (structural envelope, §2).
+/// signed body, never a `signature` field (structural envelope, §2).
 pub fn sign(canonical: &[u8], key: &SigningKey) -> Signature {
     let signature = key.sign(canonical);
     Signature::from_bytes(signature.to_bytes())

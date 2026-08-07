@@ -12,7 +12,7 @@
 //! | `snp_` | `SnapshotId` | §15 |
 //!
 //! Protocol examples show ULID-style string bodies, but the protocol does not
-//! mandate ULID — only the exact prefix and the total length (≤
+//! mandate ULID. Only the exact prefix and the total length (≤
 //! [`statechronicle_core::limits::MAX_ID_LENGTH`]) are validated. Construction,
 //! parsing, and deserialization all fail closed on malformed input.
 

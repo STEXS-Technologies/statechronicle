@@ -206,7 +206,7 @@ async fn run_lifecycle() -> Lifecycle {
         .unwrap();
 
     // Determinism: the commit's next state root is a pure function of the
-    // events' after-state set — a manually built accumulator reproduces it.
+    // events' after-state set. A manually built accumulator reproduces it.
     let updates = state_root_updates(&events).unwrap();
     let mut accumulator = StateAccumulator::empty();
     accumulator.insert_batch(&updates).unwrap();

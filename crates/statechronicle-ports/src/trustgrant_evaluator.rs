@@ -1,12 +1,20 @@
-//! Port trait for TrustGrant authority evaluation (ADR-003).
+//! Port trait for delegated-authority evaluation (ADR-003).
+//!
+//! This is a **delegation-of-authority boundary**, not a general platform
+//! authorization system. Owner/actor identity and basic authorization are the
+//! platform's own auth system, applied before (or alongside) the execution
+//! pipeline. This port is how a platform hands authority *delegation* evidence
+//! (an opaque, content-addressed evaluation) to the ledger.
 //!
 //! The executor calls this port during the execution pipeline (§18.1 step 8)
 //! and fails closed unless the evaluation result is `allow` and fresh (§18.2).
 //! The evaluation itself runs behind the port, in an adapter owned by the
-//! consuming platform's composition root (stexs). StateChronicle ships no
+//! consuming platform's composition root (e.g. stexs). StateChronicle ships no
 //! implementation and has no compile-time dependency on the trustgrant crate.
 //!
-//! The port references **only statechronicle-domain types** — it is
+//! Any evaluator that returns an `allow` result and passes the freshness check
+//! can be plugged in; TrustGrant is **one option, not a requirement**. The port
+//! references **only statechronicle-domain types**, so it is
 //! dependency-free by construction (deliberately unlike trustgrant-ports, which
 //! imports its own sibling crates).
 
@@ -31,11 +39,13 @@ pub enum TrustGrantError {
     Stale,
 }
 
-/// Backend-agnostic TrustGrant evaluator port (no implementations in this
-/// crate).
+/// Backend-agnostic delegated-authority evaluator port (no implementations in
+/// this crate).
 ///
-/// Production adapter lives in the stexs composition root; StateChronicle v0
-/// uses an in-memory fake. Async via `trait_variant::make` (stexs convention).
+/// Production adapter lives in the consumer's composition root (e.g. stexs);
+/// StateChronicle v0 uses an in-memory fake. TrustGrant is one possible
+/// evaluator, not a requirement. Async via `trait_variant::make` (stexs
+/// convention).
 #[make(Send)]
 pub trait TrustGrantEvaluator: Sync {
     /// Evaluate whether `actor` may perform `operation` on `resource` in

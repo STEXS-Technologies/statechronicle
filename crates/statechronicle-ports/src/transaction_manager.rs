@@ -7,7 +7,7 @@
 //!
 //! Both [`TransactionManager`] and [`TransactionHandle`] use
 //! `#[async_trait]`. `trait_variant::make(Send)` was rejected here because its
-//! `async fn` desugar to `-> impl Future + Send`, which is not object-safe —
+//! `async fn` desugar to `-> impl Future + Send`, which is not object-safe,
 //! the very property `begin` relies on when it returns
 //! `Box<dyn TransactionHandle + Send>`. `async_trait` boxes the futures and
 //! keeps both traits object-safe.
@@ -73,7 +73,7 @@ pub trait TransactionManager: Sync + Send {
 
 /// Backend-agnostic transaction handle (no implementations in this crate).
 ///
-/// Consumes itself on completion — a handle can be committed or rolled back
+/// Consumes itself on completion: a handle can be committed or rolled back
 /// exactly once. Uses `#[async_trait]` rather than `trait_variant::make`
 /// because the consuming `self: Box<Self>` receivers need boxed futures to
 /// stay dyn-compatible.

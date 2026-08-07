@@ -4,7 +4,7 @@
 **Related Documents:** [ADR README](README.md), [Architecture Summary](../../ARCHITECTURE.md),
 [ADR-004](ADR-004-CANONICALIZATION_HASHING_SIGNATURE.md)
 
-# ADR-005: Baseline State Accumulator — Sparse Merkle Tree (SMT)
+# ADR-005: Baseline State Accumulator, Sparse Merkle Tree (SMT)
 
 **Date:** 2026-08-03
 
@@ -39,7 +39,7 @@ SHA-256 node hashing.** (Answers §36.1: SMT.)
 1. **Insertion-order-independent determinism (§3, §14, §13.2).** The SMT root is a pure
    function of the (key → leaf) set for a fixed depth, hash function, and empty-node
    constants. Two replays applying the same events in any order produce the same
-   `next_state_root` — by construction, not by an added canonical-rebuild rule. This is
+    `next_state_root`: by construction, not by an added canonical-rebuild rule. This is
    exactly what `previous_state_root + ordered events = next_state_root` requires, and
    it makes §32 step 6 (merge partition roots) trivially correct: partition subtree
    diffs union without rebalancing or order-sensitive merge. Ordered maps (AVL/red-black)
@@ -47,11 +47,11 @@ SHA-256 node hashing.** (Answers §36.1: SMT.)
    encoding machinery.
 2. **Non-membership is free (§16, fail-closed).** Every SMT slot exists; the empty slot
    holds the empty-leaf constant. A non-membership proof is an inclusion proof of the
-   empty leaf — same size, same verify path. This serves "resource does not exist as of
+    empty leaf: same size, same verify path. This serves "resource does not exist as of
    commit X" (fail-closed per §18.2, §30). Ordered maps need ~2–3× neighbor proofs.
 3. **Proof size for mobile verifiers (§16.2, §35).** Keys are SHA-256 images, so key
-   distribution is uniform regardless of adversarial ID choice — tenants cannot force
-   clustered keys. Expected inclusion-proof size is ~log₂N sibling hashes, not 256:
+    distribution is uniform regardless of adversarial ID choice: tenants cannot force
+    clustered keys. Expected inclusion-proof size is ~log₂N sibling hashes, not 256:
    - N ≈ 10⁶ leaves/tenant: **≈ 700 B**
    - N ≈ 10⁹: **≈ 1.1 KB**
    - Unreachable worst case: ≈ 8.3 KB. Per-tenant proofs never pay for the global
@@ -59,14 +59,14 @@ SHA-256 node hashing.** (Answers §36.1: SMT.)
      distribution-sensitive (adversarial sorted-string keys bloat paths).
 4. **Maturity + determinism interop (§17, §4).** The only production Rust SMT crate
    (`sparse-merkle-tree`, Nervos) is Blake2b-native with an undocumented SHA-256 escape
-   hatch — adopting it would violate the SHA-256 baseline (ADR-004) or force us to
+    hatch: adopting it would violate the SHA-256 baseline (ADR-004) or force us to
    reverse-engineer an encoding for non-Rust verifier interop. **The encoding is the
    commitment; it must be spec'd by us.** Hand-rolling is ~300–500 LOC of pure logic and
    matches the minimal-implementation ethos.
 
 ### 2. Key model and tenant composition
 
-Key space — one SMT per tenant, 256-bit keys derived from domain IDs:
+Key space: one SMT per tenant, 256-bit keys derived from domain IDs:
 
 ```text
 key = SHA-256( 0x00 || len(tenant_id) || tenant_id
@@ -76,13 +76,13 @@ key = SHA-256( 0x00 || len(tenant_id) || tenant_id
 
 - Length-prefixing is unambiguous; IDs are canonical UTF-8 of the domain newtypes.
 - `tenant_id` stays in the preimage even though trees are per-tenant (defense-in-depth
-  against cross-tenant key collisions). No extra wire cost — verifiers already carry
+  against cross-tenant key collisions). No extra wire cost: verifiers already carry
   `tenant_id`.
-- Subject-held types (fungible balance, consumable stack, meter, entitlement — §10)
+- Subject-held types (fungible balance, consumable stack, meter, entitlement, §10)
   append the subject; unique assets (owner-based) do not. Key scheme is versioned by the
   leading `0x00` domain byte.
 - Leaf value = the **state digest** (`state_hash`, SHA-256 of the canonical state
-  projection, §9) — so §16.3 step 6 ("claimed state hash matches the included leaf") is
+  projection, §9). So §16.3 step 6 ("claimed state hash matches the included leaf") is
   a direct comparison.
 - Node encoding (spec'd by us): internal `H(0x10 || left || right)`, leaf
   `H(0x11 || key || state_digest)`, precomputed empty-subtree constants per level. This
@@ -105,7 +105,7 @@ Inclusion (`sparse_merkle_v0`, §16.2):
 { key: [u8; 32], leaf_hash: [u8; 32], siblings: Vec<[u8; 32]> }   // only non-empty siblings
 ```
 
-Levels whose sibling subtree is empty are skipped — the verifier fills precomputed
+Levels whose sibling subtree is empty are skipped. The verifier fills precomputed
 empty-subtree constants. Verify: walk key bits, combine `leaf_hash` upward with siblings
 and default constants, compare to the supplied root; then check
 `claimed_state.hash == leaf_hash` (§16.3 step 6).
@@ -144,7 +144,7 @@ impl CheckpointRoot {
 
 The crate stays pure/in-memory; persistence is the ports crate's job (§27 `StateIndex`/
 `SnapshotStore`). `commit`/`proof` crates consume `StateRoot` (32-byte digest into
-§13.2's `next_state_root`) and the proof types — nothing blocks on them.
+§13.2's `next_state_root`) and the proof types. Nothing blocks on them.
 
 Lint notes: path bit-math uses `checked_shr`/`wrapping_*` (`arithmetic_side_effects`
 denied), sibling access uses `.get()` (`indexing_slicing` denied), no unwrap/expect/
@@ -153,7 +153,7 @@ panic, `#![deny(unsafe_code)]`, small `thiserror` error enums (`result_large_err
 ### 5. Rust dependency recommendation
 
 **Hand-roll the minimal SMT.** No new dependencies beyond the workspace (`sha2`,
-`thiserror`, `statechronicle-core`). Rejected: `sparse-merkle-tree` (Nervos) — Blake2b
+`thiserror`, `statechronicle-core`). Rejected: `sparse-merkle-tree` (Nervos): Blake2b
 default, undocumented SHA-256 path, dormant (2022), its types would leak into the domain
 surface, and even at best it saves ~400 LOC while forfeiting ownership of the encoding
 that is the protocol's real commitment. The strict lint set is compatible with
@@ -173,7 +173,7 @@ properties (verify∘prove = identity; root is a function of the key→value set
 ### Why SMT Wins
 
 1. §3/§14 determinism is a property of the structure, not a rebuild rule.
-2. Non-membership is free — directly serves fail-closed §18.2/§30 semantics.
+2. Non-membership is free: directly serves fail-closed §18.2/§30 semantics.
 3. Smallest proofs for the mobile-verifier use case (§16.2).
 4. §32 partition merging is trivial (union of subtree diffs).
 5. Only family the protocol's own proof example already encodes (§16.2).
@@ -204,7 +204,7 @@ properties (verify∘prove = identity; root is a function of the key→value set
 ## Explicit Deferrals (safe for v0)
 
 - Verkle (revisit only if sub-KB proofs become a hard constraint at extreme scale).
-- Non-membership proof-bundle wiring — **RESOLVED (v0.1)**: the §16.2
+- Non-membership proof-bundle wiring. **RESOLVED (v0.1)**: the §16.2
   `statechronicle.proof.non_membership.v0` bundle variant (§16.2) now authenticates
   "does not exist at commit X" fail-closed; see ADR-006 deferral item 5 (Phase 4).
 - Range / sorted enumeration proofs (no §35/§28 requirement; `ProofIndex` covers it).
@@ -215,14 +215,14 @@ properties (verify∘prove = identity; root is a function of the key→value set
 ## Migration Path (if the baseline ever changes)
 
 State roots are committed per-commit (§13.2), so a baseline change only affects future
-commits — but it touches the signed chain from the switch point. State is always a
+commits, but it touches the signed chain from the switch point. State is always a
 projection of events (§9), so you never re-commit history or re-sign old commits.
 
 1. Treat the accumulator as profile-defined (§14/§20): the switch is an
    accumulator-version tag on the commit / tenant profile registry entry; verifiers
    accept a set of known (profile, accumulator-version) pairs.
 2. At the boundary commit, re-accumulate the current state map under the new
-   accumulator: one-time O(N) SHA-256 — ~10–60 s single-core at 10⁹ leaves,
+    accumulator: one-time O(N) SHA-256: ~10–60 s single-core at 10⁹ leaves,
    parallelizable by partition (§32) down to seconds.
 3. Publish new conformance vectors for the new node/leaf encoding; verifiers update.
 
@@ -232,11 +232,11 @@ rollout. No history rewrite, no signature invalidation, no key rotation.
 ## Risks
 
 - **Node/leaf encoding drift between implementations** (non-Rust verifiers): the real
-  risk — mitigated by owning the spec and locking it with conformance vectors; a
+  risk: mitigated by owning the spec and locking it with conformance vectors; a
   hand-rolled SHA-256-only tree is the simplest possible interop target.
 - **Proof-size degradation** is not a real risk (keys are SHA-256 images; worst case
   unreachable).
-- **No native range proofs** — bounded ordered-map swap (§Migration Path) or an
+- **No native range proofs**: bounded ordered-map swap (§Migration Path) or an
   authenticated side index on `ProofIndex` if a later profile demands it.
 - **Strict-lint friction** (`arithmetic_side_effects`, `indexing_slicing`): pure
   coding-discipline cost, already the workspace norm.

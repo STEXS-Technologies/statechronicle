@@ -1,7 +1,7 @@
 //! ADR-004 structural signed envelope.
 //!
 //! The protocol signs an explicit body type (`body` + `signature`) so the
-//! signature covers only the BCS canonical bytes of `body` — never a
+//! signature covers only the BCS canonical bytes of `body`, never a
 //! `signature` field (ADR-004 §2). [`Signed`] is the generic envelope used for
 //! intents, commits, and snapshots.
 

@@ -8,7 +8,7 @@
 //!
 //! **Transfer pair invariant (§20.5).** An atomic transfer is a pair of events
 //! that share one accepted intent id: a source debit and a destination credit.
-//! The pair is the atomic unit — the source debit and destination credit are
+//! The pair is the atomic unit: the source debit and destination credit are
 //! both net-zero (debit == credit) and reference the same resource and the same
 //! amount. Only `stack.transfer` / `balance.transfer` may share an intent id;
 //! any other multi-event intent is internally inconsistent.
@@ -29,9 +29,9 @@ use crate::error::ExecutorError;
 ///
 /// A batch is internally valid only when:
 ///
-/// * every event id is distinct — events are uniquely identifiable within the
+/// * every event id is distinct: events are uniquely identifiable within the
 ///   tenant's history;
-/// * every event shares the same tenant scope — a commit is scoped to exactly
+/// * every event shares the same tenant scope: a commit is scoped to exactly
 ///   one tenant (protocol §13.1);
 /// * every intent id is distinct *except* that a `stack.transfer` /
 ///   `balance.transfer` may appear exactly twice as an atomic debit + credit
@@ -100,7 +100,7 @@ pub struct TenantEventGroup {
 ///
 /// A cross-tenant transaction is consistent when:
 ///
-/// * (a) every event in a group is scoped to that group's tenant — a partition
+/// * (a) every event in a group is scoped to that group's tenant: a partition
 ///   mismatch fails closed;
 /// * (b) each group is internally batch-consistent via
 ///   [`validate_batch_consistency`] (distinct event ids and distinct intent ids
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     fn single_tenant_batch_rejected() {
         // Both groups declare the same tenant, so no intent spans two distinct
-        // tenants — the batch is not genuinely cross-tenant.
+        // tenants. The batch is not genuinely cross-tenant.
         let groups = vec![
             TenantEventGroup {
                 tenant: tenant("stexs.game.alpha"),

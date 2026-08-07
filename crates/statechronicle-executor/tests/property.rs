@@ -3,7 +3,7 @@
 //! Proptest strategies over arbitrary operations, state payloads, inputs, and
 //! `u64` quantities assert that:
 //!
-//! * `transition::apply` is deterministic — identical inputs always produce
+//! * `transition::apply` is deterministic, so identical inputs always produce
 //!   identical after-state JSON (or identical errors);
 //! * after-state arithmetic is checked and never introduces floats;
 //! * the full executor never panics on arbitrary intents (always `Ok` or
@@ -218,7 +218,7 @@ proptest! {
     }
 
     /// After-state arithmetic is checked and always yields canonical integer
-    /// strings — never floats, never wraparound.
+    /// strings (never floats, never wraparound).
     #[test]
     fn stack_credit_is_checked_and_deterministic(
         current in any::<u64>(),
@@ -275,8 +275,8 @@ fn execute_never_panics_on_arbitrary_intents() {
 /// (the atomic unit of protocol §20.5 / §18.3), and the pair passes
 /// `validate_batch_consistency`.
 ///
-/// Amounts are sampled across the full `u128` range, so — unlike the former
-/// `u64` ceiling in `atomicity` — values **above** `u64::MAX` (whose canonical
+/// Amounts are sampled across the full `u128` range, so (unlike the former
+/// `u64` ceiling in `atomicity`) values **above** `u64::MAX` (whose canonical
 /// strings are far longer than `u64`) genuinely flow through the money path and
 /// the widened fixed-point `Amount` accumulation.
 #[test]

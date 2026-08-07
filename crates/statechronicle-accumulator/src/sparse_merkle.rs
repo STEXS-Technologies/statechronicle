@@ -37,7 +37,7 @@ pub const INTERNAL_NODE_TAG: u8 = 0x10;
 /// Domain tag for leaf nodes.
 pub const LEAF_NODE_TAG: u8 = 0x11;
 
-/// `EMPTY_LEAF = H(0x11 || [0;32] || [0;32])` — the hash of an empty slot.
+/// `EMPTY_LEAF = H(0x11 || [0;32] || [0;32])`: the hash of an empty slot.
 pub const EMPTY_LEAF_HASH: [u8; 32] = [
     0x3a, 0xbd, 0xdd, 0x59, 0x4d, 0x88, 0x4f, 0xf6, 0x61, 0xd2, 0x46, 0x66, 0x37, 0x2d, 0x9f, 0xe6,
     0x69, 0xa1, 0xec, 0x9e, 0x61, 0x64, 0x01, 0xdb, 0x6b, 0xd2, 0xed, 0xeb, 0x3c, 0x39, 0x71, 0x43,
@@ -1379,7 +1379,7 @@ impl StateUpdate {
 /// In-memory sparse Merkle tree accumulator (one per tenant).
 ///
 /// Maintains the leaf set; the root and proofs are computed deterministically
-/// from that set on demand. The crate is pure/in-memory — persistence is the
+/// from that set on demand. The crate is pure/in-memory. Persistence is the
 /// ports crate's job.
 #[derive(Clone, Debug, Default)]
 pub struct StateAccumulator {
@@ -1552,8 +1552,8 @@ fn collect_steps_inner(
     collect_steps_inner(entries, path_start, path_end, child_height, target, steps);
 }
 
-/// Recombines `leaf_hash` upward through all 256 levels — using the
-/// level-tagged sibling when provided, `default[level]` otherwise — and
+/// Recombines `leaf_hash` upward through all 256 levels, using the
+/// level-tagged sibling when provided, `default[level]` otherwise, and
 /// compares the result with `root`.
 ///
 /// Level 0 is the leaf-adjacent decision (routing on key bit 255, default

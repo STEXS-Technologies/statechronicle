@@ -13,14 +13,14 @@
 
 StateChronicle must enable:
 
-1. **Testability** — deterministic transition rules must be testable without databases,
+1. **Testability**: deterministic transition rules must be testable without databases,
    frameworks, or external services (protocol §3: deterministic transitions).
-2. **Infrastructure independence** — the protocol must not require a specific database,
+2. **Infrastructure independence**: the protocol must not require a specific database,
    queue, object store, or runtime (protocol §2).
-3. **Portable proofs** — verification must work without direct database access (protocol
+3. **Portable proofs**: verification must work without direct database access (protocol
    §16).
-4. **Clean boundaries** — domain logic isolated from axum/sqlx/redis.
-5. **Evolutionary architecture** — swap storage (Postgres vs FoundationDB vs SQLite) or
+4. **Clean boundaries**: domain logic isolated from axum/sqlx/redis.
+5. **Evolutionary architecture**: swap storage (Postgres vs FoundationDB vs SQLite) or
    transport without touching domain logic (protocol §27).
 
 Without explicit boundaries, domain logic mixes with infrastructure:
@@ -83,7 +83,7 @@ pub trait EventStore {
 ### Adapter Implementation (Driven)
 
 ```rust
-// crates/slices/ledger/adapters/driven/postgres/event_store.rs
+// consumer-owned adapter, e.g. stexs crates/slices/ledger/adapters/driven/postgres/event_store.rs
 
 pub struct PostgresEventStore { pool: PgPool }
 
@@ -97,7 +97,7 @@ impl EventStore for PostgresEventStore {
 ### Test Adapter (In-Memory)
 
 ```rust
-// crates/slices/ledger/adapters/driven/in_memory/event_store.rs
+// crates/statechronicle/tests/common/mod.rs (or a consumer test crate)
 
 pub struct InMemoryEventStore { events: Arc<Mutex<Vec<Event>>> }
 
@@ -109,14 +109,14 @@ impl EventStore for InMemoryEventStore {
 ### Dependency Injection at the Composition Root
 
 ```rust
-// crates/statechronicle-http/src/infra/... (composition root only)
+// consumer composition root only (e.g. stexs)
 
-pub fn build_inventory_slice(pool: PgPool, trustgrant: TrustGrantEvaluator) -> InventoryApi {
+pub fn build_inventory_slice(pool: PgPool, evaluator: TrustGrantEvaluator) -> InventoryApi {
     InventoryApi {
         transfer: TransferAssetCommandHandlerV1 {
             assets: Arc::new(PostgresAssetRepository::new(pool)),
             events: Arc::new(PostgresEventPublisher::new(pool)),
-            authority: Arc::new(TrustGrantEvaluatorAdapter::new(trustgrant)),
+            authority: Arc::new(AuthorityEvaluatorAdapter::new(evaluator)),
             tx: Arc::new(PostgresTransactionManager::new(pool)),
         },
         // ...
@@ -141,11 +141,11 @@ fn build_test_inventory_slice() -> InventoryApi { /* in-memory fakes */ }
 
 ### Why Hexagonal Wins
 
-1. **Rust traits are ideal** — traits express ports; impls are adapters.
-2. **Protocol mandate** — §2 infrastructure independence and §27 storage contract are
+1. **Rust traits are ideal**: traits express ports; impls are adapters.
+2. **Protocol mandate**: §2 infrastructure independence and §27 storage contract are
    direct consequences.
-3. **Testability without mocking frameworks** — in-memory adapters.
-4. **Proven pattern** — same as stexs (ADR-004), trustgrant (`trustgrant-ports`), shardline
+3. **Testability without mocking frameworks**: in-memory adapters.
+4. **Proven pattern**: same as stexs (ADR-004), trustgrant (`trustgrant-ports`), shardline
    (trait crates + impl crates).
 
 ---
@@ -154,7 +154,7 @@ fn build_test_inventory_slice() -> InventoryApi { /* in-memory fakes */ }
 
 **Positive:**
 
-- Domain logic is pure and deterministic — directly testable.
+- Domain logic is pure and deterministic: directly testable.
 - Infrastructure swappable (Postgres ↔ SQLite ↔ FoundationDB) without touching domain.
 - Portable proof verification without database access.
 - Aligns with trustgrant-ports convention (ports crate with no impls).
@@ -163,7 +163,7 @@ fn build_test_inventory_slice() -> InventoryApi { /* in-memory fakes */ }
 **Negative:**
 
 - More code (traits + impls + adapters).
-- Indirection — trace through ports to understand full flow.
+- Indirection: trace through ports to understand full flow.
 - Learning curve.
 - Potential over-engineering for trivial reads.
 
@@ -200,7 +200,7 @@ struct PostgresEventStore {}
 struct PostgresStateIndex {}
 struct InMemoryEventStore {}
 struct RedisStateCache {}
-struct TrustGrantEvaluatorAdapter {}
+struct AuthorityEvaluatorAdapter {}
 ```
 
 ### Layer Dependencies
@@ -215,16 +215,16 @@ Infrastructure Layer → Application Layer, Domain Layer
 
 ### Ports Crate Rule
 
-`statechronicle-ports` contains **traits only** — no adapters, no persistence, no
+`statechronicle-ports` contains **traits only**: no adapters, no persistence, no
 transport. Adapters are the consumer's job (trustgrant-ports convention).
 
 ### Shared Boundary Clarification
 
-- `statechronicle-shared`: transport-agnostic primitives (newtype macros, error envelope,
-  config, metrics).
-- `statechronicle-shared-http`: HTTP transport concerns (error envelope, headers,
-  idempotency, validated_json, test harness).
-- Domain/application must never import from `statechronicle-shared-http`.
+- Protocol core (`statechronicle-core`, `statechronicle-domain`): transport-agnostic
+  primitives (newtypes, error envelope, amounts, digests).
+- `statechronicle-ports`: the ten port traits, no implementations.
+- The consuming platform owns any HTTP/shared boundary (`shared`, `shared-http`) and its
+  composition root; domain/application must never import from `shared-http`.
 
 ---
 

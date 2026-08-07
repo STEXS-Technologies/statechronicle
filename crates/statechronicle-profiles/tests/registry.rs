@@ -430,7 +430,7 @@ fn entitlement_and_meter_lifecycle() {
 #[test]
 fn check_never_panics_on_garbage_payloads() {
     // Rule evaluation is fail-closed: calling it with malformed payloads and
-    // arbitrary inputs yields a `Result` — never a panic — for every
+    // arbitrary inputs yields a `Result` (never a panic) for every
     // registered rule set. Ops that only gate on resource existence (for
     // example `stack.expire`) may still return `Ok`; they never read the
     // payload.

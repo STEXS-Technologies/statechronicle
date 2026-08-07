@@ -1,7 +1,7 @@
 //! Meter profile.
 //!
 //! Usage meters that accrue and are settled against entitlements (protocol
-//! §20.5). A meter carries a `subject`, a `remaining` quantity, and a
+//! §20.7). A meter carries a `subject`, a `remaining` quantity, and a
 //! `maximum` in its projected payload, all as canonical non-negative integer
 //! strings.
 //!
@@ -32,18 +32,18 @@ const OPERATIONS: &[&str] = &[
     "meter.expire",
 ];
 
-/// Rule set for [`StateType::MeteredResource`] (protocol §20.5).
+/// Rule set for [`StateType::MeteredResource`] (protocol §20.7).
 ///
-/// * `meter.create` — unborn resource with `subject`, non-negative `remaining`,
+/// * `meter.create`: unborn resource with `subject`, non-negative `remaining`,
 ///   and non-negative `maximum` inputs; `remaining` may not exceed `maximum`.
-/// * `meter.consume` — existing resource; strictly positive `amount` no
+/// * `meter.consume`: existing resource; strictly positive `amount` no
 ///   greater than `remaining`.
-/// * `meter.refill` — existing resource; deterministically sets `remaining`
+/// * `meter.refill`: existing resource; deterministically sets `remaining`
 ///   to `maximum` (the rule validates that both fields are present and valid).
-/// * `meter.set_maximum` — existing resource; new non-negative `maximum`; the
+/// * `meter.set_maximum`: existing resource; new non-negative `maximum`; the
 ///   post-state rule clamps `remaining` down to the new maximum.
-/// * `meter.reset` — existing resource; sets `remaining` to zero.
-/// * `meter.expire` — existing resource; terminal.
+/// * `meter.reset`: existing resource; sets `remaining` to zero.
+/// * `meter.expire`: existing resource; terminal.
 ///
 /// The invariant `remaining <= maximum` is enforced at creation and
 /// preserved by every operation.

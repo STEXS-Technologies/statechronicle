@@ -33,7 +33,7 @@ pub fn canonicalize<T: Serialize + ?Sized>(value: &T) -> Result<Vec<u8>, StateCh
 
 /// Canonicalizes `value` and computes its `sha256:` content digest.
 ///
-/// Equivalent to `hash_bytes(canonicalize(value)?)` — the digest is over the
+/// Equivalent to `hash_bytes(canonicalize(value)?)`. The digest is over the
 /// BCS canonical bytes, which is the protocol's `digest()` for hashed and
 /// signed objects (ADR-004 §4).
 ///

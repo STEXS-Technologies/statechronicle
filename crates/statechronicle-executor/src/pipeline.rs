@@ -3,7 +3,7 @@
 //! Ordered checks: idempotency, actor authentication, tenant scope, current
 //! state loading, expected version, TrustGrant evaluation (via port), profile
 //! rules, and deterministic after-state. Events are emitted only when every
-//! check passes — the pipeline is the protocol's "brain", a deterministic
+//! check passes. The pipeline is the protocol's "brain", a deterministic
 //! validator that drives pure [`crate::transition`] and [`crate::conflict`]
 //! logic through injected [`Ports`].
 //!
@@ -55,13 +55,13 @@ use crate::transition;
 type IntentVerifier =
     Arc<dyn Fn(&SignatureBlock, &[u8]) -> Result<(), ExecutorError> + Send + Sync>;
 
-/// Dyn-compatible TrustGrant authority adapter (ADR-003).
+/// Dyn-compatible delegated-authority evaluator adapter (ADR-003).
 ///
 /// The ports crate's `TrustGrantEvaluator` uses `trait_variant::make(Send)`,
-/// which desugars `async fn` to `-> impl Future + Send` (RPITIT) — a signature
+/// which desugars `async fn` to `-> impl Future + Send` (RPITIT): a signature
 /// that is **not object-safe**, so it cannot be held behind `dyn`. The executor
-/// defines this boxed-future adapter so the pipeline can call authority
-/// evaluation through `&dyn`. Concrete adapters (production stexs adapters and
+/// defines this boxed-future adapter so the pipeline can call delegated-authority
+/// evaluation through `&dyn`. Concrete adapters (production consumer adapters and
 /// test fakes) implement this trait directly.
 #[async_trait]
 pub trait TrustGrantPort: Send + Sync {
@@ -105,7 +105,7 @@ pub struct Ports {
     pub state_index: Box<dyn StateIndex + Send + Sync>,
     /// Resolves tenant scope existence (protocol §8).
     pub tenant_store: Box<dyn TenantStore + Send + Sync>,
-    /// The deployment's TrustGrant authority set, evaluated and aggregated per
+    /// The deployment's delegated-authority evaluator set, evaluated and aggregated per
     /// the active profile's authority policy (protocol §18.1 step 8, ADR-006
     /// §36 Q5). An empty set means no authority is configured.
     pub trustgrant: Vec<Box<dyn TrustGrantPort + Send + Sync>>,
@@ -145,11 +145,11 @@ impl Ports {
 /// injected [`intent_verifier`](Self::intent_verifier) (which the composition
 /// root wires to key resolution) and, when a signature is absent, applies the
 /// v0 policy of allowing unsigned intents only for operations the active
-/// profile does not require authority for — authority-required paths are gated
+/// profile does not require authority for. Authority-required paths are gated
 /// downstream by the TrustGrant step and the profiles' `authorized_by` inputs.
 ///
 /// **Multi-authority aggregation (Phase 2).** The deployment's authority set
-/// ([`Ports::trustgrant`]) is a collection of TrustGrant adapters. For every
+/// ([`Ports::trustgrant`]) is a collection of delegated-authority evaluators. For every
 /// authority-bound or authority-required transition the executor evaluates
 /// every member and combines the results under the active profile's
 /// [`AggregationPolicy`] (require-all by default, any-of where declared). The
@@ -180,7 +180,7 @@ impl Executor {
     /// Constructs an executor from ports, profiles, an executor identity, a
     /// wall clock, an event-id generator, and an injected intent verifier.
     ///
-    /// The verifier must be provided explicitly — the executor never assumes
+    /// The verifier must be provided explicitly. The executor never assumes
     /// authenticity (protocol §18.1 step 4). It resolves the block's `key_id`
     /// to a public key and verifies the signature over the canonical body
     /// bytes, returning [`ExecutorError::ActorAuthenticationFailed`] on
@@ -211,37 +211,37 @@ impl Executor {
     ///
     /// # Pipeline (protocol §18.1)
     ///
-    /// 1. **Parse / schema / size** — enforced upstream by the
+    /// 1. **Parse / schema / size**: enforced upstream by the
     ///    `statechronicle-intent` crate (`validate::validate`). The executor
     ///    re-checks the canonical intent size against [`MAX_INTENT_BYTES`] as a
     ///    defense-in-depth gate (fail-closed on `SizeLimitExceeded`).
-    /// 2. **Idempotency** — `intent_store.get_intent`; a stored intent with an
+    /// 2. **Idempotency**: `intent_store.get_intent`; a stored intent with an
     ///    equal payload is a replay (`Ok(vec![])`); a stored intent with a
     ///    different payload is [`ExecutorError::DuplicateIntent`]. Otherwise
     ///    the intent is claimed with `intent_store.put_intent` *before*
     ///    executing.
-    /// 3. **Actor authentication** — when `validated.signature` is present, the
+    /// 3. **Actor authentication**: when `validated.signature` is present, the
     ///    injected [`intent_verifier`](Self::intent_verifier) is invoked over
     ///    the BCS canonical bytes of the intent body; failure yields
     ///    [`ExecutorError::ActorAuthenticationFailed`]. When a signature is
     ///    absent, the v0 policy applies: unsigned intents are permitted only
     ///    for operations the active profile does not require authority for
-    ///    (authority-required paths are gated downstream by the TrustGrant step
-    ///    and the profiles' `authorized_by` inputs). When `authority` is
+    ///    (authority-required paths are gated downstream by the delegated-authority
+    ///    evaluation step and the profiles' `authorized_by` inputs). When `authority` is
     ///    present, the executor still checks revocation freshness
     ///    (`check_revocation_freshness` → [`ExecutorError::AuthorityStale`]).
-    /// 4. **Tenant scope** — `check_tenant_scope` then
+    /// 4. **Tenant scope**: `check_tenant_scope` then
     ///    `tenant_store.tenant_exists` → [`ExecutorError::TenantNotFound`].
-    /// 5. **Load current state** — via `state_index.get_subject_state` for
+    /// 5. **Load current state**: via `state_index.get_subject_state` for
     ///    subject-held types or `state_index.get_state` for owner-based types,
     ///    per [`transition::state_key_for`]'s keying rules. The intent's
     ///    `state_type` must be present ([`ExecutorError::StateTypeRequired`]).
-    /// 6. **Expected version** — [`conflict::check_expected_version`].
-    /// 7. **Conflict gates** — [`conflict::check_owner`] and
+    /// 6. **Expected version**: [`conflict::check_expected_version`].
+    /// 7. **Conflict gates**: [`conflict::check_owner`] and
     ///    [`conflict::check_resource_availability`] (§18.2). Expiry
     ///    ([`conflict::check_expiry`]) is enforced before the intent is even
     ///    claimed in step 2.
-    /// 8. **TrustGrant authority** — the active profile's rule set is resolved
+    /// 8. **TrustGrant authority**: the active profile's rule set is resolved
     ///    here (before the gate) so `requires_authority` / `authority_policy`
     ///    drive the evaluation. Authority-required operations MUST carry a
     ///    binding ([`ExecutorError::AuthorityMissing`] otherwise). When
@@ -256,22 +256,22 @@ impl Executor {
     ///    for a single-member set) and `evaluated_at` set to the oldest
     ///    sub-evaluation. When authority is absent and not required, the event
     ///    proceeds without a binding (profile-owned fallback).
-    /// 9. **Profile rules** — `rules.check` must pass (→
+    /// 9. **Profile rules**: `rules.check` must pass (→
     ///    [`ExecutorError::Profile`]).
-    /// 10. **After-state** — [`transition::apply`] computes the deterministic
+    /// 10. **After-state**: [`transition::apply`] computes the deterministic
     ///     new projection payload.
-    /// 11. **Emit event** — before/after [`StateCommitment`]s carry
+    /// 11. **Emit event**: before/after [`StateCommitment`]s carry
     ///     `current.version` / `current.version + 1` and canonical state
     ///     digests (`canonicalize_and_digest`), the evaluated authority is
     ///     bound when present, and `executor`/`created_at` come from the
     ///     injected identity and clock.
-    /// 12. **Transfer pair** — for `stack.transfer` / `balance.transfer` a
+    /// 12. **Transfer pair**: for `stack.transfer` / `balance.transfer` a
     ///     second event credits the destination (holder = `to_subject`, the
     ///     destination's current state or a create-on-credit at version 0),
     ///     making the transfer an atomic debit + credit pair sharing one
     ///     intent id (§20.5, §18.3). Both event ids come from the injected
-    ///     generator — source first, then destination.
-    /// 13. **Atomicity** — multi-resource transactions are assembled by the
+    ///     generator, source first, then destination.
+    /// 13. **Atomicity**: multi-resource transactions are assembled by the
     ///     commit crate batching multiple executions via [`Self::execute_batch`]
     ///     (§18.3); [`atomicity::validate_batch_consistency`] admits a transfer
     ///     pair as the one multi-event unit sharing an intent id.
@@ -609,13 +609,13 @@ impl Executor {
     /// Each intent runs through [`Self::execute`] inside a transaction begun
     /// via `transaction_manager.begin`. All-or-nothing: if any intent fails,
     /// the transaction is rolled back and
-    /// [`ExecutorError::AtomicityViolation`] is returned — no partial results
+    /// [`ExecutorError::AtomicityViolation`] is returned, so no partial results
     /// escape. The resulting batch is additionally validated with
     /// [`atomicity::validate_batch_consistency`] (distinct event ids, one
     /// tenant, and distinct intent ids except an atomic transfer pair sharing
     /// one intent id).
     ///
-    /// v0 note: the transaction wrapper is symbolic — the executor does not
+    /// v0 note: the transaction wrapper is symbolic. The executor does not
     /// persist anything itself (events are returned for the commit crate), so
     /// the handle records commit/rollback intent. Production adapters would
     /// stage the intent-store claims inside the transaction for true atomicity.

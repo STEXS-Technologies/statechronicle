@@ -3,7 +3,7 @@
 //! StateChronicle stores every economic quantity, balance, and meter value as
 //! an exact fixed-point [`Amount`]: an unsigned `u128` mantissa multiplied by
 //! `10^-scale`, with `scale <= [`MAX_SCALE`]`. This is the protocol's internal
-//! arithmetic representation — it is exact, never rounds, and never touches
+//! arithmetic representation. It is exact, never rounds, and never touches
 //! floats (ADR-004 no-float-by-construction). The wire form is unchanged: an
 //! `Amount` serializes as a canonical non-negative decimal **integer** string
 //! via [`Amount::to_canonical_string`], so amounts never appear in BCS bytes as
@@ -183,9 +183,9 @@ impl Amount {
     /// Parses a canonical non-negative decimal **integer** string.
     ///
     /// Accepts only ASCII digits `[0-9]+`. This matches `u64::from_str`'s digit
-    /// acceptance — empty input is rejected, leading zeros are accepted and
+    /// acceptance (empty input is rejected, leading zeros are accepted and
     /// canonicalized away (`"007"` becomes `7`), and any `-`, `.`, `e`, `E`,
-    /// whitespace, or non-ASCII byte is rejected — **except** that, per the
+    /// whitespace, or non-ASCII byte is rejected), **except** that, per the
     /// `[0-9]+` wire grammar, a leading `+` is rejected too (whereas `u64`
     /// would accept it). The result is scale 0.
     ///

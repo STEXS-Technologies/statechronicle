@@ -49,16 +49,16 @@ const EXCEPTIONAL_STATUSES: &[&str] = &[
 /// This is a distinct profile over the [`StateType::UniqueAsset`] state type.
 /// It inherits the full unique asset transition table, then adds:
 ///
-/// * `asset.hard_delete` — permitted only with `authorized_by_owner: true`
+/// * `asset.hard_delete`: permitted only with `authorized_by_owner: true`
 ///   from the current owner (otherwise [`ProfileError::HardDeleteForbidden`]).
-/// * `asset.transfer` — additionally requires `authorized_by_owner: true`
+/// * `asset.transfer`: additionally requires `authorized_by_owner: true`
 ///   when the acting `actor` is not the current owner.
-/// * `asset.restrict` — the target status may be any exceptional status
+/// * `asset.restrict`: the target status may be any exceptional status
 ///   (`restricted`, `quarantine`, `legal_hold`, `fraud_lock`,
 ///   `policy_restricted`, `unsupported`) and the `owner` field is preserved:
 ///   any `owner` input must equal the current owner (append-only,
 ///   non-erasing).
-/// * `asset.restore` — recovers from every exceptional status back to
+/// * `asset.restore`: recovers from every exceptional status back to
 ///   `active`.
 #[derive(Debug, Clone, Copy)]
 pub struct PaidUniqueAssetRules;
@@ -183,7 +183,7 @@ fn check_hard_delete(
 ///
 /// Returns [`ProfileError::OwnershipMismatch`] when the `actor` is not the
 /// current owner without consent, and
-/// [`ProfileError::HardDeleteForbidden`] is never used here — a non-owner
+/// [`ProfileError::HardDeleteForbidden`] is never used here. A non-owner
 /// without consent is reported as [`ProfileError::OwnershipMismatch`].
 fn check_transfer_overlay(
     current: Option<&StateProjection>,

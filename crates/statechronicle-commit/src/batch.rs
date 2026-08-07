@@ -4,7 +4,7 @@
 //! §13.1). It is pure and deterministic: events are appended in call order,
 //! every event in a tenant-scoped batch must share the batch's tenant, and
 //! duplicate event ids are rejected fail-closed (§18.2). Batching is separated
-//! from ordering — the executor's parallel lane orders the batch
+//! from ordering. The executor's parallel lane orders the batch
 //! deterministically before this crate consumes it.
 
 use statechronicle_core::canonicalize::canonicalize;
@@ -87,7 +87,7 @@ impl CommitBatch {
     /// Validates the batch for commit formation: non-empty and within
     /// [`MAX_COMMIT_BYTES`] of BCS canonical event bytes (protocol §30).
     ///
-    /// The size bound is enforced here — at build time — rather than on every
+    /// The size bound is enforced here (at build time) rather than on every
     /// [`Self::add_event`], so a batch can grow freely while it is being
     /// assembled and only fails closed when it is committed.
     ///

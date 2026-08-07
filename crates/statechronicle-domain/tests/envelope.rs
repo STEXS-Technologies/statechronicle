@@ -4,7 +4,7 @@
 //! (and a `Commit`), sign the BCS canonical bytes of the *body*, wrap body and
 //! signature in `Signed<T>`, canonicalize the envelope, and verify that (a) the
 //! envelope round-trips through BCS and JSON, and (b) the detached signature
-//! verifies against the body bytes — while a tampered canonical body fails
+//! verifies against the body bytes, while a tampered canonical body fails
 //! verification (ADR-004 §2, §5).
 
 #![allow(clippy::panic, clippy::unwrap_used, clippy::indexing_slicing)]

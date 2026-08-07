@@ -63,7 +63,7 @@ mod entitlement_status {
 ///
 /// `before` is the resource's current projection, or `None` when the resource
 /// does not exist yet (a create or mint). The returned JSON value is the new
-/// profile projection payload (owner/status, balance/unit, quantity, ...) — not
+/// profile projection payload (owner/status, balance/unit, quantity, ...), not
 /// a full [`StateProjection`]. Version increments are applied by the pipeline.
 ///
 /// The state type is taken from `before.state_type` when a projection exists,
@@ -72,7 +72,7 @@ mod entitlement_status {
 ///
 /// For transfer operations this is the **source debit** after-state only
 /// (source debited, holder preserved). The matching destination credit is
-/// computed by [`transfer_after_state`] — the pipeline emits both events so a
+/// computed by [`transfer_after_state`]. The pipeline emits both events so a
 /// transfer is an atomic debit + credit pair (§20.5).
 ///
 /// # Errors

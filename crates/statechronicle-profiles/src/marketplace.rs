@@ -8,7 +8,7 @@
 //! transition: it atomically advances a listing to `sold` and the matching
 //! escrow to `released` (and applies the settlement to the fungible balances
 //! involved) in one commit. The protocol therefore never lets a `listing.buy`
-//! or `escrow.release` commit alone — settlement must land as a multi-resource
+//! or `escrow.release` commit alone. Settlement must land as a multi-resource
 //! transaction covering every affected resource (§20.9).
 
 use std::collections::BTreeMap;

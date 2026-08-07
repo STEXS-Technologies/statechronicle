@@ -77,7 +77,7 @@ impl SnapshotProof {
 /// commit's `next_state_root` pins the state root, and the accumulator's
 /// inclusion proof is converted into the dense v0 sparse Merkle wire form.
 ///
-/// `key` is the state key of the proven leaf — derived by the caller from the
+/// `key` is the state key of the proven leaf. It is derived by the caller from the
 /// resource's state type (owner-based: [`StateKey::for_resource`];
 /// subject-held: [`StateKey::for_subject_held`]).
 ///

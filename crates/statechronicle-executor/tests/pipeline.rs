@@ -1000,8 +1000,8 @@ async fn multi_authority_one_deny_fails_closed() {
 #[tokio::test]
 async fn multi_authority_any_of_passes() {
     // AnyOf profile: Deny + Allow passes because at least one authority allows.
-    // (The allow member is placed first so step 4's primary freshness gate —
-    // the v0 early check on the client proof — passes; step 8 still sees the
+    // (The allow member is placed first so step 4's primary freshness gate,
+    // the v0 early check on the client proof, passes; step 8 still sees the
     // deny member and AnyOf tolerates it.)
     let profiles = ProfileRegistry::with_unique_asset(&ANY_OF);
     let harness = Harness::with_profiles_and_ports(

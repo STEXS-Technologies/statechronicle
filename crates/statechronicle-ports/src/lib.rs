@@ -1,8 +1,8 @@
 //! Backend-agnostic port traits for StateChronicle.
 //!
 //! Following the trustgrant-ports convention, this crate declares port traits
-//! only — there are no implementations inside. Driven adapters implement these
-//! traits and are wired at the composition root (`statechronicle-http`).
+//! only. There are no implementations inside. Driven adapters implement these
+//! traits and are wired at the consumer's composition root.
 
 #![deny(unsafe_code)]
 #![allow(clippy::must_use_candidate)]

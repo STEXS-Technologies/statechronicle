@@ -1,10 +1,14 @@
-//! Authority proofs and TrustGrant evaluation outcomes.
+//! Authority proofs and delegated-authority evaluation outcomes.
 //!
-//! Authority enters the ledger as opaque, content-addressed evidence:
-//! `{ kind, evaluation_digest, result }` (protocol §12.1). The ledger never
-//! parses the internal structure of a trustgrant evaluation — it binds the
-//! digest and result into signed events, and verifiers resolve the digest
-//! through their own trustgrant integration (protocol §16.3, §29).
+//! This is a **delegation-of-authority** concern, not general platform
+//! authorization. Owner/actor identity and basic authorization are the
+//! platform's own auth system. Here, authority enters the ledger as opaque,
+//! content-addressed evidence: `{ kind, evaluation_digest, result }` (protocol
+//! §12.1). The ledger never parses the internal structure of an evaluation. It
+//! binds the digest and result into signed events, and verifiers resolve the
+//! digest through their own authority integration (protocol §16.3, §29).
+//! TrustGrant is one possible provider of such evaluations; any evaluator that
+//! returns `allow` and passes the freshness check is acceptable.
 
 use std::collections::BTreeSet;
 
@@ -221,6 +225,6 @@ pub struct AuthorityProof {
     /// Evaluation result bound into the transition.
     pub result: EvaluationResult,
     /// When the evaluation was performed (UTC); lets an offline verifier check
-    /// revocation freshness without resolving the digest — see §36 Q3 decision.
+    /// revocation freshness without resolving the digest. See §36 Q3 decision.
     pub evaluated_at: DateTime<Utc>,
 }

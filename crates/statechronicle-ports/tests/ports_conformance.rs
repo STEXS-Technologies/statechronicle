@@ -1,6 +1,6 @@
 //! Conformance tests for the `statechronicle-ports` trait surfaces.
 //!
-//! The ports crate declares traits only — there are no implementations, so
+//! The ports crate declares traits only. There are no implementations, so
 //! these tests prove the *shape* of every port:
 //!
 //! - every trait is dyn-compatible (`&dyn Port` coercion compiles),

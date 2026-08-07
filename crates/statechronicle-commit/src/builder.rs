@@ -3,8 +3,8 @@
 //! [`CommitBuilder`] turns a validated [`CommitBatch`] into a [`Commit`]: it
 //! computes the event Merkle root, derives the batch's state updates, computes
 //! the next state root on top of the caller's prior state, and assembles the
-//! body. The commit id is supplied per build through an injected generator —
-//! production ids come from the platform sequencer, and this crate never
+//! body. The commit id is supplied per build through an injected generator.
+//! Production ids come from the platform sequencer, and this crate never
 //! invents randomness in non-test code.
 
 use chrono::{DateTime, Utc};

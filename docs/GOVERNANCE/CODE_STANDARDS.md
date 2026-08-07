@@ -5,19 +5,19 @@ for all implementation work, including delegated implementation.
 
 ## 1. `mod.rs` / `lib.rs` are declaration shells only
 
-- `mod.rs` / `lib.rs` contain **module declarations and re-exports only** — no logic.
+- `mod.rs` / `lib.rs` contain **module declarations and re-exports only**; no logic.
 - `lib.rs` is a declaration + re-export surface: `pub mod ...;` and `pub use ...;`
 - Every module's real code lives in its own named file (`canonicalize.rs`, `digest.rs`,
   `signature.rs`, ...), never inside `mod.rs`.
 
-## 2. Imports at the top of the file — no inline paths
+## 2. Imports at the top of the file: no inline paths
 
 - All `use` statements are grouped at the **top of the file**, before any code.
 - Never write fully-qualified paths inline in code bodies
   (`crate::foo::Bar::new(...)` in the middle of a function).
 - If a path is needed, `use` it at the top first, then reference the short name.
 
-## 3. No string matching — always newtypes
+## 3. No string matching: always newtypes
 
 - **Never** match, compare, or branch on raw `&str`/`String` values for domain
   concepts (identifiers, kinds, operations, statuses, digests).
@@ -29,7 +29,7 @@ for all implementation work, including delegated implementation.
 - Enum variants are exhaustive; newtype validation rejects invalid values at the
   boundary.
 
-## 4. Testing — five layers, required
+## 4. Testing: five layers, required
 
 Every implemented unit of logic requires:
 
@@ -50,8 +50,8 @@ Every implemented unit of logic requires:
 
 - No `unwrap`, `expect`, `panic`, `unreachable`, `todo!`, `unimplemented!` in
   non-test code.
-- No indexing/slicing (`indexing_slicing` denied) — use `.get()`.
-- No `arithmetic_side_effects` — use checked/wrapping ops explicitly.
+- No indexing/slicing (`indexing_slicing` denied): use `.get()`.
+- No `arithmetic_side_effects`: use checked/wrapping ops explicitly.
 - `#![deny(unsafe_code)]` in every crate.
 - Errors are typed (`thiserror`) with `# Errors` doc sections on fallible public APIs.
 
@@ -59,13 +59,13 @@ Every implemented unit of logic requires:
 
 - All hashed/signed objects use **BCS canonical serialization**; JSON is the HTTP API
   logical view only.
-- Signed objects use an explicit envelope body: `Obj { body, signature }` — signatures
+- Signed objects use an explicit envelope body: `Obj { body, signature }`. Signatures
   cover the BCS bytes of `body`, never the signature field.
 - Digests are `sha256:<lowercase-hex>` via the `ContentDigest` newtype.
 
 ## 7. Ports
 
 - Port traits live in `statechronicle-ports`; **no implementations inside**.
-- Port signatures reference statechronicle-domain types only — dependency-free by
+- Port signatures reference statechronicle-domain types only: dependency-free by
   construction. Adapters (incl. trustgrant, storage) live in consumer composition roots
   (stexs), never in statechronicle crates.

@@ -5,7 +5,7 @@
 //! domain's portable [`SparseMerkleProof`] wire form (§16.2) is untagged, so
 //! this module converts between the two encodings.
 //!
-//! Wire encoding: the domain `path` is **dense** — exactly
+//! Wire encoding: the domain `path` is **dense**: exactly
 //! [`TREE_DEPTH`] sibling hashes in ascending level order (leaf-adjacent
 //! first, index `level`), with empty levels filled by the precomputed
 //! default-subtree hashes. A dense path is the minimal encoding the untagged

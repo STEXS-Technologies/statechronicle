@@ -1,6 +1,6 @@
 //! Entitlement profile.
 //!
-//! Grantable rights scoped to a subject (protocol §20.4). An entitlement
+//! Grantable rights scoped to a subject (protocol §20.6). An entitlement
 //! carries a `subject`, a `status`, and a `transferable` flag in its projected
 //! payload and moves through an explicit status table.
 
@@ -40,7 +40,7 @@ const OPERATIONS: &[&str] = &[
     "entitlement.transfer",
 ];
 
-/// Rule set for [`StateType::Entitlement`] (protocol §20.4).
+/// Rule set for [`StateType::Entitlement`] (protocol §20.6).
 ///
 /// # Transition table
 ///

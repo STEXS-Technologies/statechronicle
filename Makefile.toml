@@ -138,12 +138,3 @@ workspace = false
 install_crate = "cargo-fuzz"
 command = "cargo"
 args = ["+nightly", "fuzz", "${@}"]
-
-[tasks.run-statechronicle-http]
-description = "Run the StateChronicle HTTP server"
-workspace = false
-command = "bash"
-args = [
-    "-lc",
-    "set -o pipefail; set -a; if [ -f .env.local ]; then source .env.local; elif [ -f .env ]; then source .env; fi; set +a; CLICOLOR_FORCE=1 CARGO_TERM_COLOR=always cargo run --bin statechronicle-http 2>&1 | sed -u $'s/^/\\x1b[1;36m[statechronicle-http]\\x1b[0m /'",
-]

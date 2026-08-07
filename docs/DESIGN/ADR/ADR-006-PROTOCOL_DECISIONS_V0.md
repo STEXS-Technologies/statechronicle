@@ -14,7 +14,7 @@
 ## Context
 
 Protocol §36 lists 13 open questions that the v0 implementation answered implicitly
-during construction (484+ tests green across the pure-logic crates: core, domain,
+during construction (607 tests green across the pure-logic crates: core, domain,
 intent, executor, commit, accumulator, proof, profiles, ports). Before v0 conformance
 vectors and public documentation are frozen, each question must be formally decided so
 the protocol text, the ADR set, and the code agree. This ADR records those decisions,
@@ -26,7 +26,7 @@ cross-references the ADRs they extend, and classifies each as protocol-binding, 
 | Q# | Decision (abbreviated) | Status vs code | Binding class |
 | --- | --- | --- | --- |
 | Q1 | Fixed 256-bit SMT per tenant (ADR-005) | matches | protocol |
-| Q2 | Commit authority bound to a trust anchor; TrustGrant standard, configured roots permitted | matches | protocol |
+| Q2 | Commit authority bound to a trust anchor; TrustGrant standard, configured roots permitted; any delegated-authority evaluator that returns allow and passes freshness is acceptable | matches | protocol |
 | Q3 | Freshness window policy-owned; check mandatory at acceptance; default 24h | matches | policy + protocol (check) |
 | Q4 | Operations locally namespace-scoped per profile | matches | protocol |
 | Q5 | Per-profile aggregation policy (require-all default, any-of where declared); evaluate every member; single aggregate digest over sorted sub-evaluations (Phase 2) | matches | protocol |
@@ -37,7 +37,7 @@ cross-references the ADRs they extend, and classifies each as protocol-binding, 
 | Q10 | Six mandatory paid-unique exception states | matches | protocol (conformance floor) |
 | Q11 | Hard deletion forbidden; removal is tombstone/terminal state | matches | protocol |
 | Q12 | Per-commit tenant roots mandatory for all deployments | matches | protocol |
-| Q13 | Canonical decimal-integer strings; u64 fixed precision baseline | matches | protocol |
+| Q13 | Canonical decimal-integer strings; exact fixed-point `Amount` (u128 mantissa x 10^-scale) | matches | protocol |
 
 ## Decisions
 
@@ -48,7 +48,7 @@ keys and node hashing, as implemented in `statechronicle-accumulator` (confirmin
 ADR-005).
 
 **Rationale:** The SMT root is a pure function of the (key→leaf) set, giving
-insertion-order determinism by construction — exactly what
+insertion-order determinism by construction: exactly what
 `previous_state_root + ordered events = next_state_root` requires. Non-membership is
 free (empty-slot inclusion proof), serving the fail-closed "resource does not exist at
 commit X" case. Ordered Merkle maps buy sorted/range proofs no v0 consumer requires and
@@ -57,12 +57,14 @@ pay ~2.5× larger proofs.
 ### Q2. Commit authority always through TrustGrant?
 
 **Decision:** Commit authority MUST be bound to a verifiable trust anchor in every
-conforming deployment. TrustGrant is the standard binding mechanism; the core protocol
-represents the authority as a `SubjectId` + signing key and permits deployment-defined
-trust roots ("TrustGrant or configured trust roots", §29).
+conforming deployment. The core protocol represents the authority as a `SubjectId` +
+signing key and permits deployment-defined trust roots ("a trust anchor or configured
+trust roots", §29). The `TrustGrantEvaluator` port is delegation-of-authority only, not
+general platform authorization; any evaluator that returns an `allow` result and passes
+the freshness check is acceptable, and TrustGrant is one option, not a requirement.
 
 **Rationale:** Forcing a hard "always TrustGrant" rule contradicts the ports-only,
-infra-agnostic ADR-003. Making commit authority optional would break verification — an
+infra-agnostic ADR-003. Making commit authority optional would break verification. An
 unauthorized signer could fabricate the canonical chain. The executor/commit crates
 treat the key as deployment-injected and the verifier takes the trust root as input,
 which is the correct boundary.
@@ -122,12 +124,12 @@ Verifiers resolve and re-verify through their own TrustGrant integration; full g
 chains are never embedded.
 
 **Rationale:** ADR-003 decided this. Full chains bloat every portable bundle, embed
-revocation-sensitive evidence, and force StateChronicle to parse TrustGrant internals —
+revocation-sensitive evidence, and force StateChronicle to parse TrustGrant internals,
 violating the opaque, content-addressed authority boundary (§16.3).
 
 ### Q7. Mandatory snapshots after a fixed interval?
 
-**Decision:** Snapshots are optional and operational in v0 — no fixed-interval mandate.
+**Decision:** Snapshots are optional and operational in v0: no fixed-interval mandate.
 Any published snapshot MUST be authentic: payload digest bound to the enclosing
 commit's state root via `SnapshotProof`. Snapshots never weaken tenant-level
 verification.
@@ -147,7 +149,7 @@ deployments); fork-resolution policy (which head wins) is deployment-defined.
 that any verifier must detect and any operator must record (§30, §31). The code ships
 `detect_fork`, `check_chain_continuity`, `validate_no_event_rewrite`, and `ForkEvidence`
 in `statechronicle-commit`. Resolution policy depends on each deployment's quorum/
-witness structure — a federation concern.
+witness structure. A federation concern.
 
 ### Q9. Event timestamps: trusted, sequencer-derived, or advisory?
 
@@ -164,8 +166,8 @@ and UX value without making determinism clock-dependent.
 ### Q10. Mandatory paid-unique exception states?
 
 **Decision:** The baseline paid unique asset profile MUST support all six exception
-states — `restricted`, `quarantined`, `unsupported`, `legal_hold`, `fraud_lock`,
-`policy_restricted` — as explicit, append-only, owner-preserving transitions. Profiles
+states (`restricted`, `quarantined`, `unsupported`, `legal_hold`, `fraud_lock`,
+`policy_restricted`) as explicit, append-only, owner-preserving transitions. Profiles
 may add more.
 
 **Rationale:** §20.3 lists five exception states and the base profile contributes
@@ -176,7 +178,7 @@ without erasing ownership.
 
 ### Q11. Deletion: tombstone or hard delete?
 
-**Decision:** Yes — hard deletion is forbidden for any committed state in any conforming
+**Decision:** Yes: hard deletion is forbidden for any committed state in any conforming
 profile. Removal is always an append-only tombstone or terminal state; even the
 owner-consent "hard_delete" path is a tombstone transition, never an erasure.
 
@@ -188,7 +190,7 @@ proof generation total over all history.
 
 ### Q12. Tenant roots mandatory for single-tenant deployments?
 
-**Decision:** Yes — per-commit tenant state roots are mandatory for ALL deployments
+**Decision:** Yes: per-commit tenant state roots are mandatory for ALL deployments
 (they are structural fields of every tenant-scoped `Commit`). Global checkpoint roots
 (cross-tenant composition) remain optional.
 
@@ -229,16 +231,17 @@ single canonical representation of a balance.
 - All 13 protocol questions now have formal, code-verified decisions.
 - v0 conformance requirements are unambiguous (SMT accumulator, tombstone-only
   deletion, mandatory tenant roots, advisory timestamps, six paid-exception states,
-  trust-anchored commit authority, freshness check at acceptance, single-authority
+  trust-anchored commit authority, freshness check at acceptance, multi-authority
   scopes, digest-only authority references).
-- No migration needed — every decision matches the shipped implementation.
+- No migration needed: every decision matches the shipped implementation.
 - `AuthorityProof.evaluated_at` closes the offline freshness-verification gap.
 
 **Negative:**
-- Protocol §36, §19, §15, §12/§13, §20.1/§20.3, §10.3, §8.1 need text updates to state
-  the binding rules (scheduled with this ADR).
-- ADR-003 and ADR-004 wording needs reconciliation (Q2 phrasing; §6 "typed u128
-  newtypes" vs. string+u64 implementation).
+- Protocol §36, §19, §15, §12/§13, §20.1/§20.3, §10.3, §8.1 text updates to state
+  the binding rules are superseded by this ADR (the protocol doc has been retired in
+  favor of the per-crate "Protocol sections owned" tables in each crate README).
+- ADR-003 and ADR-004 wording reconciled (Q2 phrasing; the exact fixed-point `Amount`
+  implementation).
 - Deferred items (below) remain open for v0.1.
 
 ## Review & Maintenance
@@ -250,11 +253,11 @@ single canonical representation of a balance.
   - v0.1 Phase 2 (2026-08-05): Q5 amended to record the multi-authority per-profile aggregation
     policy; deferral items 1 and 4 resolved (authority-set evaluation + event-level authority
     mandatory-ness).
-  - v0.1 Phase 3 (2026-08-05): deferral item 3 resolved — cross-tenant atomicity
+  - v0.1 Phase 3 (2026-08-05): deferral item 3 resolved: cross-tenant atomicity
     (`execute_cross_tenant`, `begin_multi`, `validate_cross_tenant_consistency`).
-  - v0.1 Phase 4 (2026-08-05): deferral item 5 resolved — non-membership proof-bundle
+  - v0.1 Phase 4 (2026-08-05): deferral item 5 resolved: non-membership proof-bundle
     wiring (`statechronicle.proof.non_membership.v0` bundle, §16.2).
-  - v0.1 Phase 5 (2026-08-05): deferral item 6 resolved — snapshot cadence heuristics
+  - v0.1 Phase 5 (2026-08-05): deferral item 6 resolved: snapshot cadence heuristics
     (protocol §15 Cadence guidance); all six v0.1 deferrals are now resolved.
 
 ## Deferred to v0.1 (explicit)
@@ -280,32 +283,32 @@ single canonical representation of a balance.
 > §8.2 cross-tenant atomicity (Phase 3), event-level authority mandatory-ness (Phase 2),
 > non-membership proofs (Phase 4), and snapshot cadence (Phase 5).
 
-1. **Multi-authority semantics (Q5)** — **RESOLVED in Phase 2**: per-profile aggregation
+1. **Multi-authority semantics (Q5)**. **RESOLVED in Phase 2**: per-profile aggregation
    policy (require-all default, any-of where declared); evaluate every member of the
    deployment's authority set; single bound digest over the sorted sub-evaluation digests
    (identity for a single-member set). Quorum-based aggregation remains a possible future
    policy extension.
-2. **Arbitrary-precision arithmetic (Q13)** — **RESOLVED in Phase 1**: the fixed-point
+2. **Arbitrary-precision arithmetic (Q13)**. **RESOLVED in Phase 1**: the fixed-point
    `Amount` (u128 mantissa × 10^-scale, scale ≤ 18) baseline is implemented; any further
    widening (e.g. bigint or decimal via a profile precision declaration) stays additive via
    the string wire form.
-3. **Cross-tenant atomicity (§8.2)** — **RESOLVED in Phase 3**:
+3. **Cross-tenant atomicity (§8.2)**. **RESOLVED in Phase 3**:
    `execute_cross_tenant` partitions intents by tenant, begins a multi-tenant
    transaction via `begin_multi`, runs each tenant's leg through the single-tenant
    pipeline, validates cross-tenant consistency (shared `intent_id` linkage +
-   per-tenant batch consistency), and commits atomically or rolls back — one
-   tenant-scoped commit per affected tenant.
-4. **Event-level authority mandatory-ness** — **RESOLVED in Phase 2**: profiles declare
+    per-tenant batch consistency), and commits atomically or rolls back: one
+    tenant-scoped commit per affected tenant.
+4. **Event-level authority mandatory-ness**. **RESOLVED in Phase 2**: profiles declare
    authority-required operations (`requires_authority`); the executor rejects an
    authority-required operation lacking a binding with `AuthorityMissing` (protocol
    §11.2/§12.2). When `authority` is `None` for a non-required operation, the profile's
    transition and consent rules own authorization, preserving the v0 fallback.
-5. **Non-membership proof-bundle wiring** — **RESOLVED in Phase 4**: the §16.2
+5. **Non-membership proof-bundle wiring**. **RESOLVED in Phase 4**: the §16.2
    `statechronicle.proof.non_membership.v0` bundle variant authenticates absence at a
    commit root fail-closed (inclusion proof of the empty-leaf constant; verifiers MUST
    assert the empty leaf). The accumulator primitive itself is unchanged.
-6. **Snapshot cadence heuristics** — **RESOLVED in Phase 5**: protocol §15 adds a
-    "Cadence guidance" note — publish a snapshot when estimated cumulative replay cost
+6. **Snapshot cadence heuristics**. **RESOLVED in Phase 5**: protocol §15 adds a
+    "Cadence guidance" note: publish a snapshot when estimated cumulative replay cost
     since the last snapshot exceeds the snapshot store cost (full state serialization +
     digest + storage); operational factors are per-tenant event volume, recovery SLA,
     verifier replay budget, and storage cost (no protocol-mandated interval); baseline

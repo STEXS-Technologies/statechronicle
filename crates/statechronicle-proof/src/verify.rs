@@ -36,7 +36,7 @@ use crate::inclusion::steps_from_sparse_proof;
 ///
 /// Uses `statechronicle_core`'s Ed25519 strict verification (ZIP-215
 /// malleability checks), so a malformed, weak-key, or malleable signature is
-/// rejected. The signature covers only `bcs::to_bytes(&body)` — never a
+/// rejected. The signature covers only `bcs::to_bytes(&body)`, never a
 /// `signature` field.
 ///
 /// # Errors
@@ -58,7 +58,7 @@ pub fn verify_commit_signature_with_key(
 
 /// Verifies an accumulator inclusion proof against a state root.
 ///
-/// Pure delegate to the accumulator's own path verifier — the single source
+/// Pure delegate to the accumulator's own path verifier: the single source
 /// of truth for what a genuine inclusion proof looks like.
 pub fn verify_inclusion(root: &StateRoot, proof: &InclusionProof) -> bool {
     StateAccumulator::verify_inclusion(root, proof)
@@ -263,7 +263,7 @@ pub fn verify_bundle(
 /// 3. sparse Merkle proof kind check (`SPARSE_MERKLE_V0`),
 /// 4. dense path length check ([`TREE_DEPTH`]),
 /// 5. **empty-leaf assertion**: the proof's leaf must be the empty-leaf
-///    constant — the load-bearing gate that makes the bundle a proof of
+///    constant: the load-bearing gate that makes the bundle a proof of
 ///    absence rather than presence (the accumulator's own
 ///    `verify_non_membership` does not assert the empty leaf, so this is
 ///    required),

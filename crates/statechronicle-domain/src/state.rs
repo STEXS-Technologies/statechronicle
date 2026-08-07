@@ -7,7 +7,7 @@
 //! previous state + valid committed event = next state
 //! ```
 //!
-//! A [`StateProjection`] is derived, cacheable, and indexable — it is never the
+//! A [`StateProjection`] is derived, cacheable, and indexable. It is never the
 //! source of truth (protocol §9). `StateType` shapes each projection's rules;
 //! the profile-specific payload (`owner`/`status`, `balance`/`unit`,
 //! `quantity`, ...) lives in the opaque `state` JSON value.
@@ -84,8 +84,8 @@ mod tests {
         let decoded: StateProjection = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, projection);
 
-        // The `state` payload is `serde_json::Value` — BCS-encodable but not
-        // BCS-decodable (BCS is not self-describing, ADR-004) — so the BCS
+        // The `state` payload is `serde_json::Value`, BCS-encodable but not
+        // BCS-decodable (BCS is not self-describing, ADR-004), so the BCS
         // check is encode-side determinism.
         let first = bcs::to_bytes(&projection).unwrap();
         let second = bcs::to_bytes(&projection).unwrap();
