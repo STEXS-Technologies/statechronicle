@@ -1,0 +1,27 @@
+[package]
+name = "statechronicle"
+description = "StateChronicle protocol engine: pure-logic verifiable resource-state ledger (umbrella crate)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+statechronicle-core = { workspace = true }
+statechronicle-domain = { workspace = true }
+statechronicle-intent = { workspace = true }
+statechronicle-executor = { workspace = true }
+statechronicle-commit = { workspace = true }
+statechronicle-accumulator = { workspace = true }
+statechronicle-proof = { workspace = true }
+statechronicle-profiles = { workspace = true }
+statechronicle-ports = { workspace = true }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+chrono = { workspace = true }
+ed25519-dalek = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[lints]
+workspace = true
