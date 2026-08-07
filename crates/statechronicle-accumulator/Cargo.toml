@@ -1,0 +1,19 @@
+[package]
+name = "statechronicle-accumulator"
+description = "State-root accumulator over a sparse Merkle tree (ADR-005)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+statechronicle-core = { workspace = true }
+statechronicle-domain = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+hex = { workspace = true }
+proptest = { workspace = true }
+
+[lints]
+workspace = true
