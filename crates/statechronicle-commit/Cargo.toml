@@ -1,0 +1,29 @@
+[package]
+name = "statechronicle-commit"
+description = "Commit formation, deterministic ordering, Ed25519 signing, checkpoint commits, and fork/failure semantics."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+statechronicle-core = { workspace = true }
+statechronicle-domain = { workspace = true }
+statechronicle-accumulator = { workspace = true }
+statechronicle-ports = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+ed25519-dalek = { workspace = true }
+sha2 = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+bcs = { workspace = true }
+hex = { workspace = true }
+proptest = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[lints]
+workspace = true
