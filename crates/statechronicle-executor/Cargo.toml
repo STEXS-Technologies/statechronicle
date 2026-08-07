@@ -1,0 +1,28 @@
+[package]
+name = "statechronicle-executor"
+description = "Execution pipeline: validation, deterministic transitions, fail-closed conflict checks, and atomicity."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+statechronicle-core = { workspace = true }
+statechronicle-domain = { workspace = true }
+statechronicle-intent = { workspace = true }
+statechronicle-profiles = { workspace = true }
+statechronicle-ports = { workspace = true }
+statechronicle-accumulator = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+ed25519-dalek = { workspace = true }
+proptest = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[lints]
+workspace = true
