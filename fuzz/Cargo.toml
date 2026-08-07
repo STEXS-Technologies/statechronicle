@@ -1,0 +1,131 @@
+[package]
+name = "statechronicle-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+hex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+bcs = { workspace = true }
+ed25519-dalek = { workspace = true }
+chrono = { workspace = true }
+
+[dependencies.statechronicle-core]
+path = "../crates/statechronicle-core"
+
+[dependencies.statechronicle-domain]
+path = "../crates/statechronicle-domain"
+
+[dependencies.statechronicle-accumulator]
+path = "../crates/statechronicle-accumulator"
+
+[dependencies.statechronicle-proof]
+path = "../crates/statechronicle-proof"
+
+[dependencies.statechronicle-intent]
+path = "../crates/statechronicle-intent"
+
+[dependencies.statechronicle-profiles]
+path = "../crates/statechronicle-profiles"
+
+[dependencies.statechronicle-commit]
+path = "../crates/statechronicle-commit"
+
+[dependencies.statechronicle-executor]
+path = "../crates/statechronicle-executor"
+
+[[bin]]
+name = "fuzz_digest"
+path = "fuzz_targets/fuzz_digest.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_canonicalize"
+path = "fuzz_targets/fuzz_canonicalize.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_amount_parse"
+path = "fuzz_targets/fuzz_amount_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_signature_verify"
+path = "fuzz_targets/fuzz_signature_verify.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_domain_roundtrip"
+path = "fuzz_targets/fuzz_domain_roundtrip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_accumulator"
+path = "fuzz_targets/fuzz_accumulator.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_intent_parse"
+path = "fuzz_targets/fuzz_intent_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_authority_aggregate"
+path = "fuzz_targets/fuzz_authority_aggregate.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_profile_rules"
+path = "fuzz_targets/fuzz_profile_rules.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_proof_verify"
+path = "fuzz_targets/fuzz_proof_verify.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_commit_roots"
+path = "fuzz_targets/fuzz_commit_roots.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_executor_transition"
+path = "fuzz_targets/fuzz_executor_transition.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_commit_extras"
+path = "fuzz_targets/fuzz_commit_extras.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_cross_tenant_consistency"
+path = "fuzz_targets/fuzz_cross_tenant_consistency.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_non_membership"
+path = "fuzz_targets/fuzz_non_membership.rs"
+test = false
+doc = false
