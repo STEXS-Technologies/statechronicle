@@ -1,0 +1,23 @@
+[package]
+name = "statechronicle-core"
+description = "Pure protocol primitives: BCS canonical serialization, SHA-256 digests, Ed25519 signing, and size/safety limits."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+bcs = { workspace = true }
+sha2 = { workspace = true }
+ed25519-dalek = { workspace = true }
+hex = { workspace = true }
+base64 = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+proptest = { workspace = true }
+
+[lints]
+workspace = true
