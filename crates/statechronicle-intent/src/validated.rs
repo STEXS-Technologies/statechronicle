@@ -69,6 +69,31 @@ pub struct ValidatedIntent {
 }
 
 impl ValidatedIntent {
+    /// Constructs a validated intent directly from an already-typed intent
+    /// body, skipping raw-payload parsing.
+    ///
+    /// Use this entry point when the intent is already in typed domain form
+    /// (for example, built in-process by the caller, or deserialized by the
+    /// caller's own transport layer), so no [`crate::parse`] step is needed.
+    /// The §11.2 idempotency tuple is derived from the intent's fields.
+    ///
+    /// This complements [`crate::validate::validate`], which is the entry
+    /// point for raw wire payloads.
+    pub fn from_intent(intent: Intent, signature: Option<SignatureBlock>) -> Self {
+        let idempotency_key = IdempotencyKey::new(
+            intent.tenant_id.clone(),
+            intent.intent_id.clone(),
+            intent.actor.clone(),
+            intent.resource_id.clone(),
+            intent.operation.clone(),
+        );
+        Self {
+            intent,
+            idempotency_key,
+            signature,
+        }
+    }
+
     /// Returns whether the intent has expired at `now`.
     ///
     /// An intent without an expiry never expires. An intent is expired when
@@ -83,12 +108,14 @@ impl ValidatedIntent {
 mod tests {
     use super::*;
     use statechronicle_core::signature::Signature;
+    use statechronicle_domain::intent::Nonce;
+    use statechronicle_domain::state_type::StateType;
 
     fn sample_key() -> IdempotencyKey {
         IdempotencyKey::new(
-            TenantId(String::from("stexs.game.alpha")),
+            TenantId(String::from("acme.game.alpha")),
             IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap(),
-            SubjectId(String::from("account:stexs:player_123")),
+            SubjectId(String::from("account:example:player_123")),
             ResourceId(String::from("asset:sword_001")),
             Operation::new(String::from("asset.transfer")).unwrap(),
         )
@@ -128,6 +155,32 @@ mod tests {
             key.operation.clone(),
         );
         assert_ne!(key, other);
+    }
+
+    #[test]
+    fn from_intent_derives_idempotency_key_without_parsing() {
+        // A consumer with already-typed data builds the ValidatedIntent
+        // directly, skipping the raw-payload parse step entirely.
+        let intent = Intent::new(
+            TenantId(String::from("acme.game.alpha")),
+            IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap(),
+            Operation::new(String::from("asset.transfer")).unwrap(),
+            SubjectId(String::from("account:example:player_123")),
+            ResourceId(String::from("asset:sword_001")),
+            Some(StateType::UniqueAsset),
+            41,
+            std::collections::BTreeMap::new(),
+            None,
+            DateTime::parse_from_rfc3339("2026-07-14T00:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            None,
+            Nonce::from_bytes(vec![1, 2, 3]).unwrap(),
+        );
+        let validated = ValidatedIntent::from_intent(intent.clone(), None);
+        assert_eq!(validated.intent, intent);
+        assert_eq!(validated.signature, None);
+        assert_eq!(validated.idempotency_key, sample_key());
     }
 
     #[test]
