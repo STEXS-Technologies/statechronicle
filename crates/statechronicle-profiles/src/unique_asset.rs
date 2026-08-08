@@ -13,7 +13,8 @@ use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::status::Status;
 
 use crate::error::ProfileError;
-use crate::registry::{ProfileRules, input_str, require_from, state_str};
+use crate::keys;
+use crate::registry::{ProfileRules, input_amount, input_str, require_from, state_str};
 
 /// Typed wire status names for a unique asset.
 pub mod status {
@@ -388,13 +389,24 @@ fn check_trade_unlock(
 /// `trade_id` input matching the stored `trade_id`. After-state (computed by
 /// the executor): owner = `to_owner`, status `active`, `trade_id` dropped.
 ///
+/// The settle may optionally declare a value leg (asset-for-gold): the inputs
+/// `value_resource`, `value_amount`, and `value_to_subject` describe the
+/// fungible value exchanged for the asset. These are OPTIONAL for a pure
+/// asset-for-asset settle; when any one is present, all three must be present
+/// and coherent (missing any one fails closed). When present, `value_amount`
+/// must parse as a canonical non-negative integer string and `value_resource` /
+/// `value_to_subject` must be non-empty. The value leg does not change the
+/// settle rule or consent gate; the batch-level balance arithmetic is enforced
+/// by the executor's `validate_settle_batch`.
+///
 /// # Errors
 ///
 /// Returns [`ProfileError::InvalidTransition`] when the resource does not
 /// exist or is not `trade_held`, [`ProfileError::InvalidInput`] when
-/// `to_owner` or `trade_id` is missing/malformed or the `trade_id` does not
-/// match the stored value, and [`ProfileError::OwnershipMismatch`] when
-/// `from_owner` is not the current owner.
+/// `to_owner`/`trade_id`/value-leg inputs are missing/malformed or the
+/// `trade_id` does not match the stored value, and
+/// [`ProfileError::OwnershipMismatch`] when `from_owner` is not the current
+/// owner.
 fn check_trade_settle(
     current: Option<&StateProjection>,
     inputs: &BTreeMap<String, serde_json::Value>,
@@ -403,6 +415,7 @@ fn check_trade_settle(
     let from_owner = input_str(inputs, "from_owner")?;
     input_str(inputs, "to_owner")?;
     let trade_id = input_str(inputs, "trade_id")?;
+    check_value_leg(inputs)?;
     let owner = state_str(current, "owner")?;
     let stored = state_str(current, "trade_id")?;
     if from_owner != owner {
@@ -416,6 +429,34 @@ fn check_trade_settle(
             "trade_id `{trade_id}` does not match stored trade_id"
         )));
     }
+    Ok(())
+}
+
+/// Validates an optional value-leg declaration on `trade.settle`.
+///
+/// The three value-leg inputs `value_resource`, `value_amount`, and
+/// `value_to_subject` are optional together but mandatory once any one is
+/// present: a partial declaration is incoherent and fails closed. When
+/// present, `value_amount` must parse as a canonical non-negative integer
+/// string and `value_resource` / `value_to_subject` must be non-empty.
+///
+/// # Errors
+///
+/// Returns [`ProfileError::InvalidInput`] when the declaration is partial, or
+/// when a declared `value_amount` / `value_resource` / `value_to_subject` is
+/// missing or malformed.
+fn check_value_leg(inputs: &BTreeMap<String, serde_json::Value>) -> Result<(), ProfileError> {
+    let declared = inputs.contains_key(keys::VALUE_RESOURCE)
+        || inputs.contains_key(keys::VALUE_AMOUNT)
+        || inputs.contains_key(keys::VALUE_TO_SUBJECT);
+    if !declared {
+        return Ok(());
+    }
+    // When the declaration is present, all three inputs must be present and
+    // coherent; each helper fails closed on a missing or malformed member.
+    input_str(inputs, keys::VALUE_RESOURCE)?;
+    input_amount(inputs, keys::VALUE_AMOUNT)?;
+    input_str(inputs, keys::VALUE_TO_SUBJECT)?;
     Ok(())
 }
 
@@ -901,5 +942,132 @@ mod tests {
         assert!(!rules.requires_authority(&op("trade.lock")));
         assert!(!rules.requires_authority(&op("trade.unlock")));
         assert!(rules.requires_authority(&op("trade.settle")));
+    }
+
+    #[test]
+    fn trade_settle_with_full_value_leg_ok() {
+        let rules = UniqueAssetRules;
+        let held = held_asset("trade_001");
+        assert!(
+            rules
+                .check(
+                    &op("trade.settle"),
+                    Some(&held),
+                    &inputs(&[
+                        ("from_owner", serde_json::json!("alice")),
+                        ("to_owner", serde_json::json!("bob")),
+                        ("trade_id", serde_json::json!("trade_001")),
+                        ("value_resource", serde_json::json!("wallet:gold")),
+                        ("value_amount", serde_json::json!("100")),
+                        ("value_to_subject", serde_json::json!("alice")),
+                    ])
+                )
+                .is_ok()
+        );
+        // A zero amount is a valid (non-negative) value declaration.
+        assert!(
+            rules
+                .check(
+                    &op("trade.settle"),
+                    Some(&held),
+                    &inputs(&[
+                        ("from_owner", serde_json::json!("alice")),
+                        ("to_owner", serde_json::json!("bob")),
+                        ("trade_id", serde_json::json!("trade_001")),
+                        ("value_resource", serde_json::json!("wallet:gold")),
+                        ("value_amount", serde_json::json!("0")),
+                        ("value_to_subject", serde_json::json!("alice")),
+                    ])
+                )
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn trade_settle_partial_value_leg_fails_closed() {
+        let rules = UniqueAssetRules;
+        let held = held_asset("trade_001");
+        // Missing value_amount -> InvalidInput.
+        assert!(matches!(
+            rules.check(
+                &op("trade.settle"),
+                Some(&held),
+                &inputs(&[
+                    ("from_owner", serde_json::json!("alice")),
+                    ("to_owner", serde_json::json!("bob")),
+                    ("trade_id", serde_json::json!("trade_001")),
+                    ("value_resource", serde_json::json!("wallet:gold")),
+                    ("value_to_subject", serde_json::json!("alice")),
+                ])
+            ),
+            Err(ProfileError::InvalidInput(_))
+        ));
+        // Missing value_to_subject -> InvalidInput.
+        assert!(matches!(
+            rules.check(
+                &op("trade.settle"),
+                Some(&held),
+                &inputs(&[
+                    ("from_owner", serde_json::json!("alice")),
+                    ("to_owner", serde_json::json!("bob")),
+                    ("trade_id", serde_json::json!("trade_001")),
+                    ("value_resource", serde_json::json!("wallet:gold")),
+                    ("value_amount", serde_json::json!("100")),
+                ])
+            ),
+            Err(ProfileError::InvalidInput(_))
+        ));
+        // Missing value_resource -> InvalidInput.
+        assert!(matches!(
+            rules.check(
+                &op("trade.settle"),
+                Some(&held),
+                &inputs(&[
+                    ("from_owner", serde_json::json!("alice")),
+                    ("to_owner", serde_json::json!("bob")),
+                    ("trade_id", serde_json::json!("trade_001")),
+                    ("value_amount", serde_json::json!("100")),
+                    ("value_to_subject", serde_json::json!("alice")),
+                ])
+            ),
+            Err(ProfileError::InvalidInput(_))
+        ));
+        // A float-formatted value_amount fails closed (mirrors fungible_balance).
+        assert!(matches!(
+            rules.check(
+                &op("trade.settle"),
+                Some(&held),
+                &inputs(&[
+                    ("from_owner", serde_json::json!("alice")),
+                    ("to_owner", serde_json::json!("bob")),
+                    ("trade_id", serde_json::json!("trade_001")),
+                    ("value_resource", serde_json::json!("wallet:gold")),
+                    ("value_amount", serde_json::json!("1.0")),
+                    ("value_to_subject", serde_json::json!("alice")),
+                ])
+            ),
+            Err(ProfileError::FloatForbidden)
+        ));
+    }
+
+    #[test]
+    fn trade_settle_without_value_leg_still_ok() {
+        let rules = UniqueAssetRules;
+        let held = held_asset("trade_001");
+        // A pure asset-for-asset settle carries no value-leg inputs and still
+        // passes the settle rule unchanged.
+        assert!(
+            rules
+                .check(
+                    &op("trade.settle"),
+                    Some(&held),
+                    &inputs(&[
+                        ("from_owner", serde_json::json!("alice")),
+                        ("to_owner", serde_json::json!("bob")),
+                        ("trade_id", serde_json::json!("trade_001")),
+                    ])
+                )
+                .is_ok()
+        );
     }
 }

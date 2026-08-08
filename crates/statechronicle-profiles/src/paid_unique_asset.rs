@@ -823,4 +823,68 @@ mod tests {
             Err(ProfileError::InvalidInput(_))
         ));
     }
+
+    #[test]
+    fn trade_settle_with_value_leg_still_requires_owner_consent_for_non_owner_actor() {
+        let rules = PaidUniqueAssetRules;
+        let held = held_asset("trade_001");
+
+        // Owner acting with a value leg: no consent needed.
+        assert!(
+            rules
+                .check(
+                    &op("trade.settle"),
+                    Some(&held),
+                    &inputs(&[
+                        ("actor", serde_json::json!("alice")),
+                        ("from_owner", serde_json::json!("alice")),
+                        ("to_owner", serde_json::json!("bob")),
+                        ("trade_id", serde_json::json!("trade_001")),
+                        ("value_resource", serde_json::json!("wallet:gold")),
+                        ("value_amount", serde_json::json!("100")),
+                        ("value_to_subject", serde_json::json!("alice")),
+                    ])
+                )
+                .is_ok()
+        );
+
+        // A non-owner actor with a value leg still needs owner consent; the
+        // value leg does not change the consent gate.
+        assert!(matches!(
+            rules.check(
+                &op("trade.settle"),
+                Some(&held),
+                &inputs(&[
+                    ("actor", serde_json::json!("engine")),
+                    ("from_owner", serde_json::json!("alice")),
+                    ("to_owner", serde_json::json!("bob")),
+                    ("trade_id", serde_json::json!("trade_001")),
+                    ("value_resource", serde_json::json!("wallet:gold")),
+                    ("value_amount", serde_json::json!("100")),
+                    ("value_to_subject", serde_json::json!("alice")),
+                ])
+            ),
+            Err(ProfileError::OwnershipMismatch { .. })
+        ));
+
+        // A non-owner actor with owner consent and a value leg is allowed.
+        assert!(
+            rules
+                .check(
+                    &op("trade.settle"),
+                    Some(&held),
+                    &inputs(&[
+                        ("actor", serde_json::json!("engine")),
+                        ("authorized_by_owner", serde_json::json!(true)),
+                        ("from_owner", serde_json::json!("alice")),
+                        ("to_owner", serde_json::json!("bob")),
+                        ("trade_id", serde_json::json!("trade_001")),
+                        ("value_resource", serde_json::json!("wallet:gold")),
+                        ("value_amount", serde_json::json!("100")),
+                        ("value_to_subject", serde_json::json!("alice")),
+                    ])
+                )
+                .is_ok()
+        );
+    }
 }

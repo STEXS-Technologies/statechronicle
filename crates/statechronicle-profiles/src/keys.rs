@@ -42,3 +42,12 @@ pub const REMAINING: &str = "remaining";
 pub const MAXIMUM: &str = "maximum";
 /// The conversion target denomination input key.
 pub const TO_UNIT: &str = "to_unit";
+/// The value-leg resource input key on a `trade.settle` intent.
+pub const VALUE_RESOURCE: &str = "value_resource";
+/// The value-leg canonical amount input key on a `trade.settle` intent.
+pub const VALUE_AMOUNT: &str = "value_amount";
+/// The value-leg recipient input key on a `trade.settle` intent.
+pub const VALUE_TO_SUBJECT: &str = "value_to_subject";
+/// The declared bundle size (total assets across both sides) input key on a
+/// bundle `trade.settle` intent (Phase 4).
+pub const BUNDLE_SIZE: &str = "bundle_size";
