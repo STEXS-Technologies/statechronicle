@@ -29,21 +29,21 @@ fn facade_amount_and_digest_resolve() {
 
 #[test]
 fn facade_newtypes_construct() {
-    let tenant = TenantId(String::from("stexs.game.alpha"));
-    let subject = SubjectId(String::from("account:stexs:player_123"));
+    let tenant = TenantId(String::from("acme.game.alpha"));
+    let subject = SubjectId(String::from("account:example:player_123"));
     let intent_id = IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap();
 
-    assert_eq!(tenant.0, "stexs.game.alpha");
-    assert_eq!(subject.0, "account:stexs:player_123");
+    assert_eq!(tenant.0, "acme.game.alpha");
+    assert_eq!(subject.0, "account:example:player_123");
     assert_eq!(intent_id.as_str(), "int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2");
 }
 
 #[test]
 fn facade_signed_intent_is_usable() {
-    let tenant = TenantId(String::from("stexs.game.alpha"));
+    let tenant = TenantId(String::from("acme.game.alpha"));
     let intent_id = IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap();
     let operation = Operation::new(String::from("asset.transfer")).unwrap();
-    let actor = SubjectId(String::from("account:stexs:player_123"));
+    let actor = SubjectId(String::from("account:example:player_123"));
     let resource_id = statechronicle::ResourceId(String::from("asset:sword_001"));
     let nonce = Nonce::from_bytes(vec![1, 2, 3, 4]).unwrap();
     let created_at: DateTime<Utc> = DateTime::parse_from_rfc3339("2026-07-14T00:00:00Z")

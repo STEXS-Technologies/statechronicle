@@ -127,7 +127,7 @@ mod tests {
     use statechronicle_domain::tenant::TenantId;
 
     fn tenant_scope() -> CommitScope {
-        CommitScope::tenant(TenantId(String::from("stexs.game.alpha")))
+        CommitScope::tenant(TenantId(String::from("acme.game.alpha")))
     }
 
     fn profile() -> ProfileId {
@@ -135,7 +135,7 @@ mod tests {
     }
 
     fn executor() -> SubjectId {
-        SubjectId(String::from("service:statechronicle.stexs.net"))
+        SubjectId(String::from("service:statechronicle.example.net"))
     }
 
     fn timestamp() -> DateTime<Utc> {
@@ -145,14 +145,15 @@ mod tests {
     }
 
     fn sample_event(id: &str) -> Event {
-        let state = serde_json::json!({ "owner": "account:stexs:player_456", "status": "active" });
+        let state =
+            serde_json::json!({ "owner": "account:example:player_456", "status": "active" });
         Event::new(
-            TenantId(String::from("stexs.game.alpha")),
+            TenantId(String::from("acme.game.alpha")),
             EventId::new(format!("evt_{id}")).unwrap(),
             IntentId::new(format!("int_{id}")).unwrap(),
             Operation::new(String::from("asset.transfer")).unwrap(),
             ResourceId(format!("asset:{id}")),
-            SubjectId(String::from("account:stexs:player_123")),
+            SubjectId(String::from("account:example:player_123")),
             StateCommitment {
                 version: 41,
                 state_hash: hash_bytes(b"before"),

@@ -119,16 +119,16 @@ mod tests {
 
     fn sample_event() -> Event {
         Event::new(
-            TenantId(String::from("stexs.game.alpha")),
+            TenantId(String::from("acme.game.alpha")),
             EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap(),
             Operation::new(String::from("asset.transfer")).unwrap(),
             ResourceId(String::from("asset:sword_001")),
-            SubjectId(String::from("account:stexs:player_123")),
-            sample_commitment(41, "account:stexs:player_123"),
-            sample_commitment(42, "account:stexs:player_456"),
+            SubjectId(String::from("account:example:player_123")),
+            sample_commitment(41, "account:example:player_123"),
+            sample_commitment(42, "account:example:player_456"),
             None,
-            SubjectId(String::from("service:statechronicle.stexs.net")),
+            SubjectId(String::from("service:statechronicle.example.net")),
             DateTime::parse_from_rfc3339("2026-07-14T00:00:01Z")
                 .unwrap()
                 .with_timezone(&Utc),

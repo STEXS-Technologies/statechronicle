@@ -12,11 +12,11 @@
 
 StateChronicle is a verifiable resource-state protocol and platform that must:
 
-1. **Compose with stexs**: stexs is the parent platform; StateChronicle must follow the
-   same structural conventions so it can be absorbed or consumed cleanly.
-2. **Mirror sibling workspaces**: stexs, shardline, and trustgrant each organize code as
-   bounded contexts (stexs `crates/slices/*`, trustgrant per-stage crates, shardline
-   per-protocol-frontend crates).
+1. **Compose with a consumer platform**: StateChronicle must follow the same structural
+   conventions as the consumer platform so it can be absorbed or consumed cleanly.
+2. **Mirror sibling workspaces**: the sibling workspaces (shardline, trustgrant) each
+   organize code as bounded contexts (per-stage crates in trustgrant, shardline
+   per-protocol-frontend crates, and platform slices under `crates/slices/*`).
 3. **Support many resource state models**: unique assets, consumable stacks, fungible
    balances, entitlements, meters, listings, escrow; each is a natural bounded context.
 4. **Enable independent testing**: each state model and each platform feature must be
@@ -39,14 +39,14 @@ Each bounded context is a vertical slice. Slices live in two tiers:
    accumulator, proof, profiles). These are pure; they contain no transport or
    persistence. The `statechronicle` umbrella crate re-exports them as the consumer's
    single entry point.
-2. **Platform slices**: in the stexs platform these are one crate per domain bounded
+2. **Platform slices**: in the consuming platform these are one crate per domain bounded
    context under `crates/slices/*` (ledger, inventory, economy, entitlement, marketplace,
    tenant), each containing the full hexagonal stack for that context. StateChronicle the
    standalone workspace does **not** ship platform slices; the protocol crates replace the
    `inventory_ledger` bounded context, and the platform slices live in the consuming
-   platform (stexs), not here.
+   platform, not here.
 
-Platform slice layout (stexs convention):
+Platform slice layout (sibling convention):
 
 ```text
 crates/slices/<name>/src/
@@ -92,7 +92,7 @@ crates/slices/<name>/src/
 ### Why Vertical Slices Wins
 
 1. **Protocol auditability**: each state machine's transition rules live in one place.
-2. **Composition with stexs**: identical `slices/*` convention makes integration natural.
+2. **Composition with a consumer**: identical `slices/*` convention makes integration natural.
 3. **Profile-based specialization** (protocol §20) maps directly to slice boundaries.
 4. **Monolith-first**: modular monolith now, service extraction later if needed.
 5. **Reduced cognitive load**: understand an entire state model in one crate.
@@ -107,7 +107,7 @@ crates/slices/<name>/src/
 - Clear ownership of each resource state model.
 - Independent testing with in-memory fakes.
 - Natural service boundaries for later decomposition.
-- Matches stexs, shardline, trustgrant conventions.
+- Matches sibling workspace conventions (shardline, trustgrant).
 
 **Negative:**
 
@@ -153,8 +153,8 @@ members = [
 
 There is no `statechronicle-shared`, `statechronicle-shared-http`,
 `statechronicle-http`, or `crates/slices/*` here. Platform slices and the HTTP
-composition root are owned by the consuming platform (stexs), which wires these
-protocol crates through `statechronicle-ports` at its own composition root.
+composition root are owned by the consuming platform, which wires these protocol
+crates through `statechronicle-ports` at its own composition root.
 
 ### Cross-Slice Boundary Enforcement
 
@@ -175,7 +175,7 @@ economy_port.debit(subject, amount).await?;
   against in-memory fake ports.
 - Umbrella crate: the e2e lane (`crates/statechronicle/tests/e2e.rs`) runs the full
   lifecycle through the real crates with in-memory port fakes.
-- Platform slices (stexs-owned): unit tests with fake adapters; the consuming platform's
+- Platform slices (consumer-owned): unit tests with fake adapters; the consuming platform's
   composition root runs its own e2e flows.
 
 ---

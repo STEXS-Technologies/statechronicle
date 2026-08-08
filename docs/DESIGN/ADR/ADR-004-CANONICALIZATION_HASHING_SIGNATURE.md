@@ -179,7 +179,7 @@ pub fn verify(body: &CommitBody, key: &VerifyingKey, sig: &Signature) -> Result<
 ```
 
 Workspace changes: add `bcs = "0.2.1"`; drop `serde_jcs` from `statechronicle-core`
-(keep only if the stexs composition root needs it for trustgrant-side work).
+(keep only if the consumer's composition root needs it for trustgrant-side work).
 
 ---
 

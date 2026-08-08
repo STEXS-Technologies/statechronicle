@@ -215,7 +215,7 @@ mod tests {
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
             state: serde_json::json!({
-                "subject": "account:stexs:player_123",
+                "subject": "account:example:player_123",
                 "status": status,
                 "transferable": transferable
             }),

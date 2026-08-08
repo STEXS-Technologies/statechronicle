@@ -215,7 +215,7 @@ async fn unknown_tenant_fails_closed() {
     assert!(matches!(
         error,
         ExecutorError::TenantNotFound { tenant }
-        if tenant == "stexs.game.alpha"
+        if tenant == "acme.game.alpha"
     ));
 }
 
@@ -407,7 +407,7 @@ async fn execute_batch_commits_all_atomically() {
 
     assert_eq!(
         harness.transactions.log(),
-        vec!["begin:stexs.game.alpha", "commit"]
+        vec!["begin:acme.game.alpha", "commit"]
     );
 }
 
@@ -432,7 +432,7 @@ async fn execute_batch_rolls_back_on_failure() {
 
     assert_eq!(
         harness.transactions.log(),
-        vec!["begin:stexs.game.alpha", "rollback"]
+        vec!["begin:acme.game.alpha", "rollback"]
     );
 }
 
@@ -712,7 +712,7 @@ async fn transfer_destination_keys_by_holder_via_state_key() {
     .unwrap();
     assert_eq!(
         holder_key,
-        StateKey::for_subject_held("stexs.game.alpha", "currency:gold", "bob")
+        StateKey::for_subject_held("acme.game.alpha", "currency:gold", "bob")
     );
     // And it differs from the source holder's key.
     let source_key = transition::state_key_for(

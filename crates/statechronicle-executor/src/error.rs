@@ -276,10 +276,10 @@ mod tests {
         );
         assert_eq!(
             ExecutorError::TenantNotFound {
-                tenant: String::from("stexs.game.alpha"),
+                tenant: String::from("acme.game.alpha"),
             }
             .to_string(),
-            "tenant `stexs.game.alpha` not found"
+            "tenant `acme.game.alpha` not found"
         );
         assert_eq!(
             ExecutorError::ResourceNotFound {

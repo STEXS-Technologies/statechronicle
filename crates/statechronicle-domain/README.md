@@ -46,7 +46,7 @@ wire format.
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_domain::resource::ResourceId;
 
-let tenant = TenantId(String::from("stexs.game.alpha"));
+let tenant = TenantId(String::from("acme.game.alpha"));
 let resource = ResourceId(String::from("asset:sword_001"));
 ```
 

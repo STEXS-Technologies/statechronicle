@@ -24,7 +24,7 @@ consensus, no token. It is a Git-inspired, append-only, content-addressed histor
 with strict transaction semantics.
 
 This repository implements the protocol as a **Rust Cargo workspace** whose architecture
-mirrors the conventions already established in `stexs`, `shardline`, and `trustgrant`:
+mirrors sibling workspace conventions (`shardline`, `trustgrant`):
 
 - **Hexagonal architecture** (ports & adapters) so domain logic is pure and testable.
 - **Vertical slices** (one crate per bounded context) so each feature is owned end-to-end.
@@ -33,16 +33,16 @@ mirrors the conventions already established in `stexs`, `shardline`, and `trustg
 - **Stage-separated protocol documents** (`Raw → Validated → Verified`) following the
   trustgrant cold-path/hot-path split.
 - **A composition root** that owns all cross-slice wiring and dependency injection,
-  following stexs. The composition root is the consumer's (e.g. the stexs platform), not
-  a crate in this workspace.
+  following sibling conventions. The composition root is the consumer's, not a crate in
+  this workspace.
 
 StateChronicle is a **standalone, open-source workspace** built in the same style as
 `shardline` and `trustgrant`. It has **no compile-time dependency on either** (see
 ADR-003). TrustGrant is consumed only through `statechronicle-ports::TrustGrantEvaluator`;
-the production adapter lives in the **stexs composition root**, which is the single place
-the three protocols are wired together. Shardline is entirely out-of-band: StateChronicle
-events carry content digests as metadata, and byte resolution/verification happens in
-another stexs system.
+the production adapter lives in the **consumer's composition root**, which is the single
+place the three protocols are wired together. Shardline is entirely out-of-band:
+StateChronicle events carry content digests as metadata, and byte
+resolution/verification happens in another consumer system.
 
 ---
 
@@ -74,8 +74,8 @@ another stexs system.
 - **cargo-nextest** for tests; **cargo-fuzz** for fuzzing
 - **cargo-deny** (`deny.toml`) for dependency/license policy
 - Strict deny-by-default clippy lints at workspace level: no `unwrap`, no `expect`, no
-  `panic`, no indexing in non-test code (same discipline as shardline/trustgrant/stexs)
-- **Async:** tokio; async ports via `trait_variant::make(Send)` (stexs convention)
+  `panic`, no indexing in non-test code (same discipline as shardline/trustgrant)
+- **Async:** tokio; async ports via `trait_variant::make(Send)` (sibling convention)
 - **Storage/HTTP:** none in this workspace. Consumers provide these through the ports
   at their own composition root.
 
@@ -175,7 +175,7 @@ Multi-resource transactions are validated against every affected state record's
 
 ## 7. Data Flow Through the Platform (consumer composition root)
 
-The composition root is the consumer's (e.g. the stexs platform). It wires the protocol
+The composition root is the consumer's. It wires the protocol
 crates to the consumer's storage, authority, and transport via the ports:
 
 ```text
@@ -232,13 +232,14 @@ The backend may vary; the canonical objects and verification results must not.
   and fresh; the evaluation itself runs behind the port. The port is trait-only and
   dependency-free by construction, so any evaluator that returns `allow` and passes the
   freshness check can be plugged in. TrustGrant is one option, not a requirement. The
-  production adapter lives in the **stexs composition root**; StateChronicle v0 uses an
-  in-memory fake.
+  production adapter lives in the **consumer's composition root**; StateChronicle v0
+  uses an in-memory fake.
 - **Shardline:** no integration. Events carry `content: { kind, digest, media_type,
   size }` as pure metadata; resolution and byte verification happen out-of-band in
-  another stexs system.
+  another consumer system.
 - **Commit authority:** a `service:statechronicle...` subject authorized via the
-  platform's own auth system (checked at the stexs root); commit keys Ed25519, rotated
+  platform's own auth system (checked at the consumer's root); commit keys Ed25519,
+  rotated
   through platform-authorized key transition procedures.
 
 ---
@@ -257,7 +258,7 @@ The backend may vary; the canonical objects and verification results must not.
 
 ---
 
-## 11. Conventions (aligned with stexs/shardline/trustgrant)
+## 11. Conventions (aligned with sibling workspaces shardline/trustgrant)
 
 - **Crates:** `statechronicle-<concern>`; `crates/statechronicle` is the umbrella facade.
 - **Ports:** output `<Noun>Repository`, `<Noun>Gateway`, `<Noun>Cache`,

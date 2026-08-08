@@ -57,8 +57,8 @@ use common::{
     sample_authority, tenant, validated_intent,
 };
 
-const ALICE: &str = "account:stexs:player_123";
-const BOB: &str = "account:stexs:player_456";
+const ALICE: &str = "account:example:player_123";
+const BOB: &str = "account:example:player_456";
 const RESOURCE: &str = "asset:sword_001";
 
 /// The snapshot of the full pipeline produced by a single lifecycle run.
@@ -82,7 +82,7 @@ fn payload(
 ) -> Value {
     json!({
         "schema": INTENT_SCHEMA,
-        "tenant_id": "stexs.game.alpha",
+        "tenant_id": "acme.game.alpha",
         "intent_id": intent_id,
         "operation": operation,
         "actor": actor,

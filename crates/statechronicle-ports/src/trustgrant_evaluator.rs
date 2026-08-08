@@ -9,7 +9,7 @@
 //! The executor calls this port during the execution pipeline (§18.1 step 8)
 //! and fails closed unless the evaluation result is `allow` and fresh (§18.2).
 //! The evaluation itself runs behind the port, in an adapter owned by the
-//! consuming platform's composition root (e.g. stexs). StateChronicle ships no
+//! consuming platform's composition root (e.g. the consumer). StateChronicle ships no
 //! implementation and has no compile-time dependency on the trustgrant crate.
 //!
 //! Any evaluator that returns an `allow` result and passes the freshness check
@@ -42,10 +42,10 @@ pub enum TrustGrantError {
 /// Backend-agnostic delegated-authority evaluator port (no implementations in
 /// this crate).
 ///
-/// Production adapter lives in the consumer's composition root (e.g. stexs);
-/// StateChronicle v0 uses an in-memory fake. TrustGrant is one possible
-/// evaluator, not a requirement. Async via `trait_variant::make` (stexs
-/// convention).
+/// Production adapter lives in the consumer's composition root (e.g. the
+/// consumer). StateChronicle v0 uses an in-memory fake. TrustGrant is one
+/// possible evaluator, not a requirement. Async via `trait_variant::make`
+/// (sibling convention).
 #[make(Send)]
 pub trait TrustGrantEvaluator: Sync {
     /// Evaluate whether `actor` may perform `operation` on `resource` in

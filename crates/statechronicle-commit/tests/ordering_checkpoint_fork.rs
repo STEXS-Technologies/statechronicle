@@ -45,11 +45,11 @@ use statechronicle_commit::roots::{compute_state_root, state_root_updates};
 const FIXED_SEED: [u8; 32] = [42u8; 32];
 
 fn tenant() -> TenantId {
-    TenantId(String::from("stexs.game.alpha"))
+    TenantId(String::from("acme.game.alpha"))
 }
 
 fn executor() -> SubjectId {
-    SubjectId(String::from("service:statechronicle.stexs.net"))
+    SubjectId(String::from("service:statechronicle.example.net"))
 }
 
 fn profile() -> ProfileId {
@@ -86,8 +86,8 @@ fn event(id: &str, resource: &str, owner: &str) -> Event {
         IntentId::new(format!("int_{id}")).unwrap(),
         Operation::new(String::from("asset.transfer")).unwrap(),
         ResourceId(String::from(resource)),
-        SubjectId(String::from("account:stexs:player_123")),
-        commitment(1, "account:stexs:player_000"),
+        SubjectId(String::from("account:example:player_123")),
+        commitment(1, "account:example:player_000"),
         commitment(2, owner),
         None,
         executor(),
@@ -126,7 +126,7 @@ fn real_root(tenant_id: &TenantId, resource: &str, digest: [u8; 32]) -> StateRoo
 fn global_checkpoint_lifecycle() {
     // Two tenants with real accumulator-derived state roots.
     let alpha = tenant();
-    let beta = TenantId(String::from("stexs.marketplace"));
+    let beta = TenantId(String::from("acme.marketplace"));
     let alpha_root = real_root(
         &alpha,
         "asset:sword",

@@ -1,42 +1,160 @@
 # StateChronicle
 
-## What it is
+## What is this?
 
-StateChronicle is a pure-logic, verifiable resource-state ledger protocol
-engine: append-only events, signed commits, deterministic state transitions,
-sparse-Merkle state roots, and portable proofs that anyone can verify. It is
-the "brain" of a state protocol: it ships no storage, HTTP, or authority
-implementation. Those are the consumer's, supplied behind the
-`statechronicle-ports` traits and wired in at the composition root. The engine
-stays deterministic and testable because every side effect is an injected port.
+StateChronicle is a library for recording **who owns what, who changed it, and
+why you can trust the record**. It is the kind of ledger you build game
+inventory, marketplaces, in-game currency, licenses, and escrow flows on top
+of: every change is appended (never overwritten), batched into a signed
+commit, and given a cryptographic state root, so anyone can replay the whole
+history and verify that the current state is exactly what the recorded events
+produce.
+
+It is a *pure-logic* engine: it ships no database, no HTTP server, and no
+authorization system. Those are the consumer's job, supplied behind ten small
+trait interfaces (`statechronicle-ports`) and wired together at the consumer's
+composition root. What you get instead is a deterministic, fully testable core
+that cannot silently diverge, lose a transaction, or round a balance.
+
+## Use cases
+
+- **Game inventory**: mint, transfer, lock, and burn unique assets (swords,
+  skins, collectibles) with a provable ownership history that survives
+  database restores, because state is recomputed from events, not stored.
+- **Marketplaces**: list, buy, and escrow assets; prove a seller owns what
+  they listed and a buyer can afford what they are buying.
+- **In-game currency**: fungible balances (gold, credits, gems) with exact
+  fixed-point arithmetic, so balances never drift due to floating-point
+  rounding and debits never exceed available funds.
+- **Entitlements and licenses**: grant, activate, suspend, and revoke access
+  rights, with a history of who held what and when.
+- **Paid items and ownership protection**: assets that were sold are protected
+  from silent deletion or creator overreach; loss of utility (quarantine,
+  legal hold) is distinct from loss of ownership.
+- **Audits and proofs**: produce a compact proof that a player currently owns
+  an item, or that an item never existed, verifiable against the signed commit
+  chain without replaying all history.
+
+## What you get (capabilities)
+
+- **Append-only, signed history**: events are never edited or deleted; commits
+  are Ed25519-signed, so the record is tamper-evident.
+- **Deterministic replay**: the state root after any commit is a pure function
+  of the events in that commit, so replay from genesis always reproduces the
+  same state. There is no hidden mutable state.
+- **Exact money math**: amounts are fixed-point integers (u128 mantissa with an
+  explicit scale), and floating-point values are structurally impossible in
+  the wire format. No rounding drift, no float bugs.
+- **Fail-closed transitions**: optimistic concurrency (expected version),
+  conflict rules, and per-profile invariants (no negative balances, no debit
+  over available funds, transfers are atomic debit + credit) reject invalid
+  changes before they are recorded.
+- **Portable proofs**: state, ownership, balance, and non-membership proofs
+  anyone can verify against a signed commit, without the full history.
+- **Delegated authority**: the executor checks, per operation, whether a
+  delegated third party may act on a resource. The evaluator behind this check
+  is a pluggable trait (TrustGrant is one option; your own policy engine is
+  equally valid), and it is entirely separate from your platform's basic
+  owner/actor authentication.
 
 ## The flow
 
-1. **Submit**: a client submits a raw intent document describing the requested
-   transition.
-2. **Parse + validate** (`statechronicle-intent`): the raw payload is parsed
-   and validated into a `ValidatedIntent` with a canonical body, idempotency
-   key, and optional detached signature.
-3. **Execute through ports** (`statechronicle-executor`): the §18.1 pipeline
-   runs the intent through conflict gates, expected-version checks,
-   delegated-authority evaluation with multi-authority aggregation, and profile
-   rules, producing a deterministic after-state and the emitted event.
-4. **Form + sign commits** (`statechronicle-commit`): events are batched into
-   commits, event/state Merkle roots are computed, and the commit body is signed
-   with an Ed25519 commit key.
-5. **Serve / verify proofs** (`statechronicle-proof`): portable state,
-   ownership, and inclusion proofs, including non-membership proofs, are served
-   from committed state and verified against the signed commit chain.
+1. **Submit**: a transition request (intent) arrives, either as raw bytes or as
+   already-typed data.
+2. **Validate** (`statechronicle-intent`): turn it into a validated intent with
+   a canonical body, an idempotency key, and an optional signature. You can
+   skip parsing entirely if your data is already typed.
+3. **Execute** (`statechronicle-executor`): the intent runs through the
+   validation pipeline (conflict gates, version checks, delegated-authority
+   evaluation, profile rules), producing a deterministic after-state and one
+   or more events.
+4. **Commit** (`statechronicle-commit`): events are batched, event and state
+   Merkle roots are computed, and the commit is signed.
+5. **Prove** (`statechronicle-proof`): state, ownership, balance, and
+   non-membership proofs are served from committed state and verified against
+   the signed commit chain.
+
+## Two ways to construct a validated intent
+
+StateChronicle works with whatever shape your data is already in.
+
+**Already-typed data (no parsing).** If your platform builds the `Intent`
+itself (for example, a handler that already deserialized and validated the
+request), construct the validated intent directly:
+
+```rust
+use statechronicle::domain::intent::{Intent, Operation, Nonce};
+use statechronicle::intent::validated::ValidatedIntent;
+
+let intent = Intent::new(/* tenant, operation, actor, resource, ... */);
+let validated = ValidatedIntent::from_intent(intent, None); // typed in, no parsing
+```
+
+**Raw wire bytes.** If you receive a payload over the wire, parse then
+validate it:
+
+```rust
+use statechronicle::intent::parse::parse_intent;
+use statechronicle::intent::validate::validate;
+
+let raw = parse_intent(&bytes)?;      // cheap structural check + size limit
+let validated = validate(&raw)?;      // schema, newtypes, expiry, signature
+```
+
+Both paths produce the same `ValidatedIntent` and feed the same executor.
+
+## Example: a full lifecycle
+
+The repository includes a runnable end-to-end lifecycle in
+`crates/statechronicle/tests/e2e.rs` (plus the in-memory port fakes in
+`crates/statechronicle/tests/common/mod.rs`): it mints an asset, transfers it,
+locks it, forms and signs the enclosing commit, verifies a state proof, proves
+a tampered event fails closed, and proves an absent resource never existed.
+Run it with `cargo test -p statechronicle`. That test is the best live
+example of wiring the whole pipeline; the sketch below shows the same shape
+in miniature.
+
+```rust
+use statechronicle::commit::builder::CommitBuilder;
+use statechronicle::commit::sign::{sign_commit, verify_commit};
+use statechronicle::domain::commit::CommitScope;
+use statechronicle::domain::signed::Signed;
+use statechronicle::executor::pipeline::{Executor, Ports};
+use statechronicle::profiles::registry::ProfileRegistry;
+use statechronicle::proof::verify::verify_bundle;
+
+// 1. Your port adapters: intent store, state index, tenant store, one or more
+//    delegated-authority evaluators, transaction manager.
+let executor = Executor::new(
+    Ports::new(intent_store, state_index, tenant_store, authority_ports, tx_manager),
+    ProfileRegistry::baseline(),
+    executor_subject(),
+    Box::new(now),          // injected wall clock
+    Box::new(event_id_gen), // injected event-id generator
+    intent_verifier,        // resolves key_id -> verifying key
+);
+
+// 2. Execute a validated intent through the pipeline.
+let events = executor.execute(&validated).await?;
+
+// 3. Form, sign, and verify the commit.
+let signed: Signed<Commit> = sign_commit(&commit, &commit_key, &key_id)?;
+verify_commit(&signed, &commit_key.verifying_key())?;
+
+// 4. Build a resource-state proof and verify it against the signed commit.
+let proof = build_state_proof(&projection, &signed, &inclusion, &op, None, key)?;
+assert!(verify_bundle(&proof, &signed, &commit_key.verifying_key(), &key).is_ok());
+```
 
 ## Crate map
 
 | Crate | Role |
 |---|---|
 | `statechronicle` | Umbrella crate: namespaced re-exports + curated facade |
-| `statechronicle-core` | Primitives: amounts, digests, signatures, limits, canonicalization |
+| `statechronicle-core` | Primitives: fixed-point amounts, digests, signatures, limits |
 | `statechronicle-domain` | Canonical protocol objects: tenants, intents, events, commits, proofs |
-| `statechronicle-intent` | Intent parsing and validation into `ValidatedIntent` |
-| `statechronicle-executor` | The §18.1 execution pipeline through injected ports |
+| `statechronicle-intent` | Intent construction and validation (typed or raw) |
+| `statechronicle-executor` | The validation pipeline through injected ports |
 | `statechronicle-commit` | Commit formation, ordering, roots, and signing |
 | `statechronicle-accumulator` | Sparse-Merkle state accumulator and state roots |
 | `statechronicle-proof` | Proof serving and verification (incl. non-membership) |
@@ -45,118 +163,24 @@ stays deterministic and testable because every side effect is an injected port.
 
 Each crate carries a README with a "Protocol sections owned" table, so the
 section numbers referenced throughout this workspace resolve to a concrete
-owner even without a monolithic protocol document.
-
-## Minimal consumption sketch
-
-The following is a real, runnable lifecycle: parse and validate an
-`asset.transfer` intent, sign its canonical body, run it through an `Executor`
-wired to in-memory port fakes, form and sign the enclosing commit, and verify
-a state proof end to end. It mirrors `crates/statechronicle/tests/e2e.rs` and
-the fakes in `crates/statechronicle/tests/common/mod.rs`; every symbol below
-exists in the public API.
-
-```rust
-use std::collections::BTreeMap;
-
-use serde_json::{Value, json};
-
-use statechronicle::accumulator::sparse_merkle::StateAccumulator;
-use statechronicle::commit::builder::CommitBuilder;
-use statechronicle::commit::sign::{sign_commit, verify_commit};
-use statechronicle::core::canonicalize::canonicalize;
-use statechronicle::core::digest::ContentDigest;
-use statechronicle::core::signature::sign;
-use statechronicle::domain::commit::CommitScope;
-use statechronicle::domain::intent::{INTENT_SCHEMA, Operation, SignatureAlg, SignatureBlock};
-use statechronicle::domain::ids::CommitId;
-use statechronicle::domain::signed::Signed;
-use statechronicle::domain::state_type::StateType;
-use statechronicle::executor::pipeline::{Executor, Ports};
-use statechronicle::intent::parse::parse_intent;
-use statechronicle::intent::validate::validate;
-use statechronicle::profiles::registry::ProfileRegistry;
-use statechronicle::proof::verify::verify_bundle;
-
-// A canonical raw-intent payload (protocol §11.1).
-let payload = json!({
-    "schema": INTENT_SCHEMA,
-    "tenant_id": "stexs.game.alpha",
-    "intent_id": "int_transfer_001",
-    "operation": "asset.transfer",
-    "actor": "account:stexs:player_123",
-    "resource_id": "asset:sword_001",
-    "state_type": "unique_asset",
-    "expected_version": 0,
-    "inputs": { "from_owner": "account:stexs:player_123",
-                "to_owner": "account:stexs:player_456" },
-    "created_at": "2026-07-14T00:00:00Z",
-    "expires_at": "2026-07-14T00:05:00Z",
-    "nonce": "b64u:AAME",
-});
-
-// 1. Parse + validate into a ValidatedIntent.
-let raw = parse_intent(&serde_json::to_vec(&payload).unwrap()).unwrap();
-let mut validated = validate(&raw).unwrap();
-
-// 2. Sign the canonical intent body with your Ed25519 key (composition root).
-let body_bytes = canonicalize(&validated.intent).unwrap();
-validated.signature = Some(SignatureBlock {
-    alg: SignatureAlg::Ed25519,
-    key_id: key_id(),                       // a KeyId you resolve to your key
-    sig: sign(&body_bytes, &fixed_key()),   // ed25519-dalek SigningKey
-});
-
-// 3. Execute through an Executor wired to your port adapters (in-memory fakes
-//    here). Ports bundles intent store, state index, tenant store, one or more
-//    delegated-authority evaluators, and a transaction manager.
-let executor = Executor::new(
-    Ports::new(intent_store, state_index, tenant_store, authority_ports, tx_manager),
-    ProfileRegistry::baseline(),
-    executor_subject(),
-    Box::new(fixed_now),
-    Box::new(event_id_gen),
-    intent_verifier,                        // resolves key_id -> verifying key
-);
-let events = executor.execute(&validated).await.unwrap();
-
-// 4. Form the commit and sign it. The next state root is a pure function of
-//    the emitted events' after-state set.
-let batch = /* ordered CommitBatch from the events */;
-let commit = CommitBuilder::new(CommitScope::tenant(tenant()), 1,
-    executor_subject(), profile(), now, None)
-    .build(&batch, previous_root, &[], commit_id)
-    .unwrap();
-let signed: Signed<Commit> = sign_commit(&commit, &fixed_key(), key_id()).unwrap();
-verify_commit(&signed, &fixed_key().verifying_key()).unwrap();
-
-// 5. Build a resource-state proof and verify it against the signed commit.
-let inclusion = accumulator.prove_inclusion(&key).unwrap();
-let proof = build_state_proof(&projection, &signed, &inclusion, &op, None, key).unwrap();
-assert!(verify_bundle(&proof, &signed, &fixed_key().verifying_key(), &key).is_ok());
-```
-
-The storage / authority / transport behind the ports is yours; the composition
-root (where port adapters, key resolution, the wall clock, and the event-id
-generator are assembled) is platform-owned. Run the full lifecycle (mint,
-transfer, lock, tamper-fail-closed, non-membership) with
-`cargo test -p statechronicle`.
+owner.
 
 ## Authority model
 
 StateChronicle separates two distinct concerns:
 
-- **Platform basic authorization**: owner/actor identity and basic authorization
-  are the platform's own auth system, applied before (or alongside) the
-  execution pipeline. StateChronicle does not implement general authorization.
+- **Platform basic authorization**: owner/actor identity and basic
+  authorization are your platform's own auth system, applied before (or
+  alongside) the execution pipeline. StateChronicle does not implement general
+  authorization.
 - **Delegated-authority evaluation**: the `TrustGrantEvaluator` port (in
   `statechronicle-ports`) is a **delegation-of-authority boundary**, not a
-  general auth system. It is `trait-only and dependency-free by construction`:
-  it references only `statechronicle-domain` types, so it is not coupled to any
-  authority provider. The executor calls the port during §18.1 and fails closed
-  unless the evaluation is `allow` and fresh. Any evaluator that returns an
-  `allow` result and passes the freshness check can be plugged in; TrustGrant
-  is **one option, not a requirement**.
+  general auth system. It is trait-only and dependency-free by construction: it
+  references only `statechronicle-domain` types, so it is not coupled to any
+  authority provider. The executor calls the port during execution and fails
+  closed unless the evaluation is `allow` and fresh. Any evaluator that returns
+  an `allow` result and passes the freshness check can be plugged in; TrustGrant
+  is one option, not a requirement.
 
 ## Implementing the ports
 
@@ -173,20 +197,19 @@ StateChronicle separates two distinct concerns:
 | `TransactionManager` | Atomic multi-store transaction coordination |
 | `EventPublisher` | Delivery of committed events and signed commits |
 
-Implement these traits against your storage, authority, and transport backends
-(no implementations live inside the `statechronicle-ports` crate), then wire
-them into `Executor::new` and `ProofService`. The composition root (where
-port adapters, key resolution, the wall clock, and the event-id generator are
-assembled) is owned by the platform (e.g. stexs), not by StateChronicle.
+Implement these traits against your storage, authority, and transport
+backends (no implementations live inside the `statechronicle-ports` crate),
+then wire them into `Executor::new` and `ProofService`. The composition root
+(where port adapters, key resolution, the wall clock, and the event-id
+generator are assembled) is owned by the consuming platform, not by
+StateChronicle.
 
 ## What's not included
 
-StateChronicle ships no HTTP server, no database, no object store, no queue, and
-no authority implementation. It is a pure-logic engine. Any such concerns are
-the consumer's, supplied through the `statechronicle-ports` traits and wired at
-the composition root. There is no `statechronicle-http`, `statechronicle-shared`,
-`statechronicle-shared-http`, `slices/`, or `migrations/` directory in this
-workspace; consumers who want those own them.
+StateChronicle ships no HTTP server, no database, no object store, no queue,
+and no authority implementation. It is a pure-logic engine. Any such concerns
+are the consumer's, supplied through the `statechronicle-ports` traits and
+wired at the composition root.
 
 ## Protocol section index
 
@@ -214,12 +237,13 @@ below maps every section to its owning crate README.
 
 ## Verification
 
-The workspace is fully test-locked (607 tests; check/test/clippy/fmt gates),
+The workspace is fully test-locked (608 tests; check/test/clippy/fmt gates),
 and every protocol decision is recorded in `docs/DESIGN/ADR/`, with ADR-006
 resolving the open protocol questions.
 
 ## Where to go next
 
+- `crates/statechronicle/tests/e2e.rs`: the runnable end-to-end lifecycle.
 - `crates/statechronicle/README.md`: the umbrella crate and the full surface.
 - `crates/statechronicle-ports/README.md`: the port traits and the authority
   model.

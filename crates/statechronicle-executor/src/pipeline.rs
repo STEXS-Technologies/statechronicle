@@ -955,10 +955,10 @@ mod tests {
         use statechronicle_domain::subject::SubjectId;
 
         Intent::new(
-            TenantId(String::from("stexs.game.alpha")),
+            TenantId(String::from("acme.game.alpha")),
             IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap(),
             Operation::new(String::from("asset.transfer")).unwrap(),
-            SubjectId(String::from("account:stexs:player_123")),
+            SubjectId(String::from("account:example:player_123")),
             ResourceId(String::from("asset:sword_001")),
             Some(StateType::UniqueAsset),
             41,
@@ -977,7 +977,7 @@ mod tests {
         use statechronicle_domain::ids::{CommitId, EventId};
 
         StateProjection {
-            tenant_id: TenantId(String::from("stexs.game.alpha")),
+            tenant_id: TenantId(String::from("acme.game.alpha")),
             resource_id: ResourceId(String::from("balance:gold")),
             state_type,
             version: 3,
@@ -997,9 +997,9 @@ mod tests {
         let intent = sample_intent();
         // The projection's subject is authoritative once a resource exists,
         // even when it differs from the acting actor.
-        let current = held_projection(StateType::FungibleBalance, "account:stexs:player_456");
+        let current = held_projection(StateType::FungibleBalance, "account:example:player_456");
         let holder = holder_for(Some(&current), &intent, StateType::FungibleBalance).unwrap();
-        assert_eq!(holder.0, "account:stexs:player_456");
+        assert_eq!(holder.0, "account:example:player_456");
     }
 
     #[test]
@@ -1012,7 +1012,7 @@ mod tests {
     #[test]
     fn holder_for_is_none_for_owner_based_types() {
         let intent = sample_intent();
-        let current = held_projection(StateType::FungibleBalance, "account:stexs:player_123");
+        let current = held_projection(StateType::FungibleBalance, "account:example:player_123");
         assert!(holder_for(Some(&current), &intent, StateType::UniqueAsset).is_none());
         assert!(holder_for(None, &intent, StateType::Listing).is_none());
     }

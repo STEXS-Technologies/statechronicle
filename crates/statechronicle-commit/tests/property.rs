@@ -42,7 +42,7 @@ fn timestamp() -> DateTime<Utc> {
 }
 
 fn executor() -> SubjectId {
-    SubjectId(String::from("service:statechronicle.stexs.net"))
+    SubjectId(String::from("service:statechronicle.example.net"))
 }
 
 /// Reorders `events` with a deterministic pseudo-random permutation keyed by
@@ -95,7 +95,7 @@ fn build_event(chunk: &[u8], index: usize) -> Option<Event> {
     let event_id = EventId::new(format!("evt_{index}_{body}")).ok()?;
     let intent_id = IntentId::new(format!("int_{index}_{body}")).ok()?;
     let operation = Operation::new(String::from("asset.transfer")).ok()?;
-    let owner = format!("account:stexs:player_{}", index % 17);
+    let owner = format!("account:example:player_{}", index % 17);
     // Every third event is subject-held, exercising the `for_subject_held`
     // key derivation; the rest are owner-based (`for_resource`).
     let (state, resource) = if index.is_multiple_of(3) {
@@ -122,16 +122,16 @@ fn build_event(chunk: &[u8], index: usize) -> Option<Event> {
         state: serde_json::json!({}),
     };
     Some(Event::new(
-        TenantId(String::from("stexs.game.alpha")),
+        TenantId(String::from("acme.game.alpha")),
         event_id,
         intent_id,
         operation,
         ResourceId(resource),
-        SubjectId(String::from("account:stexs:player_0")),
+        SubjectId(String::from("account:example:player_0")),
         before,
         after,
         None,
-        SubjectId(String::from("service:statechronicle.stexs.net")),
+        SubjectId(String::from("service:statechronicle.example.net")),
         DateTime::parse_from_rfc3339("2026-07-14T00:00:01Z")
             .ok()?
             .with_timezone(&Utc),

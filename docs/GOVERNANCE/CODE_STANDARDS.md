@@ -68,4 +68,4 @@ Every implemented unit of logic requires:
 - Port traits live in `statechronicle-ports`; **no implementations inside**.
 - Port signatures reference statechronicle-domain types only: dependency-free by
   construction. Adapters (incl. trustgrant, storage) live in consumer composition roots
-  (stexs), never in statechronicle crates.
+  (the consumer), never in statechronicle crates.

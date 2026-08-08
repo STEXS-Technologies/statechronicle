@@ -49,7 +49,7 @@ use statechronicle_ports::transaction_manager::{
 // ---------------------------------------------------------------------------
 
 fn tenant() -> TenantId {
-    TenantId(String::from("stexs.game.alpha"))
+    TenantId(String::from("acme.game.alpha"))
 }
 
 fn resource() -> ResourceId {
@@ -57,7 +57,7 @@ fn resource() -> ResourceId {
 }
 
 fn subject() -> SubjectId {
-    SubjectId(String::from("account:stexs:player_123"))
+    SubjectId(String::from("account:example:player_123"))
 }
 
 fn intent_id() -> IntentId {
@@ -564,8 +564,8 @@ async fn transaction_manager_smoke() {
 async fn transaction_manager_begin_multi_smoke() {
     let manager = DummyTransactionManager;
     let tenants = vec![
-        TenantId(String::from("stexs.game.alpha")),
-        TenantId(String::from("stexs.game.beta")),
+        TenantId(String::from("acme.game.alpha")),
+        TenantId(String::from("acme.game.beta")),
     ];
 
     let handle = manager.begin_multi(&tenants).await.unwrap();

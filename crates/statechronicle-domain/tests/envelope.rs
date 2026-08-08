@@ -45,18 +45,18 @@ fn sample_intent() -> Intent {
     let inputs = BTreeMap::from([
         (
             String::from("from_owner"),
-            serde_json::json!("account:stexs:player_123"),
+            serde_json::json!("account:example:player_123"),
         ),
         (
             String::from("to_owner"),
-            serde_json::json!("account:stexs:player_456"),
+            serde_json::json!("account:example:player_456"),
         ),
     ]);
     Intent::new(
-        TenantId(String::from("stexs.game.alpha")),
+        TenantId(String::from("acme.game.alpha")),
         IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap(),
         Operation::new(String::from("asset.transfer")).unwrap(),
-        SubjectId(String::from("account:stexs:player_123")),
+        SubjectId(String::from("account:example:player_123")),
         ResourceId(String::from("asset:sword_001")),
         Some(StateType::UniqueAsset),
         41,
@@ -71,7 +71,7 @@ fn sample_intent() -> Intent {
 fn sample_commit() -> Commit {
     let root = hash_bytes(b"state-root");
     Commit::new(
-        CommitScope::tenant(TenantId(String::from("stexs.game.alpha"))),
+        CommitScope::tenant(TenantId(String::from("acme.game.alpha"))),
         CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
         None,
         1,
@@ -80,7 +80,7 @@ fn sample_commit() -> Commit {
         hash_bytes(b"previous-root"),
         root,
         sample_created_at(),
-        SubjectId(String::from("service:statechronicle.stexs.net")),
+        SubjectId(String::from("service:statechronicle.example.net")),
         ProfileId::new(String::from("statechronicle.profile.resource.v0")).unwrap(),
     )
 }

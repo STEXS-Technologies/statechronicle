@@ -52,7 +52,7 @@ fuzz_target!(|data: &[u8]| {
         assert_eq!(steps, non_membership.steps);
 
         let bundle = NonMembershipProofBundle::new(
-            TenantId(String::from("stexs.game.alpha")),
+            TenantId(String::from("acme.game.alpha")),
             ResourceId(String::from("asset:sword_001")),
             ContentDigest::new(*probe.as_bytes()),
             CommitRef {

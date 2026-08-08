@@ -66,7 +66,7 @@ use statechronicle_proof::verify::{verify_non_membership, verify_non_membership_
 const FIXED_SEED: [u8; 32] = [42u8; 32];
 
 fn tenant() -> TenantId {
-    TenantId(String::from("stexs.game.alpha"))
+    TenantId(String::from("acme.game.alpha"))
 }
 
 fn resource() -> ResourceId {
@@ -74,7 +74,7 @@ fn resource() -> ResourceId {
 }
 
 fn executor() -> SubjectId {
-    SubjectId(String::from("service:statechronicle.stexs.net"))
+    SubjectId(String::from("service:statechronicle.example.net"))
 }
 
 fn profile() -> ProfileId {
@@ -309,7 +309,7 @@ fn wrong_claimed_key_vs_supplied_key_is_rejected() {
 fn tenant_mismatch_is_rejected() {
     let fixture = fixture();
     let mut bundle = fixture.bundle.clone();
-    bundle.tenant_id = TenantId(String::from("stexs.game.beta"));
+    bundle.tenant_id = TenantId(String::from("acme.game.beta"));
     assert!(matches!(
         verify_non_membership_bundle(
             &bundle,

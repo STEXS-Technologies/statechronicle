@@ -138,7 +138,7 @@ mod tests {
     use statechronicle_domain::tenant::TenantId;
 
     fn tenant_scope() -> CommitScope {
-        CommitScope::tenant(TenantId(String::from("stexs.game.alpha")))
+        CommitScope::tenant(TenantId(String::from("acme.game.alpha")))
     }
 
     fn timestamp() -> DateTime<Utc> {
@@ -156,18 +156,19 @@ mod tests {
     }
 
     fn sample_event(tenant: &str, id: &str) -> Event {
-        let state = serde_json::json!({ "owner": "account:stexs:player_456", "status": "active" });
+        let state =
+            serde_json::json!({ "owner": "account:example:player_456", "status": "active" });
         Event::new(
             TenantId(String::from(tenant)),
             EventId::new(format!("evt_{id}")).unwrap(),
             IntentId::new(format!("int_{id}")).unwrap(),
             Operation::new(String::from("asset.transfer")).unwrap(),
             ResourceId(format!("asset:{id}")),
-            SubjectId(String::from("account:stexs:player_123")),
+            SubjectId(String::from("account:example:player_123")),
             sample_commitment(41, serde_json::json!({})),
             sample_commitment(42, state),
             None,
-            SubjectId(String::from("service:statechronicle.stexs.net")),
+            SubjectId(String::from("service:statechronicle.example.net")),
             timestamp(),
         )
     }
@@ -184,10 +185,10 @@ mod tests {
     fn add_event_appends_in_order() {
         let mut batch = CommitBatch::new(tenant_scope());
         batch
-            .add_event(sample_event("stexs.game.alpha", "one"))
+            .add_event(sample_event("acme.game.alpha", "one"))
             .unwrap();
         batch
-            .add_event(sample_event("stexs.game.alpha", "two"))
+            .add_event(sample_event("acme.game.alpha", "two"))
             .unwrap();
         assert_eq!(batch.event_count(), 2);
         assert_eq!(batch.events().first().unwrap().event_id.as_str(), "evt_one");
@@ -198,10 +199,10 @@ mod tests {
     fn mixed_tenant_event_is_rejected() {
         let mut batch = CommitBatch::new(tenant_scope());
         batch
-            .add_event(sample_event("stexs.game.alpha", "one"))
+            .add_event(sample_event("acme.game.alpha", "one"))
             .unwrap();
         let error = batch
-            .add_event(sample_event("stexs.game.beta", "two"))
+            .add_event(sample_event("acme.game.beta", "two"))
             .unwrap_err();
         assert!(matches!(error, CommitError::MixedTenant));
         assert_eq!(batch.event_count(), 1);
@@ -211,10 +212,10 @@ mod tests {
     fn duplicate_event_id_is_rejected() {
         let mut batch = CommitBatch::new(tenant_scope());
         batch
-            .add_event(sample_event("stexs.game.alpha", "one"))
+            .add_event(sample_event("acme.game.alpha", "one"))
             .unwrap();
         let error = batch
-            .add_event(sample_event("stexs.game.alpha", "one"))
+            .add_event(sample_event("acme.game.alpha", "one"))
             .unwrap_err();
         assert!(matches!(
             error,
@@ -233,7 +234,7 @@ mod tests {
     fn validate_accepts_well_sized_batch() {
         let mut batch = CommitBatch::new(tenant_scope());
         batch
-            .add_event(sample_event("stexs.game.alpha", "one"))
+            .add_event(sample_event("acme.game.alpha", "one"))
             .unwrap();
         assert!(batch.validate().is_ok());
     }
@@ -246,16 +247,16 @@ mod tests {
         let after = sample_commitment(1, state);
         let before = sample_commitment(0, serde_json::json!({}));
         let event = Event::new(
-            TenantId(String::from("stexs.game.alpha")),
+            TenantId(String::from("acme.game.alpha")),
             EventId::new(String::from("evt_big")).unwrap(),
             IntentId::new(String::from("int_big")).unwrap(),
             Operation::new(String::from("asset.transfer")).unwrap(),
             ResourceId(String::from("asset:big")),
-            SubjectId(String::from("account:stexs:player_123")),
+            SubjectId(String::from("account:example:player_123")),
             before,
             after,
             None,
-            SubjectId(String::from("service:statechronicle.stexs.net")),
+            SubjectId(String::from("service:statechronicle.example.net")),
             timestamp(),
         );
         batch.add_event(event).unwrap();

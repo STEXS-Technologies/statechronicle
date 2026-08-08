@@ -42,10 +42,10 @@ fn raw_intent_payload() -> impl Strategy<Value = serde_json::Value> {
                 let nonce = Nonce::from_bytes(nonce_bytes).unwrap().to_b64u_string();
                 serde_json::json!({
                     "schema": INTENT_SCHEMA,
-                    "tenant_id": "stexs.game.alpha",
+                    "tenant_id": "acme.game.alpha",
                     "intent_id": format!("int_{intent_body}"),
                     "operation": operation,
-                    "actor": "account:stexs:player_123",
+                    "actor": "account:example:player_123",
                     "resource_id": "asset:sword_001",
                     "state_type": "unique_asset",
                     "expected_version": version,
@@ -79,7 +79,7 @@ proptest! {
             validated.intent.expected_version,
             payload["expected_version"].as_u64().unwrap()
         );
-        assert_eq!(validated.idempotency_key.tenant_id.0, "stexs.game.alpha");
+        assert_eq!(validated.idempotency_key.tenant_id.0, "acme.game.alpha");
         assert_eq!(validated.idempotency_key.intent_id.as_str(), raw.intent_id);
         assert_eq!(
             validated.idempotency_key.operation.as_str(),

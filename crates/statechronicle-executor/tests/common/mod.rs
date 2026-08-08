@@ -51,11 +51,11 @@ use statechronicle_ports::trustgrant_evaluator::TrustGrantError;
 use statechronicle_profiles::registry::ProfileRegistry;
 
 pub fn tenant() -> TenantId {
-    TenantId(String::from("stexs.game.alpha"))
+    TenantId(String::from("acme.game.alpha"))
 }
 
 pub fn executor_subject() -> SubjectId {
-    SubjectId(String::from("service:statechronicle.stexs.net"))
+    SubjectId(String::from("service:statechronicle.example.net"))
 }
 
 pub fn fixed_now() -> DateTime<Utc> {

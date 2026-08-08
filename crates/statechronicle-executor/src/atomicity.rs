@@ -267,7 +267,7 @@ mod tests {
             IntentId::new(format!("int_{intent}")).unwrap(),
             Operation::new(String::from("asset.transfer")).unwrap(),
             ResourceId(String::from("asset:sword_001")),
-            SubjectId(String::from("account:stexs:player_123")),
+            SubjectId(String::from("account:example:player_123")),
             statechronicle_domain::event::StateCommitment {
                 version: 1,
                 state_hash: hash_bytes(b"before"),
@@ -279,7 +279,7 @@ mod tests {
                 state: serde_json::json!({ "owner": "bob", "status": "active" }),
             },
             None,
-            SubjectId(String::from("service:statechronicle.stexs.net")),
+            SubjectId(String::from("service:statechronicle.example.net")),
             DateTime::parse_from_rfc3339("2026-07-14T00:00:01Z")
                 .unwrap()
                 .with_timezone(&Utc),
@@ -289,8 +289,8 @@ mod tests {
     #[test]
     fn consistent_batch_passes() {
         let events = vec![
-            event("a", "stexs.game.alpha", "1"),
-            event("b", "stexs.game.alpha", "2"),
+            event("a", "acme.game.alpha", "1"),
+            event("b", "acme.game.alpha", "2"),
         ];
         assert!(validate_batch_consistency(&events).is_ok());
     }
@@ -298,8 +298,8 @@ mod tests {
     #[test]
     fn duplicate_intent_id_fails_closed() {
         let events = vec![
-            event("a", "stexs.game.alpha", "1"),
-            event("b", "stexs.game.alpha", "1"),
+            event("a", "acme.game.alpha", "1"),
+            event("b", "acme.game.alpha", "1"),
         ];
         assert!(matches!(
             validate_batch_consistency(&events),
@@ -311,8 +311,8 @@ mod tests {
     #[test]
     fn duplicate_event_id_fails_closed() {
         let events = vec![
-            event("a", "stexs.game.alpha", "1"),
-            event("a", "stexs.game.alpha", "2"),
+            event("a", "acme.game.alpha", "1"),
+            event("a", "acme.game.alpha", "2"),
         ];
         assert!(matches!(
             validate_batch_consistency(&events),
@@ -324,8 +324,8 @@ mod tests {
     #[test]
     fn mixed_tenants_fail_closed() {
         let events = vec![
-            event("a", "stexs.game.alpha", "1"),
-            event("b", "stexs.game.other", "2"),
+            event("a", "acme.game.alpha", "1"),
+            event("b", "acme.game.other", "2"),
         ];
         assert!(matches!(
             validate_batch_consistency(&events),
@@ -349,7 +349,7 @@ mod tests {
         after: &str,
     ) -> Event {
         Event::new(
-            tenant("stexs.game.alpha"),
+            tenant("acme.game.alpha"),
             EventId::new(format!("evt_{event_id}")).unwrap(),
             IntentId::new(format!("int_{intent}")).unwrap(),
             Operation::new(String::from("balance.transfer")).unwrap(),
@@ -374,7 +374,7 @@ mod tests {
                 }),
             },
             None,
-            SubjectId(String::from("service:statechronicle.stexs.net")),
+            SubjectId(String::from("service:statechronicle.example.net")),
             DateTime::parse_from_rfc3339("2026-07-14T00:00:01Z")
                 .unwrap()
                 .with_timezone(&Utc),
@@ -431,8 +431,8 @@ mod tests {
     #[test]
     fn non_transfer_multi_event_rejected() {
         let events = vec![
-            event("a", "stexs.game.alpha", "1"),
-            event("b", "stexs.game.alpha", "1"),
+            event("a", "acme.game.alpha", "1"),
+            event("b", "acme.game.alpha", "1"),
         ];
         assert!(matches!(
             validate_batch_consistency(&events),
@@ -503,7 +503,7 @@ mod tests {
                 }),
             },
             None,
-            SubjectId(String::from("service:statechronicle.stexs.net")),
+            SubjectId(String::from("service:statechronicle.example.net")),
             DateTime::parse_from_rfc3339("2026-07-14T00:00:01Z")
                 .unwrap()
                 .with_timezone(&Utc),
@@ -514,17 +514,17 @@ mod tests {
     fn cross_tenant_valid_pair_passes() {
         let groups = vec![
             TenantEventGroup {
-                tenant: tenant("stexs.game.alpha"),
+                tenant: tenant("acme.game.alpha"),
                 events: vec![
-                    transfer_event("stexs.game.alpha", "a", "x", "alice", "100", "60"),
-                    transfer_event("stexs.game.alpha", "b", "x", "bob", "0", "40"),
+                    transfer_event("acme.game.alpha", "a", "x", "alice", "100", "60"),
+                    transfer_event("acme.game.alpha", "b", "x", "bob", "0", "40"),
                 ],
             },
             TenantEventGroup {
-                tenant: tenant("stexs.game.beta"),
+                tenant: tenant("acme.game.beta"),
                 events: vec![
-                    transfer_event("stexs.game.beta", "c", "x", "carol", "100", "60"),
-                    transfer_event("stexs.game.beta", "d", "x", "dave", "0", "40"),
+                    transfer_event("acme.game.beta", "c", "x", "carol", "100", "60"),
+                    transfer_event("acme.game.beta", "d", "x", "dave", "0", "40"),
                 ],
             },
         ];
@@ -537,17 +537,17 @@ mod tests {
         // tenants. The batch is not genuinely cross-tenant.
         let groups = vec![
             TenantEventGroup {
-                tenant: tenant("stexs.game.alpha"),
+                tenant: tenant("acme.game.alpha"),
                 events: vec![
-                    transfer_event("stexs.game.alpha", "a", "x", "alice", "100", "60"),
-                    transfer_event("stexs.game.alpha", "b", "x", "bob", "0", "40"),
+                    transfer_event("acme.game.alpha", "a", "x", "alice", "100", "60"),
+                    transfer_event("acme.game.alpha", "b", "x", "bob", "0", "40"),
                 ],
             },
             TenantEventGroup {
-                tenant: tenant("stexs.game.alpha"),
+                tenant: tenant("acme.game.alpha"),
                 events: vec![
-                    transfer_event("stexs.game.alpha", "c", "y", "carol", "100", "60"),
-                    transfer_event("stexs.game.alpha", "d", "y", "dave", "0", "40"),
+                    transfer_event("acme.game.alpha", "c", "y", "carol", "100", "60"),
+                    transfer_event("acme.game.alpha", "d", "y", "dave", "0", "40"),
                 ],
             },
         ];
@@ -563,17 +563,17 @@ mod tests {
         // The first group declares alpha but holds beta-scoped events.
         let groups = vec![
             TenantEventGroup {
-                tenant: tenant("stexs.game.alpha"),
+                tenant: tenant("acme.game.alpha"),
                 events: vec![
-                    transfer_event("stexs.game.beta", "a", "x", "alice", "100", "60"),
-                    transfer_event("stexs.game.beta", "b", "x", "bob", "0", "40"),
+                    transfer_event("acme.game.beta", "a", "x", "alice", "100", "60"),
+                    transfer_event("acme.game.beta", "b", "x", "bob", "0", "40"),
                 ],
             },
             TenantEventGroup {
-                tenant: tenant("stexs.game.beta"),
+                tenant: tenant("acme.game.beta"),
                 events: vec![
-                    transfer_event("stexs.game.beta", "c", "x", "carol", "100", "60"),
-                    transfer_event("stexs.game.beta", "d", "x", "dave", "0", "40"),
+                    transfer_event("acme.game.beta", "c", "x", "carol", "100", "60"),
+                    transfer_event("acme.game.beta", "d", "x", "dave", "0", "40"),
                 ],
             },
         ];
@@ -589,17 +589,17 @@ mod tests {
         // Two tenants, but each intent id appears in exactly one tenant.
         let groups = vec![
             TenantEventGroup {
-                tenant: tenant("stexs.game.alpha"),
+                tenant: tenant("acme.game.alpha"),
                 events: vec![
-                    transfer_event("stexs.game.alpha", "a", "x", "alice", "100", "60"),
-                    transfer_event("stexs.game.alpha", "b", "x", "bob", "0", "40"),
+                    transfer_event("acme.game.alpha", "a", "x", "alice", "100", "60"),
+                    transfer_event("acme.game.alpha", "b", "x", "bob", "0", "40"),
                 ],
             },
             TenantEventGroup {
-                tenant: tenant("stexs.game.beta"),
+                tenant: tenant("acme.game.beta"),
                 events: vec![
-                    transfer_event("stexs.game.beta", "c", "y", "carol", "100", "60"),
-                    transfer_event("stexs.game.beta", "d", "y", "dave", "0", "40"),
+                    transfer_event("acme.game.beta", "c", "y", "carol", "100", "60"),
+                    transfer_event("acme.game.beta", "d", "y", "dave", "0", "40"),
                 ],
             },
         ];
@@ -617,17 +617,17 @@ mod tests {
         // groups.
         let groups = vec![
             TenantEventGroup {
-                tenant: tenant("stexs.game.alpha"),
+                tenant: tenant("acme.game.alpha"),
                 events: vec![
-                    transfer_event("stexs.game.alpha", "a", "x", "alice", "100", "60"),
-                    transfer_event("stexs.game.alpha", "b", "x", "bob", "0", "30"),
+                    transfer_event("acme.game.alpha", "a", "x", "alice", "100", "60"),
+                    transfer_event("acme.game.alpha", "b", "x", "bob", "0", "30"),
                 ],
             },
             TenantEventGroup {
-                tenant: tenant("stexs.game.beta"),
+                tenant: tenant("acme.game.beta"),
                 events: vec![
-                    transfer_event("stexs.game.beta", "c", "x", "carol", "100", "60"),
-                    transfer_event("stexs.game.beta", "d", "x", "dave", "0", "40"),
+                    transfer_event("acme.game.beta", "c", "x", "carol", "100", "60"),
+                    transfer_event("acme.game.beta", "d", "x", "dave", "0", "40"),
                 ],
             },
         ];

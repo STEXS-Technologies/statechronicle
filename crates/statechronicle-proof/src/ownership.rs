@@ -24,8 +24,8 @@ mod tests {
     #[test]
     fn owner_of_reads_and_validates() {
         assert_eq!(
-            owner_of(&serde_json::json!({ "owner": "account:stexs:player_456" })).unwrap(),
-            "account:stexs:player_456"
+            owner_of(&serde_json::json!({ "owner": "account:example:player_456" })).unwrap(),
+            "account:example:player_456"
         );
         assert!(owner_of(&serde_json::json!({ "status": "active" })).is_err());
         assert!(owner_of(&serde_json::json!({ "owner": 42 })).is_err());

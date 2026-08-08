@@ -63,12 +63,12 @@ const FIXED_SEED: [u8; 32] = [42u8; 32];
 
 /// The fixed tenant all intents target.
 pub fn tenant() -> TenantId {
-    TenantId(String::from("stexs.game.alpha"))
+    TenantId(String::from("acme.game.alpha"))
 }
 
 /// The executor identity recorded on every emitted event.
 pub fn executor_subject() -> SubjectId {
-    SubjectId(String::from("service:statechronicle.stexs.net"))
+    SubjectId(String::from("service:statechronicle.example.net"))
 }
 
 /// The fixed wall clock shared by every executor in this lane.

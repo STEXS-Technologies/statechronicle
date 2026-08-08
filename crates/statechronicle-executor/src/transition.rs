@@ -937,7 +937,7 @@ mod tests {
         projection(
             StateType::ConsumableStack,
             json!({
-                "subject": "account:stexs:player_123",
+                "subject": "account:example:player_123",
                 "quantity": quantity,
                 "unit": "arrows",
             }),
@@ -948,7 +948,7 @@ mod tests {
         projection(
             StateType::FungibleBalance,
             json!({
-                "subject": "account:stexs:player_123",
+                "subject": "account:example:player_123",
                 "balance": balance,
                 "unit": "gold_minor",
             }),
@@ -959,7 +959,7 @@ mod tests {
         projection(
             StateType::MeteredResource,
             json!({
-                "subject": "account:stexs:player_123",
+                "subject": "account:example:player_123",
                 "remaining": remaining,
                 "maximum": maximum,
             }),
@@ -970,7 +970,7 @@ mod tests {
         projection(
             StateType::Entitlement,
             json!({
-                "subject": "account:stexs:player_123",
+                "subject": "account:example:player_123",
                 "status": status,
                 "transferable": transferable,
             }),
@@ -982,12 +982,12 @@ mod tests {
         let after = apply(
             None,
             &op("asset.mint"),
-            &inputs(&[("to_owner", json!("account:stexs:player_123"))]),
+            &inputs(&[("to_owner", json!("account:example:player_123"))]),
         )
         .unwrap();
         assert_eq!(
             after,
-            json!({ "owner": "account:stexs:player_123", "status": "active" })
+            json!({ "owner": "account:example:player_123", "status": "active" })
         );
     }
 
@@ -1343,7 +1343,7 @@ mod tests {
     fn state_key_for_matches_accumulator_derivation() {
         let tenant = TenantId(String::from("tenant:acme"));
         let resource = ResourceId(String::from("asset:sword_001"));
-        let subject = SubjectId(String::from("account:stexs:player_123"));
+        let subject = SubjectId(String::from("account:example:player_123"));
 
         let resource_key = state_key_for(StateType::UniqueAsset, &tenant, None, &resource).unwrap();
         assert_eq!(
@@ -1363,7 +1363,7 @@ mod tests {
             StateKey::for_subject_held(
                 "tenant:acme",
                 "asset:sword_001",
-                "account:stexs:player_123"
+                "account:example:player_123"
             )
         );
 

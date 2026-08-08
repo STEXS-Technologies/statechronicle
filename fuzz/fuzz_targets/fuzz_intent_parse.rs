@@ -29,15 +29,15 @@ fuzz_target!(|data: &[u8]| {
     };
     let raw_json = serde_json::json!({
         "schema": INTENT_SCHEMA,
-        "tenant_id": "stexs.game.alpha",
+        "tenant_id": "acme.game.alpha",
         "intent_id": "int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2",
         "operation": "asset.transfer",
-        "actor": "account:stexs:player_123",
+        "actor": "account:example:player_123",
         "resource_id": "asset:sword_001",
         "expected_version": 41,
         "inputs": {
-            "from_owner": "account:stexs:player_123",
-            "to_owner": "account:stexs:player_456",
+            "from_owner": "account:example:player_123",
+            "to_owner": "account:example:player_456",
         },
         "authority": {
             "kind": "trustgrant.evaluation",

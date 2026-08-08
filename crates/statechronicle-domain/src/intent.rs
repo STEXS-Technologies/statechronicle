@@ -459,21 +459,21 @@ mod tests {
         BTreeMap::from([
             (
                 String::from("from_owner"),
-                serde_json::json!("account:stexs:player_123"),
+                serde_json::json!("account:example:player_123"),
             ),
             (
                 String::from("to_owner"),
-                serde_json::json!("account:stexs:player_456"),
+                serde_json::json!("account:example:player_456"),
             ),
         ])
     }
 
     fn sample_intent() -> Intent {
         Intent::new(
-            TenantId(String::from("stexs.game.alpha")),
+            TenantId(String::from("acme.game.alpha")),
             IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap(),
             Operation::new(String::from("asset.transfer")).unwrap(),
-            SubjectId(String::from("account:stexs:player_123")),
+            SubjectId(String::from("account:example:player_123")),
             ResourceId(String::from("asset:sword_001")),
             Some(StateType::UniqueAsset),
             41,

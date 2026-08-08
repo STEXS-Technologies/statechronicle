@@ -72,7 +72,7 @@ fn sample_proof(
     root: &statechronicle_accumulator::sparse_merkle::StateRoot,
 ) -> ResourceStateProof {
     ResourceStateProof::new(
-        TenantId(String::from("stexs.game.alpha")),
+        TenantId(String::from("acme.game.alpha")),
         ResourceId(String::from("asset:sword_001")),
         state,
         CommitRef {
@@ -100,7 +100,7 @@ fn non_membership_bundle(
     root: &statechronicle_accumulator::sparse_merkle::StateRoot,
 ) -> NonMembershipProofBundle {
     NonMembershipProofBundle::new(
-        TenantId(String::from("stexs.game.alpha")),
+        TenantId(String::from("acme.game.alpha")),
         ResourceId(String::from("asset:sword_001")),
         ContentDigest::new(*non_membership.key.as_bytes()),
         CommitRef {

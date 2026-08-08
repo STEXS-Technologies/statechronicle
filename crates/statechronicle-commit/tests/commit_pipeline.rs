@@ -54,15 +54,15 @@ use statechronicle_commit::sign::{sign_commit, verify_commit};
 const FIXED_SEED: [u8; 32] = [42u8; 32];
 
 fn tenant() -> TenantId {
-    TenantId(String::from("stexs.game.alpha"))
+    TenantId(String::from("acme.game.alpha"))
 }
 
 fn executor() -> SubjectId {
-    SubjectId(String::from("service:statechronicle.stexs.net"))
+    SubjectId(String::from("service:statechronicle.example.net"))
 }
 
 fn actor() -> SubjectId {
-    SubjectId(String::from("account:stexs:player_123"))
+    SubjectId(String::from("account:example:player_123"))
 }
 
 fn profile() -> ProfileId {

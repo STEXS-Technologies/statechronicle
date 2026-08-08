@@ -373,7 +373,7 @@ mod tests {
     const FIXED_SEED: [u8; 32] = [42u8; 32];
 
     fn tenant() -> TenantId {
-        TenantId(String::from("stexs.game.alpha"))
+        TenantId(String::from("acme.game.alpha"))
     }
 
     fn resource() -> String {
@@ -381,7 +381,7 @@ mod tests {
     }
 
     fn executor() -> SubjectId {
-        SubjectId(String::from("service:statechronicle.stexs.net"))
+        SubjectId(String::from("service:statechronicle.example.net"))
     }
 
     fn timestamp() -> DateTime<Utc> {
@@ -436,7 +436,7 @@ mod tests {
 
     fn claimed_state() -> serde_json::Value {
         serde_json::json!({
-            "owner": "account:stexs:player_456",
+            "owner": "account:example:player_456",
             "status": "active",
             "version": 42,
         })
@@ -508,7 +508,7 @@ mod tests {
         let (root, _) = tree_with(key, *state_digest.as_bytes());
         let mut proof = proof_for(key, claimed);
         proof.claimed_state = serde_json::json!({
-            "owner": "account:stexs:player_789",
+            "owner": "account:example:player_789",
             "status": "active",
             "version": 42,
         });
@@ -580,9 +580,9 @@ mod tests {
     fn verify_ownership_matches_expected_subject() {
         let key = StateKey::for_resource(&tenant().0, &resource());
         let proof = proof_for(key, claimed_state());
-        assert!(verify_ownership(&proof, "account:stexs:player_456").is_ok());
+        assert!(verify_ownership(&proof, "account:example:player_456").is_ok());
         assert!(matches!(
-            verify_ownership(&proof, "account:stexs:player_789"),
+            verify_ownership(&proof, "account:example:player_789"),
             Err(ProofError::SubjectMismatch { .. })
         ));
 
@@ -598,7 +598,7 @@ mod tests {
             None,
         );
         assert!(matches!(
-            verify_ownership(&missing, "account:stexs:player_456"),
+            verify_ownership(&missing, "account:example:player_456"),
             Err(ProofError::InvalidState(_))
         ));
     }
@@ -657,7 +657,7 @@ mod tests {
             *root.as_bytes(),
         ));
         let mut proof = proof_for(key, claimed);
-        proof.tenant_id = TenantId(String::from("stexs.game.beta"));
+        proof.tenant_id = TenantId(String::from("acme.game.beta"));
         assert!(matches!(
             verify_bundle(&proof, &signed, &fixed_key().verifying_key(), &key),
             Err(ProofError::TenantMismatch { .. })
@@ -807,7 +807,7 @@ mod tests {
         let present = StateKey::for_resource(&tenant().0, &resource());
         let absent = absent_key();
         let (mut bundle, signed, _root) = non_membership_fixture(present, absent);
-        bundle.tenant_id = TenantId(String::from("stexs.game.beta"));
+        bundle.tenant_id = TenantId(String::from("acme.game.beta"));
         assert!(matches!(
             verify_non_membership_bundle(&bundle, &signed, &fixed_key().verifying_key(), &absent),
             Err(ProofError::TenantMismatch { .. })

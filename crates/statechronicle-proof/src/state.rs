@@ -29,7 +29,7 @@ mod tests {
     #[test]
     fn state_key_for_projection_is_resource_keyed() {
         let projection = StateProjection {
-            tenant_id: TenantId(String::from("stexs.game.alpha")),
+            tenant_id: TenantId(String::from("acme.game.alpha")),
             resource_id: statechronicle_domain::resource::ResourceId(String::from(
                 "asset:sword_001",
             )),
@@ -44,12 +44,12 @@ mod tests {
             ))
             .unwrap(),
             state_hash: statechronicle_core::digest::hash_bytes(b"state"),
-            state: serde_json::json!({ "owner": "account:stexs:player_456" }),
+            state: serde_json::json!({ "owner": "account:example:player_456" }),
         };
         let key = state_key_for_projection(&projection);
         assert_eq!(
             key,
-            StateKey::for_resource("stexs.game.alpha", "asset:sword_001")
+            StateKey::for_resource("acme.game.alpha", "asset:sword_001")
         );
     }
 }

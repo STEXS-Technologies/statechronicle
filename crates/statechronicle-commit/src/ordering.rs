@@ -121,7 +121,7 @@ mod tests {
     }
 
     fn commitment(version: u64) -> StateCommitment {
-        let state = serde_json::json!({ "owner": "account:stexs:player_123" });
+        let state = serde_json::json!({ "owner": "account:example:player_123" });
         StateCommitment {
             version,
             state_hash: canonicalize_and_digest(&state).unwrap(),
@@ -131,16 +131,16 @@ mod tests {
 
     fn test_event(id: &str, resource: &str, version: u64) -> Event {
         Event::new(
-            TenantId(String::from("stexs.game.alpha")),
+            TenantId(String::from("acme.game.alpha")),
             EventId::new(format!("evt_{id}")).unwrap(),
             IntentId::new(format!("int_{id}")).unwrap(),
             Operation::new(String::from("asset.transfer")).unwrap(),
             ResourceId(String::from(resource)),
-            SubjectId(String::from("account:stexs:player_123")),
+            SubjectId(String::from("account:example:player_123")),
             commitment(version.saturating_sub(1)),
             commitment(version),
             None,
-            SubjectId(String::from("service:statechronicle.stexs.net")),
+            SubjectId(String::from("service:statechronicle.example.net")),
             timestamp(),
         )
     }

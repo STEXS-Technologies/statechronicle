@@ -164,16 +164,16 @@ mod tests {
     fn sample_raw() -> RawIntent {
         RawIntent {
             schema: String::from(INTENT_SCHEMA),
-            tenant_id: String::from("stexs.game.alpha"),
+            tenant_id: String::from("acme.game.alpha"),
             intent_id: String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2"),
             operation: String::from("asset.transfer"),
-            actor: String::from("account:stexs:player_123"),
+            actor: String::from("account:example:player_123"),
             resource_id: String::from("asset:sword_001"),
             state_type: Some(serde_json::json!("unique_asset")),
             expected_version: 41,
             inputs: BTreeMap::from([(
                 String::from("to_owner"),
-                serde_json::json!("account:stexs:player_456"),
+                serde_json::json!("account:example:player_456"),
             )]),
             authority: None,
             created_at: String::from("2026-07-14T00:00:00Z"),
@@ -196,7 +196,7 @@ mod tests {
             validated.idempotency_key.operation.as_str(),
             "asset.transfer"
         );
-        assert_eq!(validated.idempotency_key.tenant_id.0, "stexs.game.alpha");
+        assert_eq!(validated.idempotency_key.tenant_id.0, "acme.game.alpha");
         assert!(validated.signature.is_none());
     }
 

@@ -371,7 +371,7 @@ mod tests {
     const FIXED_SEED: [u8; 32] = [42u8; 32];
 
     fn tenant() -> TenantId {
-        TenantId(String::from("stexs.game.alpha"))
+        TenantId(String::from("acme.game.alpha"))
     }
 
     fn resource() -> ResourceId {
@@ -379,11 +379,11 @@ mod tests {
     }
 
     fn owner() -> String {
-        String::from("account:stexs:player_456")
+        String::from("account:example:player_456")
     }
 
     fn executor() -> SubjectId {
-        SubjectId(String::from("service:statechronicle.stexs.net"))
+        SubjectId(String::from("service:statechronicle.example.net"))
     }
 
     fn timestamp() -> DateTime<Utc> {
@@ -509,7 +509,7 @@ mod tests {
     #[test]
     fn build_ownership_proof_checks_owner() {
         let key = StateKey::for_resource(&tenant().0, &resource().0);
-        let good = SubjectId(String::from("account:stexs:player_456"));
+        let good = SubjectId(String::from("account:example:player_456"));
         let proof = build_ownership_proof(
             &projection(key),
             &signed_commit(),
@@ -522,7 +522,7 @@ mod tests {
         .unwrap();
         assert_eq!(proof.claimed_state["owner"], serde_json::json!(owner()));
 
-        let bad = SubjectId(String::from("account:stexs:player_789"));
+        let bad = SubjectId(String::from("account:example:player_789"));
         let error = build_ownership_proof(
             &projection(key),
             &signed_commit(),
@@ -614,12 +614,12 @@ mod tests {
         );
 
         proof.claimed_state = serde_json::json!({
-            "subject": "account:stexs:player_123",
+            "subject": "account:example:player_123",
             "balance": "100",
         });
         assert_eq!(
             derive_state_key(&proof).unwrap(),
-            StateKey::for_subject_held(&tenant().0, &resource().0, "account:stexs:player_123")
+            StateKey::for_subject_held(&tenant().0, &resource().0, "account:example:player_123")
         );
 
         proof.claimed_state = serde_json::json!({ "subject": "" });
@@ -645,7 +645,7 @@ mod tests {
         assert!(matches!(
             check_claim(
                 &proof,
-                &TenantId(String::from("stexs.game.beta")),
+                &TenantId(String::from("acme.game.beta")),
                 &resource()
             ),
             Err(ProofError::TenantMismatch { .. })

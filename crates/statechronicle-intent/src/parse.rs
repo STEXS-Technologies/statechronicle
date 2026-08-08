@@ -51,10 +51,10 @@ mod tests {
     fn sample_json() -> serde_json::Value {
         serde_json::json!({
             "schema": INTENT_SCHEMA,
-            "tenant_id": "stexs.game.alpha",
+            "tenant_id": "acme.game.alpha",
             "intent_id": "int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2",
             "operation": "asset.transfer",
-            "actor": "account:stexs:player_123",
+            "actor": "account:example:player_123",
             "resource_id": "asset:sword_001",
             "state_type": "unique_asset",
             "expected_version": 41,
@@ -70,7 +70,7 @@ mod tests {
         let payload = serde_json::to_vec(&sample_json()).unwrap();
         let raw = parse_intent(&payload).unwrap();
         assert_eq!(raw.schema, INTENT_SCHEMA);
-        assert_eq!(raw.tenant_id, "stexs.game.alpha");
+        assert_eq!(raw.tenant_id, "acme.game.alpha");
         assert_eq!(raw.expected_version, 41);
     }
 

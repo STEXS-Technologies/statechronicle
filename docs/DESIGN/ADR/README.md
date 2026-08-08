@@ -1,7 +1,7 @@
 # Architecture Decision Records
 
 This directory records architecture decisions for StateChronicle, following the same
-convention used by `stexs` (`docs/DESIGN/ADR/`).
+ADR convention used by its sibling workspaces.
 
 ## Active ADRs
 
@@ -9,7 +9,7 @@ convention used by `stexs` (`docs/DESIGN/ADR/`).
 | --- | --- | --- |
 | [ADR-001](ADR-001-VERTICAL_SLICE_ARCHITECTURE.md) | Vertical Slice Architecture as Primary Code Organization | Draft |
 | [ADR-002](ADR-002-HEXAGONAL_ARCHITECTURE.md) | Hexagonal Architecture (Ports & Adapters) for Domain Isolation | Draft |
-| [ADR-003](ADR-003-TRUSTGRANT_PORTS_ONLY.md) | TrustGrant Integration: Ports Only, Wired at the stexs Root | Draft |
+| [ADR-003](ADR-003-TRUSTGRANT_PORTS_ONLY.md) | TrustGrant Integration: Ports Only, Wired at the Consumer Root | Draft |
 | [ADR-004](ADR-004-CANONICALIZATION_HASHING_SIGNATURE.md) | Canonical Serialization, Hashing, and Signature Baseline: BCS | Draft |
 | [ADR-005](ADR-005-STATE_ACCUMULATOR.md) | Baseline State Accumulator: Sparse Merkle Tree (SMT) | Accepted |
 | [ADR-006](ADR-006-PROTOCOL_DECISIONS_V0.md) | Protocol Decisions for v0 (§36 Resolution) | Accepted |

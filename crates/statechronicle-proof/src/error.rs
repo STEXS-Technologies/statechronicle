@@ -214,12 +214,12 @@ mod tests {
     #[test]
     fn structured_variants_carry_context() {
         let mismatch = ProofError::SubjectMismatch {
-            expected: String::from("account:stexs:player_456"),
-            actual: String::from("account:stexs:player_789"),
+            expected: String::from("account:example:player_456"),
+            actual: String::from("account:example:player_789"),
         };
         let rendered = mismatch.to_string();
-        assert!(rendered.contains("account:stexs:player_456"));
-        assert!(rendered.contains("account:stexs:player_789"));
+        assert!(rendered.contains("account:example:player_456"));
+        assert!(rendered.contains("account:example:player_789"));
 
         let path = ProofError::InvalidPathLength {
             expected: 256,

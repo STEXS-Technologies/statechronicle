@@ -47,7 +47,7 @@ fuzz_target!(|data: &[u8]| {
         entries,
         7,
         created_at,
-        SubjectId(String::from("service:statechronicle.stexs.net")),
+        SubjectId(String::from("service:statechronicle.example.net")),
     ) else {
         return;
     };
@@ -81,7 +81,7 @@ fn build_event(chunk: &[u8], index: usize) -> Option<Event> {
     let event_id = EventId::new(format!("evt_{index}_{body}")).ok()?;
     let intent_id = IntentId::new(format!("int_{index}_{body}")).ok()?;
     let operation = Operation::new(String::from("asset.transfer")).ok()?;
-    let owner = format!("account:stexs:player_{}", index % 17);
+    let owner = format!("account:example:player_{}", index % 17);
     let (state, resource) = if index.is_multiple_of(3) {
         (
             serde_json::json!({ "subject": &owner, "quantity": "1", "unit": "items" }),
@@ -105,16 +105,16 @@ fn build_event(chunk: &[u8], index: usize) -> Option<Event> {
         state: serde_json::json!({}),
     };
     Some(Event::new(
-        TenantId(String::from("stexs.game.alpha")),
+        TenantId(String::from("acme.game.alpha")),
         event_id,
         intent_id,
         operation,
         ResourceId(resource),
-        SubjectId(String::from("account:stexs:player_0")),
+        SubjectId(String::from("account:example:player_0")),
         before,
         after,
         None,
-        SubjectId(String::from("service:statechronicle.stexs.net")),
+        SubjectId(String::from("service:statechronicle.example.net")),
         timestamp()?,
     ))
 }

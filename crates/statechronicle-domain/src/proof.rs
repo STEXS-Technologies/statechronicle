@@ -207,9 +207,9 @@ mod tests {
             sig: Signature::from_bytes([0u8; 64]),
         };
         ResourceStateProof::new(
-            TenantId(String::from("stexs.game.alpha")),
+            TenantId(String::from("acme.game.alpha")),
             ResourceId(String::from("asset:sword_001")),
-            serde_json::json!({ "owner": "account:stexs:player_456", "status": "active" }),
+            serde_json::json!({ "owner": "account:example:player_456", "status": "active" }),
             CommitRef {
                 commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
                 sequence: 918273,
@@ -279,7 +279,7 @@ mod tests {
             sig: Signature::from_bytes([0u8; 64]),
         };
         NonMembershipProofBundle::new(
-            TenantId(String::from("stexs.game.alpha")),
+            TenantId(String::from("acme.game.alpha")),
             ResourceId(String::from("asset:sword_001")),
             ContentDigest::new([0xabu8; 32]),
             CommitRef {

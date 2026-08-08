@@ -72,8 +72,11 @@ fn inclusion_and_non_membership_verify_against_root() {
 #[test]
 fn subject_held_and_owner_keys_coexist() {
     let owner = StateKey::for_resource("tenant:acme", "asset:sword_001");
-    let held =
-        StateKey::for_subject_held("tenant:acme", "asset:sword_001", "account:stexs:player_123");
+    let held = StateKey::for_subject_held(
+        "tenant:acme",
+        "asset:sword_001",
+        "account:example:player_123",
+    );
     let mut acc = StateAccumulator::empty();
     acc.insert_batch(&[
         StateUpdate::new(owner, [0x11u8; 32]),

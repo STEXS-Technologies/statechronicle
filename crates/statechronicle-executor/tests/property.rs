@@ -147,7 +147,7 @@ fn build_validated(
         tenant(),
         IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap(),
         Operation(operation.to_owned()),
-        SubjectId(String::from("account:stexs:player_123")),
+        SubjectId(String::from("account:example:player_123")),
         ResourceId(String::from("asset:property")),
         state_type,
         expected_version,
@@ -227,7 +227,7 @@ proptest! {
         let before = projection(
             StateType::ConsumableStack,
             json!({
-                "subject": "account:stexs:player_123",
+                "subject": "account:example:player_123",
                 "quantity": current.to_string(),
                 "unit": "arrows",
             }),
@@ -346,7 +346,7 @@ fn transfer_after_state_is_deterministic_for_arbitrary_amounts() {
         let source_projection = projection(
             StateType::FungibleBalance,
             json!({
-                "subject": "account:stexs:player_123",
+                "subject": "account:example:player_123",
                 "balance": source.to_string(),
                 "unit": "gold_minor",
             }),
@@ -354,13 +354,13 @@ fn transfer_after_state_is_deterministic_for_arbitrary_amounts() {
         let destination = projection(
             StateType::FungibleBalance,
             json!({
-                "subject": "account:stexs:player_456",
+                "subject": "account:example:player_456",
                 "balance": existing.to_string(),
                 "unit": "gold_minor",
             }),
         );
         let inputs = inputs_map(&[
-            ("to_subject", json!("account:stexs:player_456")),
+            ("to_subject", json!("account:example:player_456")),
             ("amount", json!(amount.to_string())),
         ]);
         let first = transition::transfer_after_state(
@@ -429,8 +429,8 @@ fn cross_tenant_batch_is_atomic_and_deterministically_grouped() {
         .unwrap();
     proptest!(|(raw_amount in 0u128..=u128::MAX)| {
         let harness = Harness::new(FakeTrustGrant::allow());
-        let alpha = TenantId(String::from("stexs.game.alpha"));
-        let beta = TenantId(String::from("stexs.game.beta"));
+        let alpha = TenantId(String::from("acme.game.alpha"));
+        let beta = TenantId(String::from("acme.game.beta"));
         harness.tenant_store.register(beta.clone());
 
         let a = runtime

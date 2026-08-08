@@ -27,7 +27,7 @@ fuzz_target!(|data: &[u8]| {
         return;
     };
     let mut groups: Vec<TenantEventGroup> = Vec::new();
-    let tenant_names = ["stexs.game.alpha", "stexs.game.beta"];
+    let tenant_names = ["acme.game.alpha", "acme.game.beta"];
     for (group_index, name) in tenant_names.iter().enumerate() {
         let mut group_events = Vec::new();
         for (event_index, event) in pool.iter().enumerate() {
@@ -51,12 +51,12 @@ fn build_pool() -> Option<Vec<Event>> {
     let mut pool = Vec::new();
     for index in 0..16usize {
         pool.push(Event::new(
-            TenantId(String::from("stexs.game.alpha")),
+            TenantId(String::from("acme.game.alpha")),
             EventId::new(format!("evt_{index:020}")).ok()?,
             IntentId::new(format!("int_{index:08}")).ok()?,
             Operation::new(String::from("asset.transfer")).ok()?,
             ResourceId(String::from("asset:sword")),
-            SubjectId(String::from("account:stexs:player")),
+            SubjectId(String::from("account:example:player")),
             StateCommitment {
                 version: 1,
                 state_hash: hash_bytes(b"before"),
@@ -68,7 +68,7 @@ fn build_pool() -> Option<Vec<Event>> {
                 state: serde_json::json!({ "owner": "bob", "status": "active" }),
             },
             None,
-            SubjectId(String::from("service:statechronicle.stexs.net")),
+            SubjectId(String::from("service:statechronicle.example.net")),
             DateTime::parse_from_rfc3339("2026-07-14T00:00:01Z")
                 .ok()?
                 .with_timezone(&Utc),

@@ -76,7 +76,7 @@ mod tests {
 
     fn sample_commit() -> Commit {
         Commit::new(
-            CommitScope::tenant(TenantId(String::from("stexs.game.alpha"))),
+            CommitScope::tenant(TenantId(String::from("acme.game.alpha"))),
             CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             None,
             1,
@@ -87,7 +87,7 @@ mod tests {
             DateTime::parse_from_rfc3339("2026-07-14T00:00:02Z")
                 .unwrap()
                 .with_timezone(&Utc),
-            SubjectId(String::from("service:statechronicle.stexs.net")),
+            SubjectId(String::from("service:statechronicle.example.net")),
             ProfileId::new(String::from("statechronicle.profile.resource.v0")).unwrap(),
         )
     }

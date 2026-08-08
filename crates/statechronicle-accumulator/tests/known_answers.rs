@@ -52,11 +52,14 @@ fn for_resource_key_known_answer() {
 
 #[test]
 fn for_subject_held_key_known_answer() {
-    let key =
-        StateKey::for_subject_held("tenant:acme", "asset:sword_001", "account:stexs:player_123");
+    let key = StateKey::for_subject_held(
+        "tenant:acme",
+        "asset:sword_001",
+        "account:example:player_123",
+    );
     assert_eq!(
         hex(key.as_bytes()),
-        "1fd10be8061602295376dd0c2ad070ff2d1ef029809cdaf44262b79921e677e9"
+        "f0d26f5ba7d7380ceff5e6f33c78ed1df06556499435a657dbb9f3f3b0d0907d"
     );
 }
 

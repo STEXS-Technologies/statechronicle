@@ -56,7 +56,7 @@ mod tests {
     ) -> StateProjection {
         let state_hash = canonicalize_and_digest(&state).unwrap();
         StateProjection {
-            tenant_id: TenantId(String::from("stexs.game.alpha")),
+            tenant_id: TenantId(String::from("acme.game.alpha")),
             resource_id: ResourceId(String::from(resource_id)),
             state_type,
             version,
@@ -74,7 +74,7 @@ mod tests {
             StateType::UniqueAsset,
             42,
             serde_json::json!({
-                "owner": "account:stexs:player_456",
+                "owner": "account:example:player_456",
                 "status": "active",
                 "version": 42
             }),
@@ -99,7 +99,7 @@ mod tests {
             StateType::FungibleBalance,
             88,
             serde_json::json!({
-                "subject": "account:stexs:player_123",
+                "subject": "account:example:player_123",
                 "balance": "125000",
                 "unit": "gold_minor",
                 "version": 88

@@ -69,7 +69,7 @@ use statechronicle_proof::verify::{verify_bundle, verify_ownership, verify_proof
 const FIXED_SEED: [u8; 32] = [42u8; 32];
 
 fn tenant() -> TenantId {
-    TenantId(String::from("stexs.game.alpha"))
+    TenantId(String::from("acme.game.alpha"))
 }
 
 fn resource() -> ResourceId {
@@ -77,15 +77,15 @@ fn resource() -> ResourceId {
 }
 
 fn owner() -> String {
-    String::from("account:stexs:player_456")
+    String::from("account:example:player_456")
 }
 
 fn subject() -> SubjectId {
-    SubjectId(String::from("account:stexs:player_456"))
+    SubjectId(String::from("account:example:player_456"))
 }
 
 fn executor() -> SubjectId {
-    SubjectId(String::from("service:statechronicle.stexs.net"))
+    SubjectId(String::from("service:statechronicle.example.net"))
 }
 
 fn profile() -> ProfileId {
@@ -229,7 +229,7 @@ fn ownership_check_rejects_wrong_subject() {
     let fixture = fixture();
     let proof = build_proof(&fixture);
     assert!(matches!(
-        verify_ownership(&proof, "account:stexs:player_789"),
+        verify_ownership(&proof, "account:example:player_789"),
         Err(ProofError::SubjectMismatch { .. })
     ));
 }
@@ -239,7 +239,7 @@ fn claimed_state_tamper_is_rejected() {
     let fixture = fixture();
     let mut proof = build_proof(&fixture);
     proof.claimed_state = serde_json::json!({
-        "owner": "account:stexs:player_789",
+        "owner": "account:example:player_789",
         "status": "active",
         "version": 42,
     });
@@ -304,7 +304,7 @@ fn signature_tamper_is_rejected() {
 fn tenant_scope_mismatch_is_rejected() {
     let fixture = fixture();
     let mut proof = build_proof(&fixture);
-    proof.tenant_id = TenantId(String::from("stexs.game.beta"));
+    proof.tenant_id = TenantId(String::from("acme.game.beta"));
     let key = derive_state_key(&proof).unwrap();
     assert!(matches!(
         verify_bundle(&proof, &fixture.signed, &fixed_key().verifying_key(), &key),

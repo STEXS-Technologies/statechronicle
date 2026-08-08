@@ -240,7 +240,7 @@ mod tests {
     }
 
     fn executor() -> SubjectId {
-        SubjectId(String::from("service:statechronicle.stexs.net"))
+        SubjectId(String::from("service:statechronicle.example.net"))
     }
 
     fn entry(tenant: &str, commit: &str, root: [u8; 32]) -> TenantRootEntry {

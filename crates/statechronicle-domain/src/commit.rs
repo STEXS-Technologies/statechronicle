@@ -252,7 +252,7 @@ mod tests {
 
     fn sample_commit() -> Commit {
         Commit::new(
-            CommitScope::tenant(TenantId(String::from("stexs.game.alpha"))),
+            CommitScope::tenant(TenantId(String::from("acme.game.alpha"))),
             CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             Some(CommitId::new(String::from("cmt_01JZ8WZ0QH93JK8J19VVD3QXSC")).unwrap()),
             918273,
@@ -263,7 +263,7 @@ mod tests {
             DateTime::parse_from_rfc3339("2026-07-14T00:00:02Z")
                 .unwrap()
                 .with_timezone(&Utc),
-            SubjectId(String::from("service:statechronicle.stexs.net")),
+            SubjectId(String::from("service:statechronicle.example.net")),
             ProfileId::new(String::from("statechronicle.profile.resource.v0")).unwrap(),
         )
     }
@@ -276,11 +276,11 @@ mod tests {
 
     #[test]
     fn scope_constructors_enforce_invariant() {
-        let tenant = CommitScope::tenant(TenantId(String::from("stexs.game.alpha")));
+        let tenant = CommitScope::tenant(TenantId(String::from("acme.game.alpha")));
         assert_eq!(tenant.kind, ScopeKind::Tenant);
         assert_eq!(
             tenant.tenant_id,
-            Some(TenantId(String::from("stexs.game.alpha")))
+            Some(TenantId(String::from("acme.game.alpha")))
         );
 
         let global = CommitScope::global_checkpoint();

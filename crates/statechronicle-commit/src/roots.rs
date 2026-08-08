@@ -261,7 +261,7 @@ mod tests {
     use statechronicle_domain::subject::SubjectId;
     use statechronicle_domain::tenant::TenantId;
 
-    const TENANT: &str = "stexs.game.alpha";
+    const TENANT: &str = "acme.game.alpha";
 
     fn timestamp() -> DateTime<Utc> {
         DateTime::parse_from_rfc3339("2026-07-14T00:00:01Z")
@@ -286,11 +286,11 @@ mod tests {
             IntentId::new(format!("int_{id}")).unwrap(),
             Operation::new(String::from("asset.transfer")).unwrap(),
             ResourceId(format!("asset:{id}")),
-            SubjectId(String::from("account:stexs:player_123")),
+            SubjectId(String::from("account:example:player_123")),
             sample_commitment(41, serde_json::json!({})),
             sample_commitment(42, state),
             None,
-            SubjectId(String::from("service:statechronicle.stexs.net")),
+            SubjectId(String::from("service:statechronicle.example.net")),
             timestamp(),
         )
     }
@@ -312,7 +312,7 @@ mod tests {
             sample_commitment(7, serde_json::json!({})),
             sample_commitment(8, state),
             None,
-            SubjectId(String::from("service:statechronicle.stexs.net")),
+            SubjectId(String::from("service:statechronicle.example.net")),
             timestamp(),
         )
     }
@@ -373,11 +373,11 @@ mod tests {
 
     #[test]
     fn state_key_for_subject_held_uses_subject_key() {
-        let event = held_event("gold", "account:stexs:player_123");
+        let event = held_event("gold", "account:example:player_123");
         let key = state_key_for(&event, StateType::FungibleBalance).unwrap();
         assert_eq!(
             key,
-            StateKey::for_subject_held(TENANT, "balance:gold", "account:stexs:player_123")
+            StateKey::for_subject_held(TENANT, "balance:gold", "account:example:player_123")
         );
     }
 

@@ -299,7 +299,7 @@ mod tests {
             TenantId(String::from("tenant.test")),
             IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap(),
             op("asset.transfer"),
-            SubjectId(String::from("account:stexs:player_123")),
+            SubjectId(String::from("account:example:player_123")),
             ResourceId(String::from("asset:sword_001")),
             Some(StateType::UniqueAsset),
             5,
@@ -383,7 +383,7 @@ mod tests {
         let balance = projection(
             StateType::FungibleBalance,
             json!({
-                "subject": "account:stexs:player_123",
+                "subject": "account:example:player_123",
                 "balance": "100",
                 "unit": "gold_minor",
             }),

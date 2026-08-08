@@ -4,14 +4,14 @@
 **Related Documents:** [ADR README](README.md), [Architecture Summary](../../ARCHITECTURE.md),
 [ADR-002](ADR-002-HEXAGONAL_ARCHITECTURE.md)
 
-# ADR-003: TrustGrant Integration, Ports Only, Wired at the stexs Root
+# ADR-003: TrustGrant Integration: Ports Only, Wired at the Consumer Root
 
 ---
 
 ## Context
 
-StateChronicle is a standalone component of the stexs platform rebuild. It replaces
-stexs' existing `inventory_ledger` with a verifiable, append-only, replayable state
+StateChronicle is a standalone protocol component. It is designed to replace a consumer
+platform's legacy `inventory_ledger` with a verifiable, append-only, replayable state
 ledger. Two sibling protocols are relevant:
 
 - **TrustGrant** provides authority truth: *who is allowed to act*. StateChronicle must
@@ -25,7 +25,7 @@ ledger. Two sibling protocols are relevant:
 The ledger records *that a transition happened, under whose authority, to what state*.
 Its `content` references are self-describing digests (`sha256:...`, `media_type`, `size`)
 carried as event fields. StateChronicle never calls out to a content store: resolution
-and byte-verification happen in **another stexs system** (content/asset delivery), not in
+and byte-verification happen in **another consumer system** (content/asset delivery), not in
 the ledger and not client-side. Shardline is therefore **complementary, not a
 dependency**: no port, no adapter, no crate dependency. The ledger's content field is
 pure metadata; any content-addressed store satisfies it.
@@ -49,7 +49,7 @@ Considerations:
 
 - TrustGrant's own convention (`trustgrant-ports`) is that the core never calls port
   traits itself and adapters are consumer-side.
-- stexs treats `trustgrant` as a sibling workspace crate but wires it through slice ports and
+- Consumers treat `trustgrant` as a sibling workspace crate but wire it through slice ports and
   composition-root gateways, never through direct slice imports.
 - The protocol must remain infrastructure-agnostic (§2) and its core deterministic and
   transport-free.
@@ -75,7 +75,7 @@ evaluation; it fails closed on non-`allow` or stale results.
 ## Decision
 
 **Integrate TrustGrant through a dedicated port only. The real adapter is owned by the
-stexs composition root. Shardline is not integrated at all: StateChronicle has no
+consumer's composition root. Shardline is not integrated at all: StateChronicle has no
 content-store dependency.**
 
 ### Where Authority Evaluation Executes
@@ -152,8 +152,8 @@ The authority block is **opaque, content-addressed, and versioned**:
 
 - A delegated-authority adapter (implementing `statechronicle_ports::TrustGrantEvaluator`
   against the consumer's authority provider, e.g. the real `trustgrant` crate) lives in the
-  consumer's composition root (extending the stexs `crates/api-http/src/infra/trustgrant/`
-  pattern). stexs is the single place the three protocols meet; StateChronicle ships no
+  consumer's composition root (extending a consumer's trustgrant adapter pattern). The
+  consumer platform is the single place the three protocols meet; StateChronicle ships no
   adapter and no trustgrant dep.
 - This workspace's own test harness (`crates/statechronicle/tests/common/mod.rs`) uses an
   in-memory fake, so all protocol logic is fully testable without the external workspace.
@@ -171,18 +171,18 @@ The authority block is **opaque, content-addressed, and versioned**:
 | Option | Pros | Cons |
 | --- | --- | --- |
 | **Direct path dep on trustgrant in core** | No indirection; immediate access to trustgrant APIs | Couples core to external workspace layout; violates §2 infra-agnosticism; unpublishable as standalone crate; forces trustgrant on all adopters despite §7 "compatible authority profile"; cross-publish version skew |
-| **Ports-only, adapter at stexs root (Chosen)** | Core stays pure; protocol fully testable now; adapter swappable; matches trustgrant/stexs conventions; statechronicle stays independently publishable | Extra indirection; adapter must be built by stexs before production use |
-| **Ports-only, adapter in a consumer binary** | Standalone binary works out of the box | Duplicates stexs' integration; makes the workspace unpublishable (path dep); two sources of truth for one consumer |
+| **Ports-only, adapter at consumer root (Chosen)** | Core stays pure; protocol fully testable now; adapter swappable; matches trustgrant/sibling conventions; statechronicle stays independently publishable | Extra indirection; adapter must be built by the consumer before production use |
+| **Ports-only, adapter in a consumer binary** | Standalone binary works out of the box | Duplicates the consumer's integration; makes the workspace unpublishable (path dep); two sources of truth for one consumer |
 | **Optional companion crate** | Standalone adopters get real authority; core stays clean | Churn against a settling API; deferred until triggers hit |
 
 ### Why Ports-Only Wins
 
 1. Protocol core remains deterministic and infrastructure-independent (§2).
 2. Full protocol behavior testable immediately with in-memory fakes.
-3. Matches trustgrant-ports and stexs composition-root conventions.
+3. Matches trustgrant-ports and consumer composition-root conventions.
 4. Authority boundary stays explicit and auditable.
 5. Shardline excluded entirely: content is out-of-band metadata, resolving in another
-   stexs system.
+   consumer system.
 6. StateChronicle stays independently publishable (no path deps, no version skew).
 
 ---
@@ -203,7 +203,7 @@ The authority block is **opaque, content-addressed, and versioned**:
 
 **Negative:**
 
-- Adapter code required (by stexs) before production use of real authority.
+- Adapter code required (by the consumer) before production use of real authority.
 - Indirection between StateChronicle's authority intent and trustgrant's actual API.
 - Must keep the port contract aligned with trustgrant's real API to avoid adapter
   friction later.
@@ -212,17 +212,17 @@ The authority block is **opaque, content-addressed, and versioned**:
 
 - Port signature is modeled on trustgrant's real API surface (`EvaluationEngine`,
   `EvaluationOutcome`, discovery/revocation sources).
-- ADR-014 in stexs (TrustGrant deployment profile) informs the adapter design.
+- A consumer platform's TrustGrant deployment profile informs the adapter design.
 - A compatibility note in the port's doc comment maps it to the upstream API.
 
 ---
 
 ## Implementation Notes
 
-### Adapter Sketch (stexs Composition Root Only)
+### Adapter Sketch (Consumer Composition Root Only)
 
 ```rust
-// stexs/crates/api-http/src/infra/trustgrant/evaluator.rs
+// <consumer>/crates/api-http/src/infra/trustgrant/evaluator.rs
 pub struct TrustGrantEvaluatorAdapter { engine: trustgrant::evaluate::EvaluationEngine, /* ... */ }
 
 impl statechronicle_ports::TrustGrantEvaluator for TrustGrantEvaluatorAdapter {
@@ -234,7 +234,7 @@ impl statechronicle_ports::TrustGrantEvaluator for TrustGrantEvaluatorAdapter {
 ### Migration Path
 
 1. v0: in-memory fakes in the workspace's test harness; protocol fully exercised.
-2. v0.5: stexs implements a delegated-authority adapter at its composition root.
+2. v0.5: a consumer implements a delegated-authority adapter at its composition root.
 3. v1: revocation freshness policies, proof-bundle enrichment, key rotation via the
    consumer's authority provider.
 4. Triggered (not scheduled): a companion crate for standalone adopters.
@@ -247,10 +247,11 @@ impl statechronicle_ports::TrustGrantEvaluator for TrustGrantEvaluatorAdapter {
 - **Next Review:** When the TrustGrant adapter is implemented
 - **Change Log:**
   - v1.2 (2026-08-03): Oracle audit applied: no compile-time dependency on trustgrant
-    anywhere; executor owns the authority gate; adapter owned by the stexs composition
-    root; canonical authority wire format specified; optional companion crate recorded
-    as deferred.
+    anywhere; executor owns the authority gate; adapter owned by the consumer's
+    composition root; canonical authority wire format specified; optional companion
+    crate recorded as deferred.
   - v1.1 (2026-08-03): Shardline removed: complementary, out-of-band; TrustGrant-only
-    integration. StateChronicle is a standalone component replacing stexs'
-    `inventory_ledger`; content resolution happens in another stexs system.
+    integration. StateChronicle is a standalone protocol component designed to replace a
+    consumer platform's legacy `inventory_ledger`; content resolution happens in another
+    consumer system.
   - v1.0 (2026-08-03): Initial ADR documenting ports-only integration decision

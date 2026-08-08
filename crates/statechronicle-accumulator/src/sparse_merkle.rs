@@ -1748,7 +1748,11 @@ mod tests {
                 [0x01u8; 32],
             ),
             StateUpdate::new(
-                Key::for_subject_held("tenant:acme", "asset:sword_001", "account:stexs:player_123"),
+                Key::for_subject_held(
+                    "tenant:acme",
+                    "asset:sword_001",
+                    "account:example:player_123",
+                ),
                 [0x02u8; 32],
             ),
             StateUpdate::new(

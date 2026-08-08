@@ -59,7 +59,7 @@ Application Layer (Orchestration)
 Infrastructure Layer (Outer)
 ├── Port implementations (adapters)
 ├── Database repositories (postgres/)
-├── External service clients (trustgrant adapter, wired at the stexs root)
+├── External service clients (trustgrant adapter, wired at the consumer's composition root)
 ├── HTTP handlers (driving/rest/)
 └── Framework-specific code
 ```
@@ -83,7 +83,7 @@ pub trait EventStore {
 ### Adapter Implementation (Driven)
 
 ```rust
-// consumer-owned adapter, e.g. stexs crates/slices/ledger/adapters/driven/postgres/event_store.rs
+// consumer-owned adapter, e.g. <consumer>/crates/slices/ledger/adapters/driven/postgres/event_store.rs
 
 pub struct PostgresEventStore { pool: PgPool }
 
@@ -109,7 +109,7 @@ impl EventStore for InMemoryEventStore {
 ### Dependency Injection at the Composition Root
 
 ```rust
-// consumer composition root only (e.g. stexs)
+// consumer composition root only
 
 pub fn build_inventory_slice(pool: PgPool, evaluator: TrustGrantEvaluator) -> InventoryApi {
     InventoryApi {
@@ -145,8 +145,8 @@ fn build_test_inventory_slice() -> InventoryApi { /* in-memory fakes */ }
 2. **Protocol mandate**: §2 infrastructure independence and §27 storage contract are
    direct consequences.
 3. **Testability without mocking frameworks**: in-memory adapters.
-4. **Proven pattern**: same as stexs (ADR-004), trustgrant (`trustgrant-ports`), shardline
-   (trait crates + impl crates).
+4. **Proven pattern**: same as the sibling workspaces trustgrant (`trustgrant-ports`)
+   and shardline (trait crates + impl crates).
 
 ---
 
@@ -171,7 +171,7 @@ fn build_test_inventory_slice() -> InventoryApi { /* in-memory fakes */ }
 
 - Centralize ports in one crate (`statechronicle-ports`); reuse across slices.
 - Simple queries may return read-model DTOs directly where justified.
-- Macros (`shared::define_application_service!` style, as in stexs).
+- Macros (`shared::define_application_service!` style, as in sibling workspaces).
 - Documentation + examples per slice.
 
 ---

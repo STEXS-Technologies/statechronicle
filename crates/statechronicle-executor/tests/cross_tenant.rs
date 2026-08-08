@@ -39,11 +39,11 @@ use common::{
 };
 
 fn alpha() -> TenantId {
-    TenantId(String::from("stexs.game.alpha"))
+    TenantId(String::from("acme.game.alpha"))
 }
 
 fn beta() -> TenantId {
-    TenantId(String::from("stexs.game.beta"))
+    TenantId(String::from("acme.game.beta"))
 }
 
 #[tokio::test]
@@ -114,7 +114,7 @@ async fn cross_tenant_debit_credit_commits_per_tenant() {
 
     assert_eq!(
         harness.transactions.log(),
-        vec!["begin_multi:stexs.game.alpha,stexs.game.beta", "commit"]
+        vec!["begin_multi:acme.game.alpha,acme.game.beta", "commit"]
     );
 }
 
@@ -181,7 +181,7 @@ async fn cross_tenant_mid_batch_failure_rolls_back() {
 
     assert_eq!(
         harness.transactions.log(),
-        vec!["begin_multi:stexs.game.alpha,stexs.game.beta", "rollback"]
+        vec!["begin_multi:acme.game.alpha,acme.game.beta", "rollback"]
     );
 }
 
@@ -283,7 +283,7 @@ async fn tenant_scoped_authority_deny_aborts_whole_transaction() {
 
     assert_eq!(
         harness.transactions.log(),
-        vec!["begin_multi:stexs.game.alpha,stexs.game.beta", "rollback"]
+        vec!["begin_multi:acme.game.alpha,acme.game.beta", "rollback"]
     );
 }
 
@@ -352,7 +352,7 @@ async fn fully_replayed_cross_tenant_batch_aborts_and_rolls_back() {
     assert_eq!(first.len(), 2);
     assert_eq!(
         harness.transactions.log(),
-        vec!["begin_multi:stexs.game.alpha,stexs.game.beta", "commit"]
+        vec!["begin_multi:acme.game.alpha,acme.game.beta", "commit"]
     );
 
     // Re-submitting the same batch fully replays: every leg emits no events,
@@ -368,9 +368,9 @@ async fn fully_replayed_cross_tenant_batch_aborts_and_rolls_back() {
     assert_eq!(
         harness.transactions.log(),
         vec![
-            "begin_multi:stexs.game.alpha,stexs.game.beta",
+            "begin_multi:acme.game.alpha,acme.game.beta",
             "commit",
-            "begin_multi:stexs.game.alpha,stexs.game.beta",
+            "begin_multi:acme.game.alpha,acme.game.beta",
             "rollback",
         ]
     );

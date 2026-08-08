@@ -38,16 +38,16 @@ fn fixed_key() -> SigningKey {
 fn sample_payload() -> serde_json::Value {
     serde_json::json!({
         "schema": INTENT_SCHEMA,
-        "tenant_id": "stexs.game.alpha",
+        "tenant_id": "acme.game.alpha",
         "intent_id": "int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2",
         "operation": "asset.transfer",
-        "actor": "account:stexs:player_123",
+        "actor": "account:example:player_123",
         "resource_id": "asset:sword_001",
         "state_type": "unique_asset",
         "expected_version": 41,
         "inputs": {
-            "from_owner": "account:stexs:player_123",
-            "to_owner": "account:stexs:player_456",
+            "from_owner": "account:example:player_123",
+            "to_owner": "account:example:player_456",
         },
         "created_at": "2026-07-14T00:00:00Z",
         "expires_at": "2026-07-14T00:05:00Z",
@@ -206,9 +206,9 @@ fn idempotency_tuple_fields_come_from_payload() {
     let validated = validate(&parse_payload(&payload)).unwrap();
     let key = &validated.idempotency_key;
 
-    assert_eq!(key.tenant_id.0, "stexs.game.alpha");
+    assert_eq!(key.tenant_id.0, "acme.game.alpha");
     assert_eq!(key.intent_id.as_str(), "int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2");
-    assert_eq!(key.actor.0, "account:stexs:player_123");
+    assert_eq!(key.actor.0, "account:example:player_123");
     assert_eq!(key.resource_id.0, "asset:sword_001");
     assert_eq!(key.operation.as_str(), "asset.transfer");
 }
@@ -306,7 +306,7 @@ fn nonce_is_preserved_through_the_pipeline() {
     let mut inputs: BTreeMap<String, serde_json::Value> = BTreeMap::new();
     inputs.insert(
         String::from("to_owner"),
-        serde_json::json!("account:stexs:player_456"),
+        serde_json::json!("account:example:player_456"),
     );
     assert_eq!(
         validated.intent.inputs.get("to_owner"),

@@ -177,12 +177,12 @@ mod tests {
     }
 
     fn executor() -> SubjectId {
-        SubjectId(String::from("service:statechronicle.stexs.net"))
+        SubjectId(String::from("service:statechronicle.example.net"))
     }
 
     fn commit(id: &str, parent: Option<&str>, sequence: u64) -> Commit {
         Commit::new(
-            CommitScope::tenant(TenantId(String::from("stexs.game.alpha"))),
+            CommitScope::tenant(TenantId(String::from("acme.game.alpha"))),
             CommitId::new(String::from(id)).unwrap(),
             parent.map(|value| CommitId::new(String::from(value)).unwrap()),
             sequence,
@@ -199,12 +199,12 @@ mod tests {
     fn event(id: &str, resource: &str, owner: &str) -> Event {
         let state = serde_json::json!({ "owner": owner, "status": "active" });
         Event::new(
-            TenantId(String::from("stexs.game.alpha")),
+            TenantId(String::from("acme.game.alpha")),
             EventId::new(format!("evt_{id}")).unwrap(),
             IntentId::new(format!("int_{id}")).unwrap(),
             Operation::new(String::from("asset.transfer")).unwrap(),
             ResourceId(String::from(resource)),
-            SubjectId(String::from("account:stexs:player_123")),
+            SubjectId(String::from("account:example:player_123")),
             StateCommitment {
                 version: 1,
                 state_hash: hash_bytes(b"before"),
