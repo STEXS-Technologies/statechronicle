@@ -31,9 +31,12 @@ use async_trait::async_trait;
 use serde_json::json;
 
 use statechronicle::accumulator::key::StateKey;
-use statechronicle::accumulator::sparse_merkle::StateAccumulator;
+use statechronicle::accumulator::sparse_merkle::{StateAccumulator, StateRoot};
+use statechronicle::commit::roots::state_root_updates;
+use statechronicle::commit::sign::sign_commit;
+use statechronicle::core::digest::{ContentDigest, hash_bytes};
 use statechronicle::domain::authority::AuthorityProof;
-use statechronicle::domain::commit::Commit;
+use statechronicle::domain::commit::{Commit, CommitScope, ProfileId};
 use statechronicle::domain::event::Event;
 use statechronicle::domain::ids::{CommitId, EventId, IntentId};
 use statechronicle::domain::intent::{Intent, Nonce, Operation};
@@ -57,7 +60,7 @@ use statechronicle::proof::bundle::build_state_proof;
 use statechronicle::proof::error::ProofError;
 use statechronicle::proof::trade::verify_trade_proof;
 
-use common::{Harness, beta, fixed_key};
+use common::{Harness, beta, executor_subject, fixed_key, fixed_timestamp_placeholder, key_id};
 
 const ALICE: &str = "account:example:player_123"; // seller
 const BOB: &str = "account:example:player_456"; // buyer
@@ -227,6 +230,88 @@ impl ProofIndex for FakeProofIndex {
             .map_err(|err| ProofIndexError::Unavailable(format!("lock poisoned: {err}")))?;
         Ok(inner
             .get(&(tenant.0.clone(), resource_id.0.clone()))
+            .cloned())
+    }
+
+    async fn get_ownership_proof(
+        &self,
+        _tenant: &TenantId,
+        _resource_id: &ResourceId,
+        _subject: &SubjectId,
+        _at: Option<&CommitId>,
+    ) -> Result<Option<ResourceStateProof>, ProofIndexError> {
+        Ok(None)
+    }
+
+    async fn get_inclusion_proof(
+        &self,
+        _tenant: &TenantId,
+        _event_id: &EventId,
+        _commit_id: &CommitId,
+    ) -> Result<Option<statechronicle::domain::proof::SparseMerkleProof>, ProofIndexError> {
+        Ok(None)
+    }
+
+    async fn get_non_membership_proof(
+        &self,
+        _tenant: &TenantId,
+        _resource_id: &ResourceId,
+        _key: StateKey,
+        _at: Option<&CommitId>,
+    ) -> Result<Option<statechronicle::domain::proof::NonMembershipProofBundle>, ProofIndexError>
+    {
+        Ok(None)
+    }
+}
+
+/// A proof index that is commit-aware: it returns a state proof only when the
+/// requested commit matches the commit the proof was stored under, and records
+/// every `(resource, commit)` request so a test can assert which per-asset
+/// commit `get_proof` used.
+#[derive(Clone, Default)]
+struct CommitAwareProofIndex {
+    state_proofs: Arc<Mutex<BTreeMap<(String, String, String), ResourceStateProof>>>,
+    requests: Arc<Mutex<Vec<(String, String)>>>,
+}
+
+impl CommitAwareProofIndex {
+    fn put(
+        &self,
+        tenant: &TenantId,
+        resource: &ResourceId,
+        commit: &CommitId,
+        proof: ResourceStateProof,
+    ) {
+        self.state_proofs.lock().unwrap().insert(
+            (tenant.0.clone(), resource.0.clone(), commit.0.clone()),
+            proof,
+        );
+    }
+
+    fn requests(&self) -> Vec<(String, String)> {
+        self.requests.lock().unwrap().clone()
+    }
+}
+
+#[async_trait]
+impl ProofIndex for CommitAwareProofIndex {
+    async fn get_state_proof(
+        &self,
+        tenant: &TenantId,
+        resource_id: &ResourceId,
+        at: Option<&CommitId>,
+    ) -> Result<Option<ResourceStateProof>, ProofIndexError> {
+        let commit = at.map(|c| c.0.clone()).unwrap_or_default();
+        self.requests
+            .lock()
+            .unwrap()
+            .push((resource_id.0.clone(), commit.clone()));
+        let inner = self
+            .state_proofs
+            .lock()
+            .map_err(|err| ProofIndexError::Unavailable(format!("lock poisoned: {err}")))?;
+        Ok(inner
+            .get(&(tenant.0.clone(), resource_id.0.clone(), commit))
             .cloned())
     }
 
@@ -450,6 +535,35 @@ fn commit_groups(
     let (signed_alpha, acc_alpha) = harness.commit_events(&groups[0].events);
     let (signed_beta, _acc_beta) = harness.commit_events(&groups[1].events);
     (signed_alpha, signed_beta, acc_alpha)
+}
+
+/// Forms + signs a commit over `events` with a caller-chosen commit id and a
+/// state accumulator reproducing its root (so a test can mint two DISTINCT
+/// commits for one tenant).
+fn commit_at(events: &[Event], commit_id: &str) -> (Signed<Commit>, StateAccumulator) {
+    let tenant = events
+        .first()
+        .expect("commit_at requires at least one event")
+        .tenant_id
+        .clone();
+    let updates = state_root_updates(events).unwrap();
+    let mut accumulator = StateAccumulator::empty();
+    accumulator.insert_batch(&updates).unwrap();
+    let commit = Commit::new(
+        CommitScope::tenant(tenant),
+        CommitId::new(String::from(commit_id)).unwrap(),
+        None,
+        1,
+        events.len() as u64,
+        hash_bytes(b"event-root"),
+        ContentDigest::new(*StateRoot::empty().as_bytes()),
+        ContentDigest::new(*accumulator.root().as_bytes()),
+        fixed_timestamp_placeholder(),
+        executor_subject(),
+        ProfileId::new(String::from("statechronicle.profile.resource.v0")).unwrap(),
+    );
+    let signed = sign_commit(&commit, &fixed_key(), key_id()).unwrap();
+    (signed, accumulator)
 }
 
 /// Wire the trade service over populated fakes.
@@ -738,4 +852,253 @@ async fn rebuild_replays_to_the_same_index_as_incremental() {
     assert_eq!(record.value_legs.len(), 1);
     assert_eq!(record.sides.len(), 1);
     assert_eq!(record.events.len(), 3);
+}
+
+/// F4: incremental ingestion via `TradeService::ingest_batch` (each batch
+/// seeding from existing records, then applying) produces exactly the same
+/// trade index as `TradeService::rebuild` from the raw batch stream.
+#[tokio::test]
+async fn incremental_ingest_matches_rebuild_index() {
+    let harness = Harness::new();
+    let alpha = harness.tenant();
+    let beta = beta();
+    harness.tenant_store.register(beta.clone());
+    seed(&harness, &alpha, &beta).await;
+
+    let intents = settle_intents(&harness, &alpha, &beta);
+    let groups = harness
+        .executor
+        .execute_cross_tenant_trade(&intents, &manifest())
+        .await
+        .unwrap();
+    let (signed_alpha, signed_beta, acc_alpha) = commit_groups(&harness, &groups);
+    let settle_event = &groups[0].events[0];
+    let asset_proof = build_asset_proof(settle_event, &signed_alpha, &acc_alpha);
+
+    let mut all_events = Vec::new();
+    for group in &groups {
+        all_events.extend(group.events.iter().cloned());
+    }
+    let settle_intent = intents[0].intent.clone();
+    let batches = vec![
+        IngestBatch {
+            events: groups[0].events.clone(),
+            settle_intents: vec![settle_intent.clone()],
+            commit: signed_alpha.clone(),
+        },
+        IngestBatch {
+            events: groups[1].events.clone(),
+            settle_intents: vec![settle_intent],
+            commit: signed_beta.clone(),
+        },
+    ];
+
+    // Incremental path: two separate ingest_batch calls.
+    let (incremental_service, incremental_index, _, _, _) = wire_service(
+        &alpha,
+        &beta,
+        &all_events,
+        &signed_alpha,
+        &signed_beta,
+        &asset_proof,
+    );
+    for batch in &batches {
+        incremental_service.ingest_batch(batch).await.unwrap();
+    }
+    let incremental_record = incremental_index
+        .get_trade(TRADE)
+        .await
+        .unwrap()
+        .expect("incremental record should be present");
+
+    // Rebuild path: one rebuild call from the raw stream.
+    let (rebuild_service, rebuild_index, _, _, _) = wire_service(
+        &alpha,
+        &beta,
+        &all_events,
+        &signed_alpha,
+        &signed_beta,
+        &asset_proof,
+    );
+    rebuild_service.rebuild(&batches).await.unwrap();
+    let rebuilt_record = rebuild_index
+        .get_trade(TRADE)
+        .await
+        .unwrap()
+        .expect("rebuilt record should be present");
+
+    assert_eq!(incremental_record, rebuilt_record);
+}
+
+/// F3 regression: when one tenant settles two assets of one trade in two
+/// different commits, `get_proof` must fetch each asset's state proof at the
+/// commit that settled it (per-asset commit), not the side's stale first
+/// commit.
+#[tokio::test]
+async fn get_proof_uses_per_asset_commit_for_two_commit_settle() {
+    let harness = Harness::new();
+    let alpha = harness.tenant();
+    let asset_a = String::from("asset:relic_001");
+    let asset_b = String::from("asset:relic_002");
+
+    // Mint + lock BOTH assets into the same trade.
+    for (id, asset) in [("f3_ma", asset_a.as_str()), ("f3_mb", asset_b.as_str())] {
+        harness
+            .run(
+                &signed(
+                    &harness,
+                    alpha.clone(),
+                    id,
+                    "asset.mint",
+                    ALICE,
+                    asset,
+                    StateType::UniqueAsset,
+                    0,
+                    &[("to_owner", json!(ALICE))],
+                    None,
+                ),
+                StateType::UniqueAsset,
+            )
+            .await;
+        harness
+            .run(
+                &signed(
+                    &harness,
+                    alpha.clone(),
+                    &format!("{id}_lock"),
+                    "trade.lock",
+                    ALICE,
+                    asset,
+                    StateType::UniqueAsset,
+                    1,
+                    &[("from_owner", json!(ALICE)), ("trade_id", json!(TRADE))],
+                    None,
+                ),
+                StateType::UniqueAsset,
+            )
+            .await;
+    }
+
+    // Settle asset A (commit 1), then asset B (commit 2) via separate
+    // execute_settle calls.
+    let settle_a = signed(
+        &harness,
+        alpha.clone(),
+        "f3_settle_a",
+        "trade.settle",
+        ALICE,
+        &asset_a,
+        StateType::UniqueAsset,
+        2,
+        &[
+            ("from_owner", json!(ALICE)),
+            ("to_owner", json!(BOB)),
+            ("trade_id", json!(TRADE)),
+        ],
+        Some(harness.authority()),
+    );
+    let events_a = harness.executor.execute_settle(&[settle_a]).await.unwrap();
+    for ev in &events_a {
+        harness.index.apply(ev, StateType::UniqueAsset);
+    }
+    let settle_b = signed(
+        &harness,
+        alpha.clone(),
+        "f3_settle_b",
+        "trade.settle",
+        ALICE,
+        &asset_b,
+        StateType::UniqueAsset,
+        2,
+        &[
+            ("from_owner", json!(ALICE)),
+            ("to_owner", json!(BOB)),
+            ("trade_id", json!(TRADE)),
+        ],
+        Some(harness.authority()),
+    );
+    let events_b = harness.executor.execute_settle(&[settle_b]).await.unwrap();
+    for ev in &events_b {
+        harness.index.apply(ev, StateType::UniqueAsset);
+    }
+
+    // Two DISTINCT commits for the same tenant.
+    let (signed_c1, acc1) = commit_at(&events_a, "cmt_0000000000000000f301");
+    let (signed_c2, acc2) = commit_at(&events_b, "cmt_0000000000000000f302");
+
+    // Genuine state proofs at each asset's own commit.
+    let proof_a = build_asset_proof(&events_a[0], &signed_c1, &acc1);
+    let proof_b = build_asset_proof(&events_b[0], &signed_c2, &acc2);
+
+    let trade_index = FakeTradeIndex::default();
+    let event_store = FakeEventStore::default();
+    let commit_store = FakeCommitStore::default();
+    for ev in events_a.iter().chain(events_b.iter()) {
+        event_store.put(ev.clone());
+    }
+    commit_store.put(&alpha, signed_c1.clone());
+    commit_store.put(&alpha, signed_c2.clone());
+    let proof_index = CommitAwareProofIndex::default();
+    proof_index.put(
+        &alpha,
+        &ResourceId(asset_a.clone()),
+        &signed_c1.body.commit_id,
+        proof_a,
+    );
+    proof_index.put(
+        &alpha,
+        &ResourceId(asset_b.clone()),
+        &signed_c2.body.commit_id,
+        proof_b,
+    );
+
+    let ports = TradePorts {
+        trade_index: Box::new(trade_index.clone()),
+        event_store: Box::new(event_store.clone()),
+        proof_index: Box::new(proof_index.clone()),
+        commit_store: Box::new(commit_store.clone()),
+    };
+    let service = TradeService::new(ports, |_tenant| Some(fixed_key().verifying_key()));
+
+    // Ingest one batch per commit.
+    service
+        .ingest_batch(&IngestBatch {
+            events: events_a.clone(),
+            settle_intents: Vec::new(),
+            commit: signed_c1.clone(),
+        })
+        .await
+        .unwrap();
+    service
+        .ingest_batch(&IngestBatch {
+            events: events_b.clone(),
+            settle_intents: Vec::new(),
+            commit: signed_c2.clone(),
+        })
+        .await
+        .unwrap();
+
+    let result = service.get_proof(TRADE).await;
+
+    // The fix must have fetched asset B at its own commit (c2), never the
+    // stale first commit (c1) that would have been a proof-index miss.
+    let requested = proof_index.requests();
+    assert!(
+        requested.contains(&(asset_b.clone(), signed_c2.body.commit_id.0.clone())),
+        "expected asset B to be fetched at its own commit, requests were: {requested:?}"
+    );
+    assert!(
+        !requested.contains(&(asset_b.clone(), signed_c1.body.commit_id.0.clone())),
+        "asset B must not be fetched at the stale first commit"
+    );
+    // It must not fail with the stale-commit proof-index miss; any failure
+    // must come from later, genuine proof verification (same-tenant,
+    // two-commit settlement is not representable in the single-commit-per-leg
+    // schema, so failing closed there is the honest outcome).
+    if let Err(TradeServiceError::ProofIndex(message)) = &result {
+        assert!(
+            !message.contains("no state proof stored"),
+            "stale-commit proof-index miss leaked: {message}"
+        );
+    }
 }

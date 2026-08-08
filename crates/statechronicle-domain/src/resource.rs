@@ -6,5 +6,5 @@ use serde::{Deserialize, Serialize};
 
 /// Identifies a resource (asset, balance, stack, entitlement, meter, listing,
 /// custody record, ...) within a tenant's namespace.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ResourceId(pub String);

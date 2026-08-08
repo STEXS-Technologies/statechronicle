@@ -323,3 +323,106 @@ async fn value_leg_missing_from_manifest_fails_closed_and_rolls_back() {
             .is_none()
     );
 }
+
+/// F1 regression: a value-leg-declaring `trade.settle` must NOT be routable
+/// through `execute_cross_tenant`, which has no manifest to declare/link value
+/// legs.
+///
+/// Repro this locks out: a shared intent id links tenant alpha's `trade.settle`
+/// (declaring `value_amount=100`, signed by ALICE) to tenant beta's
+/// `balance.transfer` pair of amount 1. Before the fix both legs ran through
+/// `run_batch` with `allow_value_legs == true`, so the value-leg routing gate
+/// was bypassed and the asset settled to BOB while only 1 gold moved. Now the
+/// alpha settle fails the value-leg routing gate, the transaction rolls back,
+/// and nothing escapes.
+#[tokio::test]
+async fn value_leg_settle_via_execute_cross_tenant_rejected_fail_closed() {
+    let harness = Harness::new();
+    let alpha = harness.tenant();
+    let beta = beta();
+    harness.tenant_store.register(beta.clone());
+    seed(&harness, &alpha, &beta).await;
+
+    // Both legs share one intent id (the cross-tenant linkage) even though the
+    // settle declares a value amount that the balance pair does not match.
+    let shared_id = "xct_f1_shared";
+    let intents = vec![
+        signed(
+            &harness,
+            alpha.clone(),
+            shared_id,
+            "trade.settle",
+            ALICE,
+            ASSET,
+            StateType::UniqueAsset,
+            2,
+            &[
+                ("from_owner", json!(ALICE)),
+                ("to_owner", json!(BOB)),
+                ("trade_id", json!(TRADE)),
+                ("value_resource", json!(WALLET)),
+                ("value_amount", json!(PRICE.to_string())),
+                ("value_to_subject", json!(ALICE)),
+            ],
+            Some(harness.authority()),
+        ),
+        signed(
+            &harness,
+            beta.clone(),
+            shared_id,
+            "balance.transfer",
+            BOB,
+            WALLET,
+            StateType::FungibleBalance,
+            1,
+            &[("to_subject", json!(ALICE)), ("amount", json!("1"))],
+            None,
+        ),
+    ];
+
+    let err = harness
+        .executor
+        .execute_cross_tenant(&intents)
+        .await
+        .unwrap_err();
+    assert!(matches!(err, ExecutorError::AtomicityViolation(_)));
+    assert!(
+        err.to_string().contains("value-leg"),
+        "expected the value-leg routing gate to reject, got: {err}"
+    );
+
+    // Rolled back atomically: nothing escapes.
+    assert_eq!(
+        harness.transactions.log(),
+        vec!["begin_multi:acme.game.alpha,acme.game.beta", "rollback",]
+    );
+
+    // The asset is still ALICE's and trade_held in alpha; BOB never received it.
+    let asset = ResourceId(String::from(ASSET));
+    let held = harness
+        .index
+        .get_state(&alpha, &asset)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(held.state["owner"], json!(ALICE));
+    assert_eq!(held.state["status"], json!("trade_held"));
+
+    // The seller was never credited in beta and the buyer's wallet is unchanged.
+    let wallet = ResourceId(String::from(WALLET));
+    assert!(
+        harness
+            .index
+            .get_subject_state(&beta, &SubjectId(String::from(ALICE)), &wallet)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let bob_wallet = harness
+        .index
+        .get_subject_state(&beta, &SubjectId(String::from(BOB)), &wallet)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(bob_wallet.state["balance"], json!("1000"));
+}

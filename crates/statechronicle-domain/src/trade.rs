@@ -11,6 +11,8 @@
 //! constructs in a sorted/canonical order, and there are no floats and no
 //! `HashMap` in any output shape (determinism rule).
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::event::Event;
@@ -89,6 +91,14 @@ pub struct TradeSide {
     pub to_owner: String,
     /// The signed commit that pinned this leg's settle.
     pub settle_commit: CommitRef,
+    /// The committing commit for each settled asset, keyed by asset.
+    ///
+    /// Additive per-asset commit tracking: a tenant may settle multiple assets
+    /// of one trade in different commits (two separate `execute_settle` calls
+    /// when no bundle is declared), so each asset's state proof must be fetched
+    /// at the commit that settled it. `settle_commit` remains the first/leg
+    /// representative commit for history and legacy compatibility.
+    pub settle_commits_by_asset: BTreeMap<ResourceId, CommitRef>,
     /// The ordered `trade.settle` event ids for this leg.
     pub settle_event_ids: Vec<EventId>,
 }

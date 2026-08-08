@@ -214,16 +214,22 @@ fn upsert_side(
 
     if let Some(side) = record.sides.iter_mut().find(|side| side.tenant == tenant) {
         if !side.settle_assets.contains(&asset) {
-            side.settle_assets.push(asset);
+            side.settle_assets.push(asset.clone());
         }
+        // Track this asset's own committing commit: a tenant may settle two
+        // assets of one trade in different commits, so each asset's state proof
+        // must be pinned to the commit that settled it, not the side's first.
+        side.settle_commits_by_asset
+            .insert(asset, commit_ref.clone());
         side.settle_event_ids.push(event_id);
     } else {
         record.sides.push(TradeSide {
             tenant,
-            settle_assets: vec![asset],
+            settle_assets: vec![asset.clone()],
             from_owner,
             to_owner,
             settle_commit: commit_ref.clone(),
+            settle_commits_by_asset: BTreeMap::from([(asset, commit_ref.clone())]),
             settle_event_ids: vec![event_id],
         });
     }
@@ -981,6 +987,81 @@ mod tests {
         assert_eq!(record.events[1].operation.as_str(), "balance.transfer");
     }
 
+    /// F3 regression: a tenant settling two assets of one trade in two different
+    /// commits must pin each asset to the commit that settled it, so a later
+    /// `get_proof` fetches each asset's state proof at its own commit rather
+    /// than the side's first commit.
+    #[test]
+    fn per_asset_commit_tracks_two_commits_for_one_tenant() {
+        let mut state = BTreeMap::new();
+        // Asset one settled at commit ...01.
+        apply(
+            &mut state,
+            &batch(
+                vec![settle_event(
+                    "s1",
+                    "acme.game.alpha",
+                    "asset:sword",
+                    "trade_001",
+                    "alice",
+                    "bob",
+                )],
+                Vec::new(),
+                "acme.game.alpha",
+                "cmt_00000000000000000001",
+            ),
+        )
+        .unwrap();
+        // Asset two of the SAME trade, same tenant, at a DIFFERENT commit.
+        apply(
+            &mut state,
+            &batch(
+                vec![settle_event(
+                    "s2",
+                    "acme.game.alpha",
+                    "asset:shield",
+                    "trade_001",
+                    "alice",
+                    "bob",
+                )],
+                Vec::new(),
+                "acme.game.alpha",
+                "cmt_00000000000000000002",
+            ),
+        )
+        .unwrap();
+
+        let record = state.get("trade_001").unwrap();
+        assert_eq!(record.status, TradeStatus::Settled);
+        assert_eq!(record.sides.len(), 1);
+        let side = &record.sides[0];
+        assert_eq!(side.settle_assets.len(), 2);
+        assert_eq!(side.settle_assets[0].0, "asset:sword");
+        assert_eq!(side.settle_assets[1].0, "asset:shield");
+        // The representative settle_commit stays the first commit, but each
+        // asset is pinned to the commit that actually settled it.
+        assert_eq!(
+            side.settle_commit.commit_id.as_str(),
+            "cmt_00000000000000000001"
+        );
+        assert_eq!(
+            side.settle_commits_by_asset
+                .get(&ResourceId(String::from("asset:sword")))
+                .unwrap()
+                .commit_id
+                .as_str(),
+            "cmt_00000000000000000001"
+        );
+        assert_eq!(
+            side.settle_commits_by_asset
+                .get(&ResourceId(String::from("asset:shield")))
+                .unwrap()
+                .commit_id
+                .as_str(),
+            "cmt_00000000000000000002"
+        );
+    }
+
     /// Derives a deterministic batch from a byte slice using fixed event
     /// templates, so the builder is exercised over arbitrary shapes.
     fn batch_from_bytes(data: &[u8]) -> IngestBatch {
@@ -1031,17 +1112,34 @@ mod tests {
     }
 
     proptest::proptest! {
-        /// The determinism/replayability contract: applying a batch stream
-        /// incrementally yields exactly the same index as replaying the raw
-        /// stream from scratch, and the builder never panics on arbitrary
-        /// input.
+        /// The determinism/replayability contract: incremental ingestion (each
+        /// batch seeding from the records already present for the trade ids it
+        /// touches, then applying and merging back) yields exactly the same
+        /// index as rebuilding from the raw stream from scratch, and the
+        /// builder never panics on arbitrary input.
+        ///
+        /// This mirrors [`crate::service::TradeService::ingest_batch`]'s seeding
+        /// path (load existing records for `batch_trade_ids`, then apply), which
+        /// is where incremental and rebuild could actually diverge, rather than
+        /// applying the same batches to two empty maps.
         #[test]
         fn incremental_equals_rebuild_and_is_deterministic(data in proptest::prelude::any::<Vec<u8>>()) {
             let batches = partition_into_batches(&data);
-            // Incremental apply.
+            // Incremental ingest: for each batch, seed from the records already
+            // present for the trade ids it touches, apply, and merge back into
+            // the running index (the seeding/merge path of ingest_batch).
             let mut incremental: BTreeMap<String, TradeRecord> = BTreeMap::new();
             for b in &batches {
-                apply(&mut incremental, b).unwrap();
+                let mut seeded: BTreeMap<String, TradeRecord> = BTreeMap::new();
+                for trade_id in batch_trade_ids(b) {
+                    if let Some(record) = incremental.get(&trade_id) {
+                        seeded.insert(trade_id, record.clone());
+                    }
+                }
+                apply(&mut seeded, b).unwrap();
+                for (trade_id, record) in seeded {
+                    incremental.insert(trade_id, record);
+                }
             }
             // Rebuild from the raw stream (replaying the same batches).
             let mut rebuilt: BTreeMap<String, TradeRecord> = BTreeMap::new();

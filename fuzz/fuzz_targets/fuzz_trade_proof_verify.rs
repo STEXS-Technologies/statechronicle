@@ -120,6 +120,10 @@ fn proof_from_bytes(data: &[u8]) -> Option<TradeProof> {
         from_owner: String::from("account:example:player_123"),
         to_owner: String::from("account:example:player_456"),
         settle_commit: commit_ref(data, tenant),
+        settle_commits_by_asset: BTreeMap::from([(
+            ResourceId(String::from("asset:sword")),
+            commit_ref(data, tenant),
+        )]),
         settle_event_ids: vec![EventId::new(String::from("evt_00000000000000000001")).ok()?],
     };
     let summary = TradeSummary {

@@ -181,12 +181,18 @@ pub enum ExecutorError {
     /// move value (protocol §18.3, Phase 2).
     ///
     /// A `trade.settle` that declares `value_resource` / `value_amount` /
-    /// `value_to_subject` must run through
-    /// [`crate::pipeline::Executor::execute_settle`], which validates the value
-    /// pairs via `validate_settle_batch`. [`crate::pipeline::Executor::execute`]
-    /// and [`crate::pipeline::Executor::execute_batch`] reject such intents so
+    /// `value_to_subject` must run through a value-leg-aware path:
+    /// [`crate::pipeline::Executor::execute_settle`] (single-tenant), which
+    /// validates the value pairs via `validate_settle_batch`, or
+    /// [`crate::pipeline::Executor::execute_cross_tenant_trade`] (cross-tenant),
+    /// where the value legs are declared in the trade manifest and validated by
+    /// the cross-tenant validator. [`crate::pipeline::Executor::execute`],
+    /// [`crate::pipeline::Executor::execute_batch`], and the plain
+    /// [`crate::pipeline::Executor::execute_cross_tenant`] reject such intents so
     /// an asset can never settle with unvalidated, un-moved value.
-    #[error("value-leg trade.settle intent `{intent_id}` must be settled via execute_settle")]
+    #[error(
+        "value-leg trade.settle intent `{intent_id}` must be settled via execute_settle (single-tenant) or execute_cross_tenant_trade (cross-tenant)"
+    )]
     ValueLegSettleRouting { intent_id: String },
 
     /// A backing port failed.

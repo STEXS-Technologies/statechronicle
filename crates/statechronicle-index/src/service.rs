@@ -71,6 +71,15 @@ impl TradeService {
 
     /// Applies a batch to the trade index and upserts every affected record.
     ///
+    /// The caller must supply the declaring settle intents on each batch that
+    /// carries a value pair: value-leg attribution is batch-local, so a batch
+    /// whose `events` contain a `balance.transfer` pair must include the
+    /// value-declaring `trade.settle` intents that declared that pair in
+    /// `batch.settle_intents`. Omitting them leaves the pair unattributed (the
+    /// value leg is not recorded), and a declaration with no matching pair in
+    /// the same batch is left for a later batch, exactly as the executor's
+    /// validator matches them by the `(amount, resource, recipient)` multiset.
+    ///
     /// # Errors
     ///
     /// Returns [`TradeServiceError::Index`] when the pure builder rejects the
@@ -205,13 +214,21 @@ impl TradeService {
         for side in &record.sides {
             let mut state_proofs = Vec::new();
             for asset in &side.settle_assets {
+                // Each settle asset is proven at the commit that settled it (a
+                // tenant may settle multiple assets of one trade in different
+                // commits); fall back to the side's representative commit for
+                // records that predate per-asset commit tracking.
+                let settle_commit = side
+                    .settle_commits_by_asset
+                    .get(asset)
+                    .unwrap_or(&side.settle_commit);
                 // Fail closed: a settle asset with no stored state proof must
                 // not be silently dropped from the trade proof, or the proof
                 // would claim a settlement it cannot back.
                 let proof = self
                     .ports
                     .proof_index
-                    .get_state_proof(&side.tenant, asset, Some(&side.settle_commit.commit_id))
+                    .get_state_proof(&side.tenant, asset, Some(&settle_commit.commit_id))
                     .await
                     .map_err(|err| TradeServiceError::ProofIndex(err.to_string()))?
                     .ok_or_else(|| {
@@ -219,7 +236,7 @@ impl TradeService {
                             "no state proof stored for settle asset `{}` in tenant `{}` at commit `{}`",
                             asset.0,
                             side.tenant.0,
-                            side.settle_commit.commit_id.as_str()
+                            settle_commit.commit_id.as_str()
                         ))
                     })?;
                 state_proofs.push(proof);

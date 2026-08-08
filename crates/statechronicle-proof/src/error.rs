@@ -165,6 +165,22 @@ pub enum ProofError {
     /// A trade proof leg's settle proof operation is not `trade.settle`.
     #[error("trade proof leg settle proof operation is `{0}`, expected `trade.settle`")]
     TradeOperation(String),
+
+    /// A trade proof is truncated: it carries fewer state proofs (or legs) than
+    /// its summary declares.
+    ///
+    /// A proof whose summary claims two settled assets but carries only one
+    /// genuine state proof would otherwise verify with a subset of the settled
+    /// state, so verification fails closed on the count mismatch. `expected` is
+    /// the number of state proofs (or legs) the summary declares; `actual` is
+    /// what the proof actually carries.
+    #[error("trade proof is truncated: summary declares {expected} but proof carries {actual}")]
+    TradeProofTruncated {
+        /// The number of state proofs (or legs) the summary declares.
+        expected: usize,
+        /// The number of state proofs (or legs) actually carried.
+        actual: usize,
+    },
 }
 
 impl From<StateChronicleError> for ProofError {

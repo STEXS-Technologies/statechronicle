@@ -89,6 +89,9 @@ pub fn build_trade_proof(
 /// structurally against the summary:
 ///
 /// * `summary.trade_id` equals `proof.trade_id`;
+/// * the proof carries exactly as many legs as the summary declares sides, and
+///   each leg exactly as many state proofs as that side declares settled assets
+///   ([`ProofError::TradeProofTruncated`] otherwise);
 /// * each proven resource is one of the summary's settled assets for that
 ///   tenant;
 /// * each settle proof's claimed owner equals the summary's `to_owner` for
@@ -99,7 +102,9 @@ pub fn build_trade_proof(
 ///
 /// Returns [`ProofError::UnsupportedSchema`], [`ProofError::KeyNotFound`] when
 /// no commit/key is supplied for a leg's tenant, [`ProofError::TradeMissingSide`]
-/// when a leg has no summary side, [`ProofError::TradeIdMismatch`],
+/// when a leg has no summary side, [`ProofError::TradeProofTruncated`] when the
+/// proof carries fewer legs than sides or fewer state proofs than a side's
+/// settle assets, [`ProofError::TradeIdMismatch`],
 /// [`ProofError::TradeOperation`], [`ProofError::ResourceMismatch`],
 /// [`ProofError::SubjectMismatch`], or every [`ProofError`] variant of
 /// [`verify_bundle`], in fail-closed order.
@@ -114,6 +119,37 @@ pub fn verify_trade_proof(
         return Err(ProofError::TradeIdMismatch {
             expected: proof.summary.trade_id.clone(),
             actual: proof.trade_id.clone(),
+        });
+    }
+
+    // Cardinality guards: a proof must carry exactly as many state proofs per
+    // leg as its side declares settled assets, and exactly as many legs as the
+    // summary declares settle sides. Without these, a proof whose summary
+    // claims two settled assets but carries only one genuine proof (or omits a
+    // whole side) would verify with a subset of the settled state. An orphan
+    // leg (no matching summary side) is reported as [`ProofError::TradeMissingSide`]
+    // first, so callers still distinguish a tenant-level mismatch from a
+    // truncation.
+    for leg in &proof.legs {
+        let Some(side) = proof
+            .summary
+            .sides
+            .iter()
+            .find(|side| side.tenant == leg.tenant)
+        else {
+            return Err(ProofError::TradeMissingSide(leg.tenant.0.clone()));
+        };
+        if leg.state_proofs.len() != side.settle_assets.len() {
+            return Err(ProofError::TradeProofTruncated {
+                expected: side.settle_assets.len(),
+                actual: leg.state_proofs.len(),
+            });
+        }
+    }
+    if proof.legs.len() != proof.summary.sides.len() {
+        return Err(ProofError::TradeProofTruncated {
+            expected: proof.summary.sides.len(),
+            actual: proof.legs.len(),
         });
     }
 
@@ -160,4 +196,149 @@ pub fn verify_trade_proof(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    clippy::shadow_unrelated
+)]
+mod tests {
+    use super::*;
+    use statechronicle_core::signature::Signature;
+    use statechronicle_domain::ids::{CommitId, EventId};
+    use statechronicle_domain::intent::{KeyId, Operation, SignatureAlg, SignatureBlock};
+    use statechronicle_domain::proof::EventRef;
+    use statechronicle_domain::proof::{CommitRef, SparseMerkleProof};
+    use statechronicle_domain::resource::ResourceId;
+    use statechronicle_domain::trade::{TradeSide, TradeStatus, TradeValueLeg};
+
+    fn commit_ref() -> CommitRef {
+        CommitRef {
+            commit_id: CommitId::new(String::from("cmt_00000000000000000001")).unwrap(),
+            sequence: 1,
+            state_root: statechronicle_core::digest::ContentDigest::new([0u8; 32]),
+            signature: SignatureBlock {
+                alg: SignatureAlg::Ed25519,
+                key_id: KeyId::new(String::from("did:key:z6Mk...#test")).unwrap(),
+                sig: Signature::from_bytes([0u8; 64]),
+            },
+        }
+    }
+
+    fn state_proof(tenant: &str, asset: &str) -> ResourceStateProof {
+        ResourceStateProof::new(
+            TenantId(String::from(tenant)),
+            ResourceId(String::from(asset)),
+            serde_json::json!({
+                "owner": "account:example:player_456",
+                "status": "active",
+            }),
+            commit_ref(),
+            SparseMerkleProof::new(
+                Vec::new(),
+                statechronicle_core::digest::ContentDigest::new([0u8; 32]),
+            ),
+            EventRef {
+                event_id: EventId::new(String::from("evt_00000000000000000001")).unwrap(),
+                operation: Operation::from_static("trade.settle"),
+            },
+            None,
+        )
+    }
+
+    fn side(tenant: &str, assets: &[&str]) -> TradeSide {
+        TradeSide {
+            tenant: TenantId(String::from(tenant)),
+            settle_assets: assets
+                .iter()
+                .map(|asset| ResourceId(String::from(*asset)))
+                .collect(),
+            from_owner: String::from("account:example:player_123"),
+            to_owner: String::from("account:example:player_456"),
+            settle_commit: commit_ref(),
+            settle_commits_by_asset: BTreeMap::from([(
+                ResourceId(String::from(assets[0])),
+                commit_ref(),
+            )]),
+            settle_event_ids: Vec::new(),
+        }
+    }
+
+    fn proof(sides: Vec<TradeSide>, legs: Vec<TradeProofLeg>) -> TradeProof {
+        TradeProof {
+            schema: String::from(TRADE_PROOF_SCHEMA),
+            trade_id: String::from("trade_001"),
+            summary: TradeSummary {
+                trade_id: String::from("trade_001"),
+                status: TradeStatus::Settled,
+                sides,
+                value_legs: Vec::<TradeValueLeg>::new(),
+            },
+            legs,
+        }
+    }
+
+    /// (a) A proof whose leg carries fewer state proofs than the side declares
+    /// settled assets must be rejected as truncated.
+    #[test]
+    fn truncated_state_proofs_rejected() {
+        let side = side("acme.game.alpha", &["asset:sword", "asset:shield"]);
+        let leg = TradeProofLeg {
+            tenant: TenantId(String::from("acme.game.alpha")),
+            commit: commit_ref(),
+            // Only one state proof for a side that declares two settled assets.
+            state_proofs: vec![state_proof("acme.game.alpha", "asset:sword")],
+        };
+        let p = proof(vec![side], vec![leg]);
+        assert!(matches!(
+            verify_trade_proof(&p, &BTreeMap::new()),
+            Err(ProofError::TradeProofTruncated {
+                expected: 2,
+                actual: 1
+            })
+        ));
+    }
+
+    /// (b) A proof with fewer legs than the summary declares sides must be
+    /// rejected as truncated (a whole side omitted).
+    #[test]
+    fn truncated_legs_rejected() {
+        let sides = vec![
+            side("acme.game.alpha", &["asset:sword"]),
+            side("acme.game.beta", &["asset:shield"]),
+        ];
+        // Only one leg for a summary declaring two sides.
+        let leg = TradeProofLeg {
+            tenant: TenantId(String::from("acme.game.alpha")),
+            commit: commit_ref(),
+            state_proofs: vec![state_proof("acme.game.alpha", "asset:sword")],
+        };
+        let p = proof(sides, vec![leg]);
+        assert!(matches!(
+            verify_trade_proof(&p, &BTreeMap::new()),
+            Err(ProofError::TradeProofTruncated {
+                expected: 2,
+                actual: 1
+            })
+        ));
+    }
+
+    /// (c) A complete-shaped proof (legs == sides, proofs == settle_assets) is
+    /// not rejected for truncation: it proceeds past the cardinality guards to
+    /// verification (here failing on the missing tenant key, not on truncation).
+    #[test]
+    fn complete_proof_not_rejected_for_truncation() {
+        let side = side("acme.game.alpha", &["asset:sword"]);
+        let leg = TradeProofLeg {
+            tenant: TenantId(String::from("acme.game.alpha")),
+            commit: commit_ref(),
+            state_proofs: vec![state_proof("acme.game.alpha", "asset:sword")],
+        };
+        let p = proof(vec![side], vec![leg]);
+        let err = verify_trade_proof(&p, &BTreeMap::new()).unwrap_err();
+        assert!(!matches!(err, ProofError::TradeProofTruncated { .. }));
+    }
 }

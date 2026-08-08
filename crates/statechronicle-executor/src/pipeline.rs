@@ -794,7 +794,9 @@ impl Executor {
             .map_err(|err| map_transaction_manager_error(&err))?;
 
         // Both a leg failure and a validation failure are rolled back atomically.
-        let result = match self.run_batch(intents).await {
+        // `allow_value_legs` is `true`: the settle batch's value legs are
+        // validated by [`atomicity::validate_settle_batch`] below.
+        let result = match self.run_batch(intents, true).await {
             Ok(events) => {
                 let settle_intents: Vec<statechronicle_domain::intent::Intent> = intents
                     .iter()
@@ -882,8 +884,10 @@ impl Executor {
 
         // Both a leg failure and an inconsistent-group validation failure are
         // rolled back atomically (a failed validation must not short-circuit
-        // past the rollback via `?`).
-        let result = match self.run_cross_tenant_legs(&by_name).await {
+        // past the rollback via `?`). `allow_value_legs` is `false`: a value-leg
+        // `trade.settle` has no declared manifest here, so it must fail the
+        // value-leg routing gate (see [`Self::execute_inner`]).
+        let result = match self.run_cross_tenant_legs(&by_name, false).await {
             Ok(groups) => atomicity::validate_cross_tenant_consistency(&groups).map(|()| groups),
             Err(error) => Err(error),
         };
@@ -964,7 +968,7 @@ impl Executor {
         // Both a leg failure and a manifest-validation failure are rolled back
         // atomically (a failed validation must not short-circuit past the
         // rollback via `?`).
-        let result = match self.run_cross_tenant_legs(&by_name).await {
+        let result = match self.run_cross_tenant_legs(&by_name, true).await {
             Ok(groups) => {
                 let settle_intents: Vec<statechronicle_domain::intent::Intent> = intents
                     .iter()
@@ -999,13 +1003,19 @@ impl Executor {
 
     /// Executes every intent in order, short-circuiting on the first failure.
     ///
-    /// Used by the cross-tenant legs, where value-leg `trade.settle` intents
-    /// are admitted (their value legs are declared in the trade manifest and
-    /// validated by the cross-tenant validator).
-    async fn run_batch(&self, intents: &[ValidatedIntent]) -> Result<Vec<Event>, ExecutorError> {
+    /// Used by the cross-tenant legs. `allow_value_legs` mirrors the value-leg
+    /// routing gate of [`Self::execute_inner`]: the trade path admits value-leg
+    /// `trade.settle` intents (their value legs are declared in the trade
+    /// manifest and validated by the cross-tenant validator), while the plain
+    /// cross-tenant path rejects them for lack of a declared manifest.
+    async fn run_batch(
+        &self,
+        intents: &[ValidatedIntent],
+        allow_value_legs: bool,
+    ) -> Result<Vec<Event>, ExecutorError> {
         let mut events = Vec::new();
         for validated in intents {
-            events.extend(self.execute_inner(validated, true).await?);
+            events.extend(self.execute_inner(validated, allow_value_legs).await?);
         }
         Ok(events)
     }
@@ -1046,13 +1056,20 @@ impl Executor {
 
     /// Runs each tenant's leg in sorted tenant order, collecting the emitted
     /// events into tenant-scoped groups.
+    ///
+    /// `allow_value_legs` is threaded into each tenant's [`Self::run_batch`]:
+    /// the cross-tenant trade path admits value-leg settles (declared in the
+    /// trade manifest), while the plain cross-tenant path rejects them so a
+    /// value-declaring `trade.settle` cannot silently settle an asset for a
+    /// mismatched value pair.
     async fn run_cross_tenant_legs(
         &self,
         by_name: &BTreeMap<String, Vec<ValidatedIntent>>,
+        allow_value_legs: bool,
     ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
         let mut groups = Vec::new();
         for (name, sub_intents) in by_name {
-            let events = self.run_batch(sub_intents).await?;
+            let events = self.run_batch(sub_intents, allow_value_legs).await?;
             groups.push(atomicity::TenantEventGroup {
                 tenant: TenantId(name.clone()),
                 events,

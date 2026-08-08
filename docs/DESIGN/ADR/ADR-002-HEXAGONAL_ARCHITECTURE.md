@@ -222,7 +222,7 @@ transport. Adapters are the consumer's job (trustgrant-ports convention).
 
 - Protocol core (`statechronicle-core`, `statechronicle-domain`): transport-agnostic
   primitives (newtypes, error envelope, amounts, digests).
-- `statechronicle-ports`: the ten port traits, no implementations.
+- `statechronicle-ports`: the eleven port traits, no implementations.
 - The consuming platform owns any HTTP/shared boundary (`shared`, `shared-http`) and its
   composition root; domain/application must never import from `shared-http`.
 

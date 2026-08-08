@@ -262,7 +262,7 @@ below maps every section to its owning crate README.
 
 ## Verification
 
-The workspace is fully test-locked (706 tests; check/test/clippy/fmt gates),
+The workspace is fully test-locked (716 tests; check/test/clippy/fmt gates),
 and every protocol decision is recorded in `docs/DESIGN/ADR/`, with ADR-006
 resolving the open protocol questions.
 
