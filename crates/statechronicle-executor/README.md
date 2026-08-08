@@ -44,6 +44,12 @@ use statechronicle_executor::pipeline::{Executor, Ports};
 let events = executor.execute(&validated_intent).await?;
 ```
 
+## See it run
+
+`crates/statechronicle/examples/marketplace.rs` shows `execute_batch`
+(all-or-nothing settlement), `cross_tenant.rs` shows `execute_cross_tenant`
+(per-tenant atomic groups), and `access.rs` shows fail-closed rejections.
+
 ## Dependencies
 
 `statechronicle-core`, `statechronicle-domain`, `statechronicle-intent`,

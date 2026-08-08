@@ -17,18 +17,31 @@ use crate::registry::{
     ProfileRules, input_amount, input_str, parse_amount_str, require_current, require_unborn,
 };
 
-/// Operations accepted by the consumable stack profile.
-const OPERATIONS: &[&str] = &[
-    "stack.create",
-    "stack.credit",
-    "stack.debit",
-    "stack.consume",
-    "stack.transfer",
-    "stack.reserve",
-    "stack.release",
-    "stack.expire",
-    "stack.adjust",
-];
+/// Typed operation constants accepted by the consumable stack profile.
+pub mod op {
+    use statechronicle_domain::intent::Operation;
+
+    op_set! {
+        /// Creates a new stack.
+        stack_create => "stack.create";
+        /// Credits quantity to an existing stack.
+        stack_credit => "stack.credit";
+        /// Debits quantity from an existing stack.
+        stack_debit => "stack.debit";
+        /// Consumes quantity from an existing stack.
+        stack_consume => "stack.consume";
+        /// Transfers quantity to a destination subject.
+        stack_transfer => "stack.transfer";
+        /// Reserves quantity on an existing stack.
+        stack_reserve => "stack.reserve";
+        /// Releases reserved quantity back to an existing stack.
+        stack_release => "stack.release";
+        /// Expires a stack (terminal).
+        stack_expire => "stack.expire";
+        /// Adjusts a stack to a new quantity.
+        stack_adjust => "stack.adjust";
+    }
+}
 
 /// Rule set for [`StateType::ConsumableStack`] (protocol §20.4).
 ///
@@ -63,8 +76,8 @@ impl ProfileRules for ConsumableStackRules {
         "consumable_stack"
     }
 
-    fn allowed_operations(&self) -> &'static [&'static str] {
-        OPERATIONS
+    fn allowed_operations(&self) -> &'static [Operation] {
+        op::all()
     }
 
     fn check(
@@ -73,24 +86,33 @@ impl ProfileRules for ConsumableStackRules {
         current: Option<&StateProjection>,
         inputs: &BTreeMap<String, serde_json::Value>,
     ) -> Result<(), ProfileError> {
-        if !OPERATIONS.contains(&operation.as_str()) {
+        if !op::all().contains(operation) {
             return Err(ProfileError::UnknownOperation(String::from(
                 operation.as_str(),
             )));
         }
-        match operation.as_str() {
-            "stack.create" => check_create(current, inputs),
-            "stack.credit" => check_credit(current, inputs),
-            "stack.debit" => check_debit(current, inputs),
-            "stack.consume" => check_consume(current, inputs),
-            "stack.transfer" => check_transfer(current, inputs),
-            "stack.reserve" => check_reserve(current, inputs),
-            "stack.release" => check_release(current, inputs),
-            "stack.expire" => check_expire(current),
-            "stack.adjust" => check_adjust(current, inputs),
-            _ => Err(ProfileError::UnknownOperation(String::from(
+        if operation == op::stack_create() {
+            check_create(current, inputs)
+        } else if operation == op::stack_credit() {
+            check_credit(current, inputs)
+        } else if operation == op::stack_debit() {
+            check_debit(current, inputs)
+        } else if operation == op::stack_consume() {
+            check_consume(current, inputs)
+        } else if operation == op::stack_transfer() {
+            check_transfer(current, inputs)
+        } else if operation == op::stack_reserve() {
+            check_reserve(current, inputs)
+        } else if operation == op::stack_release() {
+            check_release(current, inputs)
+        } else if operation == op::stack_expire() {
+            check_expire(current)
+        } else if operation == op::stack_adjust() {
+            check_adjust(current, inputs)
+        } else {
+            Err(ProfileError::UnknownOperation(String::from(
                 operation.as_str(),
-            ))),
+            )))
         }
     }
 }
@@ -329,16 +351,16 @@ mod tests {
         assert_eq!(
             ConsumableStackRules.allowed_operations(),
             &[
-                "stack.create",
-                "stack.credit",
-                "stack.debit",
-                "stack.consume",
-                "stack.transfer",
-                "stack.reserve",
-                "stack.release",
-                "stack.expire",
-                "stack.adjust",
-            ][..]
+                op::stack_create().to_owned(),
+                op::stack_credit().to_owned(),
+                op::stack_debit().to_owned(),
+                op::stack_consume().to_owned(),
+                op::stack_transfer().to_owned(),
+                op::stack_reserve().to_owned(),
+                op::stack_release().to_owned(),
+                op::stack_expire().to_owned(),
+                op::stack_adjust().to_owned(),
+            ]
         );
     }
 

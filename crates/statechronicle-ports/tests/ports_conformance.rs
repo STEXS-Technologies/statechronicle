@@ -83,20 +83,18 @@ fn timestamp() -> DateTime<Utc> {
 }
 
 fn sample_intent() -> Intent {
-    Intent::new(
-        tenant(),
-        intent_id(),
-        Operation::new(String::from("asset.transfer")).unwrap(),
-        subject(),
-        resource(),
-        None,
-        41,
-        BTreeMap::new(),
-        None,
-        timestamp(),
-        None,
-        Nonce::from_bytes(vec![1, 2, 3, 4]).unwrap(),
-    )
+    Intent::builder()
+        .tenant(tenant())
+        .intent_id(intent_id())
+        .operation(Operation::new(String::from("asset.transfer")).unwrap())
+        .actor(subject())
+        .resource(resource())
+        .expected_version(41)
+        .inputs(BTreeMap::new())
+        .created_at(timestamp())
+        .nonce(Nonce::from_bytes(vec![1, 2, 3, 4]).unwrap())
+        .build()
+        .unwrap()
 }
 
 fn sample_signed_commit() -> Signed<Commit> {

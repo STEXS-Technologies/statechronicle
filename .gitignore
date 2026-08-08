@@ -1,3 +1,7 @@
 # .gitignore
 .slim/deepwork/
 target/
+
+# fuzz runtime dirs
+fuzz/corpus/
+fuzz/artifacts/

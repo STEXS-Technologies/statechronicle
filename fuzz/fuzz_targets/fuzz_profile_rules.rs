@@ -10,6 +10,7 @@ use statechronicle_domain::intent::Operation;
 use statechronicle_domain::resource::ResourceId;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
+use statechronicle_domain::status::Status;
 use statechronicle_domain::tenant::TenantId;
 
 use statechronicle_profiles::registry::ProfileRegistry;
@@ -23,7 +24,21 @@ fuzz_target!(|data: &[u8]| {
     // all, in which case there is nothing to run through the gate.
     let midpoint = data.len() / 2;
     let (name_bytes, payload_bytes) = data.split_at(midpoint);
-    let operation = Operation(String::from_utf8_lossy(name_bytes).into_owned());
+
+    // The status newtype parser must be total over arbitrary bytes: any string
+    // either validates or is rejected, never panics, and round-trips when Ok.
+    if let Ok(status) = Status::try_from_str(&String::from_utf8_lossy(name_bytes)) {
+        assert!(matches!(
+            Status::try_from_str(status.as_str()),
+            Ok(ref r) if r == &status
+        ));
+    }
+
+    // The operation newtype is constructed via its validated accessor, failing
+    // closed (skipped) on names the profile gate would never see.
+    let Ok(operation) = Operation::new(String::from_utf8_lossy(name_bytes).into_owned()) else {
+        return;
+    };
     let Ok(payload) = serde_json::from_slice::<serde_json::Value>(payload_bytes) else {
         return;
     };

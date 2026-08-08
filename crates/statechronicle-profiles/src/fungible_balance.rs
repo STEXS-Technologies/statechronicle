@@ -18,19 +18,33 @@ use crate::registry::{
     ProfileRules, input_amount, input_str, parse_amount_str, require_current, require_unborn,
 };
 
-/// Operations accepted by the fungible balance profile.
-const OPERATIONS: &[&str] = &[
-    "balance.create",
-    "balance.mint",
-    "balance.credit",
-    "balance.debit",
-    "balance.transfer",
-    "balance.reserve",
-    "balance.release",
-    "balance.spend",
-    "balance.burn",
-    "balance.convert",
-];
+/// Typed operation constants accepted by the fungible balance profile.
+pub mod op {
+    use statechronicle_domain::intent::Operation;
+
+    op_set! {
+        /// Creates a new balance.
+        balance_create => "balance.create";
+        /// Mints new balance units.
+        balance_mint => "balance.mint";
+        /// Credits balance units.
+        balance_credit => "balance.credit";
+        /// Debits balance units.
+        balance_debit => "balance.debit";
+        /// Transfers balance units to a destination subject.
+        balance_transfer => "balance.transfer";
+        /// Reserves balance units.
+        balance_reserve => "balance.reserve";
+        /// Releases reserved balance units.
+        balance_release => "balance.release";
+        /// Spends balance units.
+        balance_spend => "balance.spend";
+        /// Burns balance units.
+        balance_burn => "balance.burn";
+        /// Converts balance units into a new denomination.
+        balance_convert => "balance.convert";
+    }
+}
 
 /// Rule set for [`StateType::FungibleBalance`] (protocol §20.5).
 ///
@@ -68,8 +82,8 @@ impl ProfileRules for FungibleBalanceRules {
         "fungible_balance"
     }
 
-    fn allowed_operations(&self) -> &'static [&'static str] {
-        OPERATIONS
+    fn allowed_operations(&self) -> &'static [Operation] {
+        op::all()
     }
 
     fn check(
@@ -78,25 +92,35 @@ impl ProfileRules for FungibleBalanceRules {
         current: Option<&StateProjection>,
         inputs: &BTreeMap<String, serde_json::Value>,
     ) -> Result<(), ProfileError> {
-        if !OPERATIONS.contains(&operation.as_str()) {
+        if !op::all().contains(operation) {
             return Err(ProfileError::UnknownOperation(String::from(
                 operation.as_str(),
             )));
         }
-        match operation.as_str() {
-            "balance.create" => check_create(current, inputs),
-            "balance.mint" => check_mint(current, inputs),
-            "balance.credit" => check_credit(current, inputs),
-            "balance.debit" => check_debit(current, inputs),
-            "balance.transfer" => check_transfer(current, inputs),
-            "balance.reserve" => check_reserve(current, inputs),
-            "balance.release" => check_release(current, inputs),
-            "balance.spend" => check_spend(current, inputs),
-            "balance.burn" => check_burn(current, inputs),
-            "balance.convert" => check_convert(current, inputs),
-            _ => Err(ProfileError::UnknownOperation(String::from(
+        if operation == op::balance_create() {
+            check_create(current, inputs)
+        } else if operation == op::balance_mint() {
+            check_mint(current, inputs)
+        } else if operation == op::balance_credit() {
+            check_credit(current, inputs)
+        } else if operation == op::balance_debit() {
+            check_debit(current, inputs)
+        } else if operation == op::balance_transfer() {
+            check_transfer(current, inputs)
+        } else if operation == op::balance_reserve() {
+            check_reserve(current, inputs)
+        } else if operation == op::balance_release() {
+            check_release(current, inputs)
+        } else if operation == op::balance_spend() {
+            check_spend(current, inputs)
+        } else if operation == op::balance_burn() {
+            check_burn(current, inputs)
+        } else if operation == op::balance_convert() {
+            check_convert(current, inputs)
+        } else {
+            Err(ProfileError::UnknownOperation(String::from(
                 operation.as_str(),
-            ))),
+            )))
         }
     }
 }
@@ -382,17 +406,17 @@ mod tests {
         assert_eq!(
             FungibleBalanceRules.allowed_operations(),
             &[
-                "balance.create",
-                "balance.mint",
-                "balance.credit",
-                "balance.debit",
-                "balance.transfer",
-                "balance.reserve",
-                "balance.release",
-                "balance.spend",
-                "balance.burn",
-                "balance.convert",
-            ][..]
+                op::balance_create().to_owned(),
+                op::balance_mint().to_owned(),
+                op::balance_credit().to_owned(),
+                op::balance_debit().to_owned(),
+                op::balance_transfer().to_owned(),
+                op::balance_reserve().to_owned(),
+                op::balance_release().to_owned(),
+                op::balance_spend().to_owned(),
+                op::balance_burn().to_owned(),
+                op::balance_convert().to_owned(),
+            ]
         );
     }
 

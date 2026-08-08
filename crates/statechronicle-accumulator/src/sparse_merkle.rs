@@ -1399,8 +1399,15 @@ impl StateAccumulator {
 
     /// Applies a batch of leaf updates and returns the resulting state root.
     ///
-    /// Later updates for the same key win. The batch is applied atomically
-    /// with respect to the returned root: all updates are reflected in it.
+    /// The batch is applied atomically with respect to the returned root: all
+    /// updates are reflected in it. The sparse Merkle root is a pure function
+    /// of the `(key → leaf)` set (ADR-005), so for a well-formed set — each key
+    /// mapped to exactly one digest — the result is independent of insertion
+    /// order. When the batch repeats a key with a *different* digest (e.g. a
+    /// commit whose events update the same resource, or a replay where current
+    /// updates override prior ones), the later update in batch order wins, as
+    /// the protocol's builders require; such a batch is not a well-defined set
+    /// and its ordering is meaningful by construction.
     ///
     /// # Errors
     ///
@@ -1461,9 +1468,12 @@ impl StateAccumulator {
         node_hash(&entries, 0, entries.len(), TREE_DEPTH)
     }
 
-    /// Collects the non-empty sibling hashes along the path to `key`,
-    /// ordered ascending by level (leaf-adjacent first). Levels whose sibling
-    /// subtree is empty are skipped; the verifier fills `default[level]`.
+    /// Collects the sibling hashes along the path to `key`, ordered ascending
+    /// by level (leaf-adjacent first). Levels whose sibling subtree is empty
+    /// are skipped, as are non-empty siblings that hash to their default
+    /// subtree value (the verifier fills `default[level]` for those). This
+    /// mirrors the dense wire encoding, so the encode/decode roundtrip is
+    /// lossless.
     fn collect_steps(&self, key: &StateKey) -> Vec<PathStep> {
         let entries: Vec<(StateKey, [u8; 32])> = self
             .leaves
@@ -1544,10 +1554,20 @@ fn collect_steps_inner(
     let child_height = height.saturating_sub(1);
     if sibling_start < sibling_end {
         let sibling = node_hash(entries, sibling_start, sibling_end, child_height);
-        steps.push(PathStep {
-            level: child_height,
-            sibling,
-        });
+        // Emit a step only when the sibling differs from its default-subtree
+        // hash. A non-empty sibling subtree that happens to hash to the
+        // default (e.g. a leaf set that is the empty leaf, whose merkle path
+        // collapses to the default) is redundant: the verifier reproduces the
+        // identical value from `default[level]` when the step is omitted. This
+        // also keeps the step list consistent with the dense wire encoding,
+        // which represents a level as a step exactly when its sibling differs
+        // from `default[level]`, so the encode/decode roundtrip is lossless.
+        if sibling != default_hash(child_height) {
+            steps.push(PathStep {
+                level: child_height,
+                sibling,
+            });
+        }
     }
     collect_steps_inner(entries, path_start, path_end, child_height, target, steps);
 }
@@ -1779,5 +1799,74 @@ mod tests {
         acc.insert_batch(&[StateUpdate::new(key, [0x02u8; 32])])
             .unwrap();
         assert_ne!(first, acc.root());
+    }
+
+    #[test]
+    fn duplicate_keys_with_same_digest_are_order_independent() {
+        // Repeating a key with the *same* digest is a well-formed set and must
+        // yield the same root in any insertion order.
+        let key_a = StateKey::new([0x22u8; 32]);
+        let key_b = StateKey::new([0x33u8; 32]);
+        let updates = [
+            StateUpdate::new(key_a, [0x01u8; 32]),
+            StateUpdate::new(key_a, [0x01u8; 32]), // repeated, same digest
+            StateUpdate::new(key_b, [0x02u8; 32]),
+            StateUpdate::new(key_b, [0x02u8; 32]), // repeated, same digest
+        ];
+        let mut forward = StateAccumulator::empty();
+        forward.insert_batch(&updates).unwrap();
+        let mut reverse = StateAccumulator::empty();
+        let mut rev = updates.to_vec();
+        rev.reverse();
+        reverse.insert_batch(&rev).unwrap();
+        assert_eq!(forward.root(), reverse.root());
+        assert_eq!(
+            forward.root(),
+            StateAccumulator::empty().insert_batch(&updates).unwrap()
+        );
+    }
+
+    #[test]
+    fn proofs_never_emit_default_equal_siblings() {
+        // The empty leaf (key 0x00.., digest 0x00..) hashes to EMPTY_LEAF =
+        // default[0], so its merkle path collapses onto the default-subtree
+        // hashes at every depth. Such siblings must be omitted from proofs so
+        // the dense wire roundtrip (which only records a step when the sibling
+        // differs from its default) is lossless. Regresses the deep-level
+        // roundtrip drops found by fuzzing (levels 251/254/255).
+        let empty = StateKey::new([0x00u8; 32]);
+        // A probe whose path diverges from the empty leaf at a deep level
+        // (bit 4 -> step level 251).
+        let probe = StateKey::new([0x08u8; 32]);
+        let mut acc = StateAccumulator::empty();
+        acc.insert_batch(&[
+            StateUpdate::new(empty, [0x00u8; 32]),
+            StateUpdate::new(probe, [0x5au8; 32]),
+        ])
+        .unwrap();
+        for proof in [
+            acc.prove_inclusion(&probe).unwrap(),
+            acc.prove_inclusion(&empty).unwrap(),
+        ] {
+            assert!(
+                proof
+                    .steps
+                    .iter()
+                    .all(|step| step.sibling != default_hash(step.level))
+            );
+            let root = acc.root();
+            assert!(StateAccumulator::verify_inclusion(&root, &proof));
+        }
+        // Non-membership path (probe absent) must also carry no default-equal
+        // sibling.
+        let absent = StateKey::new([0x42u8; 32]);
+        let proof = acc.prove_non_membership(&absent).unwrap();
+        assert!(
+            proof
+                .steps
+                .iter()
+                .all(|step| step.sibling != default_hash(step.level))
+        );
+        assert!(StateAccumulator::verify_non_membership(&acc.root(), &proof));
     }
 }

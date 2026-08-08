@@ -22,15 +22,25 @@ use crate::registry::{
     ProfileRules, input_amount, input_str, parse_amount_str, require_current, require_unborn,
 };
 
-/// Operations accepted by the meter profile.
-const OPERATIONS: &[&str] = &[
-    "meter.create",
-    "meter.consume",
-    "meter.refill",
-    "meter.set_maximum",
-    "meter.reset",
-    "meter.expire",
-];
+/// Typed operation constants accepted by the meter profile.
+pub mod op {
+    use statechronicle_domain::intent::Operation;
+
+    op_set! {
+        /// Creates a new meter.
+        meter_create => "meter.create";
+        /// Consumes usage from a meter.
+        meter_consume => "meter.consume";
+        /// Refills a meter to its maximum (deterministic).
+        meter_refill => "meter.refill";
+        /// Sets a meter's maximum (clamping remaining).
+        meter_set_maximum => "meter.set_maximum";
+        /// Resets a meter's remaining to zero.
+        meter_reset => "meter.reset";
+        /// Expires a meter (terminal).
+        meter_expire => "meter.expire";
+    }
+}
 
 /// Rule set for [`StateType::MeteredResource`] (protocol §20.7).
 ///
@@ -59,8 +69,8 @@ impl ProfileRules for MeterRules {
         "meter"
     }
 
-    fn allowed_operations(&self) -> &'static [&'static str] {
-        OPERATIONS
+    fn allowed_operations(&self) -> &'static [Operation] {
+        op::all()
     }
 
     fn check(
@@ -69,21 +79,27 @@ impl ProfileRules for MeterRules {
         current: Option<&StateProjection>,
         inputs: &BTreeMap<String, serde_json::Value>,
     ) -> Result<(), ProfileError> {
-        if !OPERATIONS.contains(&operation.as_str()) {
+        if !op::all().contains(operation) {
             return Err(ProfileError::UnknownOperation(String::from(
                 operation.as_str(),
             )));
         }
-        match operation.as_str() {
-            "meter.create" => check_create(current, inputs),
-            "meter.consume" => check_consume(current, inputs),
-            "meter.refill" => check_refill(current),
-            "meter.set_maximum" => check_set_maximum(current, inputs),
-            "meter.reset" => check_reset(current),
-            "meter.expire" => check_expire(current),
-            _ => Err(ProfileError::UnknownOperation(String::from(
+        if operation == op::meter_create() {
+            check_create(current, inputs)
+        } else if operation == op::meter_consume() {
+            check_consume(current, inputs)
+        } else if operation == op::meter_refill() {
+            check_refill(current)
+        } else if operation == op::meter_set_maximum() {
+            check_set_maximum(current, inputs)
+        } else if operation == op::meter_reset() {
+            check_reset(current)
+        } else if operation == op::meter_expire() {
+            check_expire(current)
+        } else {
+            Err(ProfileError::UnknownOperation(String::from(
                 operation.as_str(),
-            ))),
+            )))
         }
     }
 }
@@ -270,13 +286,13 @@ mod tests {
         assert_eq!(
             MeterRules.allowed_operations(),
             &[
-                "meter.create",
-                "meter.consume",
-                "meter.refill",
-                "meter.set_maximum",
-                "meter.reset",
-                "meter.expire",
-            ][..]
+                op::meter_create().to_owned(),
+                op::meter_consume().to_owned(),
+                op::meter_refill().to_owned(),
+                op::meter_set_maximum().to_owned(),
+                op::meter_reset().to_owned(),
+                op::meter_expire().to_owned(),
+            ]
         );
     }
 

@@ -49,13 +49,45 @@ that cannot silently diverge, lose a transaction, or round a balance.
   conflict rules, and per-profile invariants (no negative balances, no debit
   over available funds, transfers are atomic debit + credit) reject invalid
   changes before they are recorded.
-- **Portable proofs**: state, ownership, balance, and non-membership proofs
-  anyone can verify against a signed commit, without the full history.
+- **Portable proofs**: state, ownership, and non-membership proofs anyone can
+  verify against a signed commit, without the full history (a balance is proven
+  as a state proof over a balance projection).
+- **Atomic settlement**: `execute_batch` and `execute_cross_tenant` commit
+  multi-resource (and multi-tenant) transactions all-or-nothing, so a purchase
+  that spans an asset, a listing, an escrow, and two wallets either lands whole
+  or not at all (protocol §18.3).
 - **Delegated authority**: the executor checks, per operation, whether a
   delegated third party may act on a resource. The evaluator behind this check
   is a pluggable trait (TrustGrant is one option; your own policy engine is
   equally valid), and it is entirely separate from your platform's basic
   owner/actor authentication.
+
+## Run the examples
+
+The repository ships eight runnable examples in
+`crates/statechronicle/examples/`. Each runs the real cross-crate pipeline
+(submit → execute → commit → proof → verify) over in-memory port fakes, prints
+a short narrative, asserts its outcome, and exits 0 only on success. Runs are
+deterministic: every example uses a fixed clock, a fixed Ed25519 key, and a
+counter-based event-id generator, so the same example produces the same output
+every time.
+
+| Example | Run it with | Capability demonstrated |
+|---|---|---|
+| `inventory` | `cargo run -p statechronicle --example inventory` | Unique asset lifecycle (mint → transfer → lock → unlock → restrict → restore → burn) with fail-closed rejections |
+| `currency` | `cargo run -p statechronicle --example currency` | Fungible balance lifecycle with an atomic debit + credit transfer and exact amount math |
+| `stack` | `cargo run -p statechronicle --example stack` | Consumable stack lifecycle |
+| `access` | `cargo run -p statechronicle --example access` | Entitlement and meter lifecycles |
+| `marketplace` | `cargo run -p statechronicle --example marketplace` | Atomic purchase settlement via `execute_batch` |
+| `cross_tenant` | `cargo run -p statechronicle --example cross_tenant` | Cross-tenant atomic transaction via `execute_cross_tenant` |
+| `proofs` | `cargo run -p statechronicle --example proofs` | State, ownership, and non-membership proofs |
+| `paid_asset` | `cargo run -p statechronicle --example paid_asset` | Paid unique asset overlay: owner consent and hard delete |
+
+The examples construct validated intents both ways: the typed path
+(`Intent::new` → `ValidatedIntent::from_intent`) is the workhorse across most
+examples, and the raw-wire path (`parse_intent` → `validate`, as if a payload
+arrived over the wire) appears in `currency.rs` as an explicit callout and in
+the intent section below.
 
 ## The flow
 
@@ -70,9 +102,10 @@ that cannot silently diverge, lose a transaction, or round a balance.
    or more events.
 4. **Commit** (`statechronicle-commit`): events are batched, event and state
    Merkle roots are computed, and the commit is signed.
-5. **Prove** (`statechronicle-proof`): state, ownership, balance, and
-   non-membership proofs are served from committed state and verified against
-   the signed commit chain.
+5. **Prove** (`statechronicle-proof`): state, ownership, and non-membership
+   proofs are served from committed state and verified against the signed
+   commit chain (a balance is proven as a state proof over a balance
+   projection).
 
 ## Two ways to construct a validated intent
 
@@ -86,9 +119,24 @@ request), construct the validated intent directly:
 use statechronicle::domain::intent::{Intent, Operation, Nonce};
 use statechronicle::intent::validated::ValidatedIntent;
 
-let intent = Intent::new(/* tenant, operation, actor, resource, ... */);
+let intent = Intent::new(
+    tenant_id,            // TenantId
+    intent_id,            // IntentId
+    operation,            // Operation
+    actor,                // SubjectId
+    resource_id,          // ResourceId
+    Some(state_type),     // Option<StateType>
+    expected_version,     // u64
+    inputs,               // BTreeMap<String, serde_json::Value>
+    authority,            // Option<AuthorityProof>
+    created_at,           // DateTime<Utc>
+    expires_at,           // Option<DateTime<Utc>>
+    nonce,                // Nonce
+);
 let validated = ValidatedIntent::from_intent(intent, None); // typed in, no parsing
 ```
+
+A complete typed-path example lives in `crates/statechronicle/examples/currency.rs`.
 
 **Raw wire bytes.** If you receive a payload over the wire, parse then
 validate it:
@@ -105,46 +153,13 @@ Both paths produce the same `ValidatedIntent` and feed the same executor.
 
 ## Example: a full lifecycle
 
-The repository includes a runnable end-to-end lifecycle in
-`crates/statechronicle/tests/e2e.rs` (plus the in-memory port fakes in
-`crates/statechronicle/tests/common/mod.rs`): it mints an asset, transfers it,
-locks it, forms and signs the enclosing commit, verifies a state proof, proves
-a tampered event fails closed, and proves an absent resource never existed.
-Run it with `cargo test -p statechronicle`. That test is the best live
-example of wiring the whole pipeline; the sketch below shows the same shape
-in miniature.
-
-```rust
-use statechronicle::commit::builder::CommitBuilder;
-use statechronicle::commit::sign::{sign_commit, verify_commit};
-use statechronicle::domain::commit::CommitScope;
-use statechronicle::domain::signed::Signed;
-use statechronicle::executor::pipeline::{Executor, Ports};
-use statechronicle::profiles::registry::ProfileRegistry;
-use statechronicle::proof::verify::verify_bundle;
-
-// 1. Your port adapters: intent store, state index, tenant store, one or more
-//    delegated-authority evaluators, transaction manager.
-let executor = Executor::new(
-    Ports::new(intent_store, state_index, tenant_store, authority_ports, tx_manager),
-    ProfileRegistry::baseline(),
-    executor_subject(),
-    Box::new(now),          // injected wall clock
-    Box::new(event_id_gen), // injected event-id generator
-    intent_verifier,        // resolves key_id -> verifying key
-);
-
-// 2. Execute a validated intent through the pipeline.
-let events = executor.execute(&validated).await?;
-
-// 3. Form, sign, and verify the commit.
-let signed: Signed<Commit> = sign_commit(&commit, &commit_key, &key_id)?;
-verify_commit(&signed, &commit_key.verifying_key())?;
-
-// 4. Build a resource-state proof and verify it against the signed commit.
-let proof = build_state_proof(&projection, &signed, &inclusion, &op, None, key)?;
-assert!(verify_bundle(&proof, &signed, &commit_key.verifying_key(), &key).is_ok());
-```
+The fastest way to see the whole pipeline wired is
+`cargo run -p statechronicle --example inventory` (unique asset: mint →
+transfer → lock → unlock → restrict → restore → burn, with fail-closed
+rejections). For the tamper and non-membership proof variants, see the end-to-end
+test in `crates/statechronicle/tests/e2e.rs` (run with `cargo test -p
+statechronicle`). Both build the signed commit + state accumulator exactly as a
+production composition root would.
 
 ## Crate map
 
@@ -232,8 +247,11 @@ below maps every section to its owning crate README.
 | §19 | Commit Authority | `crates/statechronicle-executor/README.md`, `crates/statechronicle-commit/README.md` |
 | §20 | Profiles | `crates/statechronicle-profiles/README.md` |
 | §27 | Infra-Agnostic Storage Contract | `crates/statechronicle-ports/README.md` |
+| §28 | API Surface | `crates/statechronicle/README.md` |
 | §29 | Verification Algorithm | `crates/statechronicle-proof/README.md` |
 | §31 | Forks and Recovery | `crates/statechronicle-commit/README.md` |
+| §33 | Example Full Stack Flow | `crates/statechronicle/README.md` |
+| §37 | Glossary | `crates/statechronicle/README.md` |
 
 ## Verification
 
@@ -243,7 +261,10 @@ resolving the open protocol questions.
 
 ## Where to go next
 
-- `crates/statechronicle/tests/e2e.rs`: the runnable end-to-end lifecycle.
+- `crates/statechronicle/examples/`: the eight runnable examples (start with
+  `inventory`, then `currency` and `cross_tenant`).
+- `crates/statechronicle/tests/e2e.rs`: the end-to-end lifecycle test with
+  tamper and non-membership proof variants.
 - `crates/statechronicle/README.md`: the umbrella crate and the full surface.
 - `crates/statechronicle-ports/README.md`: the port traits and the authority
   model.

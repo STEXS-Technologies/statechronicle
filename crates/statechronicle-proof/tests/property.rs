@@ -242,4 +242,35 @@ proptest! {
             prop_assert_eq!(first, second);
         }
     }
+
+    #[test]
+    fn dense_roundtrip_preserves_every_inclusion_step(
+        updates in prop::collection::vec(
+            (arb_key(), prop::array::uniform32(any::<u8>())),
+            0..=16,
+        ),
+    ) {
+        // The dense wire roundtrip must preserve every level-tagged step of
+        // every inclusion proof, for arbitrary key/digest sets. This covers
+        // deep-level siblings whose subtree hashes to a default (previously
+        // dropped at levels >= 251) as well as ordinary shallow proofs.
+        let mut acc = StateAccumulator::empty();
+        let updates: Vec<StateUpdate> = updates
+            .into_iter()
+            .map(|(key, digest)| StateUpdate::new(key, digest))
+            .collect();
+        // Conflict-free leaf set (duplicate keys with differing digests are
+        // ambiguous and rejected); the accumulator then builds a deterministic
+        // root.
+        if acc.insert_batch(&updates).is_err() {
+            return Ok(());
+        }
+        let root = acc.root();
+        for update in &updates {
+            let proof = acc.prove_inclusion(&update.key).unwrap();
+            let sparse = sparse_proof_from_inclusion(&proof);
+            prop_assert_eq!(steps_from_sparse_proof(&sparse).unwrap(), proof.steps.clone());
+            prop_assert!(verify_sparse_merkle_v0(&root, &update.key, &sparse).is_ok());
+        }
+    }
 }

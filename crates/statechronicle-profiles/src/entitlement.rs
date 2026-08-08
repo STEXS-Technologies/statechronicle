@@ -9,36 +9,50 @@ use std::collections::BTreeMap;
 use statechronicle_domain::intent::Operation;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
+use statechronicle_domain::status::Status;
 
 use crate::error::ProfileError;
 use crate::registry::{ProfileRules, input_str, require_from, require_unborn};
 
-/// Wire status names for an entitlement.
-pub(crate) mod status {
-    /// The entitlement has been granted but is not yet active.
-    pub(crate) const GRANTED: &str = "granted";
-    /// The entitlement is in force.
-    pub(crate) const ACTIVE: &str = "active";
-    /// The entitlement is temporarily suspended.
-    pub(crate) const SUSPENDED: &str = "suspended";
-    /// The entitlement has expired (terminal).
-    #[allow(dead_code)] // wire-format constant referenced by transition tests
-    pub(crate) const EXPIRED: &str = "expired";
-    /// The entitlement was revoked (terminal).
-    #[allow(dead_code)] // wire-format constant referenced by transition tests
-    pub(crate) const REVOKED: &str = "revoked";
+/// Typed wire status names for an entitlement.
+pub mod status {
+    use statechronicle_domain::status::Status;
+
+    status_set! {
+        /// The entitlement has been granted but is not yet active.
+        granted => "granted";
+        /// The entitlement is in force.
+        active => "active";
+        /// The entitlement is temporarily suspended.
+        suspended => "suspended";
+        /// The entitlement has expired (terminal).
+        expired => "expired";
+        /// The entitlement was revoked (terminal).
+        revoked => "revoked";
+    }
 }
 
-/// Operations accepted by the entitlement profile.
-const OPERATIONS: &[&str] = &[
-    "entitlement.grant",
-    "entitlement.activate",
-    "entitlement.suspend",
-    "entitlement.restore",
-    "entitlement.expire",
-    "entitlement.revoke",
-    "entitlement.transfer",
-];
+/// Typed operation constants accepted by the entitlement profile.
+pub mod op {
+    use statechronicle_domain::intent::Operation;
+
+    op_set! {
+        /// Grants a new entitlement.
+        entitlement_grant => "entitlement.grant";
+        /// Activates a granted entitlement.
+        entitlement_activate => "entitlement.activate";
+        /// Suspends an active entitlement.
+        entitlement_suspend => "entitlement.suspend";
+        /// Restores a suspended entitlement.
+        entitlement_restore => "entitlement.restore";
+        /// Expires an entitlement (terminal).
+        entitlement_expire => "entitlement.expire";
+        /// Revokes an entitlement (terminal).
+        entitlement_revoke => "entitlement.revoke";
+        /// Transfers a transferable entitlement.
+        entitlement_transfer => "entitlement.transfer";
+    }
+}
 
 /// Rule set for [`StateType::Entitlement`] (protocol §20.6).
 ///
@@ -69,8 +83,8 @@ impl ProfileRules for EntitlementRules {
         "entitlement"
     }
 
-    fn allowed_operations(&self) -> &'static [&'static str] {
-        OPERATIONS
+    fn allowed_operations(&self) -> &'static [Operation] {
+        op::all()
     }
 
     fn check(
@@ -79,34 +93,53 @@ impl ProfileRules for EntitlementRules {
         current: Option<&StateProjection>,
         inputs: &BTreeMap<String, serde_json::Value>,
     ) -> Result<(), ProfileError> {
-        if !OPERATIONS.contains(&operation.as_str()) {
+        if !op::all().contains(operation) {
             return Err(ProfileError::UnknownOperation(String::from(
                 operation.as_str(),
             )));
         }
-        match operation.as_str() {
-            "entitlement.grant" => check_grant(current, inputs),
-            "entitlement.activate" => {
-                single_from(current, "entitlement.activate", &[status::GRANTED])
-            }
-            "entitlement.suspend" => single_from(current, "entitlement.suspend", &[status::ACTIVE]),
-            "entitlement.restore" => {
-                single_from(current, "entitlement.restore", &[status::SUSPENDED])
-            }
-            "entitlement.expire" => single_from(
+        if operation == op::entitlement_grant() {
+            check_grant(current, inputs)
+        } else if operation == op::entitlement_activate() {
+            single_from(
+                current,
+                "entitlement.activate",
+                &[status::granted().to_owned()],
+            )
+        } else if operation == op::entitlement_suspend() {
+            single_from(
+                current,
+                "entitlement.suspend",
+                &[status::active().to_owned()],
+            )
+        } else if operation == op::entitlement_restore() {
+            single_from(
+                current,
+                "entitlement.restore",
+                &[status::suspended().to_owned()],
+            )
+        } else if operation == op::entitlement_expire() {
+            single_from(
                 current,
                 "entitlement.expire",
-                &[status::GRANTED, status::ACTIVE, status::SUSPENDED],
-            ),
-            "entitlement.revoke" => single_from(
+                &[
+                    status::granted().to_owned(),
+                    status::active().to_owned(),
+                    status::suspended().to_owned(),
+                ],
+            )
+        } else if operation == op::entitlement_revoke() {
+            single_from(
                 current,
                 "entitlement.revoke",
-                &[status::GRANTED, status::ACTIVE],
-            ),
-            "entitlement.transfer" => check_transfer(current, inputs),
-            _ => Err(ProfileError::UnknownOperation(String::from(
+                &[status::granted().to_owned(), status::active().to_owned()],
+            )
+        } else if operation == op::entitlement_transfer() {
+            check_transfer(current, inputs)
+        } else {
+            Err(ProfileError::UnknownOperation(String::from(
                 operation.as_str(),
-            ))),
+            )))
         }
     }
 }
@@ -120,7 +153,7 @@ impl ProfileRules for EntitlementRules {
 fn single_from(
     current: Option<&StateProjection>,
     operation: &str,
-    allowed_from: &[&str],
+    allowed_from: &[Status],
 ) -> Result<(), ProfileError> {
     require_from(current, operation, allowed_from)?;
     Ok(())
@@ -172,7 +205,7 @@ fn check_transfer(
     let current = require_from(
         current,
         "entitlement.transfer",
-        &[status::GRANTED, status::ACTIVE],
+        &[status::granted().to_owned(), status::active().to_owned()],
     )?;
     if !is_transferable(current)? {
         return Err(ProfileError::NotTransferable);
@@ -205,7 +238,7 @@ mod tests {
     use statechronicle_domain::resource::ResourceId;
     use statechronicle_domain::tenant::TenantId;
 
-    fn entitlement(status: &str, transferable: bool) -> StateProjection {
+    fn entitlement(status: &Status, transferable: bool) -> StateProjection {
         StateProjection {
             tenant_id: TenantId(String::from("tenant.test")),
             resource_id: ResourceId(String::from("entitlement:membership")),
@@ -216,7 +249,7 @@ mod tests {
             state_hash: ContentDigest::new([0u8; 32]),
             state: serde_json::json!({
                 "subject": "account:example:player_123",
-                "status": status,
+                "status": status.as_str(),
                 "transferable": transferable
             }),
         }
@@ -238,14 +271,14 @@ mod tests {
         assert_eq!(
             EntitlementRules.allowed_operations(),
             &[
-                "entitlement.grant",
-                "entitlement.activate",
-                "entitlement.suspend",
-                "entitlement.restore",
-                "entitlement.expire",
-                "entitlement.revoke",
-                "entitlement.transfer",
-            ][..]
+                op::entitlement_grant().to_owned(),
+                op::entitlement_activate().to_owned(),
+                op::entitlement_suspend().to_owned(),
+                op::entitlement_restore().to_owned(),
+                op::entitlement_expire().to_owned(),
+                op::entitlement_revoke().to_owned(),
+                op::entitlement_transfer().to_owned(),
+            ]
         );
     }
 
@@ -272,7 +305,7 @@ mod tests {
             ),
             Err(ProfileError::InvalidInput(_))
         ));
-        let existing = entitlement(status::GRANTED, true);
+        let existing = entitlement(status::granted(), true);
         assert!(matches!(
             rules.check(&op("entitlement.grant"), Some(&existing), &BTreeMap::new()),
             Err(ProfileError::InvalidTransition { from, .. }) if from == "existing"
@@ -282,7 +315,7 @@ mod tests {
     #[test]
     fn lifecycle_transitions() {
         let rules = EntitlementRules;
-        let granted = entitlement(status::GRANTED, true);
+        let granted = entitlement(status::granted(), true);
         assert!(
             rules
                 .check(
@@ -293,14 +326,14 @@ mod tests {
                 .is_ok()
         );
 
-        let active = entitlement(status::ACTIVE, true);
+        let active = entitlement(status::active(), true);
         assert!(
             rules
                 .check(&op("entitlement.suspend"), Some(&active), &BTreeMap::new())
                 .is_ok()
         );
 
-        let suspended = entitlement(status::SUSPENDED, true);
+        let suspended = entitlement(status::suspended(), true);
         assert!(
             rules
                 .check(
@@ -312,7 +345,7 @@ mod tests {
         );
 
         // expire from granted/active/suspended.
-        for from in [status::GRANTED, status::ACTIVE, status::SUSPENDED] {
+        for from in [status::granted(), status::active(), status::suspended()] {
             let projection = entitlement(from, true);
             assert!(
                 rules
@@ -326,7 +359,7 @@ mod tests {
         }
 
         // revoke from granted/active only.
-        for from in [status::GRANTED, status::ACTIVE] {
+        for from in [status::granted(), status::active()] {
             let projection = entitlement(from, true);
             assert!(
                 rules
@@ -340,15 +373,15 @@ mod tests {
         }
         assert!(matches!(
             rules.check(&op("entitlement.revoke"), Some(&suspended), &BTreeMap::new()),
-            Err(ProfileError::InvalidTransition { from, .. }) if from == status::SUSPENDED
+            Err(ProfileError::InvalidTransition { from, .. }) if from == status::suspended().as_str()
         ));
     }
 
     #[test]
     fn transfer_requires_transferable_flag() {
         let rules = EntitlementRules;
-        let active = entitlement(status::ACTIVE, true);
-        let not_transferable = entitlement(status::ACTIVE, false);
+        let active = entitlement(status::active(), true);
+        let not_transferable = entitlement(status::active(), false);
 
         assert!(
             rules
@@ -369,29 +402,29 @@ mod tests {
         ));
 
         // Transfer from suspended is disallowed even when transferable.
-        let suspended = entitlement(status::SUSPENDED, true);
+        let suspended = entitlement(status::suspended(), true);
         assert!(matches!(
             rules.check(
                 &op("entitlement.transfer"),
                 Some(&suspended),
                 &inputs(&[("to_subject", serde_json::json!("bob"))])
             ),
-            Err(ProfileError::InvalidTransition { from, .. }) if from == status::SUSPENDED
+            Err(ProfileError::InvalidTransition { from, .. }) if from == status::suspended().as_str()
         ));
     }
 
     #[test]
     fn terminal_states_accept_no_mutations() {
         let rules = EntitlementRules;
-        for source in [status::EXPIRED, status::REVOKED] {
+        for source in [status::expired(), status::revoked()] {
             let projection = entitlement(source, true);
             assert!(matches!(
                 rules.check(&op("entitlement.activate"), Some(&projection), &BTreeMap::new()),
-                Err(ProfileError::InvalidTransition { from, .. }) if from == source
+                Err(ProfileError::InvalidTransition { from, .. }) if from == source.as_str()
             ));
             assert!(matches!(
                 rules.check(&op("entitlement.transfer"), Some(&projection), &BTreeMap::new()),
-                Err(ProfileError::InvalidTransition { from, .. }) if from == source
+                Err(ProfileError::InvalidTransition { from, .. }) if from == source.as_str()
             ));
         }
     }

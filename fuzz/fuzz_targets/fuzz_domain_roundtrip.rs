@@ -1,11 +1,14 @@
 #![no_main]
 
+use std::str::FromStr;
+
 use libfuzzer_sys::fuzz_target;
 
 use statechronicle_core::canonicalize::canonicalize;
 
 use statechronicle_domain::ids::{EventId, IntentId};
 use statechronicle_domain::intent::{Nonce, Operation};
+use statechronicle_domain::status::Status;
 
 // A small domain struct built from fuzz input must canonicalize and round-trip
 // through BCS without panicking. Every field is constructed via its
@@ -66,5 +69,24 @@ fuzz_target!(|data: &[u8]| {
         let decoded = bcs::from_bytes::<DomainRecord>(&bytes);
         assert!(decoded.is_ok());
         assert_eq!(decoded.unwrap(), record);
+    }
+
+    // Operation/Status serde round-trip on arbitrary bytes: parse via the
+    // validated newtype constructors, serialize to JSON, and assert the decoded
+    // value equals the original. Never panics on non-UTF-8/empty/oversized data.
+    let Ok(text) = std::str::from_utf8(data) else {
+        return;
+    };
+    if let Ok(op) = Operation::from_str(text)
+        && let Ok(json) = serde_json::to_string(&op)
+        && let Ok(decoded) = serde_json::from_str::<Operation>(&json)
+    {
+        assert_eq!(decoded, op);
+    }
+    if let Ok(status) = Status::try_from_str(text)
+        && let Ok(json) = serde_json::to_string(&status)
+        && let Ok(decoded) = serde_json::from_str::<Status>(&json)
+    {
+        assert_eq!(decoded, status);
     }
 });

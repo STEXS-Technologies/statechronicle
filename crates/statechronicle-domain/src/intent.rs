@@ -64,9 +64,55 @@ impl Operation {
         Ok(Self(value))
     }
 
+    /// Constructs an operation from a compile-time literal, infallibly.
+    ///
+    /// This trusted constructor is intended **only** for in-crate
+    /// compile-time operation literals (e.g. `Operation::from_static("asset.transfer")`).
+    /// It is not `const` because `Operation` owns a `String`; the caller
+    /// guarantees the literal is non-empty and within [`MAX_ID_LENGTH`], which
+    /// the runtime [`Self::new`] enforces identically for wire-parsed values.
+    pub fn from_static(value: &'static str) -> Operation {
+        Operation(String::from(value))
+    }
+
     /// Returns the operation name as a string.
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+
+    /// Infers the profile state type from the operation's dotted prefix.
+    ///
+    /// The baseline convention maps each prefix to its state type
+    /// (protocol §10): `asset.*` → [`StateType::UniqueAsset`], `stack.*` →
+    /// [`StateType::ConsumableStack`], `balance.*` →
+    /// [`StateType::FungibleBalance`], `entitlement.*` →
+    /// [`StateType::Entitlement`], `meter.*` →
+    /// [`StateType::MeteredResource`], `listing.*` → [`StateType::Listing`],
+    /// and `escrow.*` → [`StateType::Escrow`].
+    ///
+    /// The convention stays **open** (ADR-006 Q4): an operation whose prefix
+    /// does not match any baseline prefix returns `None` rather than mapping to
+    /// a new closed variant, so profile-defined custom prefixes remain
+    /// supported without a protocol schema bump.
+    pub fn state_type_hint(&self) -> Option<StateType> {
+        let name = self.as_str();
+        if name.starts_with("asset.") {
+            Some(StateType::UniqueAsset)
+        } else if name.starts_with("stack.") {
+            Some(StateType::ConsumableStack)
+        } else if name.starts_with("balance.") {
+            Some(StateType::FungibleBalance)
+        } else if name.starts_with("entitlement.") {
+            Some(StateType::Entitlement)
+        } else if name.starts_with("meter.") {
+            Some(StateType::MeteredResource)
+        } else if name.starts_with("listing.") {
+            Some(StateType::Listing)
+        } else if name.starts_with("escrow.") {
+            Some(StateType::Escrow)
+        } else {
+            None
+        }
     }
 }
 
@@ -443,6 +489,189 @@ impl Intent {
             nonce,
         }
     }
+
+    /// Starts a fluent, struct-based intent builder.
+    ///
+    /// [`IntentBuilder`] collects the intent's fields with named setters and
+    /// calls [`Intent::new`] in [`IntentBuilder::build`] (which sets
+    /// [`INTENT_SCHEMA`] exactly once). Prefer it over the positional
+    /// [`Intent::new`] for readability and to guarantee the deterministic
+    /// required fields (`created_at`, `nonce`) are always supplied.
+    pub fn builder() -> IntentBuilder {
+        IntentBuilder::default()
+    }
+}
+
+/// Fluent builder for [`Intent`] (protocol §11.1).
+///
+/// Collects intent fields with named setters and calls [`Intent::new`] from
+/// [`IntentBuilder::build`], so the resulting body is byte-identical to a
+/// positional construction. Setters that take already-validated newtypes
+/// (`TenantId`, `IntentId`, `Operation`, `SubjectId`, `ResourceId`, `Nonce`)
+/// are infallible: construction stays validated at the newtype boundary.
+///
+/// `created_at` and `nonce` are **required** (no defaults): determinism and
+/// replay protection demand they always be explicit. `expected_version`
+/// defaults to `0`, `state_type`, `authority`, and `expires_at` default to
+/// `None`, and `inputs` defaults to an empty map.
+#[derive(Debug, Clone, Default)]
+pub struct IntentBuilder {
+    tenant: Option<TenantId>,
+    intent_id: Option<IntentId>,
+    operation: Option<Operation>,
+    actor: Option<SubjectId>,
+    resource_id: Option<ResourceId>,
+    expected_version: u64,
+    state_type: Option<StateType>,
+    inputs: BTreeMap<String, serde_json::Value>,
+    authority: Option<AuthorityProof>,
+    created_at: Option<DateTime<Utc>>,
+    expires_at: Option<DateTime<Utc>>,
+    nonce: Option<Nonce>,
+}
+
+impl IntentBuilder {
+    /// Sets the tenant scope of the transition.
+    pub fn tenant(mut self, tenant: TenantId) -> Self {
+        self.tenant = Some(tenant);
+        self
+    }
+
+    /// Sets the unique intent id used for idempotency.
+    pub fn intent_id(mut self, intent_id: IntentId) -> Self {
+        self.intent_id = Some(intent_id);
+        self
+    }
+
+    /// Sets the requested operation (profile-defined).
+    pub fn operation(mut self, operation: Operation) -> Self {
+        self.operation = Some(operation);
+        self
+    }
+
+    /// Sets the actor requesting the transition.
+    pub fn actor(mut self, actor: SubjectId) -> Self {
+        self.actor = Some(actor);
+        self
+    }
+
+    /// Sets the resource being mutated.
+    pub fn resource(mut self, resource_id: ResourceId) -> Self {
+        self.resource_id = Some(resource_id);
+        self
+    }
+
+    /// Sets the expected resource version (optimistic concurrency).
+    ///
+    /// Defaults to `0` when unset.
+    pub const fn expected_version(mut self, expected_version: u64) -> Self {
+        self.expected_version = expected_version;
+        self
+    }
+
+    /// Sets the state type when required by the active profile.
+    ///
+    /// Defaults to `None` when unset.
+    pub const fn state_type(mut self, state_type: StateType) -> Self {
+        self.state_type = Some(state_type);
+        self
+    }
+
+    /// Replaces the entire profile-defined inputs map.
+    pub fn inputs(mut self, inputs: BTreeMap<String, serde_json::Value>) -> Self {
+        self.inputs = inputs;
+        self
+    }
+
+    /// Appends a single input entry to the inputs map.
+    pub fn input(mut self, key: &str, value: serde_json::Value) -> Self {
+        self.inputs.insert(String::from(key), value);
+        self
+    }
+
+    /// Binds an optional authority proof.
+    ///
+    /// Defaults to `None` when unset.
+    pub fn authority(mut self, authority: AuthorityProof) -> Self {
+        self.authority = Some(authority);
+        self
+    }
+
+    /// Sets the intent creation time (UTC).
+    ///
+    /// Required: there is no default so intent construction stays
+    /// deterministic. Omission is reported as
+    /// [`DomainError::BuilderFieldMissing`] by [`Self::build`].
+    pub const fn created_at(mut self, created_at: DateTime<Utc>) -> Self {
+        self.created_at = Some(created_at);
+        self
+    }
+
+    /// Sets the intent expiry time (UTC).
+    ///
+    /// Defaults to `None` when unset.
+    pub const fn expires_at(mut self, expires_at: DateTime<Utc>) -> Self {
+        self.expires_at = Some(expires_at);
+        self
+    }
+
+    /// Sets the replay-protection nonce.
+    ///
+    /// Required: there is no default so replay protection is never silently
+    /// bypassed. Omission is reported as [`DomainError::BuilderFieldMissing`]
+    /// by [`Self::build`].
+    pub fn nonce(mut self, nonce: Nonce) -> Self {
+        self.nonce = Some(nonce);
+        self
+    }
+
+    /// Assembles the [`Intent`], delegating to [`Intent::new`].
+    ///
+    /// Fails with [`DomainError::BuilderFieldMissing`] when any required field
+    /// (`tenant`, `intent_id`, `operation`, `actor`, `resource_id`, `created_at`,
+    /// or `nonce`) was not set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::BuilderFieldMissing`] naming the first missing
+    /// required field.
+    pub fn build(self) -> Result<Intent, DomainError> {
+        let tenant = self
+            .tenant
+            .ok_or(DomainError::BuilderFieldMissing("tenant"))?;
+        let intent_id = self
+            .intent_id
+            .ok_or(DomainError::BuilderFieldMissing("intent_id"))?;
+        let operation = self
+            .operation
+            .ok_or(DomainError::BuilderFieldMissing("operation"))?;
+        let actor = self
+            .actor
+            .ok_or(DomainError::BuilderFieldMissing("actor"))?;
+        let resource_id = self
+            .resource_id
+            .ok_or(DomainError::BuilderFieldMissing("resource_id"))?;
+        let created_at = self
+            .created_at
+            .ok_or(DomainError::BuilderFieldMissing("created_at"))?;
+        let nonce = self
+            .nonce
+            .ok_or(DomainError::BuilderFieldMissing("nonce"))?;
+        Ok(Intent::new(
+            tenant,
+            intent_id,
+            operation,
+            actor,
+            resource_id,
+            self.state_type,
+            self.expected_version,
+            self.inputs,
+            self.authority,
+            created_at,
+            self.expires_at,
+            nonce,
+        ))
+    }
 }
 
 #[cfg(test)]
@@ -580,6 +809,160 @@ mod tests {
         assert!(KeyId::new(String::new()).is_err());
         assert!(KeyId::new("x".repeat(MAX_ID_LENGTH.saturating_add(1))).is_err());
         assert!(KeyId::new(String::from("did:key:z6Mk...#key-1")).is_ok());
+    }
+
+    #[test]
+    fn builder_roundtrip_equals_new() {
+        let built = Intent::builder()
+            .tenant(TenantId(String::from("acme.game.alpha")))
+            .intent_id(IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap())
+            .operation(Operation::new(String::from("asset.transfer")).unwrap())
+            .actor(SubjectId(String::from("account:example:player_123")))
+            .resource(ResourceId(String::from("asset:sword_001")))
+            .state_type(StateType::UniqueAsset)
+            .expected_version(41)
+            .inputs(sample_inputs())
+            .created_at(
+                DateTime::parse_from_rfc3339("2026-07-14T00:00:00Z")
+                    .unwrap()
+                    .with_timezone(&Utc),
+            )
+            .nonce(sample_nonce())
+            .build()
+            .unwrap();
+        assert_eq!(built, sample_intent());
+        assert_eq!(built.schema, INTENT_SCHEMA);
+    }
+
+    #[test]
+    fn builder_missing_created_at_fails_closed() {
+        let error = Intent::builder()
+            .tenant(TenantId(String::from("acme.game.alpha")))
+            .intent_id(IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap())
+            .operation(Operation::new(String::from("asset.transfer")).unwrap())
+            .actor(SubjectId(String::from("account:example:player_123")))
+            .resource(ResourceId(String::from("asset:sword_001")))
+            .nonce(sample_nonce())
+            .build()
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            DomainError::BuilderFieldMissing("created_at")
+        ));
+    }
+
+    #[test]
+    fn builder_missing_nonce_fails_closed() {
+        let error = Intent::builder()
+            .tenant(TenantId(String::from("acme.game.alpha")))
+            .intent_id(IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap())
+            .operation(Operation::new(String::from("asset.transfer")).unwrap())
+            .actor(SubjectId(String::from("account:example:player_123")))
+            .resource(ResourceId(String::from("asset:sword_001")))
+            .created_at(
+                DateTime::parse_from_rfc3339("2026-07-14T00:00:00Z")
+                    .unwrap()
+                    .with_timezone(&Utc),
+            )
+            .build()
+            .unwrap_err();
+        assert!(matches!(error, DomainError::BuilderFieldMissing("nonce")));
+    }
+
+    #[test]
+    fn builder_defaults_expected_version_and_optionals() {
+        let intent = Intent::builder()
+            .tenant(TenantId(String::from("acme.game.alpha")))
+            .intent_id(IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap())
+            .operation(Operation::new(String::from("asset.transfer")).unwrap())
+            .actor(SubjectId(String::from("account:example:player_123")))
+            .resource(ResourceId(String::from("asset:sword_001")))
+            .created_at(
+                DateTime::parse_from_rfc3339("2026-07-14T00:00:00Z")
+                    .unwrap()
+                    .with_timezone(&Utc),
+            )
+            .nonce(sample_nonce())
+            .build()
+            .unwrap();
+        assert_eq!(intent.expected_version, 0);
+        assert_eq!(intent.state_type, None);
+        assert_eq!(intent.authority, None);
+        assert_eq!(intent.expires_at, None);
+        assert!(intent.inputs.is_empty());
+    }
+
+    #[test]
+    fn builder_input_appends_to_inputs_map() {
+        let intent = Intent::builder()
+            .tenant(TenantId(String::from("acme.game.alpha")))
+            .intent_id(IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap())
+            .operation(Operation::new(String::from("asset.transfer")).unwrap())
+            .actor(SubjectId(String::from("account:example:player_123")))
+            .resource(ResourceId(String::from("asset:sword_001")))
+            .input(
+                "from_owner",
+                serde_json::json!("account:example:player_123"),
+            )
+            .input("to_owner", serde_json::json!("account:example:player_456"))
+            .created_at(
+                DateTime::parse_from_rfc3339("2026-07-14T00:00:00Z")
+                    .unwrap()
+                    .with_timezone(&Utc),
+            )
+            .nonce(sample_nonce())
+            .build()
+            .unwrap();
+        assert_eq!(intent.inputs, sample_inputs());
+    }
+
+    #[test]
+    fn operation_from_static_produces_same_value_as_new() {
+        let literal = Operation::from_static("asset.transfer");
+        assert_eq!(
+            literal,
+            Operation::new(String::from("asset.transfer")).unwrap()
+        );
+        assert_eq!(literal.as_str(), "asset.transfer");
+    }
+
+    #[test]
+    fn state_type_hint_maps_known_prefixes() {
+        assert_eq!(
+            Operation::from_static("asset.mint").state_type_hint(),
+            Some(StateType::UniqueAsset)
+        );
+        assert_eq!(
+            Operation::from_static("stack.create").state_type_hint(),
+            Some(StateType::ConsumableStack)
+        );
+        assert_eq!(
+            Operation::from_static("balance.create").state_type_hint(),
+            Some(StateType::FungibleBalance)
+        );
+        assert_eq!(
+            Operation::from_static("entitlement.grant").state_type_hint(),
+            Some(StateType::Entitlement)
+        );
+        assert_eq!(
+            Operation::from_static("meter.create").state_type_hint(),
+            Some(StateType::MeteredResource)
+        );
+        assert_eq!(
+            Operation::from_static("listing.create").state_type_hint(),
+            Some(StateType::Listing)
+        );
+        assert_eq!(
+            Operation::from_static("escrow.lock").state_type_hint(),
+            Some(StateType::Escrow)
+        );
+    }
+
+    #[test]
+    fn state_type_hint_returns_none_for_open_names() {
+        // The convention is open: out-of-convention prefixes stay None.
+        assert_eq!(Operation::from_static("custom.foo").state_type_hint(), None);
+        assert_eq!(Operation::from_static("noop").state_type_hint(), None);
     }
 
     #[test]

@@ -20,7 +20,7 @@ itself is pure library code.
 
 ## Key types
 
-- `bundle::{build_state_proof, build_non_membership_proof, build_snapshot_proof, derive_state_key}`.
+- `bundle::{build_state_proof, build_ownership_proof, build_non_membership_proof, build_authority_proof, build_snapshot_proof, derive_state_key}`.
 - `verify::{verify_bundle, verify_non_membership_bundle, verify_ownership, verify_inclusion, verify_proof, verify_commit_signature_with_key}`.
 - `service::{ProofService, ProofPorts}`: the async composition layer over the
   proof/state/commit/snapshot ports.
@@ -37,6 +37,12 @@ use statechronicle_proof::{bundle::build_state_proof, verify::verify_bundle};
 let proof = build_state_proof(&projection, &signed, &inclusion, &op, None, key)?;
 assert!(verify_bundle(&proof, &signed, &verifying_key, &key).is_ok());
 ```
+
+## See it run
+
+`crates/statechronicle/examples/proofs.rs` builds and verifies state, ownership,
+and non-membership proof bundles and shows a genuine proof fail closed against a
+tampered commit.
 
 ## Dependencies
 

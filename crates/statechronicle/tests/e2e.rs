@@ -52,10 +52,7 @@ use statechronicle::proof::verify::{
     verify_bundle, verify_non_membership_bundle, verify_ownership,
 };
 
-use common::{
-    Harness, executor_subject, fixed_key, fixed_timestamp_placeholder, intent_verifier, key_id,
-    sample_authority, tenant, validated_intent,
-};
+use common::{Harness, executor_subject, fixed_key, fixed_timestamp_placeholder, key_id, tenant};
 
 const ALICE: &str = "account:example:player_123";
 const BOB: &str = "account:example:player_456";
@@ -71,7 +68,7 @@ struct Lifecycle {
     final_owner: String,
 }
 
-/// Builds a canonical raw-intent JSON payload.
+/// Builds a canonical raw-intent JSON payload (a local fixture, not shared API).
 fn payload(
     operation: &str,
     intent_id: &str,
@@ -96,14 +93,6 @@ fn payload(
     })
 }
 
-/// Builds an input map from entries.
-fn inputs(entries: &[(&str, Value)]) -> BTreeMap<String, Value> {
-    entries
-        .iter()
-        .map(|(key, value)| (String::from(*key), value.clone()))
-        .collect()
-}
-
 fn profile() -> ProfileId {
     ProfileId::new(String::from("statechronicle.profile.resource.v0")).unwrap()
 }
@@ -124,82 +113,90 @@ fn batch_from(events: &[Event]) -> CommitBatch {
 /// REAL executor with in-memory port fakes, forms + signs the commit, verifies
 /// the state-root determinism, and returns the pieces needed for proof building.
 async fn run_lifecycle() -> Lifecycle {
-    let harness = Harness::with_verifier(intent_verifier());
+    let harness = Harness::new();
 
     // §18.1: mint (version 0 -> 1), no prior state, to_owner = ALICE.
-    let mint_intent = validated_intent(
-        &payload(
-            "asset.mint",
-            "int_mint_001",
-            ALICE,
-            RESOURCE,
-            0,
-            &inputs(&[("to_owner", json!(ALICE))]),
-        ),
-        None,
-    );
-    let minted = harness.executor.execute(&mint_intent).await.unwrap();
-    let mint_event = minted.first().cloned().unwrap();
+    let minted = harness
+        .run(
+            &harness.accept(
+                &payload(
+                    "asset.mint",
+                    "int_mint_001",
+                    ALICE,
+                    RESOURCE,
+                    0,
+                    &BTreeMap::from([(String::from("to_owner"), json!(ALICE))]),
+                ),
+                None,
+            ),
+            StateType::UniqueAsset,
+        )
+        .await;
+    let mint_event = minted;
     assert_eq!(mint_event.before.version, 0);
     assert_eq!(mint_event.after.version, 1);
-    harness.index.apply(&mint_event, StateType::UniqueAsset);
 
     // §18.1: transfer (1 -> 2). `asset.transfer` is authority-required, so the
     // intent binds an authority proof and the FakeTrustGrant (allow) gate passes.
-    let transfer_intent = validated_intent(
-        &payload(
-            "asset.transfer",
-            "int_transfer_001",
-            ALICE,
-            RESOURCE,
-            1,
-            &inputs(&[("from_owner", json!(ALICE)), ("to_owner", json!(BOB))]),
-        ),
-        Some(sample_authority()),
-    );
-    let transferred = harness.executor.execute(&transfer_intent).await.unwrap();
-    let transfer_event = transferred.first().cloned().unwrap();
+    let transfer_event = harness
+        .run(
+            &harness.accept(
+                &payload(
+                    "asset.transfer",
+                    "int_transfer_001",
+                    ALICE,
+                    RESOURCE,
+                    1,
+                    &BTreeMap::from([
+                        (String::from("from_owner"), json!(ALICE)),
+                        (String::from("to_owner"), json!(BOB)),
+                    ]),
+                ),
+                Some(harness.authority()),
+            ),
+            StateType::UniqueAsset,
+        )
+        .await;
     assert_eq!(transfer_event.before.version, 1);
     assert_eq!(transfer_event.after.version, 2);
     assert_eq!(
         transfer_event.after.state,
         json!({ "owner": BOB, "status": "active" })
     );
-    harness.index.apply(&transfer_event, StateType::UniqueAsset);
 
     // §18.1: lock (2 -> 3), final owner BOB.
-    let lock_intent = validated_intent(
-        &payload(
-            "asset.lock",
-            "int_lock_001",
-            BOB,
-            RESOURCE,
-            2,
-            &BTreeMap::new(),
-        ),
-        None,
-    );
-    let locked = harness.executor.execute(&lock_intent).await.unwrap();
-    let lock_event = locked.first().cloned().unwrap();
+    let lock_event = harness
+        .run(
+            &harness.accept(
+                &payload(
+                    "asset.lock",
+                    "int_lock_001",
+                    BOB,
+                    RESOURCE,
+                    2,
+                    &BTreeMap::new(),
+                ),
+                None,
+            ),
+            StateType::UniqueAsset,
+        )
+        .await;
     assert_eq!(lock_event.before.version, 2);
     assert_eq!(lock_event.after.version, 3);
     assert_eq!(
         lock_event.after.state,
         json!({ "owner": BOB, "status": "locked" })
     );
-    harness.index.apply(&lock_event, StateType::UniqueAsset);
 
     // Assemble the batch in execution order and form the commit (protocol §13.1).
     let events = vec![mint_event, transfer_event, lock_event];
     let batch = batch_from(&events);
-    let builder = CommitBuilder::new(
-        CommitScope::tenant(tenant()),
-        1,
-        executor_subject(),
-        profile(),
-        fixed_timestamp_placeholder(),
-        None,
-    );
+    let builder = CommitBuilder::builder()
+        .scope(CommitScope::tenant(tenant()))
+        .sequence(1)
+        .executor(executor_subject())
+        .profile(profile())
+        .created_at(fixed_timestamp_placeholder());
     let previous_root = ContentDigest::new(*StateRoot::empty().as_bytes());
     let commit = builder
         .build(&batch, previous_root, &[], commit_id)
@@ -298,14 +295,12 @@ async fn tampered_event_state_fails_verification() {
         tampered_event,
     ];
     let tampered_batch = batch_from(&tampered_events);
-    let builder = CommitBuilder::new(
-        CommitScope::tenant(tenant()),
-        1,
-        executor_subject(),
-        profile(),
-        fixed_timestamp_placeholder(),
-        None,
-    );
+    let builder = CommitBuilder::builder()
+        .scope(CommitScope::tenant(tenant()))
+        .sequence(1)
+        .executor(executor_subject())
+        .profile(profile())
+        .created_at(fixed_timestamp_placeholder());
     let tampered_commit = builder
         .build(
             &tampered_batch,

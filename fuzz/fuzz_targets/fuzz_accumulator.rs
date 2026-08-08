@@ -52,10 +52,33 @@ fuzz_target!(|data: &[u8]| {
     }
 
     // Duplicate batches (same set, different order) must agree on the root.
-    let mut reversed_updates = updates.clone();
-    reversed_updates.reverse();
-    let mut other = StateAccumulator::empty();
-    if let Ok(other_root) = other.insert_batch(&reversed_updates) {
-        assert_eq!(root, other_root);
+    // The order-independence invariant holds for a well-formed `(key -> leaf)`
+    // set: a batch that maps a key to two *different* digests is not a set (the
+    // protocol's builders apply such batches in a meaningful order, later wins),
+    // so the order-independence check is skipped for those.
+    if well_defined_set(&updates) {
+        let mut reversed_updates = updates.clone();
+        reversed_updates.reverse();
+        let mut other = StateAccumulator::empty();
+        if let Ok(other_root) = other.insert_batch(&reversed_updates) {
+            assert_eq!(root, other_root);
+        }
     }
 });
+
+/// Returns `true` when every key in `updates` maps to exactly one digest, i.e.
+/// the batch is a well-defined `(key -> leaf)` set whose root must be
+/// independent of insertion order.
+fn well_defined_set(updates: &[StateUpdate]) -> bool {
+    use std::collections::BTreeMap;
+    let mut seen: BTreeMap<StateKey, [u8; 32]> = BTreeMap::new();
+    for update in updates {
+        match seen.get(&update.key) {
+            Some(prev) if *prev != update.state_digest => return false,
+            _ => {
+                seen.insert(update.key, update.state_digest);
+            }
+        }
+    }
+    true
+}

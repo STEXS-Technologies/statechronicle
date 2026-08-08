@@ -143,20 +143,20 @@ fn build_validated(
     expected_version: u64,
     inputs: BTreeMap<String, serde_json::Value>,
 ) -> ValidatedIntent {
-    let body = Intent::new(
-        tenant(),
-        IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap(),
-        Operation(operation.to_owned()),
-        SubjectId(String::from("account:example:player_123")),
-        ResourceId(String::from("asset:property")),
-        state_type,
-        expected_version,
-        inputs,
-        None,
-        fixed_now(),
-        None,
-        Nonce::from_bytes(vec![1]).unwrap(),
-    );
+    let mut body = Intent::builder()
+        .tenant(tenant())
+        .intent_id(IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap())
+        .operation(Operation(operation.to_owned()))
+        .actor(SubjectId(String::from("account:example:player_123")))
+        .resource(ResourceId(String::from("asset:property")))
+        .expected_version(expected_version)
+        .inputs(inputs)
+        .created_at(fixed_now())
+        .nonce(Nonce::from_bytes(vec![1]).unwrap());
+    if let Some(state_type) = state_type {
+        body = body.state_type(state_type);
+    }
+    let body = body.build().unwrap();
     let idempotency_key = IdempotencyKey::new(
         body.tenant_id.clone(),
         body.intent_id.clone(),

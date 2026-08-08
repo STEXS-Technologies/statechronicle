@@ -80,6 +80,33 @@ proptest! {
     }
 
     #[test]
+    fn duplicate_keys_with_same_digest_are_order_independent(updates in arb_updates(), dup_key in arb_key()) {
+        // Force a repeated key that always maps the same digest (a well-formed
+        // `(key -> digest)` set): the two insertion orders must agree on the
+        // root. A key mapped to *different* digests in one batch is not a
+        // well-defined set; the protocol's builders apply such batches in a
+        // meaningful order (later updates override earlier ones), so order
+        // independence is only asserted here for genuine sets.
+        let mut with_dup = updates;
+        if with_dup.is_empty() {
+            with_dup.push(StateUpdate::new(dup_key, [0x01u8; 32]));
+        }
+        let base = *with_dup.first().unwrap();
+        with_dup.push(base);
+
+        let mut forward = StateAccumulator::empty();
+        forward.insert_batch(&with_dup).unwrap();
+
+        let mut reversed = StateAccumulator::empty();
+        let mut rev = with_dup.clone();
+        rev.reverse();
+        reversed.insert_batch(&rev).unwrap();
+
+        prop_assert_eq!(forward.root(), reversed.root());
+        prop_assert_eq!(forward.root(), canonical_root(&with_dup));
+    }
+
+    #[test]
     fn wrong_digest_never_verifies(
         updates in arb_updates(),
         key in arb_key(),

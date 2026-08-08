@@ -12,6 +12,7 @@ use statechronicle_domain::authority::AggregationPolicy;
 use statechronicle_domain::intent::Operation;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
+use statechronicle_domain::status::Status;
 
 use crate::consumable_stack::ConsumableStackRules;
 use crate::entitlement::EntitlementRules;
@@ -36,8 +37,8 @@ pub trait ProfileRules: Sync {
     /// The registry-wide profile identifier.
     fn profile_id(&self) -> &'static str;
 
-    /// All operations this profile accepts, in protocol wire form.
-    fn allowed_operations(&self) -> &'static [&'static str];
+    /// All operations this profile accepts, in protocol wire order.
+    fn allowed_operations(&self) -> &'static [Operation];
 
     /// Validates an operation against the current projection and inputs.
     ///
@@ -238,11 +239,13 @@ pub(crate) fn require_unborn(
 pub(crate) fn require_from<'projection>(
     current: Option<&'projection StateProjection>,
     operation: &str,
-    allowed_from: &[&str],
+    allowed_from: &[Status],
 ) -> Result<&'projection StateProjection, ProfileError> {
     let projection = require_current(current, operation)?;
     let from = state_str(projection, "status")?;
-    if !allowed_from.contains(&from) {
+    let from_status = Status::try_from_str(from)
+        .map_err(|_source| ProfileError::InvalidInput(String::from(from)))?;
+    if !allowed_from.contains(&from_status) {
         return Err(ProfileError::InvalidTransition {
             from: String::from(from),
             operation: String::from(operation),

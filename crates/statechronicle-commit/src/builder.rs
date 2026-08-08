@@ -21,40 +21,69 @@ use crate::error::CommitError;
 use crate::roots::{compute_state_root, event_root, state_root_updates};
 
 /// Static identity and metadata for commit body assembly.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CommitBuilder {
     /// The tenant or global checkpoint scope of the commit.
-    scope: CommitScope,
+    scope: Option<CommitScope>,
     /// Monotonic commit sequence number.
     sequence: u64,
     /// The authorized commit executor that will sign the body.
-    executor: SubjectId,
+    executor: Option<SubjectId>,
     /// The profile whose rules produced the state roots.
-    profile: ProfileId,
+    profile: Option<ProfileId>,
     /// When the commit was created (UTC wall-clock metadata).
-    created_at: DateTime<Utc>,
+    created_at: Option<DateTime<Utc>>,
     /// The previous canonical commit, absent for a genesis commit.
     parent_commit_id: Option<CommitId>,
 }
 
 impl CommitBuilder {
-    /// Creates a builder for a commit with fixed identity fields.
-    pub const fn new(
-        scope: CommitScope,
-        sequence: u64,
-        executor: SubjectId,
-        profile: ProfileId,
-        created_at: DateTime<Utc>,
-        parent_commit_id: Option<CommitId>,
-    ) -> Self {
-        Self {
-            scope,
-            sequence,
-            executor,
-            profile,
-            created_at,
-            parent_commit_id,
-        }
+    /// Starts a fluent, struct-based commit builder.
+    ///
+    /// Prefer the fluent setters (`scope`, `sequence`, `executor`, `profile`,
+    /// `created_at`, `parent`) over positional construction so the identity
+    /// fields are named. The batch and per-build inputs (`previous_state_root`,
+    /// `prior_updates`, `next_commit_id`) stay in [`Self::build`].
+    pub fn builder() -> Self {
+        Self::default()
+    }
+
+    /// Sets the tenant or global checkpoint scope of the commit (required).
+    pub fn scope(mut self, scope: CommitScope) -> Self {
+        self.scope = Some(scope);
+        self
+    }
+
+    /// Sets the monotonic commit sequence number.
+    pub const fn sequence(mut self, sequence: u64) -> Self {
+        self.sequence = sequence;
+        self
+    }
+
+    /// Sets the authorized commit executor that will sign the body (required).
+    pub fn executor(mut self, executor: SubjectId) -> Self {
+        self.executor = Some(executor);
+        self
+    }
+
+    /// Sets the profile whose rules produced the state roots (required).
+    pub fn profile(mut self, profile: ProfileId) -> Self {
+        self.profile = Some(profile);
+        self
+    }
+
+    /// Sets when the commit was created (UTC wall-clock metadata) (required).
+    pub const fn created_at(mut self, created_at: DateTime<Utc>) -> Self {
+        self.created_at = Some(created_at);
+        self
+    }
+
+    /// Sets the previous canonical commit, absent for a genesis commit.
+    ///
+    /// Defaults to `None` (genesis) when unset.
+    pub fn parent(mut self, parent_commit_id: Option<CommitId>) -> Self {
+        self.parent_commit_id = parent_commit_id;
+        self
     }
 
     /// Assembles the commit body for `batch`.
@@ -86,6 +115,22 @@ impl CommitBuilder {
         prior_updates: &[StateUpdate],
         next_commit_id: impl FnOnce() -> Result<CommitId, CommitError>,
     ) -> Result<Commit, CommitError> {
+        let scope = self
+            .scope
+            .clone()
+            .ok_or(CommitError::BuilderFieldMissing("scope"))?;
+        let executor = self
+            .executor
+            .clone()
+            .ok_or(CommitError::BuilderFieldMissing("executor"))?;
+        let profile = self
+            .profile
+            .clone()
+            .ok_or(CommitError::BuilderFieldMissing("profile"))?;
+        let created_at = self
+            .created_at
+            .ok_or(CommitError::BuilderFieldMissing("created_at"))?;
+
         batch.validate()?;
         let events = batch.events();
         let event_merkle_root = event_root(events)?;
@@ -99,7 +144,7 @@ impl CommitBuilder {
             CommitError::InvalidEvent(format!("event count does not fit in u64: {err}"))
         })?;
         Ok(Commit::new(
-            self.scope.clone(),
+            scope,
             commit_id,
             self.parent_commit_id.clone(),
             self.sequence,
@@ -107,9 +152,9 @@ impl CommitBuilder {
             event_merkle_root,
             previous_state_root,
             ContentDigest::new(*next_state_root.as_bytes()),
-            self.created_at,
-            self.executor.clone(),
-            self.profile.clone(),
+            created_at,
+            executor,
+            profile,
         ))
     }
 }
@@ -184,14 +229,13 @@ mod tests {
     #[test]
     fn build_assembles_commit_body() {
         let batch = sample_batch();
-        let builder = CommitBuilder::new(
-            tenant_scope(),
-            7,
-            executor(),
-            profile(),
-            timestamp(),
-            Some(CommitId::new(String::from("cmt_parent")).unwrap()),
-        );
+        let builder = CommitBuilder::builder()
+            .scope(tenant_scope())
+            .sequence(7)
+            .executor(executor())
+            .profile(profile())
+            .created_at(timestamp())
+            .parent(Some(CommitId::new(String::from("cmt_parent")).unwrap()));
         let genesis_root = hash_bytes(b"genesis");
         let commit = builder
             .build(&batch, genesis_root.clone(), &[], fixed_commit_id)
@@ -222,8 +266,12 @@ mod tests {
     #[test]
     fn build_rejects_empty_batch() {
         let batch = CommitBatch::new(tenant_scope());
-        let builder =
-            CommitBuilder::new(tenant_scope(), 1, executor(), profile(), timestamp(), None);
+        let builder = CommitBuilder::builder()
+            .scope(tenant_scope())
+            .sequence(1)
+            .executor(executor())
+            .profile(profile())
+            .created_at(timestamp());
         let error = builder
             .build(&batch, hash_bytes(b"genesis"), &[], fixed_commit_id)
             .unwrap_err();
@@ -239,8 +287,12 @@ mod tests {
         let mut second = CommitBatch::new(tenant_scope());
         second.add_event(sample_event("c")).unwrap();
 
-        let builder =
-            CommitBuilder::new(tenant_scope(), 1, executor(), profile(), timestamp(), None);
+        let builder = CommitBuilder::builder()
+            .scope(tenant_scope())
+            .sequence(1)
+            .executor(executor())
+            .profile(profile())
+            .created_at(timestamp());
         let first_updates = state_root_updates(first.events()).unwrap();
         let first_commit = builder
             .build(&first, hash_bytes(b"genesis"), &[], fixed_commit_id)
@@ -257,14 +309,13 @@ mod tests {
         combined.sort_by_key(|a| a.key);
         let expected = compute_state_root(&combined).unwrap();
 
-        let second_builder = CommitBuilder::new(
-            tenant_scope(),
-            2,
-            executor(),
-            profile(),
-            timestamp(),
-            Some(CommitId::new(String::from("cmt_parent_1")).unwrap()),
-        );
+        let second_builder = CommitBuilder::builder()
+            .scope(tenant_scope())
+            .sequence(2)
+            .executor(executor())
+            .profile(profile())
+            .created_at(timestamp())
+            .parent(Some(CommitId::new(String::from("cmt_parent_1")).unwrap()));
         let second_commit = second_builder
             .build(
                 &second,

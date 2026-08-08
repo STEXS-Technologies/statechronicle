@@ -37,6 +37,23 @@ the namespaced `core::`, `domain::`, `executor::`, `commit::`, `proof::`,
 use statechronicle::{Amount, TenantId, executor::pipeline::Executor};
 ```
 
+## See it run
+
+Eight runnable examples live in `examples/` (shared harness in
+`examples/common/`). Run any with `cargo run -p statechronicle --example <name>`;
+each prints a narrative, asserts its outcome, and exits 0 only on success.
+
+| Example | Demonstrates |
+|---|---|
+| `inventory` | Unique asset lifecycle (mint → transfer → lock → unlock → restrict → restore → burn) with fail-closed rejections |
+| `currency` | Fungible balance lifecycle with an atomic debit + credit transfer and amount math |
+| `stack` | Consumable stack lifecycle |
+| `access` | Entitlement and meter lifecycles |
+| `marketplace` | Atomic settlement via `execute_batch` |
+| `cross_tenant` | Cross-tenant atomic transaction via `execute_cross_tenant` |
+| `proofs` | State, ownership, and non-membership proofs |
+| `paid_asset` | Paid unique asset overlay: owner consent and hard delete |
+
 ## Dependencies
 
 The nine protocol crates: `statechronicle-core`, `statechronicle-domain`,

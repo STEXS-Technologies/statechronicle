@@ -213,14 +213,12 @@ fn chain_continuity_across_three_real_commits() {
     let third_events = vec![event("potion", "asset:potion", "carol")];
 
     let genesis_root = hash_bytes(b"genesis");
-    let builder = CommitBuilder::new(
-        CommitScope::tenant(tenant()),
-        1,
-        executor(),
-        profile(),
-        timestamp(),
-        None,
-    );
+    let builder = CommitBuilder::builder()
+        .scope(CommitScope::tenant(tenant()))
+        .sequence(1)
+        .executor(executor())
+        .profile(profile())
+        .created_at(timestamp());
     let commit1 = builder
         .build(&batch_from(&first_events), genesis_root, &[], || {
             commit_id(1)
@@ -232,14 +230,13 @@ fn chain_continuity_across_three_real_commits() {
         compute_state_root(&updates1).unwrap().as_bytes()
     );
 
-    let builder2 = CommitBuilder::new(
-        CommitScope::tenant(tenant()),
-        2,
-        executor(),
-        profile(),
-        timestamp(),
-        Some(commit1.commit_id.clone()),
-    );
+    let builder2 = CommitBuilder::builder()
+        .scope(CommitScope::tenant(tenant()))
+        .sequence(2)
+        .executor(executor())
+        .profile(profile())
+        .created_at(timestamp())
+        .parent(Some(commit1.commit_id.clone()));
     let commit2 = builder2
         .build(
             &batch_from(&second_events),
@@ -253,14 +250,13 @@ fn chain_continuity_across_three_real_commits() {
     combined.extend_from_slice(&updates2);
     combined.sort_by_key(|a| a.key);
 
-    let builder3 = CommitBuilder::new(
-        CommitScope::tenant(tenant()),
-        3,
-        executor(),
-        profile(),
-        timestamp(),
-        Some(commit2.commit_id.clone()),
-    );
+    let builder3 = CommitBuilder::builder()
+        .scope(CommitScope::tenant(tenant()))
+        .sequence(3)
+        .executor(executor())
+        .profile(profile())
+        .created_at(timestamp())
+        .parent(Some(commit2.commit_id.clone()));
     let commit3 = builder3
         .build(
             &batch_from(&third_events),

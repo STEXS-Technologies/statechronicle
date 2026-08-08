@@ -190,4 +190,54 @@ mod tests {
         let steps = steps_from_sparse_proof(&sparse).unwrap();
         assert_eq!(steps, proof.steps);
     }
+
+    #[test]
+    fn deep_level_roundtrip_preserves_every_step() {
+        use statechronicle_accumulator::sparse_merkle::default_hash;
+
+        // The empty leaf (key 0x00.., digest 0x00..) collapses onto the
+        // default-subtree hashes at every depth. A probe diverging from it at a
+        // deep level used to produce a step at level 251/254/255 whose sibling
+        // equals `default[level]`; the dense wire dropped it and the roundtrip
+        // failed. The accumulator now omits such redundant steps, so the dense
+        // roundtrip must be lossless. Regresses the fuzz-found crashes.
+        let empty = StateKey::new([0x00u8; 32]);
+        let probe = StateKey::new([0x08u8; 32]); // diverges at bit 4 -> level 251
+        let mut acc = StateAccumulator::empty();
+        acc.insert_batch(&[
+            StateUpdate::new(empty, [0x00u8; 32]),
+            StateUpdate::new(probe, [0x5au8; 32]),
+        ])
+        .unwrap();
+
+        // Inclusion roundtrip at the deep divergence level. The empty-leaf
+        // sibling at the divergence hashes to its default, so it is (correctly)
+        // omitted from the steps; the dense roundtrip must still be lossless.
+        let inc_proof = acc.prove_inclusion(&probe).unwrap();
+        let inc_sparse = sparse_proof_from_inclusion(&inc_proof);
+        assert_eq!(
+            steps_from_sparse_proof(&inc_sparse).unwrap(),
+            inc_proof.steps
+        );
+
+        // Non-membership roundtrip at the deep divergence level.
+        let absent = StateKey::new([0x42u8; 32]);
+        let non_membership = acc.prove_non_membership(&absent).unwrap();
+        let sparse = sparse_proof_from_non_membership(&non_membership);
+        assert_eq!(
+            steps_from_sparse_proof(&sparse).unwrap(),
+            non_membership.steps
+        );
+
+        // Every dense-path level that is *not* a step must carry its default.
+        let step_levels: std::collections::BTreeSet<usize> =
+            non_membership.steps.iter().map(|s| s.level).collect();
+        for (level, digest) in sparse.path.iter().enumerate() {
+            if step_levels.contains(&level) {
+                assert_ne!(digest.as_bytes(), &default_hash(level));
+            } else {
+                assert_eq!(digest.as_bytes(), &default_hash(level));
+            }
+        }
+    }
 }

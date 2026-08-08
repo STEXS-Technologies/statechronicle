@@ -86,7 +86,7 @@ fn check_property(
     let with_resource = rules.check(&operation, current.as_ref(), input_map);
     if with_resource.is_ok() {
         assert!(
-            rules.allowed_operations().contains(&op_name),
+            rules.allowed_operations().contains(&operation),
             "Ok must imply `{op_name}` is allowed"
         );
     }
@@ -94,7 +94,7 @@ fn check_property(
     let without_resource = rules.check(&operation, None, input_map);
     if without_resource.is_ok() {
         assert!(
-            rules.allowed_operations().contains(&op_name),
+            rules.allowed_operations().contains(&operation),
             "Ok (no prior state) must imply `{op_name}` is allowed"
         );
     }

@@ -376,14 +376,12 @@ async fn build_sign_verify_and_persist_end_to_end() {
     let batch = batch_from(&events);
     let genesis_root = hash_bytes(b"genesis");
 
-    let builder = CommitBuilder::new(
-        CommitScope::tenant(tenant()),
-        1,
-        executor(),
-        profile(),
-        timestamp(),
-        None,
-    );
+    let builder = CommitBuilder::builder()
+        .scope(CommitScope::tenant(tenant()))
+        .sequence(1)
+        .executor(executor())
+        .profile(profile())
+        .created_at(timestamp());
     let commit = builder
         .build(&batch, genesis_root, &[], || commit_id(1))
         .unwrap();
@@ -490,14 +488,12 @@ async fn state_root_chain_across_two_commits() {
     let batch2 = batch_from(&events2);
     let genesis_root = hash_bytes(b"genesis");
 
-    let builder = CommitBuilder::new(
-        CommitScope::tenant(tenant()),
-        1,
-        executor(),
-        profile(),
-        timestamp(),
-        None,
-    );
+    let builder = CommitBuilder::builder()
+        .scope(CommitScope::tenant(tenant()))
+        .sequence(1)
+        .executor(executor())
+        .profile(profile())
+        .created_at(timestamp());
     let commit1 = builder
         .build(&batch1, genesis_root, &[], || commit_id(1))
         .unwrap();
@@ -507,14 +503,13 @@ async fn state_root_chain_across_two_commits() {
         compute_state_root(&updates1).unwrap().as_bytes()
     );
 
-    let builder2 = CommitBuilder::new(
-        CommitScope::tenant(tenant()),
-        2,
-        executor(),
-        profile(),
-        timestamp(),
-        Some(commit1.commit_id.clone()),
-    );
+    let builder2 = CommitBuilder::builder()
+        .scope(CommitScope::tenant(tenant()))
+        .sequence(2)
+        .executor(executor())
+        .profile(profile())
+        .created_at(timestamp())
+        .parent(Some(commit1.commit_id.clone()));
     let commit2 = builder2
         .build(&batch2, commit1.next_state_root.clone(), &updates1, || {
             commit_id(2)
@@ -552,16 +547,14 @@ async fn state_root_chain_across_two_commits() {
 async fn persist_rejects_event_root_mismatch_without_writing() {
     let events = vec![unique_event("sword", "alice"), balance_event("gold", "bob")];
     let batch = batch_from(&events);
-    let commit = CommitBuilder::new(
-        CommitScope::tenant(tenant()),
-        1,
-        executor(),
-        profile(),
-        timestamp(),
-        None,
-    )
-    .build(&batch, hash_bytes(b"genesis"), &[], || commit_id(1))
-    .unwrap();
+    let commit = CommitBuilder::builder()
+        .scope(CommitScope::tenant(tenant()))
+        .sequence(1)
+        .executor(executor())
+        .profile(profile())
+        .created_at(timestamp())
+        .build(&batch, hash_bytes(b"genesis"), &[], || commit_id(1))
+        .unwrap();
     let signed = sign_commit(&commit, &fixed_key(), key_id()).unwrap();
 
     let commit_store = FakeCommitStore::default();

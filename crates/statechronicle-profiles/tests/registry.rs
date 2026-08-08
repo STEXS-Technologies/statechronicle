@@ -443,8 +443,8 @@ fn check_never_panics_on_garbage_payloads() {
         let rules = registry.get(state_type).unwrap();
         for name in rules.allowed_operations() {
             // Panics here are the failure mode under test.
-            let _with_resource = rules.check(&op(name), Some(&garbage), &BTreeMap::new());
-            let _without_resource = rules.check(&op(name), None, &BTreeMap::new());
+            let _with_resource = rules.check(name, Some(&garbage), &BTreeMap::new());
+            let _without_resource = rules.check(name, None, &BTreeMap::new());
         }
     }
     // An unknown operation is rejected even on a well-formed resource.

@@ -59,6 +59,18 @@ test = false
 doc = false
 
 [[bin]]
+name = "fuzz_operation_name"
+path = "fuzz_targets/fuzz_operation_name.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_status"
+path = "fuzz_targets/fuzz_status.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "fuzz_signature_verify"
 path = "fuzz_targets/fuzz_signature_verify.rs"
 test = false

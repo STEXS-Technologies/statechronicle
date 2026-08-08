@@ -52,20 +52,19 @@ fn sample_intent() -> Intent {
             serde_json::json!("account:example:player_456"),
         ),
     ]);
-    Intent::new(
-        TenantId(String::from("acme.game.alpha")),
-        IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap(),
-        Operation::new(String::from("asset.transfer")).unwrap(),
-        SubjectId(String::from("account:example:player_123")),
-        ResourceId(String::from("asset:sword_001")),
-        Some(StateType::UniqueAsset),
-        41,
-        inputs,
-        None,
-        sample_created_at(),
-        None,
-        Nonce::from_bytes(vec![7, 8, 9]).unwrap(),
-    )
+    Intent::builder()
+        .tenant(TenantId(String::from("acme.game.alpha")))
+        .intent_id(IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap())
+        .operation(Operation::new(String::from("asset.transfer")).unwrap())
+        .actor(SubjectId(String::from("account:example:player_123")))
+        .resource(ResourceId(String::from("asset:sword_001")))
+        .state_type(StateType::UniqueAsset)
+        .expected_version(41)
+        .inputs(inputs)
+        .created_at(sample_created_at())
+        .nonce(Nonce::from_bytes(vec![7, 8, 9]).unwrap())
+        .build()
+        .unwrap()
 }
 
 fn sample_commit() -> Commit {

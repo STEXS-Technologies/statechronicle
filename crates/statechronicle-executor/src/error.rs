@@ -180,6 +180,55 @@ pub enum ExecutorError {
     StateTypeRequired,
 }
 
+/// A builder failure while assembling a [`crate::pipeline::Ports`] bundle.
+///
+/// Raised by [`crate::pipeline::PortsBuilder::build`] when a required port was
+/// not injected. The `trustgrant` set is optional (defaults to empty), so it is
+/// never a build error.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+#[allow(clippy::enum_variant_names)]
+pub enum PortsBuildError {
+    /// The intent store port was not injected.
+    #[error("missing required port `intent_store`")]
+    MissingIntentStore,
+    /// The state index port was not injected.
+    #[error("missing required port `state_index`")]
+    MissingStateIndex,
+    /// The tenant store port was not injected.
+    #[error("missing required port `tenant_store`")]
+    MissingTenantStore,
+    /// The transaction manager port was not injected.
+    #[error("missing required port `transaction_manager`")]
+    MissingTransactionManager,
+}
+
+/// A builder failure while assembling an [`crate::pipeline::Executor`].
+///
+/// Raised by [`crate::pipeline::ExecutorBuilder::build`] when a required
+/// component was not injected. `profiles` is optional (defaults to the baseline
+/// registry), so it is never a build error.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+#[allow(clippy::enum_variant_names)]
+pub enum ExecutorBuildError {
+    /// The port bundle was not injected.
+    #[error("missing required executor component `ports`")]
+    MissingPorts,
+    /// The executor identity was not injected.
+    #[error("missing required executor component `executor`")]
+    MissingExecutor,
+    /// The wall clock was not injected.
+    #[error("missing required executor component `clock`")]
+    MissingClock,
+    /// The event-id generator was not injected.
+    #[error("missing required executor component `event_id_gen`")]
+    MissingEventIdGen,
+    /// The intent verifier was not injected.
+    #[error("missing required executor component `intent_verifier`")]
+    MissingIntentVerifier,
+}
+
 impl From<StateChronicleError> for ExecutorError {
     fn from(source: StateChronicleError) -> Self {
         match source {

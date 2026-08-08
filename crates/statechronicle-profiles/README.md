@@ -41,6 +41,14 @@ use statechronicle_profiles::registry::ProfileRegistry;
 let registry = ProfileRegistry::baseline();
 ```
 
+## See it run
+
+Each profile has a runnable example (in `crates/statechronicle/examples/`):
+`unique_asset` → `inventory`, `paid_unique_asset` → `paid_asset`,
+`consumable_stack` → `stack`, `fungible_balance` → `currency`,
+`entitlement` + `meter` → `access`, and `marketplace` (listing/escrow) →
+`marketplace`.
+
 ## Dependencies
 
 `statechronicle-core`, `statechronicle-domain`, `serde_json`. Dev-only:

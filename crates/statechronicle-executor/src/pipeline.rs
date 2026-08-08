@@ -39,11 +39,13 @@ use statechronicle_ports::state_index::StateIndex;
 use statechronicle_ports::tenant_store::TenantStore;
 use statechronicle_ports::transaction_manager::{TransactionManager, TransactionManagerError};
 use statechronicle_ports::trustgrant_evaluator::TrustGrantError;
+use statechronicle_profiles::consumable_stack::op as stack_op;
+use statechronicle_profiles::fungible_balance::op as balance_op;
 use statechronicle_profiles::registry::ProfileRegistry;
 
 use crate::atomicity;
 use crate::conflict;
-use crate::error::ExecutorError;
+use crate::error::{ExecutorBuildError, ExecutorError, PortsBuildError};
 use crate::transition;
 
 /// The injected intent-signature verifier.
@@ -114,21 +116,90 @@ pub struct Ports {
 }
 
 impl Ports {
-    /// Constructs a port bundle from concrete backend adapters.
-    pub fn new(
-        intent_store: Box<dyn IntentStore + Send + Sync>,
-        state_index: Box<dyn StateIndex + Send + Sync>,
-        tenant_store: Box<dyn TenantStore + Send + Sync>,
-        trustgrant: Vec<Box<dyn TrustGrantPort + Send + Sync>>,
+    /// Starts a fluent, struct-based port-bundle builder.
+    ///
+    /// Prefer [`PortsBuilder`] over positional construction so the injected
+    /// backend adapters are named at the composition root.
+    pub fn builder() -> PortsBuilder {
+        PortsBuilder::default()
+    }
+}
+
+/// Fluent builder for [`Ports`].
+///
+/// Collects the injected backend adapters with named setters and assembles the
+/// bundle in [`PortsBuilder::build`]. `intent_store`, `state_index`,
+/// `tenant_store`, and `transaction_manager` are required; `trustgrant`
+/// defaults to an empty set (meaning no authority is configured, documented on
+/// [`Ports`]).
+#[derive(Default)]
+pub struct PortsBuilder {
+    intent_store: Option<Box<dyn IntentStore + Send + Sync>>,
+    state_index: Option<Box<dyn StateIndex + Send + Sync>>,
+    tenant_store: Option<Box<dyn TenantStore + Send + Sync>>,
+    trustgrant: Vec<Box<dyn TrustGrantPort + Send + Sync>>,
+    transaction_manager: Option<Box<dyn TransactionManager + Send + Sync>>,
+}
+
+impl PortsBuilder {
+    /// Injects the intent store port (required).
+    pub fn intent_store(mut self, intent_store: Box<dyn IntentStore + Send + Sync>) -> Self {
+        self.intent_store = Some(intent_store);
+        self
+    }
+
+    /// Injects the state index port (required).
+    pub fn state_index(mut self, state_index: Box<dyn StateIndex + Send + Sync>) -> Self {
+        self.state_index = Some(state_index);
+        self
+    }
+
+    /// Injects the tenant store port (required).
+    pub fn tenant_store(mut self, tenant_store: Box<dyn TenantStore + Send + Sync>) -> Self {
+        self.tenant_store = Some(tenant_store);
+        self
+    }
+
+    /// Injects the delegated-authority evaluator set.
+    ///
+    /// Defaults to an empty set, meaning no authority is configured.
+    pub fn trustgrant(mut self, trustgrant: Vec<Box<dyn TrustGrantPort + Send + Sync>>) -> Self {
+        self.trustgrant = trustgrant;
+        self
+    }
+
+    /// Injects the transaction manager port (required).
+    pub fn transaction_manager(
+        mut self,
         transaction_manager: Box<dyn TransactionManager + Send + Sync>,
     ) -> Self {
-        Self {
+        self.transaction_manager = Some(transaction_manager);
+        self
+    }
+
+    /// Assembles the [`Ports`] bundle.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PortsBuildError`] naming the first missing required port.
+    pub fn build(self) -> Result<Ports, PortsBuildError> {
+        let intent_store = self
+            .intent_store
+            .ok_or(PortsBuildError::MissingIntentStore)?;
+        let state_index = self.state_index.ok_or(PortsBuildError::MissingStateIndex)?;
+        let tenant_store = self
+            .tenant_store
+            .ok_or(PortsBuildError::MissingTenantStore)?;
+        let transaction_manager = self
+            .transaction_manager
+            .ok_or(PortsBuildError::MissingTransactionManager)?;
+        Ok(Ports {
             intent_store,
             state_index,
             tenant_store,
-            trustgrant,
+            trustgrant: self.trustgrant,
             transaction_manager,
-        }
+        })
     }
 }
 
@@ -177,31 +248,13 @@ pub struct Executor {
 }
 
 impl Executor {
-    /// Constructs an executor from ports, profiles, an executor identity, a
-    /// wall clock, an event-id generator, and an injected intent verifier.
+    /// Starts a fluent, struct-based executor builder.
     ///
-    /// The verifier must be provided explicitly. The executor never assumes
-    /// authenticity (protocol §18.1 step 4). It resolves the block's `key_id`
-    /// to a public key and verifies the signature over the canonical body
-    /// bytes, returning [`ExecutorError::ActorAuthenticationFailed`] on
-    /// failure.
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        ports: Ports,
-        profiles: ProfileRegistry,
-        executor: SubjectId,
-        now: Box<dyn Fn() -> DateTime<Utc> + Send + Sync>,
-        event_id_fn: Box<dyn Fn() -> EventId + Send + Sync>,
-        intent_verifier: IntentVerifier,
-    ) -> Self {
-        Self {
-            ports,
-            profiles,
-            executor,
-            now,
-            event_id_fn,
-            intent_verifier,
-        }
+    /// Prefer [`ExecutorBuilder`] over positional construction so the injected
+    /// identity, clock, event-id generator, and intent verifier are named at
+    /// the composition root.
+    pub fn builder() -> ExecutorBuilder {
+        ExecutorBuilder::default()
     }
 
     /// Runs one validated intent through the §18.1 pipeline.
@@ -774,6 +827,104 @@ impl Executor {
     }
 }
 
+/// Fluent builder for [`Executor`].
+///
+/// Collects the executor's injected components with named setters and assembles
+/// the engine in [`ExecutorBuilder::build`]. `ports`, `executor`, `clock`,
+/// `event_id_gen`, and `intent_verifier` are required; `profiles` defaults to
+/// [`ProfileRegistry::baseline`].
+#[derive(Default)]
+pub struct ExecutorBuilder {
+    ports: Option<Ports>,
+    profiles: Option<ProfileRegistry>,
+    executor: Option<SubjectId>,
+    now: Option<Box<dyn Fn() -> DateTime<Utc> + Send + Sync>>,
+    event_id_fn: Option<Box<dyn Fn() -> EventId + Send + Sync>>,
+    intent_verifier: Option<IntentVerifier>,
+}
+
+impl ExecutorBuilder {
+    /// Injects the port bundle (required).
+    pub fn ports(mut self, ports: Ports) -> Self {
+        self.ports = Some(ports);
+        self
+    }
+
+    /// Injects the profile registry.
+    ///
+    /// Defaults to [`ProfileRegistry::baseline`] when unset.
+    pub const fn profiles(mut self, profiles: ProfileRegistry) -> Self {
+        self.profiles = Some(profiles);
+        self
+    }
+
+    /// Sets the executor identity recorded on every emitted event (required).
+    pub fn executor(mut self, executor: SubjectId) -> Self {
+        self.executor = Some(executor);
+        self
+    }
+
+    /// Injects the wall clock used for expiry checks and `created_at`.
+    ///
+    /// Accepts any `Fn() -> DateTime<Utc> + Send + Sync + 'static` (a plain
+    /// function pointer or closure), which the builder boxes internally.
+    pub fn clock(mut self, clock: impl Fn() -> DateTime<Utc> + Send + Sync + 'static) -> Self {
+        self.now = Some(Box::new(clock));
+        self
+    }
+
+    /// Injects the event-id generator (required).
+    ///
+    /// The generator must return a valid `evt_`-prefixed id; the [`EventId`]
+    /// newtype enforces that at construction. Accepts any
+    /// `Fn() -> EventId + Send + Sync + 'static`, boxed internally.
+    pub fn event_id_gen(
+        mut self,
+        event_id_gen: impl Fn() -> EventId + Send + Sync + 'static,
+    ) -> Self {
+        self.event_id_fn = Some(Box::new(event_id_gen));
+        self
+    }
+
+    /// Injects the intent-signature verifier (required).
+    ///
+    /// The executor never assumes authenticity (protocol §18.1 step 4): it
+    /// resolves the block's `key_id` to a public key and verifies the signature
+    /// over the canonical body bytes, returning
+    /// [`ExecutorError::ActorAuthenticationFailed`] on failure.
+    pub fn intent_verifier(mut self, intent_verifier: IntentVerifier) -> Self {
+        self.intent_verifier = Some(intent_verifier);
+        self
+    }
+
+    /// Assembles the [`Executor`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExecutorBuildError`] naming the first missing required
+    /// component.
+    pub fn build(self) -> Result<Executor, ExecutorBuildError> {
+        let ports = self.ports.ok_or(ExecutorBuildError::MissingPorts)?;
+        let profiles = self.profiles.unwrap_or_else(ProfileRegistry::baseline);
+        let executor = self.executor.ok_or(ExecutorBuildError::MissingExecutor)?;
+        let now = self.now.ok_or(ExecutorBuildError::MissingClock)?;
+        let event_id_fn = self
+            .event_id_fn
+            .ok_or(ExecutorBuildError::MissingEventIdGen)?;
+        let intent_verifier = self
+            .intent_verifier
+            .ok_or(ExecutorBuildError::MissingIntentVerifier)?;
+        Ok(Executor {
+            ports,
+            profiles,
+            executor,
+            now,
+            event_id_fn,
+            intent_verifier,
+        })
+    }
+}
+
 /// Returns the subject used for the initial state-index lookup of a
 /// subject-held resource.
 ///
@@ -825,7 +976,7 @@ fn holder_for(
 /// Returns whether the operation is a subject-held atomic transfer
 /// (stack.transfer / balance.transfer) that requires a destination credit.
 fn is_transfer_operation(operation: &Operation) -> bool {
-    matches!(operation.as_str(), "stack.transfer" | "balance.transfer")
+    operation == stack_op::stack_transfer() || operation == balance_op::balance_transfer()
 }
 
 /// Reads the destination holder (`to_subject`) from a transfer's inputs.

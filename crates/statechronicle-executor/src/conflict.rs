@@ -6,48 +6,75 @@
 //! protocol §18.2's "must fail closed" list.
 
 use std::collections::BTreeMap;
+use std::sync::OnceLock;
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 
 use statechronicle_domain::intent::{Intent, Operation};
 use statechronicle_domain::state::StateProjection;
+use statechronicle_domain::status::Status;
+use statechronicle_profiles::entitlement::op as entitlement_op;
+use statechronicle_profiles::entitlement::status as entitlement_status;
+use statechronicle_profiles::marketplace::escrow_status;
+use statechronicle_profiles::marketplace::listing_status;
+use statechronicle_profiles::marketplace::op as marketplace_op;
+use statechronicle_profiles::paid_unique_asset::exceptional_status;
+use statechronicle_profiles::unique_asset::op as asset_op;
+use statechronicle_profiles::unique_asset::status as asset_status;
 
 use crate::error::ExecutorError;
 
-/// A unique asset status that blocks mutations: the asset is locked against
-/// transfer, burn, and listing (only `asset.unlock` and `asset.restrict`
-/// escape).
-const LOCKED: &str = "locked";
-/// A unique asset status that blocks mutations: the asset is held in escrow
-/// (only `asset.release` and `asset.restrict` escape).
-const ESCROWED: &str = "escrowed";
-/// A unique asset status that blocks mutations: the asset is listed for sale
-/// (only `asset.delist`, `asset.redeem`, and `asset.restrict` escape).
-const LISTED: &str = "listed";
-/// Terminal statuses: no operation may ever leave them (protocol §20.1).
-const TERMINAL_STATUSES: &[&str] = &[
-    "burned",
-    "expired",
-    "tombstoned",
-    "revoked",
-    "redeemed",
-    "sold",
-    "cancelled",
-    "released",
-    "refunded",
-];
+/// Builds a lazily-initialized `&'static [Operation]` slice from accessors.
+macro_rules! op_vec {
+    ($( $op:expr ),* $(,)?) => {{
+        static ALL: OnceLock<Vec<Operation>> = OnceLock::new();
+        ALL.get_or_init(|| vec![ $( $op.to_owned(), )* ])
+    }};
+}
 
-/// Exceptional statuses a paid unique asset may be restricted into; only
-/// `asset.restore` (or `entitlement.restore` for entitlements) escapes.
-const EXCEPTIONAL_STATUSES: &[&str] = &[
-    "restricted",
-    "quarantined",
-    "unsupported",
-    "legal_hold",
-    "fraud_lock",
-    "policy_restricted",
-];
+/// Builds a lazily-initialized `&'static [Status]` slice from accessors.
+macro_rules! status_vec {
+    ($( $st:expr ),* $(,)?) => {{
+        static ALL: OnceLock<Vec<Status>> = OnceLock::new();
+        ALL.get_or_init(|| vec![ $( $st.to_owned(), )* ])
+    }};
+}
+
+/// Returns the always-available (free) statuses: no operation is blocked from
+/// them.
+fn free_statuses() -> &'static [Status] {
+    status_vec![asset_status::active(), entitlement_status::granted()]
+}
+
+/// Returns the terminal statuses: no operation may ever leave them
+/// (protocol §20.1).
+fn terminal_statuses() -> &'static [Status] {
+    status_vec![
+        asset_status::burned(),
+        listing_status::expired(),
+        asset_status::tombstoned(),
+        entitlement_status::revoked(),
+        asset_status::redeemed(),
+        listing_status::sold(),
+        listing_status::cancelled(),
+        escrow_status::released(),
+        escrow_status::refunded(),
+    ]
+}
+
+/// Returns the exceptional statuses a paid unique asset may be restricted
+/// into; only `asset.restore` escapes.
+fn exceptional_statuses() -> &'static [Status] {
+    status_vec![
+        asset_status::restricted(),
+        asset_status::quarantined(),
+        asset_status::unsupported(),
+        exceptional_status::legal_hold(),
+        exceptional_status::fraud_lock(),
+        exceptional_status::policy_restricted(),
+    ]
+}
 
 /// Checks the intent's `expected_version` against the current projection
 /// (protocol §18.2 "expected_version does not match current version").
@@ -159,20 +186,25 @@ pub fn check_resource_availability(
     current: &StateProjection,
     operation: &Operation,
 ) -> Result<(), ExecutorError> {
-    let Some(status) = current.state.get("status").and_then(Value::as_str) else {
+    let Some(status_str) = current.state.get("status").and_then(Value::as_str) else {
         return Ok(());
     };
-    if is_free_status(status) {
+    // An unrecognized status string fails closed: it is treated as locked so
+    // no operation proceeds against an unknown state.
+    let Ok(status) = Status::try_from_str(status_str) else {
+        return Err(blocked(current));
+    };
+    if free_statuses().contains(&status) {
         return Ok(());
     }
-    if TERMINAL_STATUSES.contains(&status) {
+    if terminal_statuses().contains(&status) {
         return Err(blocked(current));
     }
-    if EXCEPTIONAL_STATUSES.contains(&status) && operation.as_str() == "asset.restore" {
+    if exceptional_statuses().contains(&status) && operation == asset_op::asset_restore() {
         return Ok(());
     }
-    let escapes = status_escapes(status);
-    if escapes.contains(&operation.as_str()) {
+    let escapes = status_escapes(&status);
+    if escapes.contains(operation) {
         return Ok(());
     }
     Err(blocked(current))
@@ -219,11 +251,6 @@ pub fn check_idempotency_existing(
     })
 }
 
-/// Returns whether a status is always available for mutation.
-fn is_free_status(status: &str) -> bool {
-    matches!(status, "active" | "granted")
-}
-
 /// Returns the escape operations permitted from a non-terminal blocking status.
 ///
 /// The `listed` and `locked` statuses are shared between unique assets and
@@ -232,33 +259,47 @@ fn is_free_status(status: &str) -> bool {
 /// safe because the profile layer is state-type-scoped: a unique asset in
 /// `listed` status can never execute `listing.buy` (unknown operation for the
 /// unique-asset profile), and a listing can never execute `asset.delist`.
-fn status_escapes(status: &str) -> &'static [&'static str] {
-    match status {
-        LOCKED => &[
-            "asset.unlock",
-            "asset.restrict",
-            "escrow.release",
-            "escrow.refund",
-        ],
-        ESCROWED => &["asset.release", "asset.restrict"],
-        LISTED => &[
-            "asset.delist",
-            "asset.redeem",
-            "asset.restrict",
-            "listing.buy",
-            "listing.cancel",
-            "listing.expire",
-        ],
-        "suspended" => &["entitlement.restore", "entitlement.expire"],
-        "granted" => &[
-            "entitlement.activate",
-            "entitlement.expire",
-            "entitlement.revoke",
-            "entitlement.transfer",
-        ],
+fn status_escapes(status: &Status) -> &'static [Operation] {
+    if *status == *asset_status::locked() {
+        op_vec![
+            asset_op::asset_unlock(),
+            asset_op::asset_restrict(),
+            marketplace_op::escrow_release(),
+            marketplace_op::escrow_refund(),
+        ]
+    } else if *status == *asset_status::escrowed() {
+        op_vec![asset_op::asset_release(), asset_op::asset_restrict()]
+    } else if *status == *asset_status::trade_held() {
+        op_vec![
+            asset_op::trade_unlock(),
+            asset_op::trade_settle(),
+            asset_op::asset_restrict(),
+        ]
+    } else if *status == *asset_status::listed() {
+        op_vec![
+            asset_op::asset_delist(),
+            asset_op::asset_redeem(),
+            asset_op::asset_restrict(),
+            marketplace_op::listing_buy(),
+            marketplace_op::listing_cancel(),
+            marketplace_op::listing_expire(),
+        ]
+    } else if *status == *entitlement_status::suspended() {
+        op_vec![
+            entitlement_op::entitlement_restore(),
+            entitlement_op::entitlement_expire(),
+        ]
+    } else if *status == *entitlement_status::granted() {
+        op_vec![
+            entitlement_op::entitlement_activate(),
+            entitlement_op::entitlement_expire(),
+            entitlement_op::entitlement_revoke(),
+            entitlement_op::entitlement_transfer(),
+        ]
+    } else {
         // Unreachable for terminal/exceptional/free statuses; fail closed by
         // returning no escapes so any operation is blocked.
-        _ => &[],
+        &[]
     }
 }
 
@@ -459,6 +500,35 @@ mod tests {
     }
 
     #[test]
+    fn resource_availability_trade_held_admits_settlement_and_restrict() {
+        // A legal hold must remain able to restrict a held asset; settlement
+        // and unlock are the trade's own escapes. Nothing else may touch it.
+        let current = asset("trade_held", "alice");
+        for name in ["trade.unlock", "trade.settle", "asset.restrict"] {
+            assert!(
+                check_resource_availability(&current, &op(name)).is_ok(),
+                "{name} should escape trade_held"
+            );
+        }
+    }
+
+    #[test]
+    fn resource_availability_trade_held_blocks_mutations() {
+        // Fail-closed: a held asset cannot be transferred, burned, or locked.
+        let current = asset("trade_held", "alice");
+        for name in ["asset.transfer", "asset.burn", "asset.lock"] {
+            assert!(
+                matches!(
+                    check_resource_availability(&current, &op(name)),
+                    Err(ExecutorError::ResourceLocked { resource })
+                    if resource == "asset:sword_001"
+                ),
+                "{name} should be blocked from trade_held"
+            );
+        }
+    }
+
+    #[test]
     fn resource_availability_listed_admits_marketplace_ops() {
         // A listing resource is `listed`; buy/cancel/expire must be admitted
         // (buy executes inside the atomic settlement batch).
@@ -482,8 +552,8 @@ mod tests {
 
     #[test]
     fn resource_availability_terminal_blocks_everything() {
-        for status in TERMINAL_STATUSES {
-            let current = asset(status, "alice");
+        for status in terminal_statuses() {
+            let current = asset(status.as_str(), "alice");
             assert!(
                 check_resource_availability(&current, &op("asset.restore")).is_err(),
                 "restore must be blocked from terminal `{status}`"

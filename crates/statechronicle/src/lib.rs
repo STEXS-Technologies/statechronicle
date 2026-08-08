@@ -68,7 +68,7 @@ pub use statechronicle_domain::event::{Event, StateCommitment};
 pub use statechronicle_domain::ids::{CommitId, EventId, IntentId, SnapshotId, StateId};
 /// A requested state transition. See [`domain::intent::Intent`].
 pub use statechronicle_domain::intent::{
-    Intent, KeyId, Nonce, Operation, SignatureAlg, SignatureBlock,
+    Intent, IntentBuilder, KeyId, Nonce, Operation, SignatureAlg, SignatureBlock,
 };
 /// Identifies a resource within a tenant namespace. See [`domain::resource::ResourceId`].
 pub use statechronicle_domain::resource::ResourceId;
@@ -85,8 +85,12 @@ pub use statechronicle_domain::tenant::TenantId;
 
 /// The execution engine. See [`executor::pipeline::Executor`].
 pub use statechronicle_executor::pipeline::Executor;
+/// The execution engine's fluent builder. See [`executor::pipeline::ExecutorBuilder`].
+pub use statechronicle_executor::pipeline::ExecutorBuilder;
 /// The executor's injected port bundle. See [`executor::pipeline::Ports`].
 pub use statechronicle_executor::pipeline::Ports;
+/// The executor's port-bundle builder. See [`executor::pipeline::PortsBuilder`].
+pub use statechronicle_executor::pipeline::PortsBuilder;
 /// A validated intent with its idempotency key. See [`intent::validated::ValidatedIntent`].
 pub use statechronicle_intent::validated::{IdempotencyKey, ValidatedIntent};
 

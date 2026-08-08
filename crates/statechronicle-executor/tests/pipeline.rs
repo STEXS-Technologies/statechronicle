@@ -796,7 +796,7 @@ impl ProfileRules for AnyOfUniqueAsset {
         "any_of_unique_asset_test"
     }
 
-    fn allowed_operations(&self) -> &'static [&'static str] {
+    fn allowed_operations(&self) -> &'static [Operation] {
         self.0.allowed_operations()
     }
 

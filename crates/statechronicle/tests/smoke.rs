@@ -50,20 +50,19 @@ fn facade_signed_intent_is_usable() {
         .unwrap()
         .with_timezone(&Utc);
 
-    let intent = Intent::new(
-        tenant,
-        intent_id,
-        operation,
-        actor,
-        resource_id,
-        Some(StateType::UniqueAsset),
-        41,
-        BTreeMap::new(),
-        None,
-        created_at,
-        None,
-        nonce,
-    );
+    let intent = Intent::builder()
+        .tenant(tenant)
+        .intent_id(intent_id)
+        .operation(operation)
+        .actor(actor)
+        .resource(resource_id)
+        .state_type(StateType::UniqueAsset)
+        .expected_version(41)
+        .inputs(BTreeMap::new())
+        .created_at(created_at)
+        .nonce(nonce)
+        .build()
+        .unwrap();
     assert_eq!(intent.expected_version, 41);
     assert_eq!(intent.schema, "statechronicle.intent.v0");
 

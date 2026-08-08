@@ -16,47 +16,69 @@ use std::collections::BTreeMap;
 use statechronicle_domain::intent::Operation;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
+use statechronicle_domain::status::Status;
 
 use crate::error::ProfileError;
 use crate::registry::{ProfileRules, input_str, require_from, require_unborn};
 
-/// Wire status names for a listing.
-mod listing_status {
-    /// The listing is live and may be bought, cancelled, or expired.
-    pub(super) const LISTED: &str = "listed";
-    /// The listing was cancelled by the seller (terminal).
-    #[allow(dead_code)] // wire-format constant referenced by transition tests
-    pub(super) const CANCELLED: &str = "cancelled";
-    /// The listing was sold (terminal).
-    #[allow(dead_code)] // wire-format constant referenced by transition tests
-    pub(super) const SOLD: &str = "sold";
-    /// The listing expired (terminal).
-    #[allow(dead_code)] // wire-format constant referenced by transition tests
-    pub(super) const EXPIRED: &str = "expired";
+/// Typed wire status names for a listing.
+pub mod listing_status {
+    use statechronicle_domain::status::Status;
+
+    status_set! {
+        /// The listing is live and may be bought, cancelled, or expired.
+        listed => "listed";
+        /// The listing was cancelled by the seller (terminal).
+        cancelled => "cancelled";
+        /// The listing was sold (terminal).
+        sold => "sold";
+        /// The listing expired (terminal).
+        expired => "expired";
+    }
 }
 
-/// Wire status names for an escrow.
-mod escrow_status {
-    /// The escrow is holding the funds.
-    pub(super) const LOCKED: &str = "locked";
-    /// The escrow was released to the seller (terminal).
-    #[allow(dead_code)] // wire-format constant referenced by transition tests
-    pub(super) const RELEASED: &str = "released";
-    /// The escrow was refunded to the buyer (terminal).
-    #[allow(dead_code)] // wire-format constant referenced by transition tests
-    pub(super) const REFUNDED: &str = "refunded";
+/// Typed wire status names for an escrow.
+pub mod escrow_status {
+    use statechronicle_domain::status::Status;
+
+    status_set! {
+        /// The escrow is holding the funds.
+        locked => "locked";
+        /// The escrow was released to the seller (terminal).
+        released => "released";
+        /// The escrow was refunded to the buyer (terminal).
+        refunded => "refunded";
+    }
 }
 
-/// Operations accepted by the listing profile.
-const LISTING_OPERATIONS: &[&str] = &[
-    "listing.create",
-    "listing.cancel",
-    "listing.buy",
-    "listing.expire",
-];
+/// Typed operation constants accepted by the marketplace profiles.
+pub mod op {
+    use statechronicle_domain::intent::Operation;
 
-/// Operations accepted by the escrow profile.
-const ESCROW_OPERATIONS: &[&str] = &["escrow.lock", "escrow.release", "escrow.refund"];
+    op_set! {
+        /// Creates a new listing.
+        listing_create => "listing.create";
+        /// Cancels a listed listing (terminal).
+        listing_cancel => "listing.cancel";
+        /// Buys a listed listing (terminal).
+        listing_buy => "listing.buy";
+        /// Expires a listed listing (terminal).
+        listing_expire => "listing.expire";
+        /// Locks a new escrow.
+        escrow_lock => "escrow.lock";
+        /// Releases a locked escrow (terminal).
+        escrow_release => "escrow.release";
+        /// Refunds a locked escrow (terminal).
+        escrow_refund => "escrow.refund";
+    }
+
+    op_slice! {
+        /// All operations accepted by the listing profile.
+        listing_operations => [ listing_create, listing_cancel, listing_buy, listing_expire ];
+        /// All operations accepted by the escrow profile.
+        escrow_operations => [ escrow_lock, escrow_release, escrow_refund ];
+    }
+}
 
 /// Rule set for [`StateType::Listing`] (protocol §20.9).
 ///
@@ -96,8 +118,8 @@ impl ProfileRules for ListingRules {
         "listing"
     }
 
-    fn allowed_operations(&self) -> &'static [&'static str] {
-        LISTING_OPERATIONS
+    fn allowed_operations(&self) -> &'static [Operation] {
+        op::listing_operations()
     }
 
     fn check(
@@ -106,19 +128,31 @@ impl ProfileRules for ListingRules {
         current: Option<&StateProjection>,
         inputs: &BTreeMap<String, serde_json::Value>,
     ) -> Result<(), ProfileError> {
-        if !LISTING_OPERATIONS.contains(&operation.as_str()) {
+        if !op::listing_operations().contains(operation) {
             return Err(ProfileError::UnknownOperation(String::from(
                 operation.as_str(),
             )));
         }
-        match operation.as_str() {
-            "listing.create" => check_listing_create(current, inputs),
-            "listing.cancel" => single_from(current, "listing.cancel", &[listing_status::LISTED]),
-            "listing.buy" => check_listing_buy(current, inputs),
-            "listing.expire" => single_from(current, "listing.expire", &[listing_status::LISTED]),
-            _ => Err(ProfileError::UnknownOperation(String::from(
+        if operation == op::listing_create() {
+            check_listing_create(current, inputs)
+        } else if operation == op::listing_cancel() {
+            single_from(
+                current,
+                "listing.cancel",
+                &[listing_status::listed().to_owned()],
+            )
+        } else if operation == op::listing_buy() {
+            check_listing_buy(current, inputs)
+        } else if operation == op::listing_expire() {
+            single_from(
+                current,
+                "listing.expire",
+                &[listing_status::listed().to_owned()],
+            )
+        } else {
+            Err(ProfileError::UnknownOperation(String::from(
                 operation.as_str(),
-            ))),
+            )))
         }
     }
 }
@@ -132,8 +166,8 @@ impl ProfileRules for EscrowRules {
         "escrow"
     }
 
-    fn allowed_operations(&self) -> &'static [&'static str] {
-        ESCROW_OPERATIONS
+    fn allowed_operations(&self) -> &'static [Operation] {
+        op::escrow_operations()
     }
 
     fn check(
@@ -142,18 +176,29 @@ impl ProfileRules for EscrowRules {
         current: Option<&StateProjection>,
         inputs: &BTreeMap<String, serde_json::Value>,
     ) -> Result<(), ProfileError> {
-        if !ESCROW_OPERATIONS.contains(&operation.as_str()) {
+        if !op::escrow_operations().contains(operation) {
             return Err(ProfileError::UnknownOperation(String::from(
                 operation.as_str(),
             )));
         }
-        match operation.as_str() {
-            "escrow.lock" => check_escrow_lock(current, inputs),
-            "escrow.release" => single_from(current, "escrow.release", &[escrow_status::LOCKED]),
-            "escrow.refund" => single_from(current, "escrow.refund", &[escrow_status::LOCKED]),
-            _ => Err(ProfileError::UnknownOperation(String::from(
+        if operation == op::escrow_lock() {
+            check_escrow_lock(current, inputs)
+        } else if operation == op::escrow_release() {
+            single_from(
+                current,
+                "escrow.release",
+                &[escrow_status::locked().to_owned()],
+            )
+        } else if operation == op::escrow_refund() {
+            single_from(
+                current,
+                "escrow.refund",
+                &[escrow_status::locked().to_owned()],
+            )
+        } else {
+            Err(ProfileError::UnknownOperation(String::from(
                 operation.as_str(),
-            ))),
+            )))
         }
     }
 }
@@ -167,7 +212,7 @@ impl ProfileRules for EscrowRules {
 fn single_from(
     current: Option<&StateProjection>,
     operation: &str,
-    allowed_from: &[&str],
+    allowed_from: &[Status],
 ) -> Result<(), ProfileError> {
     require_from(current, operation, allowed_from)?;
     Ok(())
@@ -200,7 +245,11 @@ fn check_listing_buy(
     current: Option<&StateProjection>,
     inputs: &BTreeMap<String, serde_json::Value>,
 ) -> Result<(), ProfileError> {
-    require_from(current, "listing.buy", &[listing_status::LISTED])?;
+    require_from(
+        current,
+        "listing.buy",
+        &[listing_status::listed().to_owned()],
+    )?;
     input_str(inputs, "buyer")?;
     Ok(())
 }
@@ -252,14 +301,14 @@ mod tests {
         }
     }
 
-    fn listing(status: &str) -> StateProjection {
-        projection(StateType::Listing, status, &[("seller", "alice")])
+    fn listing(status: &Status) -> StateProjection {
+        projection(StateType::Listing, status.as_str(), &[("seller", "alice")])
     }
 
-    fn escrow(status: &str) -> StateProjection {
+    fn escrow(status: &Status) -> StateProjection {
         projection(
             StateType::Escrow,
-            status,
+            status.as_str(),
             &[("buyer", "bob"), ("seller", "alice")],
         )
     }
@@ -280,15 +329,19 @@ mod tests {
         assert_eq!(
             ListingRules.allowed_operations(),
             &[
-                "listing.create",
-                "listing.cancel",
-                "listing.buy",
-                "listing.expire"
-            ][..]
+                op::listing_create().to_owned(),
+                op::listing_cancel().to_owned(),
+                op::listing_buy().to_owned(),
+                op::listing_expire().to_owned(),
+            ]
         );
         assert_eq!(
             EscrowRules.allowed_operations(),
-            &["escrow.lock", "escrow.release", "escrow.refund"][..]
+            &[
+                op::escrow_lock().to_owned(),
+                op::escrow_release().to_owned(),
+                op::escrow_refund().to_owned(),
+            ]
         );
     }
 
@@ -304,7 +357,7 @@ mod tests {
                 )
                 .is_ok()
         );
-        let listed = listing(listing_status::LISTED);
+        let listed = listing(listing_status::listed());
         assert!(
             rules
                 .check(&op("listing.cancel"), Some(&listed), &BTreeMap::new())
@@ -326,10 +379,10 @@ mod tests {
         );
 
         // Terminal states are locked.
-        let sold = listing(listing_status::SOLD);
+        let sold = listing(listing_status::sold());
         assert!(matches!(
             rules.check(&op("listing.cancel"), Some(&sold), &BTreeMap::new()),
-            Err(ProfileError::InvalidTransition { from, .. }) if from == listing_status::SOLD
+            Err(ProfileError::InvalidTransition { from, .. }) if from == listing_status::sold().as_str()
         ));
         // Missing seller / buyer inputs are rejected.
         assert!(matches!(
@@ -357,7 +410,7 @@ mod tests {
                 )
                 .is_ok()
         );
-        let locked = escrow(escrow_status::LOCKED);
+        let locked = escrow(escrow_status::locked());
         assert!(
             rules
                 .check(&op("escrow.release"), Some(&locked), &BTreeMap::new())
@@ -370,10 +423,10 @@ mod tests {
         );
 
         // Terminal states are locked.
-        let released = escrow(escrow_status::RELEASED);
+        let released = escrow(escrow_status::released());
         assert!(matches!(
             rules.check(&op("escrow.refund"), Some(&released), &BTreeMap::new()),
-            Err(ProfileError::InvalidTransition { from, .. }) if from == escrow_status::RELEASED
+            Err(ProfileError::InvalidTransition { from, .. }) if from == escrow_status::released().as_str()
         ));
         assert!(matches!(
             rules.check(&op("escrow.lock"), None, &BTreeMap::new()),

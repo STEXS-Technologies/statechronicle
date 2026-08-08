@@ -36,6 +36,13 @@ pub enum DomainError {
     #[error("invalid operation: {0}")]
     InvalidOperation(String),
 
+    /// A status string is malformed.
+    ///
+    /// Raised when a profile status name is empty or exceeds
+    /// [`MAX_ID_LENGTH`] characters (protocol §20.1).
+    #[error("invalid status: {0}")]
+    InvalidStatus(String),
+
     /// A signing key id is malformed.
     ///
     /// Raised when a `KeyId` is empty or exceeds [`MAX_ID_LENGTH`] characters
@@ -56,6 +63,13 @@ pub enum DomainError {
     /// exceeds [`crate::intent::MAX_NONCE_BYTES`] decoded bytes (protocol §11.1).
     #[error("invalid nonce: {0}")]
     InvalidNonce(String),
+
+    /// A required intent-builder field was not set before `build`.
+    ///
+    /// Raised by [`crate::intent::IntentBuilder::build`] when a required field
+    /// (e.g. `created_at` or `nonce`) was omitted.
+    #[error("missing required intent builder field `{0}`")]
+    BuilderFieldMissing(&'static str),
 
     /// A failure from the shared core crate.
     ///

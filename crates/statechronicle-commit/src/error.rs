@@ -147,6 +147,14 @@ pub enum CommitError {
         actual: usize,
     },
 
+    /// A required commit-builder field was not set before `build`.
+    ///
+    /// Raised by [`crate::builder::CommitBuilder::build`] when a required
+    /// identity field (`scope`, `executor`, `profile`, or `created_at`) was
+    /// omitted.
+    #[error("missing required commit builder field `{0}`")]
+    BuilderFieldMissing(&'static str),
+
     /// Ed25519 commit signing or envelope construction failed.
     #[error("commit signing failed: {0}")]
     Signing(String),

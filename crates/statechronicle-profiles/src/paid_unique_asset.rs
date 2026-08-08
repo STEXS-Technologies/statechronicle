@@ -7,27 +7,87 @@
 //! in the projected payload (append-only, non-erasing exceptional states).
 
 use std::collections::BTreeMap;
+use std::sync::OnceLock;
 
 use statechronicle_domain::intent::Operation;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
+use statechronicle_domain::status::Status;
 
 use crate::error::ProfileError;
 use crate::registry::{ProfileRules, input_str, require_current, require_from, state_str};
 use crate::unique_asset::{UniqueAssetRules, status};
 
-/// Additional exceptional statuses introduced by the paid overlay.
-pub(crate) mod exceptional_status {
-    /// The asset is under a legal hold.
-    pub(crate) const LEGAL_HOLD: &str = "legal_hold";
-    /// The asset is locked against fraud.
-    pub(crate) const FRAUD_LOCK: &str = "fraud_lock";
-    /// The asset is restricted by marketplace policy.
-    pub(crate) const POLICY_RESTRICTED: &str = "policy_restricted";
+/// Typed exceptional statuses introduced by the paid overlay.
+pub mod exceptional_status {
+    use statechronicle_domain::status::Status;
+
+    status_set! {
+        /// The asset is under a legal hold.
+        legal_hold => "legal_hold";
+        /// The asset is locked against fraud.
+        fraud_lock => "fraud_lock";
+        /// The asset is restricted by marketplace policy.
+        policy_restricted => "policy_restricted";
+    }
 }
 
 /// The `authorized_by_owner` input key carrying owner consent.
 const AUTHORIZED_BY_OWNER: &str = "authorized_by_owner";
+
+/// Typed operation constants accepted by the paid unique asset profile.
+pub mod op {
+    use statechronicle_domain::intent::Operation;
+
+    op_set! {
+        /// Mints a new paid unique asset.
+        asset_mint => "asset.mint";
+        /// Transfers ownership of an `active` asset.
+        asset_transfer => "asset.transfer";
+        /// Burns an `active` asset (terminal).
+        asset_burn => "asset.burn";
+        /// Locks an `active` asset.
+        asset_lock => "asset.lock";
+        /// Unlocks a `locked` asset.
+        asset_unlock => "asset.unlock";
+        /// Redeems a `listed` asset (terminal).
+        asset_redeem => "asset.redeem";
+        /// Lists an `active` asset for sale.
+        asset_list => "asset.list";
+        /// Delists a `listed` asset.
+        asset_delist => "asset.delist";
+        /// Places an `active` asset in escrow.
+        asset_escrow => "asset.escrow";
+        /// Releases an `escrowed` asset.
+        asset_release => "asset.release";
+        /// Attaches opaque content to an `active` asset.
+        asset_attach_content => "asset.attach_content";
+        /// Detaches opaque content from an `active` asset.
+        asset_detach_content => "asset.detach_content";
+        /// Updates metadata on an `active` asset.
+        asset_update_metadata => "asset.update_metadata";
+        /// Restricts an asset into an exceptional status.
+        asset_restrict => "asset.restrict";
+        /// Restores an exceptional status back to `active`.
+        asset_restore => "asset.restore";
+        /// Hard-deletes an asset with current-owner consent (terminal).
+        asset_hard_delete => "asset.hard_delete";
+        /// Freezes an `active` asset into a pending trade.
+        trade_lock => "trade.lock";
+        /// Unlocks a `trade_held` asset to its owner.
+        trade_unlock => "trade.unlock";
+        /// Settles a `trade_held` asset to its new owner.
+        trade_settle => "trade.settle";
+    }
+
+    op_slice! {
+        /// Operations that MUST carry an authority binding (protocol §11.2,
+        /// ADR-006 §36 Q5 / deferral item 4).
+        authority_required => [
+            asset_transfer, asset_burn, asset_hard_delete, asset_restrict, asset_restore, trade_settle
+        ];
+    }
+}
 
 /// Exceptional statuses a paid asset may be restricted into.
 ///
@@ -35,14 +95,19 @@ const AUTHORIZED_BY_OWNER: &str = "authorized_by_owner";
 /// statuses plus the paid overlay's `legal_hold`, `fraud_lock`, and
 /// `policy_restricted` statuses. Restriction is append-only and non-erasing:
 /// it preserves the `owner` field and never rewrites ownership.
-const EXCEPTIONAL_STATUSES: &[&str] = &[
-    status::RESTRICTED,
-    status::QUARANTINED,
-    status::UNSUPPORTED,
-    exceptional_status::LEGAL_HOLD,
-    exceptional_status::FRAUD_LOCK,
-    exceptional_status::POLICY_RESTRICTED,
-];
+fn exceptional_statuses() -> &'static [Status] {
+    static ALL: OnceLock<Vec<Status>> = OnceLock::new();
+    ALL.get_or_init(|| {
+        vec![
+            status::restricted().to_owned(),
+            status::quarantined().to_owned(),
+            status::unsupported().to_owned(),
+            exceptional_status::legal_hold().to_owned(),
+            exceptional_status::fraud_lock().to_owned(),
+            exceptional_status::policy_restricted().to_owned(),
+        ]
+    })
+}
 
 /// Rule set for paid unique assets (protocol §20.3).
 ///
@@ -63,40 +128,6 @@ const EXCEPTIONAL_STATUSES: &[&str] = &[
 #[derive(Debug, Clone, Copy)]
 pub struct PaidUniqueAssetRules;
 
-/// Operations accepted by the paid unique asset profile.
-const OPERATIONS: &[&str] = &[
-    "asset.mint",
-    "asset.transfer",
-    "asset.burn",
-    "asset.lock",
-    "asset.unlock",
-    "asset.redeem",
-    "asset.list",
-    "asset.delist",
-    "asset.escrow",
-    "asset.release",
-    "asset.attach_content",
-    "asset.detach_content",
-    "asset.update_metadata",
-    "asset.restrict",
-    "asset.restore",
-    "asset.hard_delete",
-];
-
-/// Operations that MUST carry an authority binding (protocol §11.2,
-/// ADR-006 §36 Q5 / deferral item 4).
-///
-/// A superset of the plain unique asset's authority-required set (ownership
-/// transfer, terminal destruction) plus the paid-overlay's paid-restriction
-/// and recovery paths (`asset.hard_delete`, `asset.restrict`, `asset.restore`).
-const AUTHORITY_REQUIRED: &[&str] = &[
-    "asset.transfer",
-    "asset.burn",
-    "asset.hard_delete",
-    "asset.restrict",
-    "asset.restore",
-];
-
 impl ProfileRules for PaidUniqueAssetRules {
     fn state_type(&self) -> StateType {
         StateType::UniqueAsset
@@ -106,12 +137,12 @@ impl ProfileRules for PaidUniqueAssetRules {
         "paid_unique_asset"
     }
 
-    fn allowed_operations(&self) -> &'static [&'static str] {
-        OPERATIONS
+    fn allowed_operations(&self) -> &'static [Operation] {
+        op::all()
     }
 
     fn requires_authority(&self, operation: &Operation) -> bool {
-        AUTHORITY_REQUIRED.contains(&operation.as_str())
+        op::authority_required().contains(operation)
     }
 
     fn check(
@@ -120,21 +151,28 @@ impl ProfileRules for PaidUniqueAssetRules {
         current: Option<&StateProjection>,
         inputs: &BTreeMap<String, serde_json::Value>,
     ) -> Result<(), ProfileError> {
-        let name = operation.as_str();
-        if name == "asset.hard_delete" {
+        if operation == op::asset_hard_delete() {
             return check_hard_delete(current, inputs);
         }
-        if name == "asset.restore" {
+        if operation == op::asset_restore() {
             return check_paid_restore(current);
         }
-        if !UniqueAssetRules.allowed_operations().contains(&name) {
-            return Err(ProfileError::UnknownOperation(String::from(name)));
+        if !UniqueAssetRules.allowed_operations().contains(operation) {
+            return Err(ProfileError::UnknownOperation(String::from(
+                operation.as_str(),
+            )));
         }
         UniqueAssetRules.check(operation, current, inputs)?;
-        match name {
-            "asset.transfer" => check_transfer_overlay(current, inputs),
-            "asset.restrict" => check_restrict_overlay(current, inputs),
-            _ => Ok(()),
+        if operation == op::asset_transfer() {
+            check_transfer_overlay(current, inputs)
+        } else if operation == op::asset_restrict() {
+            check_restrict_overlay(current, inputs)
+        } else if operation == op::trade_lock() {
+            check_trade_lock_overlay(current, inputs)
+        } else if operation == op::trade_settle() {
+            check_trade_settle_overlay(current, inputs)
+        } else {
+            Ok(())
         }
     }
 }
@@ -189,7 +227,91 @@ fn check_transfer_overlay(
     current: Option<&StateProjection>,
     inputs: &BTreeMap<String, serde_json::Value>,
 ) -> Result<(), ProfileError> {
-    let current = require_from(current, "asset.transfer", &[status::ACTIVE])?;
+    let current = require_from(current, "asset.transfer", &[status::active().to_owned()])?;
+    let owner = state_str(current, "owner")?;
+    let Some(actor) = inputs.get("actor").and_then(serde_json::Value::as_str) else {
+        // No actor input means the caller provides no authorization signal;
+        // the base table already enforced `from_owner == owner`.
+        return Ok(());
+    };
+    if actor == owner {
+        return Ok(());
+    }
+    if inputs
+        .get(AUTHORIZED_BY_OWNER)
+        .and_then(serde_json::Value::as_bool)
+        != Some(true)
+    {
+        return Err(ProfileError::OwnershipMismatch {
+            expected: String::from(owner),
+            actual: String::from(actor),
+        });
+    }
+    Ok(())
+}
+
+/// Validates `trade.lock` overlay: non-owner actors need consent.
+///
+/// The base table already enforces the `active` source state and
+/// `from_owner == current owner`. When the acting `actor` is present and
+/// differs from the current owner, `authorized_by_owner` must be `true`.
+///
+/// # Errors
+///
+/// Returns [`ProfileError::OwnershipMismatch`] when the `actor` is not the
+/// current owner without consent.
+fn check_trade_lock_overlay(
+    current: Option<&StateProjection>,
+    inputs: &BTreeMap<String, serde_json::Value>,
+) -> Result<(), ProfileError> {
+    check_owner_consent_overlay(
+        current,
+        inputs,
+        "trade.lock",
+        &[status::active().to_owned()],
+    )
+}
+
+/// Validates `trade.settle` overlay: non-owner actors need consent.
+///
+/// The base table already enforces the `trade_held` source state and
+/// `from_owner == current owner`. When the acting `actor` is present and
+/// differs from the current owner, `authorized_by_owner` must be `true`.
+///
+/// # Errors
+///
+/// Returns [`ProfileError::OwnershipMismatch`] when the `actor` is not the
+/// current owner without consent.
+fn check_trade_settle_overlay(
+    current: Option<&StateProjection>,
+    inputs: &BTreeMap<String, serde_json::Value>,
+) -> Result<(), ProfileError> {
+    check_owner_consent_overlay(
+        current,
+        inputs,
+        "trade.settle",
+        &[status::trade_held().to_owned()],
+    )
+}
+
+/// Shared owner-consent overlay for trade operations.
+///
+/// Mirrors [`check_transfer_overlay`]: when the acting `actor` is present and
+/// differs from the current owner, `authorized_by_owner` must be `true`,
+/// otherwise the operation fails closed with an ownership mismatch.
+///
+/// # Errors
+///
+/// Returns [`ProfileError::InvalidTransition`] when the resource's status is
+/// not in `allowed_from`, and [`ProfileError::OwnershipMismatch`] when the
+/// `actor` is not the current owner without consent.
+fn check_owner_consent_overlay(
+    current: Option<&StateProjection>,
+    inputs: &BTreeMap<String, serde_json::Value>,
+    operation: &str,
+    allowed_from: &[Status],
+) -> Result<(), ProfileError> {
+    let current = require_from(current, operation, allowed_from)?;
     let owner = state_str(current, "owner")?;
     let Some(actor) = inputs.get("actor").and_then(serde_json::Value::as_str) else {
         // No actor input means the caller provides no authorization signal;
@@ -233,10 +355,11 @@ fn check_restrict_overlay(
         current,
         "asset.restrict",
         &[
-            status::ACTIVE,
-            status::LOCKED,
-            status::LISTED,
-            status::ESCROWED,
+            status::active().to_owned(),
+            status::locked().to_owned(),
+            status::listed().to_owned(),
+            status::escrowed().to_owned(),
+            status::trade_held().to_owned(),
         ],
     )?;
     let owner = state_str(current, "owner")?;
@@ -248,12 +371,17 @@ fn check_restrict_overlay(
             actual: String::from(provided),
         });
     }
-    if let Some(target) = inputs.get("status").and_then(serde_json::Value::as_str)
-        && !EXCEPTIONAL_STATUSES.contains(&target)
-    {
-        return Err(ProfileError::InvalidInput(format!(
-            "`status` `{target}` is not an exceptional status"
-        )));
+    if let Some(target) = inputs.get("status").and_then(serde_json::Value::as_str) {
+        let Ok(target_status) = Status::try_from_str(target) else {
+            return Err(ProfileError::InvalidInput(format!(
+                "`status` `{target}` is not an exceptional status"
+            )));
+        };
+        if !exceptional_statuses().contains(&target_status) {
+            return Err(ProfileError::InvalidInput(format!(
+                "`status` `{target}` is not an exceptional status"
+            )));
+        }
     }
     Ok(())
 }
@@ -273,12 +401,12 @@ fn check_paid_restore(current: Option<&StateProjection>) -> Result<(), ProfileEr
         current,
         "asset.restore",
         &[
-            status::RESTRICTED,
-            status::QUARANTINED,
-            status::UNSUPPORTED,
-            exceptional_status::LEGAL_HOLD,
-            exceptional_status::FRAUD_LOCK,
-            exceptional_status::POLICY_RESTRICTED,
+            status::restricted().to_owned(),
+            status::quarantined().to_owned(),
+            status::unsupported().to_owned(),
+            exceptional_status::legal_hold().to_owned(),
+            exceptional_status::fraud_lock().to_owned(),
+            exceptional_status::policy_restricted().to_owned(),
         ],
     )?;
     Ok(())
@@ -293,7 +421,7 @@ mod tests {
     use statechronicle_domain::resource::ResourceId;
     use statechronicle_domain::tenant::TenantId;
 
-    fn asset(status: &str, owner: &str) -> StateProjection {
+    fn asset(status: &Status, owner: &str) -> StateProjection {
         StateProjection {
             tenant_id: TenantId(String::from("tenant.test")),
             resource_id: ResourceId(String::from("asset:paid_001")),
@@ -302,7 +430,7 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state: serde_json::json!({ "owner": owner, "status": status }),
+            state: serde_json::json!({ "owner": owner, "status": status.as_str() }),
         }
     }
 
@@ -313,6 +441,24 @@ mod tests {
             .collect()
     }
 
+    /// A `trade_held` paid asset with a stored `trade_id`.
+    fn held_asset(trade_id: &str) -> StateProjection {
+        StateProjection {
+            tenant_id: TenantId(String::from("tenant.test")),
+            resource_id: ResourceId(String::from("asset:paid_001")),
+            state_type: StateType::UniqueAsset,
+            version: 1,
+            last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
+            last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
+            state_hash: ContentDigest::new([0u8; 32]),
+            state: serde_json::json!({
+                "owner": "alice",
+                "status": status::trade_held().as_str(),
+                "trade_id": trade_id,
+            }),
+        }
+    }
+
     fn op(name: &str) -> Operation {
         Operation::new(String::from(name)).unwrap()
     }
@@ -320,8 +466,8 @@ mod tests {
     #[test]
     fn allow_list_includes_hard_delete() {
         let rules = PaidUniqueAssetRules;
-        assert!(rules.allowed_operations().contains(&"asset.hard_delete"));
-        assert!(rules.allowed_operations().contains(&"asset.transfer"));
+        assert!(rules.allowed_operations().contains(op::asset_hard_delete()));
+        assert!(rules.allowed_operations().contains(op::asset_transfer()));
         assert_eq!(rules.profile_id(), "paid_unique_asset");
         assert_eq!(rules.state_type(), StateType::UniqueAsset);
     }
@@ -329,7 +475,7 @@ mod tests {
     #[test]
     fn hard_delete_requires_owner_consent() {
         let rules = PaidUniqueAssetRules;
-        let active = asset(status::ACTIVE, "alice");
+        let active = asset(status::active(), "alice");
 
         // Owner consent authorizes hard delete.
         assert!(
@@ -390,7 +536,7 @@ mod tests {
     #[test]
     fn transfer_requires_authorized_by_owner_for_non_owner_actor() {
         let rules = PaidUniqueAssetRules;
-        let active = asset(status::ACTIVE, "alice");
+        let active = asset(status::active(), "alice");
 
         // Owner acting: no consent needed.
         assert!(
@@ -441,7 +587,7 @@ mod tests {
     #[test]
     fn restrict_preserves_owner_field() {
         let rules = PaidUniqueAssetRules;
-        let active = asset(status::ACTIVE, "alice");
+        let active = asset(status::active(), "alice");
 
         // An owner-preserving restriction is accepted.
         assert!(
@@ -469,14 +615,14 @@ mod tests {
     #[test]
     fn restrict_accepts_only_exceptional_target_statuses() {
         let rules = PaidUniqueAssetRules;
-        let active = asset(status::ACTIVE, "alice");
+        let active = asset(status::active(), "alice");
         for target in [
-            "restricted",
-            "quarantined",
-            "unsupported",
-            exceptional_status::LEGAL_HOLD,
-            exceptional_status::FRAUD_LOCK,
-            exceptional_status::POLICY_RESTRICTED,
+            status::restricted(),
+            status::quarantined(),
+            status::unsupported(),
+            exceptional_status::legal_hold(),
+            exceptional_status::fraud_lock(),
+            exceptional_status::policy_restricted(),
         ] {
             assert!(
                 rules
@@ -503,12 +649,12 @@ mod tests {
     fn restore_recovers_from_paid_exceptional_statuses() {
         let rules = PaidUniqueAssetRules;
         for from in [
-            status::RESTRICTED,
-            status::QUARANTINED,
-            status::UNSUPPORTED,
-            exceptional_status::LEGAL_HOLD,
-            exceptional_status::FRAUD_LOCK,
-            exceptional_status::POLICY_RESTRICTED,
+            status::restricted(),
+            status::quarantined(),
+            status::unsupported(),
+            exceptional_status::legal_hold(),
+            exceptional_status::fraud_lock(),
+            exceptional_status::policy_restricted(),
         ] {
             let projection = asset(from, "alice");
             assert!(
@@ -518,17 +664,17 @@ mod tests {
                 "restore should be allowed from `{from}`"
             );
         }
-        let burned = asset(status::BURNED, "alice");
+        let burned = asset(status::burned(), "alice");
         assert!(matches!(
             rules.check(&op("asset.restore"), Some(&burned), &BTreeMap::new()),
-            Err(ProfileError::InvalidTransition { from, .. }) if from == status::BURNED
+            Err(ProfileError::InvalidTransition { from, .. }) if from == status::burned().as_str()
         ));
     }
 
     #[test]
     fn delegates_base_table_and_rejects_unknown_ops() {
         let rules = PaidUniqueAssetRules;
-        let active = asset(status::ACTIVE, "alice");
+        let active = asset(status::active(), "alice");
         // Base table still applies: lock from active is fine, unlock is not.
         assert!(
             rules
@@ -537,11 +683,144 @@ mod tests {
         );
         assert!(matches!(
             rules.check(&op("asset.unlock"), Some(&active), &BTreeMap::new()),
-            Err(ProfileError::InvalidTransition { from, .. }) if from == status::ACTIVE
+            Err(ProfileError::InvalidTransition { from, .. }) if from == status::active().as_str()
         ));
         assert!(matches!(
             rules.check(&op("asset.teleport"), None, &BTreeMap::new()),
             Err(ProfileError::UnknownOperation(name)) if name == "asset.teleport"
+        ));
+    }
+
+    #[test]
+    fn trade_settle_requires_owner_consent_for_non_owner_actor() {
+        let rules = PaidUniqueAssetRules;
+        let held = held_asset("trade_001");
+
+        // Owner acting: no consent needed.
+        assert!(
+            rules
+                .check(
+                    &op("trade.settle"),
+                    Some(&held),
+                    &inputs(&[
+                        ("actor", serde_json::json!("alice")),
+                        ("from_owner", serde_json::json!("alice")),
+                        ("to_owner", serde_json::json!("bob")),
+                        ("trade_id", serde_json::json!("trade_001")),
+                    ])
+                )
+                .is_ok()
+        );
+
+        // Non-owner actor without consent is rejected.
+        assert!(matches!(
+            rules.check(
+                &op("trade.settle"),
+                Some(&held),
+                &inputs(&[
+                    ("actor", serde_json::json!("engine")),
+                    ("from_owner", serde_json::json!("alice")),
+                    ("to_owner", serde_json::json!("bob")),
+                    ("trade_id", serde_json::json!("trade_001")),
+                ])
+            ),
+            Err(ProfileError::OwnershipMismatch { .. })
+        ));
+
+        // Non-owner actor with owner consent is allowed.
+        assert!(
+            rules
+                .check(
+                    &op("trade.settle"),
+                    Some(&held),
+                    &inputs(&[
+                        ("actor", serde_json::json!("engine")),
+                        ("authorized_by_owner", serde_json::json!(true)),
+                        ("from_owner", serde_json::json!("alice")),
+                        ("to_owner", serde_json::json!("bob")),
+                        ("trade_id", serde_json::json!("trade_001")),
+                    ])
+                )
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn trade_lock_by_engine_with_owner_consent() {
+        let rules = PaidUniqueAssetRules;
+        let active = asset(status::active(), "alice");
+
+        // Owner acting: no consent needed.
+        assert!(
+            rules
+                .check(
+                    &op("trade.lock"),
+                    Some(&active),
+                    &inputs(&[
+                        ("actor", serde_json::json!("alice")),
+                        ("from_owner", serde_json::json!("alice")),
+                        ("trade_id", serde_json::json!("trade_001")),
+                    ])
+                )
+                .is_ok()
+        );
+
+        // Engine (non-owner) actor without consent is rejected.
+        assert!(matches!(
+            rules.check(
+                &op("trade.lock"),
+                Some(&active),
+                &inputs(&[
+                    ("actor", serde_json::json!("engine")),
+                    ("from_owner", serde_json::json!("alice")),
+                    ("trade_id", serde_json::json!("trade_001")),
+                ])
+            ),
+            Err(ProfileError::OwnershipMismatch { .. })
+        ));
+
+        // Engine actor with owner consent is allowed.
+        assert!(
+            rules
+                .check(
+                    &op("trade.lock"),
+                    Some(&active),
+                    &inputs(&[
+                        ("actor", serde_json::json!("engine")),
+                        ("authorized_by_owner", serde_json::json!(true)),
+                        ("from_owner", serde_json::json!("alice")),
+                        ("trade_id", serde_json::json!("trade_001")),
+                    ])
+                )
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn trade_unlock_requires_matching_id_no_consent_needed() {
+        let rules = PaidUniqueAssetRules;
+        let held = held_asset("trade_001");
+
+        // A matching trade_id unlocks; no actor consent required because the
+        // asset only ever returns to its current owner.
+        assert!(
+            rules
+                .check(
+                    &op("trade.unlock"),
+                    Some(&held),
+                    &inputs(&[("trade_id", serde_json::json!("trade_001"))])
+                )
+                .is_ok()
+        );
+
+        // A mismatched trade_id is rejected.
+        assert!(matches!(
+            rules.check(
+                &op("trade.unlock"),
+                Some(&held),
+                &inputs(&[("trade_id", serde_json::json!("trade_999"))])
+            ),
+            Err(ProfileError::InvalidInput(_))
         ));
     }
 }

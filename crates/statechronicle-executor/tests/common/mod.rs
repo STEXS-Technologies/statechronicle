@@ -86,23 +86,28 @@ pub fn intent(
     authority: Option<AuthorityProof>,
     expires_at: Option<DateTime<Utc>>,
 ) -> ValidatedIntent {
-    let body = Intent::new(
-        tenant(),
-        IntentId::new(format!("int_{intent_id}")).unwrap(),
-        Operation::new(String::from(operation)).unwrap(),
-        SubjectId(String::from(acting_actor)),
-        ResourceId(String::from(resource)),
-        state_type,
-        expected_version,
-        inputs
-            .iter()
-            .map(|(key, value)| (String::from(*key), value.clone()))
-            .collect(),
-        authority,
-        fixed_now(),
-        expires_at,
-        Nonce::from_bytes(vec![0]).unwrap(),
-    );
+    let mut body = Intent::builder()
+        .tenant(tenant())
+        .intent_id(IntentId::new(format!("int_{intent_id}")).unwrap())
+        .operation(Operation::new(String::from(operation)).unwrap())
+        .actor(SubjectId(String::from(acting_actor)))
+        .resource(ResourceId(String::from(resource)))
+        .expected_version(expected_version)
+        .created_at(fixed_now())
+        .nonce(Nonce::from_bytes(vec![0]).unwrap());
+    if let Some(expires_at) = expires_at {
+        body = body.expires_at(expires_at);
+    }
+    if let Some(state_type) = state_type {
+        body = body.state_type(state_type);
+    }
+    if let Some(authority) = authority {
+        body = body.authority(authority);
+    }
+    for (key, value) in inputs {
+        body = body.input(key, value.clone());
+    }
+    let body = body.build().unwrap();
     let idempotency_key = IdempotencyKey::new(
         body.tenant_id.clone(),
         body.intent_id.clone(),
@@ -311,23 +316,25 @@ pub fn intent_for_tenant(
     inputs: &[(&str, serde_json::Value)],
     authority: Option<AuthorityProof>,
 ) -> ValidatedIntent {
-    let body = Intent::new(
-        tenant,
-        IntentId::new(format!("int_{intent_id}")).unwrap(),
-        Operation::new(String::from(operation)).unwrap(),
-        SubjectId(String::from(acting_actor)),
-        ResourceId(String::from(resource)),
-        state_type,
-        expected_version,
-        inputs
-            .iter()
-            .map(|(key, value)| (String::from(*key), value.clone()))
-            .collect(),
-        authority,
-        fixed_now(),
-        None,
-        Nonce::from_bytes(vec![0]).unwrap(),
-    );
+    let mut body = Intent::builder()
+        .tenant(tenant)
+        .intent_id(IntentId::new(format!("int_{intent_id}")).unwrap())
+        .operation(Operation::new(String::from(operation)).unwrap())
+        .actor(SubjectId(String::from(acting_actor)))
+        .resource(ResourceId(String::from(resource)))
+        .expected_version(expected_version)
+        .created_at(fixed_now())
+        .nonce(Nonce::from_bytes(vec![0]).unwrap());
+    if let Some(state_type) = state_type {
+        body = body.state_type(state_type);
+    }
+    if let Some(authority) = authority {
+        body = body.authority(authority);
+    }
+    for (key, value) in inputs {
+        body = body.input(key, value.clone());
+    }
+    let body = body.build().unwrap();
     let idempotency_key = IdempotencyKey::new(
         body.tenant_id.clone(),
         body.intent_id.clone(),
@@ -829,25 +836,27 @@ impl Harness {
         tenant_store.register(tenant());
         let transactions = FakeTransactionManager::default();
 
-        let ports = Ports::new(
-            Box::new(FakeIntentStore::default()),
-            Box::new(index.clone()),
-            Box::new(tenant_store.clone()),
-            authority_ports,
-            Box::new(transactions.clone()),
-        );
+        let ports = Ports::builder()
+            .intent_store(Box::new(FakeIntentStore::default()))
+            .state_index(Box::new(index.clone()))
+            .tenant_store(Box::new(tenant_store.clone()))
+            .trustgrant(authority_ports)
+            .transaction_manager(Box::new(transactions.clone()))
+            .build()
+            .unwrap();
         let counter = Arc::new(AtomicU64::new(1));
-        let executor = Executor::new(
-            ports,
-            profiles,
-            executor_subject(),
-            Box::new(fixed_now),
-            Box::new(move || {
+        let executor = Executor::builder()
+            .ports(ports)
+            .profiles(profiles)
+            .executor(executor_subject())
+            .clock(fixed_now)
+            .event_id_gen(move || {
                 let next = counter.fetch_add(1, Ordering::SeqCst);
                 EventId::new(format!("evt_{next:020}")).unwrap()
-            }),
-            intent_verifier,
-        );
+            })
+            .intent_verifier(intent_verifier)
+            .build()
+            .unwrap();
         Self {
             executor,
             index,

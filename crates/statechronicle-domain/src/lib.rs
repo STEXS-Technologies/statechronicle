@@ -44,5 +44,8 @@ pub mod state;
 /// Prefixed newtype identifiers (`stc_`, `int_`, `evt_`, `cmt_`, `snp_`).
 pub mod ids;
 
+/// Profile status names (validated, registry-open).
+pub mod status;
+
 /// Domain error type.
 pub mod error;

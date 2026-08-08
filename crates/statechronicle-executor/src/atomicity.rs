@@ -22,6 +22,9 @@ use statechronicle_domain::event::{Event, StateCommitment};
 use statechronicle_domain::ids::IntentId;
 use statechronicle_domain::intent::Operation;
 use statechronicle_domain::tenant::TenantId;
+use statechronicle_profiles::consumable_stack::op as stack_op;
+use statechronicle_profiles::fungible_balance::op as balance_op;
+use statechronicle_profiles::keys;
 
 use crate::error::ExecutorError;
 
@@ -212,10 +215,12 @@ fn validate_transfer_pair(intent_id: &IntentId, group: &[&Event]) -> Result<(), 
 /// Returns the amount field name for a transfer operation, or `None` when the
 /// operation is not a subject-held transfer.
 fn transfer_field(operation: &Operation) -> Option<&'static str> {
-    match operation.as_str() {
-        "stack.transfer" => Some("quantity"),
-        "balance.transfer" => Some("balance"),
-        _ => None,
+    if operation == stack_op::stack_transfer() {
+        Some(keys::QUANTITY)
+    } else if operation == balance_op::balance_transfer() {
+        Some(keys::BALANCE)
+    } else {
+        None
     }
 }
 
