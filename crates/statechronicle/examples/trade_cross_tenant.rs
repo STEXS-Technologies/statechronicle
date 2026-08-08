@@ -33,7 +33,7 @@ use statechronicle::domain::resource::ResourceId;
 use statechronicle::domain::state_type::StateType;
 use statechronicle::domain::subject::SubjectId;
 use statechronicle::domain::tenant::TenantId;
-use statechronicle::executor::atomicity::{TradeManifest, ValueLeg};
+use statechronicle::executor::atomicity::{SettleLeg, TradeManifest, ValueLeg};
 use statechronicle::intent::validated::ValidatedIntent;
 use statechronicle::ports::state_index::StateIndex;
 
@@ -188,13 +188,15 @@ async fn main() {
     );
     let manifest = TradeManifest {
         trade_id: String::from(TRADE),
-        settle_intent_id: IntentId::new(String::from("int_xct_settle")).unwrap(),
-        value_leg: Some(ValueLeg {
+        settle_legs: vec![SettleLeg {
+            asset: ResourceId(String::from(ASSET)),
+            settle_intent_id: IntentId::new(String::from("int_xct_settle")).unwrap(),
+        }],
+        value_legs: vec![ValueLeg {
             resource: ResourceId(String::from(WALLET)),
             amount: PRICE.to_string(),
             to_subject: SubjectId(String::from(ALICE)),
-        }),
-        settle_assets: Vec::new(),
+        }],
     };
 
     // Settle in ONE atomic cross-tenant transaction: one group per tenant.

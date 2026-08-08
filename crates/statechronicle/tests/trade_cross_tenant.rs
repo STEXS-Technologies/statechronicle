@@ -14,15 +14,12 @@
 //! and one `commit`; (b) a settle whose value leg is missing from the manifest
 //! fails closed and rolls back with nothing escaping.
 //!
-//! 3-tenant deferral: a trade that spans THREE tenants (asset A in alpha, asset
-//! B in beta, value in gamma) needs TWO settle legs, but the declared-linkage
-//! path validates exactly ONE settle leg plus one optional value leg. The
-//! executor's `execute_cross_tenant` (inferred-linkage) path already covers
-//! multi-tenant batches that share one intent id; the manifest-driven trade path
-//! covers the two-tenant asset-for-value case and fails closed on an undeclared
-//! second asset leg (see `cross_tenant_trade_extra_settle_leg_rejected` in the
-//! executor's atomicity unit tests). Genuine three-tenant trade settlement is
-//! deferred to a later phase.
+//! N-tenant extension: the generalized manifest (see `trade_3tenant.rs`) admits
+//! any number of settle legs and value legs, so a trade spanning THREE tenants
+//! (asset A in alpha, asset B in beta, value in gamma) settles in one atomic
+//! `execute_cross_tenant_trade`. This test covers the canonical two-tenant
+//! asset-for-value case; the multi-leg and multi-tenant shapes are covered by the
+//! executor's atomicity unit tests and `trade_3tenant.rs`.
 
 #![allow(
     clippy::panic,
@@ -44,7 +41,7 @@ use statechronicle::domain::resource::ResourceId;
 use statechronicle::domain::state_type::StateType;
 use statechronicle::domain::subject::SubjectId;
 use statechronicle::domain::tenant::TenantId;
-use statechronicle::executor::atomicity::{TradeManifest, ValueLeg};
+use statechronicle::executor::atomicity::{SettleLeg, TradeManifest, ValueLeg};
 use statechronicle::executor::error::ExecutorError;
 use statechronicle::intent::validated::ValidatedIntent;
 use statechronicle::ports::state_index::StateIndex;
@@ -191,9 +188,11 @@ fn manifest(harness: &Harness, value_leg: Option<ValueLeg>) -> TradeManifest {
     let _ = harness;
     TradeManifest {
         trade_id: String::from(TRADE),
-        settle_intent_id: IntentId::new(String::from("int_xct_settle")).unwrap(),
-        value_leg,
-        settle_assets: Vec::new(),
+        settle_legs: vec![SettleLeg {
+            asset: ResourceId(String::from(ASSET)),
+            settle_intent_id: IntentId::new(String::from("int_xct_settle")).unwrap(),
+        }],
+        value_legs: value_leg.map_or_else(Vec::new, |leg| vec![leg]),
     }
 }
 

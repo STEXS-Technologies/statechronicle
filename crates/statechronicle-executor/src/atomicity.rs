@@ -164,7 +164,7 @@ pub fn validate_settle_batch(
         }
     }
 
-    // Group ALL events by intent id.
+    // Group ALL events by intent id (for the undeclared-group check below).
     let mut all_groups: BTreeMap<IntentId, Vec<&Event>> = BTreeMap::new();
     for event in events {
         all_groups
@@ -173,25 +173,12 @@ pub fn validate_settle_batch(
             .push(event);
     }
 
-    // Recover the value pairs: `balance.transfer` groups of exactly two events
-    // (the atomic debit + credit pair sharing one value-leg intent id).
-    let mut value_pairs: Vec<(IntentId, Amount)> = Vec::new();
-    for (intent_id, group) in &all_groups {
-        if group
-            .first()
-            .is_some_and(|event| &event.operation == balance_op::balance_transfer())
-        {
-            if group.len() != 2 {
-                return Err(ExecutorError::AtomicityViolation(format!(
-                    "balance.transfer intent `{}` in settle batch is not an atomic debit + credit pair",
-                    intent_id.as_str()
-                )));
-            }
-            let debit = value_pair_debit(group)?;
-            value_pairs.push((intent_id.clone(), debit));
-        }
-    }
-    let value_pair_ids: BTreeSet<&IntentId> = value_pairs.iter().map(|(id, _)| id).collect();
+    // Recover the value pairs via the shared shape helper (also used by the
+    // cross-tenant validator so the two cannot drift).
+    let all_event_refs: Vec<&Event> = events.iter().collect();
+    let value_pairs = recover_value_pairs(&all_event_refs)?;
+    let value_pair_ids: BTreeSet<&IntentId> =
+        value_pairs.iter().map(|pair| &pair.intent_id).collect();
 
     // (c) No undeclared multi-event intent groups: every intent id spanning more
     // than one event must be a declared value-leg pair. A stack.transfer pair,
@@ -211,36 +198,45 @@ pub fn validate_settle_batch(
         .iter()
         .map(|intent| &intent.intent_id)
         .collect();
-    for (intent_id, _) in &value_pairs {
-        if settle_ids.contains(intent_id) {
+    for pair in &value_pairs {
+        if settle_ids.contains(&pair.intent_id) {
             return Err(ExecutorError::AtomicityViolation(format!(
                 "value leg intent id `{}` collides with a settle intent id",
-                intent_id.as_str()
+                pair.intent_id.as_str()
             )));
         }
     }
 
     // (b) Every value-declaring settle intent must be matched 1:1 by a
-    // net-zero value pair whose debit equals the declared value_amount.
-    let mut declared_amounts: Vec<Amount> = Vec::new();
+    // net-zero value pair whose full `(amount, resource, credited_subject)`
+    // tuple equals the declared value leg's, order-independently (multiset
+    // match, mirroring [`validate_cross_tenant_trade`]).
+    let mut declared_values: Vec<(Amount, String, Option<String>)> = Vec::new();
     for intent in settle_intents {
         if declares_value_leg(intent) {
-            declared_amounts.push(declared_value_amount(intent)?);
+            declared_values.push(declared_value_leg_tuple(intent)?);
         }
     }
-    if value_pairs.len() != declared_amounts.len() {
+    if value_pairs.len() != declared_values.len() {
         return Err(ExecutorError::AtomicityViolation(format!(
             "settle batch declares {} value-leg settle(s) but has {} balance.transfer pair(s)",
-            declared_amounts.len(),
+            declared_values.len(),
             value_pairs.len()
         )));
     }
-    let mut pair_debits: Vec<Amount> = value_pairs.into_iter().map(|(_, debit)| debit).collect();
-    declared_amounts.sort();
-    pair_debits.sort();
-    if declared_amounts != pair_debits {
+    let mut actual_values: Vec<(Amount, String, Option<String>)> = Vec::new();
+    for pair in &value_pairs {
+        let subject = pair
+            .credited_subject
+            .as_ref()
+            .map(|subject| subject.0.clone());
+        actual_values.push((pair.debit, pair.resource.0.clone(), subject));
+    }
+    declared_values.sort();
+    actual_values.sort();
+    if declared_values != actual_values {
         return Err(ExecutorError::AtomicityViolation(String::from(
-            "settle batch value amount mismatch: declared value_amount(s) do not match the balance.transfer pair debit(s)",
+            "settle batch value-leg multiset mismatch: declared (amount, resource, recipient) value legs do not match the batch's balance.transfer pairs",
         )));
     }
 
@@ -392,14 +388,24 @@ fn check_bundle_shape(
 /// A value leg is declared when any of `value_resource`, `value_amount`, or
 /// `value_to_subject` is present (the profile requires all three together;
 /// `validate_settle_batch` fails closed on a partial declaration via
-/// [`declared_value_amount`]).
-fn declares_value_leg(intent: &Intent) -> bool {
+/// [`declared_value_leg_tuple`]).
+///
+/// The pipeline uses this to route value-leg settlements to
+/// [`crate::pipeline::Executor::execute_settle`], which is the only path that
+/// admits value legs.
+pub fn declares_value_leg(intent: &Intent) -> bool {
     intent.inputs.contains_key(keys::VALUE_RESOURCE)
         || intent.inputs.contains_key(keys::VALUE_AMOUNT)
         || intent.inputs.contains_key(keys::VALUE_TO_SUBJECT)
 }
 
-/// Parses the declared `value_amount` from a value-leg settle intent.
+/// Parses the declared value-leg tuple `(amount, resource, credited_subject)`
+/// from a value-leg settle intent.
+///
+/// The single-tenant [`validate_settle_batch`] and the cross-tenant
+/// [`validate_cross_tenant_trade`] both match value legs against the recovered
+/// `balance.transfer` pairs by this full tuple, so a settle may not move value
+/// of the wrong resource or to the wrong recipient even when the amount agrees.
 ///
 /// # Errors
 ///
@@ -407,13 +413,9 @@ fn declares_value_leg(intent: &Intent) -> bool {
 /// partial (missing `value_amount` / `value_resource` / `value_to_subject`),
 /// and [`ExecutorError::TransferMismatch`] when `value_amount` is not a
 /// canonical non-negative integer string.
-fn declared_value_amount(intent: &Intent) -> Result<Amount, ExecutorError> {
-    let amount = intent.inputs.get(keys::VALUE_AMOUNT).ok_or_else(|| {
-        ExecutorError::AtomicityViolation(format!(
-            "settle intent `{}` declares a value leg but is missing `value_amount`",
-            intent.intent_id.as_str()
-        ))
-    })?;
+fn declared_value_leg_tuple(
+    intent: &Intent,
+) -> Result<(Amount, String, Option<String>), ExecutorError> {
     let resource = intent.inputs.get(keys::VALUE_RESOURCE).ok_or_else(|| {
         ExecutorError::AtomicityViolation(format!(
             "settle intent `{}` declares a value leg but is missing `value_resource`",
@@ -444,7 +446,13 @@ fn declared_value_amount(intent: &Intent) -> Result<Amount, ExecutorError> {
             intent.intent_id.as_str()
         )));
     }
-    Amount::try_from_str(amount.as_str().ok_or_else(|| {
+    let amount_text = intent.inputs.get(keys::VALUE_AMOUNT).ok_or_else(|| {
+        ExecutorError::AtomicityViolation(format!(
+            "settle intent `{}` declares a value leg but is missing `value_amount`",
+            intent.intent_id.as_str()
+        ))
+    })?;
+    let amount = Amount::try_from_str(amount_text.as_str().ok_or_else(|| {
         ExecutorError::AtomicityViolation(format!(
             "settle intent `{}` has a non-string `value_amount`",
             intent.intent_id.as_str()
@@ -455,7 +463,12 @@ fn declared_value_amount(intent: &Intent) -> Result<Amount, ExecutorError> {
             "settle intent `{}` declares a malformed `value_amount`",
             intent.intent_id.as_str()
         ))
-    })
+    })?;
+    Ok((
+        amount,
+        String::from(resource_text),
+        Some(String::from(to_subject_text)),
+    ))
 }
 
 /// Computes the net debit of a `balance.transfer` value pair.
@@ -485,6 +498,94 @@ fn value_pair_debit(group: &[&Event]) -> Result<Amount, ExecutorError> {
     Ok(debit)
 }
 
+/// A net-zero `balance.transfer` value pair recovered from an event batch (the
+/// atomic debit + credit events sharing one value-leg intent id).
+///
+/// This is an internal shape type shared by the single-tenant
+/// [`validate_settle_batch`] and the cross-tenant
+/// [`validate_cross_tenant_trade`] so both recover value pairs identically and
+/// cannot drift.
+#[derive(Debug, Clone)]
+struct RecoveredValuePair {
+    /// The value-leg intent id shared by the debit and credit events.
+    intent_id: IntentId,
+    /// The net debit (equals the credited value amount; net-zero is guaranteed
+    /// by [`validate_transfer_pair`]).
+    debit: Amount,
+    /// The resource moved by the pair.
+    resource: ResourceId,
+    /// The credited recipient's subject, when the credit event names one.
+    credited_subject: Option<SubjectId>,
+}
+
+/// Recovers the net-zero `balance.transfer` value pairs from an event batch.
+///
+/// Groups every event by intent id and collects the `balance.transfer` groups
+/// that are exactly two events (the atomic debit + credit pair). Any
+/// `balance.transfer` group that is not exactly two events fails closed. Both
+/// the single-tenant [`validate_settle_batch`] and the cross-tenant
+/// [`validate_cross_tenant_trade`] use this helper so their value-leg shape
+/// logic stays identical.
+///
+/// # Errors
+///
+/// Returns [`ExecutorError::AtomicityViolation`] when a `balance.transfer`
+/// intent does not form an exactly-two-event pair, and
+/// [`ExecutorError::TransferMismatch`] when a pair's debit is malformed or
+/// overflows.
+fn recover_value_pairs(events: &[&Event]) -> Result<Vec<RecoveredValuePair>, ExecutorError> {
+    let mut all_groups: BTreeMap<IntentId, Vec<&Event>> = BTreeMap::new();
+    for event in events {
+        all_groups
+            .entry(event.intent_id.clone())
+            .or_default()
+            .push(*event);
+    }
+    let mut pairs = Vec::new();
+    for (intent_id, group) in &all_groups {
+        if group
+            .first()
+            .is_some_and(|event| &event.operation == balance_op::balance_transfer())
+        {
+            if group.len() != 2 {
+                return Err(ExecutorError::AtomicityViolation(format!(
+                    "balance.transfer intent `{}` in batch is not an atomic debit + credit pair",
+                    intent_id.as_str()
+                )));
+            }
+            let debit = value_pair_debit(group)?;
+            let resource = group
+                .first()
+                .map(|event| event.resource_id.clone())
+                .ok_or_else(|| {
+                    ExecutorError::AtomicityViolation(String::from(
+                        "empty balance.transfer value pair",
+                    ))
+                })?;
+            let mut credited_subject: Option<SubjectId> = None;
+            for event in group {
+                let before = commitment_amount(&event.before, keys::BALANCE)?;
+                let after = commitment_amount(&event.after, keys::BALANCE)?;
+                if after > before {
+                    credited_subject = event
+                        .after
+                        .state
+                        .get(keys::SUBJECT)
+                        .and_then(Value::as_str)
+                        .map(|subject| SubjectId(String::from(subject)));
+                }
+            }
+            pairs.push(RecoveredValuePair {
+                intent_id: intent_id.clone(),
+                debit,
+                resource,
+                credited_subject,
+            });
+        }
+    }
+    Ok(pairs)
+}
+
 /// A tenant-scoped group of events produced by one leg of a cross-tenant
 /// transaction (protocol §8.2, §18.3).
 ///
@@ -499,15 +600,15 @@ pub struct TenantEventGroup {
 }
 
 /// The declared linkage manifest for a cross-tenant trade settlement
-/// (Phase 3).
+/// (Phase 3, generalized for N-tenant settlement in Phase 1 of this work).
 ///
 /// A cross-tenant trade spans two or more tenants with a distinct intent id per
 /// leg, so no single intent id spans two tenant groups and the inferred-linkage
 /// rule ([`validate_cross_tenant_consistency`]) cannot admit it. Instead of
 /// inferring the linkage from a shared id, the caller DECLARES it here: the
-/// settle intent id (the linkage anchor) and, when the settle settles for
-/// fungible value, the value-leg resource, amount, and recipient. The manifest
-/// is the API input to
+/// settle legs (one `trade.settle` per asset, each with its own intent id) and,
+/// when the trade settles for fungible value, the value legs (resource, amount,
+/// and recipient). The manifest is the API input to
 /// [`Executor::execute_cross_tenant_trade`](crate::pipeline::Executor::execute_cross_tenant_trade)
 /// and is checked by [`validate_cross_tenant_trade`].
 ///
@@ -518,18 +619,25 @@ pub struct TenantEventGroup {
 pub struct TradeManifest {
     /// The trade identifier being settled.
     pub trade_id: String,
-    /// The declared `trade.settle` intent id (the linkage anchor).
+    /// The declared settle legs (N >= 1, distinct asset + distinct intent id).
+    pub settle_legs: Vec<SettleLeg>,
+    /// The declared fungible value legs (M >= 0), matched 1:1 to the batch's
+    /// net-zero `balance.transfer` pairs.
+    pub value_legs: Vec<ValueLeg>,
+}
+
+/// One declared settle leg of a cross-tenant trade settlement.
+///
+/// Names the asset settled by this leg and the `trade.settle` intent id that
+/// settles it. The batch must carry exactly one `trade.settle` event per
+/// declared `(asset, settle_intent_id)` pair, no more and no fewer. A one-entry
+/// [`TradeManifest::settle_legs`] is the single-asset settle case.
+#[derive(Debug, Clone)]
+pub struct SettleLeg {
+    /// The asset settled by this leg.
+    pub asset: ResourceId,
+    /// The `trade.settle` intent id that settles this leg.
     pub settle_intent_id: IntentId,
-    /// The declared value leg, when the settle settles for fungible value.
-    pub value_leg: Option<ValueLeg>,
-    /// The assets this manifest's side settles (Phase 4 bundles).
-    ///
-    /// An empty vector means a single-asset settle (the Phase 3 behavior):
-    /// exactly one `trade.settle` event for [`Self::settle_intent_id`]. A
-    /// non-empty vector declares a bundle settle: the batch must carry exactly
-    /// one `trade.settle` event per declared asset, each asset appearing
-    /// exactly once.
-    pub settle_assets: Vec<ResourceId>,
 }
 
 /// The declared fungible value leg of a cross-tenant trade settlement.
@@ -596,44 +704,53 @@ pub fn validate_cross_tenant_consistency(groups: &[TenantEventGroup]) -> Result<
 }
 
 /// Validates a cross-tenant trade settlement against its declared linkage
-/// manifest (protocol §18.3, Phase 3).
+/// manifest (protocol §18.3, Phase 3, generalized for N-tenant settlement).
 ///
 /// This is the declared-linkage variant for trades: unlike
 /// [`validate_cross_tenant_consistency`], it does not require one intent id to
 /// span two tenant groups (distinct leg ids are the norm for a trade). Instead
-/// it checks the batch against the [`TradeManifest`], which names the settle
-/// intent and, optionally, the value leg:
+/// it checks the batch against the [`TradeManifest`], which declares the settle
+/// legs (one `trade.settle` per asset, each with its own intent id) and the
+/// fungible value legs. The check is fully generalized for an arbitrary number
+/// of tenants and legs:
 ///
 /// * (a) each group is internally consistent via [`validate_batch_consistency`]
 ///   (untouched), and every event is scoped to its group's tenant (a partition
 ///   mismatch fails closed);
-/// * (b) the manifest's `settle_intent_id` produced the declared settle
-///   events: exactly one `trade.settle` event for a single-asset settle, or
-///   exactly one per declared bundle asset (Phase 4) with no duplicate, missing,
-///   or undeclared asset, and that intent id is one of the supplied
-///   `settle_intents`;
-/// * (c) when the manifest declares a value leg, exactly one net-zero
-///   `balance.transfer` pair (a distinct intent id) landed in a (possibly
-///   different) tenant group, its debit equals the manifest amount, and its
-///   resource and credited recipient match the manifest declaration;
-/// * (d) every intent id in the batch resolves to a declared leg: no
-///   undeclared multi-event intent groups, and the value pair does not reuse
-///   the settle intent id;
+/// * (b) the declared settle legs (N >= 1) are checked against the batch: every
+///   leg's `settle_intent_id` is one of the supplied `settle_intents`, assets
+///   are distinct, settle intent ids are distinct across legs, exactly one
+///   `trade.settle` event lands per `(leg.asset, leg.settle_intent_id)`, and the
+///   batch's settle-event set EQUALS the declared leg set (no missing, duplicate,
+///   or undeclared settle event). This subsumes the former single-asset and
+///   bundle branches;
+/// * (c) the value legs (M >= 0) are matched 1:1 against the batch's net-zero
+///   `balance.transfer` pairs: `|pairs| == |value_legs|`, and the multiset of
+///   `(amount, resource, credited_subject)` matches the declared legs exactly
+///   (order-independent and deterministic). Zero declared legs implies zero
+///   pairs;
+/// * (d) every intent id in the batch resolves to a declared settle-leg id or a
+///   value-pair id: no undeclared multi-event or single-event intent groups, and
+///   the value-pair ids are disjoint from the settle-leg ids;
 /// * (e) the batch spans at least two distinct tenant groups.
 ///
 /// This validator is strictly additive: it does NOT weaken
 /// [`validate_cross_tenant_consistency`] or [`validate_transfer_pair`]. The
 /// value pair is still validated by the existing per-tenant transfer-pair rule
-/// (reached through [`validate_batch_consistency`]).
+/// (reached through [`validate_batch_consistency`]), and the value-pair shape is
+/// recovered by the shared [`recover_value_pairs`] helper that the single-tenant
+/// [`validate_settle_batch`] also uses, so the two cannot drift.
 ///
 /// # Errors
 ///
 /// Returns [`ExecutorError::AtomicityViolation`] for any shape violation
-/// (fewer than two tenants, a partition mismatch, a wrong settle-event count,
-/// an undeclared multi-event group, a missing/mismatched value pair, a value
-/// pair reusing the settle intent id, or a settle intent id absent from
-/// `settle_intents`), and [`ExecutorError::TransferMismatch`] when a manifest
-/// value amount is not a canonical non-negative integer string.
+/// (fewer than two tenants, a partition mismatch, an empty settle-leg set, a
+/// duplicate asset or settle intent id, a settle intent absent from
+/// `settle_intents`, a settle-event set that does not equal the declared legs,
+/// a value-leg count or multiset mismatch, a value-pair id colliding with a
+/// settle-leg id, or an undeclared intent id), and
+/// [`ExecutorError::TransferMismatch`] when a manifest value amount is not a
+/// canonical non-negative integer string.
 pub fn validate_cross_tenant_trade(
     groups: &[TenantEventGroup],
     manifest: &TradeManifest,
@@ -662,196 +779,132 @@ pub fn validate_cross_tenant_trade(
         all_events.extend(group.events.iter());
     }
 
-    // The declared settle intent must actually be one of the settle intents
-    // executed in the batch (the declared linkage resolves to a real settle).
-    if !settle_intents
-        .iter()
-        .any(|intent| intent.intent_id == manifest.settle_intent_id)
-    {
-        return Err(ExecutorError::AtomicityViolation(format!(
-            "manifest settle intent `{}` is not among the batch's settle intents",
-            manifest.settle_intent_id.as_str()
+    // (b) Settle legs. The declared leg set must be non-empty with distinct
+    // assets and distinct settle intent ids, every settle intent id must be one
+    // of the executed settle intents, and the batch's `trade.settle` events must
+    // EQUAL the declared leg set: exactly one event per (asset, settle intent),
+    // no missing, duplicate, or undeclared settle event.
+    if manifest.settle_legs.is_empty() {
+        return Err(ExecutorError::AtomicityViolation(String::from(
+            "cross-tenant trade manifest declares no settle legs (at least one required)",
+        )));
+    }
+    let mut seen_assets: BTreeSet<&str> = BTreeSet::new();
+    let mut seen_settle_ids: BTreeSet<&IntentId> = BTreeSet::new();
+    for leg in &manifest.settle_legs {
+        if !seen_assets.insert(leg.asset.0.as_str()) {
+            return Err(ExecutorError::AtomicityViolation(format!(
+                "duplicate settle asset `{}` across the declared settle legs",
+                leg.asset.0
+            )));
+        }
+        if !seen_settle_ids.insert(&leg.settle_intent_id) {
+            return Err(ExecutorError::AtomicityViolation(format!(
+                "duplicate settle intent id `{}` across the declared settle legs",
+                leg.settle_intent_id.as_str()
+            )));
+        }
+        if !settle_intents
+            .iter()
+            .any(|intent| intent.intent_id == leg.settle_intent_id)
+        {
+            return Err(ExecutorError::AtomicityViolation(format!(
+                "manifest settle intent `{}` is not among the batch's settle intents",
+                leg.settle_intent_id.as_str()
+            )));
+        }
+    }
+    let mut declared_settle: Vec<(String, String)> = Vec::new();
+    for leg in &manifest.settle_legs {
+        declared_settle.push((leg.asset.0.clone(), leg.settle_intent_id.0.clone()));
+    }
+    declared_settle.sort();
+    let mut actual_settle: Vec<(String, String)> = Vec::new();
+    for event in &all_events {
+        if &event.operation == asset_op::trade_settle() {
+            actual_settle.push((event.resource_id.0.clone(), event.intent_id.0.clone()));
+        }
+    }
+    actual_settle.sort();
+    if actual_settle != declared_settle {
+        return Err(ExecutorError::AtomicityViolation(String::from(
+            "cross-tenant trade settle events do not match the declared settle legs exactly (a declared leg is missing, duplicated, or an undeclared settle event is present)",
         )));
     }
 
-    // (b) The manifest settle intent must have produced the expected settle
-    // events: exactly one for a single-asset settle, or exactly one per
-    // declared bundle asset (Phase 4) with no duplicate, missing, or
-    // undeclared asset.
-    let settle_events: Vec<&Event> = all_events
+    // Recover the value pairs via the shared shape helper (also used by the
+    // single-tenant validator so the two cannot drift).
+    let value_pairs = recover_value_pairs(&all_events)?;
+
+    // (c) Value legs. The number of balance.transfer pairs must equal the number
+    // of declared value legs, and the multiset of (amount, resource, credited
+    // recipient) must match the declared legs exactly, order-independently and
+    // deterministically. Zero declared legs implies zero pairs.
+    if value_pairs.len() != manifest.value_legs.len() {
+        return Err(ExecutorError::AtomicityViolation(format!(
+            "cross-tenant trade declares {} value leg(s) but the batch has {} balance.transfer pair(s)",
+            manifest.value_legs.len(),
+            value_pairs.len()
+        )));
+    }
+    let mut declared_values: Vec<(Amount, String, Option<String>)> = Vec::new();
+    for leg in &manifest.value_legs {
+        let amount = Amount::try_from_str(&leg.amount).map_err(|_source| {
+            ExecutorError::TransferMismatch(format!(
+                "manifest value leg declares a malformed amount `{}`",
+                leg.amount
+            ))
+        })?;
+        let subject = Some(leg.to_subject.0.clone());
+        declared_values.push((amount, leg.resource.0.clone(), subject));
+    }
+    declared_values.sort();
+    let mut actual_values: Vec<(Amount, String, Option<String>)> = Vec::new();
+    for pair in &value_pairs {
+        let subject = pair
+            .credited_subject
+            .as_ref()
+            .map(|subject| subject.0.clone());
+        actual_values.push((pair.debit, pair.resource.0.clone(), subject));
+    }
+    actual_values.sort();
+    if declared_values != actual_values {
+        return Err(ExecutorError::AtomicityViolation(String::from(
+            "cross-tenant trade value-leg multiset mismatch: declared (amount, resource, recipient) value legs do not match the batch's balance.transfer pairs",
+        )));
+    }
+
+    // (d) Every intent id in the batch must resolve to a declared settle-leg id
+    // or a value-pair id, the value-pair ids are disjoint from the settle-leg
+    // ids, and no undeclared multi-event groups are present (the settle ids each
+    // span exactly one event by (b); the value ids are the recovered pairs).
+    let settle_ids: BTreeSet<&IntentId> = manifest
+        .settle_legs
         .iter()
-        .filter(|event| {
-            event.operation == *asset_op::trade_settle()
-                && event.intent_id == manifest.settle_intent_id
-        })
-        .copied()
+        .map(|leg| &leg.settle_intent_id)
         .collect();
-    if manifest.settle_assets.is_empty() {
-        if settle_events.len() != 1 {
+    let value_ids: BTreeSet<&IntentId> = value_pairs.iter().map(|pair| &pair.intent_id).collect();
+    for pair_id in &value_ids {
+        if settle_ids.contains(pair_id) {
             return Err(ExecutorError::AtomicityViolation(format!(
-                "cross-tenant trade settle intent `{}` produced {} settle event(s), expected exactly one",
-                manifest.settle_intent_id.as_str(),
-                settle_events.len()
-            )));
-        }
-    } else {
-        let expected = manifest.settle_assets.len();
-        if settle_events.len() != expected {
-            return Err(ExecutorError::AtomicityViolation(format!(
-                "cross-tenant bundle settle intent `{}` produced {} settle event(s), expected {expected} for the declared bundle",
-                manifest.settle_intent_id.as_str(),
-                settle_events.len()
-            )));
-        }
-        let mut settled: BTreeSet<&str> = BTreeSet::new();
-        for event in &settle_events {
-            if !settled.insert(event.resource_id.0.as_str()) {
-                return Err(ExecutorError::AtomicityViolation(format!(
-                    "duplicate asset `{}` in cross-tenant bundle settle",
-                    event.resource_id.0
-                )));
-            }
-        }
-        let declared: BTreeSet<&str> = manifest
-            .settle_assets
-            .iter()
-            .map(|asset| asset.0.as_str())
-            .collect();
-        if settled != declared {
-            return Err(ExecutorError::AtomicityViolation(String::from(
-                "cross-tenant bundle settle assets do not match the manifest exactly (a declared asset is missing or an undeclared asset is present)",
+                "value leg intent id `{}` collides with a settle leg intent id",
+                pair_id.as_str()
             )));
         }
     }
-
-    // Group ALL events by intent id to reason about declared legs.
     let mut all_groups: BTreeMap<IntentId, Vec<&Event>> = BTreeMap::new();
     for event in &all_events {
         all_groups
             .entry(event.intent_id.clone())
             .or_default()
-            .push(event);
-    }
-
-    // Recover the value pairs: balance.transfer groups of exactly two events
-    // (the atomic debit + credit pair sharing one value-leg intent id).
-    let mut value_pairs: Vec<(IntentId, Amount)> = Vec::new();
-    for (intent_id, group) in &all_groups {
-        if group
-            .first()
-            .is_some_and(|event| &event.operation == balance_op::balance_transfer())
-        {
-            if group.len() != 2 {
-                return Err(ExecutorError::AtomicityViolation(format!(
-                    "balance.transfer intent `{}` in cross-tenant trade is not an atomic debit + credit pair",
-                    intent_id.as_str()
-                )));
-            }
-            let debit = value_pair_debit(group)?;
-            value_pairs.push((intent_id.clone(), debit));
-        }
-    }
-
-    // (d) No undeclared multi-event intent groups: every intent id spanning more
-    // than one event must be a declared value-leg pair. The settle intent is a
-    // single event (already enforced by (b)).
-    // (d) Every intent id in the batch must resolve to a declared leg: the
-    // manifest's settle intent id or, when the manifest declares a value leg,
-    // that value pair's intent id. This fails closed both on undeclared
-    // multi-event groups and on undeclared single-event intents, so a 3-tenant
-    // trade carrying a second asset leg is rejected: the manifest path supports
-    // exactly one settle leg plus one optional value leg.
-    let mut declared_ids: BTreeSet<&IntentId> = BTreeSet::new();
-    declared_ids.insert(&manifest.settle_intent_id);
-    if manifest.value_leg.is_some() {
-        for (intent_id, _) in &value_pairs {
-            declared_ids.insert(intent_id);
-        }
+            .push(*event);
     }
     for intent_id in all_groups.keys() {
-        if !declared_ids.contains(intent_id) {
+        if !settle_ids.contains(intent_id) && !value_ids.contains(intent_id) {
             return Err(ExecutorError::AtomicityViolation(format!(
-                "undeclared intent id `{}` in cross-tenant trade (only the manifest settle and value leg are declared)",
+                "undeclared intent id `{}` in cross-tenant trade (every intent must resolve to a declared settle leg or value leg)",
                 intent_id.as_str()
             )));
-        }
-    }
-
-    // The value pair(s) must not reuse the settle intent id.
-    for (intent_id, _) in &value_pairs {
-        if intent_id == &manifest.settle_intent_id {
-            return Err(ExecutorError::AtomicityViolation(format!(
-                "value leg intent id `{}` collides with the settle intent id",
-                intent_id.as_str()
-            )));
-        }
-    }
-
-    // (c) Value-leg validation against the manifest declaration.
-    match &manifest.value_leg {
-        Some(leg) => {
-            let expected = Amount::try_from_str(&leg.amount).map_err(|_source| {
-                ExecutorError::TransferMismatch(format!(
-                    "manifest value leg declares a malformed amount `{}`",
-                    leg.amount
-                ))
-            })?;
-            if value_pairs.len() != 1 {
-                return Err(ExecutorError::AtomicityViolation(format!(
-                    "manifest declares a value leg but the batch has {} balance.transfer pair(s)",
-                    value_pairs.len()
-                )));
-            }
-            let Some((pair_id, debit)) = value_pairs.first() else {
-                return Err(ExecutorError::AtomicityViolation(String::from(
-                    "missing value pair in cross-tenant trade",
-                )));
-            };
-            if debit != &expected {
-                return Err(ExecutorError::AtomicityViolation(format!(
-                    "cross-tenant trade value amount mismatch: manifest declares {expected} but the value pair debits {debit}"
-                )));
-            }
-            let pair_events = all_groups.get(pair_id).ok_or_else(|| {
-                ExecutorError::AtomicityViolation(String::from(
-                    "missing value-pair events in cross-tenant trade",
-                ))
-            })?;
-            // The pair must move the declared value-leg resource.
-            if pair_events
-                .first()
-                .map(|event| event.resource_id != leg.resource)
-                .unwrap_or(true)
-            {
-                return Err(ExecutorError::AtomicityViolation(format!(
-                    "cross-tenant trade value leg resource mismatch: manifest declares `{}`",
-                    leg.resource.0
-                )));
-            }
-            // The credited destination must be the declared recipient. The
-            // credit event is the pair leg whose balance increased.
-            let mut credited_subject: Option<&str> = None;
-            for event in pair_events {
-                let before = commitment_amount(&event.before, keys::BALANCE)?;
-                let after = commitment_amount(&event.after, keys::BALANCE)?;
-                if after > before {
-                    credited_subject = event.after.state.get(keys::SUBJECT).and_then(Value::as_str);
-                }
-            }
-            if credited_subject != Some(leg.to_subject.0.as_str()) {
-                return Err(ExecutorError::AtomicityViolation(format!(
-                    "cross-tenant trade value leg recipient mismatch: manifest declares `{}`",
-                    leg.to_subject.0
-                )));
-            }
-        }
-        None => {
-            // No value leg declared: the batch must carry no value pair.
-            if !value_pairs.is_empty() {
-                return Err(ExecutorError::AtomicityViolation(String::from(
-                    "cross-tenant trade declares no value leg but the batch carries a balance.transfer pair",
-                )));
-            }
         }
     }
 
@@ -1422,10 +1475,11 @@ mod tests {
     #[test]
     fn settle_batch_valid_asset_for_gold_passes() {
         // One settle intent declaring a value leg + one net-zero balance.transfer
-        // pair whose debit matches the declared value_amount.
+        // pair whose full (amount, resource, credited_subject) tuple matches the
+        // declared value leg.
         let intents = vec![settle_intent(
             "settle",
-            Some(("wallet:gold", "100", "alice")),
+            Some(("currency:gold", "100", "bob")),
         )];
         let events = vec![
             settle_event("s1", "settle"),
@@ -1433,6 +1487,70 @@ mod tests {
             balance_transfer("vdst", "value", "bob", "0", "100"),
         ];
         assert!(validate_settle_batch(&events, &intents).is_ok());
+    }
+
+    #[test]
+    fn settle_batch_value_resource_mismatch_fails() {
+        // The settle declares value in `wallet:gold` but the balance.transfer
+        // pair moves `currency:gold`: the amount agrees but the resource does
+        // not, so the multiset match fails closed.
+        let intents = vec![settle_intent("settle", Some(("wallet:gold", "100", "bob")))];
+        let events = vec![
+            settle_event("s1", "settle"),
+            balance_transfer("vsrc", "value", "alice", "200", "100"),
+            balance_transfer("vdst", "value", "bob", "0", "100"),
+        ];
+        assert!(matches!(
+            validate_settle_batch(&events, &intents),
+            Err(ExecutorError::AtomicityViolation(message))
+            if message.contains("value-leg multiset mismatch")
+        ));
+    }
+
+    #[test]
+    fn settle_batch_value_recipient_mismatch_fails() {
+        // The settle declares the value to credit `alice` but the pair credits
+        // `bob`: the amount and resource agree but the recipient does not, so
+        // the multiset match fails closed.
+        let intents = vec![settle_intent(
+            "settle",
+            Some(("currency:gold", "100", "alice")),
+        )];
+        let events = vec![
+            settle_event("s1", "settle"),
+            balance_transfer("vsrc", "value", "alice", "200", "100"),
+            balance_transfer("vdst", "value", "bob", "0", "100"),
+        ];
+        assert!(matches!(
+            validate_settle_batch(&events, &intents),
+            Err(ExecutorError::AtomicityViolation(message))
+            if message.contains("value-leg multiset mismatch")
+        ));
+    }
+
+    #[test]
+    fn settle_batch_two_leg_multiset_swap_fails() {
+        // Two settles each declare a value leg; the batch carries two pairs but
+        // with the recipients swapped relative to the declarations. The
+        // order-independent multiset of (amount, resource, recipient) differs,
+        // so the swap is rejected even though both amounts are present.
+        let intents = vec![
+            settle_intent("s1", Some(("currency:gold", "100", "carol"))),
+            settle_intent("s2", Some(("currency:gold", "300", "bob"))),
+        ];
+        let events = vec![
+            settle_event("e1", "s1"),
+            settle_event("e2", "s2"),
+            balance_transfer("vsrc1", "v1", "alice", "200", "100"),
+            balance_transfer("vdst1", "v1", "bob", "0", "100"),
+            balance_transfer("vsrc2", "v2", "alice", "400", "300"),
+            balance_transfer("vdst2", "v2", "carol", "0", "300"),
+        ];
+        assert!(matches!(
+            validate_settle_batch(&events, &intents),
+            Err(ExecutorError::AtomicityViolation(message))
+            if message.contains("value-leg multiset mismatch")
+        ));
     }
 
     #[test]
@@ -1474,7 +1592,7 @@ mod tests {
         assert!(matches!(
             validate_settle_batch(&events, &intents),
             Err(ExecutorError::AtomicityViolation(message))
-            if message.contains("value amount mismatch")
+            if message.contains("value-leg multiset mismatch")
         ));
     }
 
@@ -1533,27 +1651,35 @@ mod tests {
         ));
     }
 
-    /// Builds a value-declaring cross-tenant trade manifest over the settle
-    /// intent `int_settle`, optionally naming a value leg.
-    fn trade_manifest(value_leg: Option<ValueLeg>) -> TradeManifest {
-        TradeManifest {
-            trade_id: String::from("trade_001"),
-            settle_intent_id: IntentId::new(String::from("int_settle")).unwrap(),
-            value_leg,
-            settle_assets: Vec::new(),
+    /// Builds one declared settle leg over the asset `asset` and settle intent
+    /// id `int_{id}`.
+    fn settle_leg(asset: &str, id: &str) -> SettleLeg {
+        SettleLeg {
+            asset: ResourceId(String::from(asset)),
+            settle_intent_id: IntentId::new(format!("int_{id}")).unwrap(),
         }
     }
 
-    /// Builds a bundle-declaring manifest settling the given assets.
-    fn bundle_manifest(assets: &[&str]) -> TradeManifest {
+    /// Builds a single-settle-leg manifest over the asset `asset:sword_001` and
+    /// settle intent `int_settle`, optionally naming value legs.
+    fn trade_manifest(value_legs: Vec<ValueLeg>) -> TradeManifest {
         TradeManifest {
             trade_id: String::from("trade_001"),
-            settle_intent_id: IntentId::new(String::from("int_settle")).unwrap(),
-            value_leg: None,
-            settle_assets: assets
+            settle_legs: vec![settle_leg("asset:sword_001", "settle")],
+            value_legs,
+        }
+    }
+
+    /// Builds a multi-settle-leg manifest over the given (asset, settle-intent
+    /// id) legs with no value legs.
+    fn legs_manifest(legs: &[(&str, &str)]) -> TradeManifest {
+        TradeManifest {
+            trade_id: String::from("trade_001"),
+            settle_legs: legs
                 .iter()
-                .map(|name| ResourceId(String::from(*name)))
+                .map(|(asset, id)| settle_leg(asset, id))
                 .collect(),
+            value_legs: Vec::new(),
         }
     }
 
@@ -1575,15 +1701,170 @@ mod tests {
         ]
     }
 
-    #[test]
-    fn cross_tenant_trade_asset_for_gold_passes() {
-        let intents = vec![settle_intent("settle", None)];
-        let manifest = trade_manifest(Some(ValueLeg {
+    /// Builds a single-settle-event tenant group over the given tenant, event,
+    /// settle intent, and asset.
+    fn settle_group(
+        tenant_name: &str,
+        event_id: &str,
+        intent: &str,
+        asset: &str,
+    ) -> TenantEventGroup {
+        let mut event = settle_event_for(event_id, intent, asset);
+        event.tenant_id = tenant(tenant_name);
+        TenantEventGroup {
+            tenant: tenant(tenant_name),
+            events: vec![event],
+        }
+    }
+
+    /// The canonical gold value leg (debit 100, credited to bob over
+    /// `currency:gold`).
+    fn gold_value_leg() -> ValueLeg {
+        ValueLeg {
             resource: ResourceId(String::from("currency:gold")),
             amount: String::from("100"),
             to_subject: SubjectId(String::from("bob")),
-        }));
+        }
+    }
+
+    #[test]
+    fn cross_tenant_trade_asset_for_gold_passes() {
+        // Two tenants: a settle in alpha, a net-zero gold value pair in beta.
+        let intents = vec![settle_intent("settle", None)];
+        let manifest = trade_manifest(vec![gold_value_leg()]);
         assert!(validate_cross_tenant_trade(&asset_for_gold_groups(), &manifest, &intents).is_ok());
+    }
+
+    #[test]
+    fn two_tenant_pure_swap_passes() {
+        // Two tenants, two settle legs (one asset per tenant), no value legs.
+        let groups = vec![
+            settle_group("acme.game.alpha", "s1", "settle", "asset:sword_001"),
+            settle_group("acme.game.beta", "s2", "s2", "asset:shield_001"),
+        ];
+        let intents = vec![settle_intent("settle", None), settle_intent("s2", None)];
+        let manifest = legs_manifest(&[("asset:sword_001", "settle"), ("asset:shield_001", "s2")]);
+        assert!(validate_cross_tenant_trade(&groups, &manifest, &intents).is_ok());
+    }
+
+    #[test]
+    fn three_tenant_three_asset_passes() {
+        // One settle leg per tenant, three distinct assets and intent ids.
+        let groups = vec![
+            settle_group("acme.game.alpha", "s1", "settle", "asset:sword_001"),
+            settle_group("acme.game.beta", "s2", "s2", "asset:shield_001"),
+            settle_group("acme.game.gamma", "s3", "s3", "asset:helm_001"),
+        ];
+        let intents = vec![
+            settle_intent("settle", None),
+            settle_intent("s2", None),
+            settle_intent("s3", None),
+        ];
+        let manifest = legs_manifest(&[
+            ("asset:sword_001", "settle"),
+            ("asset:shield_001", "s2"),
+            ("asset:helm_001", "s3"),
+        ]);
+        assert!(validate_cross_tenant_trade(&groups, &manifest, &intents).is_ok());
+    }
+
+    #[test]
+    fn three_asset_two_tenant_passes() {
+        // Three settle legs across two tenants: two legs in one tenant.
+        let mut shield = settle_event_for("s2", "s2", "asset:shield_001");
+        shield.tenant_id = tenant("acme.game.alpha");
+        let groups = vec![
+            TenantEventGroup {
+                tenant: tenant("acme.game.alpha"),
+                events: vec![settle_event_for("s1", "settle", "asset:sword_001"), shield],
+            },
+            settle_group("acme.game.beta", "s3", "s3", "asset:helm_001"),
+        ];
+        let intents = vec![
+            settle_intent("settle", None),
+            settle_intent("s2", None),
+            settle_intent("s3", None),
+        ];
+        let manifest = legs_manifest(&[
+            ("asset:sword_001", "settle"),
+            ("asset:shield_001", "s2"),
+            ("asset:helm_001", "s3"),
+        ]);
+        assert!(validate_cross_tenant_trade(&groups, &manifest, &intents).is_ok());
+    }
+
+    #[test]
+    fn value_leg_co_located_with_settle_leg_passes() {
+        // The value pair is co-located with a settle leg in alpha; beta carries
+        // the second settle leg.
+        let groups = vec![
+            TenantEventGroup {
+                tenant: tenant("acme.game.alpha"),
+                events: vec![
+                    settle_event_for("s1", "settle", "asset:sword_001"),
+                    transfer_event("acme.game.alpha", "vsrc", "value", "alice", "200", "100"),
+                    transfer_event("acme.game.alpha", "vdst", "value", "bob", "0", "100"),
+                ],
+            },
+            settle_group("acme.game.beta", "s2", "s2", "asset:shield_001"),
+        ];
+        let intents = vec![settle_intent("settle", None), settle_intent("s2", None)];
+        let manifest = TradeManifest {
+            trade_id: String::from("trade_001"),
+            settle_legs: vec![
+                settle_leg("asset:sword_001", "settle"),
+                settle_leg("asset:shield_001", "s2"),
+            ],
+            value_legs: vec![gold_value_leg()],
+        };
+        assert!(validate_cross_tenant_trade(&groups, &manifest, &intents).is_ok());
+    }
+
+    #[test]
+    fn value_only_tenant_passes() {
+        // beta carries ONLY the value pair; alpha and gamma each carry a settle.
+        let groups = vec![
+            settle_group("acme.game.alpha", "s1", "settle", "asset:sword_001"),
+            TenantEventGroup {
+                tenant: tenant("acme.game.beta"),
+                events: vec![
+                    transfer_event("acme.game.beta", "vsrc", "value", "alice", "200", "100"),
+                    transfer_event("acme.game.beta", "vdst", "value", "bob", "0", "100"),
+                ],
+            },
+            settle_group("acme.game.gamma", "s2", "s2", "asset:shield_001"),
+        ];
+        let intents = vec![settle_intent("settle", None), settle_intent("s2", None)];
+        let manifest = TradeManifest {
+            trade_id: String::from("trade_001"),
+            settle_legs: vec![
+                settle_leg("asset:sword_001", "settle"),
+                settle_leg("asset:shield_001", "s2"),
+            ],
+            value_legs: vec![gold_value_leg()],
+        };
+        assert!(validate_cross_tenant_trade(&groups, &manifest, &intents).is_ok());
+    }
+
+    #[test]
+    fn cross_tenant_trade_extra_settle_leg_declared_passes() {
+        // The formerly-rejected extra settle leg is now DECLARED in the manifest,
+        // so the 3-tenant-style trade (two settle legs, no value leg) is accepted.
+        let mut other = settle_event_for("s2", "s2", "asset:shield_001");
+        other.tenant_id = tenant("acme.game.beta");
+        let groups = vec![
+            TenantEventGroup {
+                tenant: tenant("acme.game.alpha"),
+                events: vec![settle_event("s1", "settle")],
+            },
+            TenantEventGroup {
+                tenant: tenant("acme.game.beta"),
+                events: vec![other],
+            },
+        ];
+        let intents = vec![settle_intent("settle", None), settle_intent("s2", None)];
+        let manifest = legs_manifest(&[("asset:sword_001", "settle"), ("asset:shield_001", "s2")]);
+        assert!(validate_cross_tenant_trade(&groups, &manifest, &intents).is_ok());
     }
 
     #[test]
@@ -1593,7 +1874,7 @@ mod tests {
             events: vec![settle_event("s1", "settle")],
         }];
         let intents = vec![settle_intent("settle", None)];
-        let manifest = trade_manifest(None);
+        let manifest = trade_manifest(Vec::new());
         assert!(matches!(
             validate_cross_tenant_trade(&groups, &manifest, &intents),
             Err(ExecutorError::AtomicityViolation(message))
@@ -1615,11 +1896,7 @@ mod tests {
             },
         ];
         let intents = vec![settle_intent("settle", None)];
-        let manifest = trade_manifest(Some(ValueLeg {
-            resource: ResourceId(String::from("currency:gold")),
-            amount: String::from("100"),
-            to_subject: SubjectId(String::from("bob")),
-        }));
+        let manifest = trade_manifest(vec![gold_value_leg()]);
         assert!(matches!(
             validate_cross_tenant_trade(&groups, &manifest, &intents),
             Err(ExecutorError::AtomicityViolation(message))
@@ -1644,53 +1921,94 @@ mod tests {
             },
         ];
         let intents = vec![settle_intent("settle", None)];
-        let manifest = trade_manifest(Some(ValueLeg {
-            resource: ResourceId(String::from("currency:gold")),
-            amount: String::from("100"),
-            to_subject: SubjectId(String::from("bob")),
-        }));
+        let manifest = trade_manifest(vec![gold_value_leg()]);
         assert!(matches!(
             validate_cross_tenant_trade(&groups, &manifest, &intents),
             Err(ExecutorError::AtomicityViolation(message))
-            if message.contains("value amount mismatch")
+            if message.contains("value-leg multiset mismatch")
         ));
     }
 
     #[test]
     fn cross_tenant_trade_undeclared_value_pair_fails() {
-        // Manifest declares no value leg but the batch carries a value pair.
+        // Manifest declares no value legs but the batch carries a value pair.
         let intents = vec![settle_intent("settle", None)];
-        let manifest = trade_manifest(None);
+        let manifest = trade_manifest(Vec::new());
         assert!(matches!(
             validate_cross_tenant_trade(&asset_for_gold_groups(), &manifest, &intents),
             Err(ExecutorError::AtomicityViolation(message))
-            if message.contains("undeclared intent id")
+            if message.contains("balance.transfer pair")
         ));
     }
 
     #[test]
-    fn cross_tenant_trade_extra_settle_leg_rejected() {
-        // A second settle leg (a 3-tenant-style trade) is not declared by the
-        // manifest and fails closed: only one settle + one optional value leg
-        // are admitted on this path.
-        let mut other = settle_event("s2", "other");
-        other.tenant_id = tenant("acme.game.beta");
-        let groups = vec![
-            TenantEventGroup {
-                tenant: tenant("acme.game.alpha"),
-                events: vec![settle_event("s1", "settle")],
-            },
-            TenantEventGroup {
-                tenant: tenant("acme.game.beta"),
-                events: vec![other],
-            },
-        ];
+    fn cross_tenant_trade_zero_settle_legs_rejected() {
+        // A manifest with no settle legs fails closed (N >= 1 required).
         let intents = vec![settle_intent("settle", None)];
-        let manifest = trade_manifest(None);
+        let manifest = TradeManifest {
+            trade_id: String::from("trade_001"),
+            settle_legs: Vec::new(),
+            value_legs: Vec::new(),
+        };
+        assert!(matches!(
+            validate_cross_tenant_trade(&asset_for_gold_groups(), &manifest, &intents),
+            Err(ExecutorError::AtomicityViolation(message))
+            if message.contains("no settle legs")
+        ));
+    }
+
+    #[test]
+    fn cross_tenant_trade_duplicate_settle_asset_rejected() {
+        // Two settle legs settling the same asset.
+        let intents = vec![settle_intent("settle", None), settle_intent("s2", None)];
+        let manifest = TradeManifest {
+            trade_id: String::from("trade_001"),
+            settle_legs: vec![
+                settle_leg("asset:sword_001", "settle"),
+                settle_leg("asset:sword_001", "s2"),
+            ],
+            value_legs: Vec::new(),
+        };
+        assert!(matches!(
+            validate_cross_tenant_trade(&asset_for_gold_groups(), &manifest, &intents),
+            Err(ExecutorError::AtomicityViolation(message))
+            if message.contains("duplicate settle asset")
+        ));
+    }
+
+    #[test]
+    fn cross_tenant_trade_duplicate_settle_intent_rejected() {
+        // Two settle legs sharing one settle intent id.
+        let intents = vec![settle_intent("settle", None)];
+        let manifest = TradeManifest {
+            trade_id: String::from("trade_001"),
+            settle_legs: vec![
+                settle_leg("asset:sword_001", "settle"),
+                settle_leg("asset:shield_001", "settle"),
+            ],
+            value_legs: Vec::new(),
+        };
+        assert!(matches!(
+            validate_cross_tenant_trade(&asset_for_gold_groups(), &manifest, &intents),
+            Err(ExecutorError::AtomicityViolation(message))
+            if message.contains("duplicate settle intent id")
+        ));
+    }
+
+    #[test]
+    fn cross_tenant_trade_settle_intent_not_in_batch_fails() {
+        // The manifest declares settle intent `int_settle`, but the executed
+        // settle intents do not include it.
+        let groups = vec![
+            settle_group("acme.game.alpha", "s1", "settle", "asset:sword_001"),
+            settle_group("acme.game.beta", "s2", "s2", "asset:shield_001"),
+        ];
+        let intents = vec![settle_intent("s2", None)];
+        let manifest = legs_manifest(&[("asset:sword_001", "settle"), ("asset:shield_001", "s2")]);
         assert!(matches!(
             validate_cross_tenant_trade(&groups, &manifest, &intents),
             Err(ExecutorError::AtomicityViolation(message))
-            if message.contains("undeclared intent id")
+            if message.contains("not among the batch's settle intents")
         ));
     }
 
@@ -1817,18 +2135,18 @@ mod tests {
     #[test]
     fn bundle_settle_mismatched_value_leg_rejected() {
         // A one-asset bundle settle declares a value leg of 100, but the value
-        // pair debits only 50.
+        // pair debits only 50 (and moves currency:gold to bob).
         let mut settle = bundle_settle_intent("s1", "asset:sword_001", 1, "trade_001");
         settle.inputs.insert(
             String::from(keys::VALUE_RESOURCE),
-            serde_json::json!("wallet:gold"),
+            serde_json::json!("currency:gold"),
         );
         settle
             .inputs
             .insert(String::from(keys::VALUE_AMOUNT), serde_json::json!("100"));
         settle.inputs.insert(
             String::from(keys::VALUE_TO_SUBJECT),
-            serde_json::json!("alice"),
+            serde_json::json!("bob"),
         );
         let intents = vec![settle];
         let events = vec![
@@ -1839,24 +2157,25 @@ mod tests {
         assert!(matches!(
             validate_settle_batch(&events, &intents),
             Err(ExecutorError::AtomicityViolation(message))
-            if message.contains("value amount mismatch")
+            if message.contains("value-leg multiset mismatch")
         ));
     }
 
     #[test]
     fn bundle_settle_value_leg_matches_passes() {
-        // A bundle settle with one value leg matching the declared amount.
+        // A bundle settle with one value leg matching the declared (amount,
+        // resource, recipient) tuple.
         let mut settle = bundle_settle_intent("s1", "asset:sword_001", 1, "trade_001");
         settle.inputs.insert(
             String::from(keys::VALUE_RESOURCE),
-            serde_json::json!("wallet:gold"),
+            serde_json::json!("currency:gold"),
         );
         settle
             .inputs
             .insert(String::from(keys::VALUE_AMOUNT), serde_json::json!("100"));
         settle.inputs.insert(
             String::from(keys::VALUE_TO_SUBJECT),
-            serde_json::json!("alice"),
+            serde_json::json!("bob"),
         );
         let intents = vec![settle];
         let events = vec![
@@ -1875,12 +2194,13 @@ mod tests {
         assert!(validate_settle_batch(&events, &intents).is_ok());
     }
 
-    /// Builds two tenant groups, each carrying one `trade.settle` event for the
-    /// manifest settle intent (both share the settle intent id `int_settle`).
-    fn two_group_bundle_groups() -> Vec<TenantEventGroup> {
-        let mut shield = settle_event_for("s2", "settle", "asset:shield_001");
+    #[test]
+    fn cross_tenant_two_settle_legs_distinct_intents_passes() {
+        // 2 tenants, 2 settle legs (distinct assets, distinct intent ids), no
+        // value legs: the bundle subsumed by the generalized settle-leg model.
+        let mut shield = settle_event_for("s2", "s2", "asset:shield_001");
         shield.tenant_id = tenant("acme.game.beta");
-        vec![
+        let groups = vec![
             TenantEventGroup {
                 tenant: tenant("acme.game.alpha"),
                 events: vec![settle_event_for("s1", "settle", "asset:sword_001")],
@@ -1889,23 +2209,17 @@ mod tests {
                 tenant: tenant("acme.game.beta"),
                 events: vec![shield],
             },
-        ]
+        ];
+        let intents = vec![settle_intent("settle", None), settle_intent("s2", None)];
+        let manifest = legs_manifest(&[("asset:sword_001", "settle"), ("asset:shield_001", "s2")]);
+        assert!(validate_cross_tenant_trade(&groups, &manifest, &intents).is_ok());
     }
 
     #[test]
-    fn cross_tenant_bundle_two_assets_passes() {
-        let intents = vec![settle_intent("settle", None)];
-        let manifest = bundle_manifest(&["asset:sword_001", "asset:shield_001"]);
-        assert!(
-            validate_cross_tenant_trade(&two_group_bundle_groups(), &manifest, &intents).is_ok()
-        );
-    }
-
-    #[test]
-    fn cross_tenant_bundle_missing_asset_fails() {
+    fn cross_tenant_missing_settle_leg_fails() {
         // Manifest declares sword + shield, but the batch settles sword +
         // gauntlets: the declared shield is missing and gauntlets is undeclared.
-        let mut gauntlets = settle_event_for("s2", "settle", "asset:gauntlets_001");
+        let mut gauntlets = settle_event_for("s2", "s2", "asset:gauntlets_001");
         gauntlets.tenant_id = tenant("acme.game.beta");
         let groups = vec![
             TenantEventGroup {
@@ -1917,22 +2231,22 @@ mod tests {
                 events: vec![gauntlets],
             },
         ];
-        let intents = vec![settle_intent("settle", None)];
-        let manifest = bundle_manifest(&["asset:sword_001", "asset:shield_001"]);
+        let intents = vec![settle_intent("settle", None), settle_intent("s2", None)];
+        let manifest = legs_manifest(&[("asset:sword_001", "settle"), ("asset:shield_001", "s2")]);
         assert!(matches!(
             validate_cross_tenant_trade(&groups, &manifest, &intents),
             Err(ExecutorError::AtomicityViolation(message))
-            if message.contains("do not match the manifest")
+            if message.contains("do not match the declared settle legs exactly")
         ));
     }
 
     #[test]
-    fn cross_tenant_bundle_undeclared_asset_fails() {
+    fn cross_tenant_undeclared_settle_leg_fails() {
         // The batch carries a third settle asset (gauntlets) not declared by
-        // the two-asset manifest.
-        let mut shield = settle_event_for("s2", "settle", "asset:shield_001");
+        // the two-leg manifest.
+        let mut shield = settle_event_for("s2", "s2", "asset:shield_001");
         shield.tenant_id = tenant("acme.game.beta");
-        let mut gauntlets = settle_event_for("s3", "settle", "asset:gauntlets_001");
+        let mut gauntlets = settle_event_for("s3", "s3", "asset:gauntlets_001");
         gauntlets.tenant_id = tenant("acme.game.gamma");
         let groups = vec![
             TenantEventGroup {
@@ -1948,12 +2262,16 @@ mod tests {
                 events: vec![gauntlets],
             },
         ];
-        let intents = vec![settle_intent("settle", None)];
-        let manifest = bundle_manifest(&["asset:sword_001", "asset:shield_001"]);
+        let intents = vec![
+            settle_intent("settle", None),
+            settle_intent("s2", None),
+            settle_intent("s3", None),
+        ];
+        let manifest = legs_manifest(&[("asset:sword_001", "settle"), ("asset:shield_001", "s2")]);
         assert!(matches!(
             validate_cross_tenant_trade(&groups, &manifest, &intents),
             Err(ExecutorError::AtomicityViolation(message))
-            if message.contains("expected 2")
+            if message.contains("do not match the declared settle legs exactly")
         ));
     }
 }

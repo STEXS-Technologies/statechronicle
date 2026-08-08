@@ -10,16 +10,21 @@
 //! to the pure [`crate::verify`] functions; the service itself holds no
 //! verification logic.
 
+use std::collections::BTreeMap;
+
 use ed25519_dalek::VerifyingKey;
 use statechronicle_accumulator::key::StateKey;
+use statechronicle_domain::commit::Commit;
 use statechronicle_domain::ids::{CommitId, EventId, SnapshotId};
 use statechronicle_domain::proof::{
     NonMembershipProofBundle, ResourceStateProof, SparseMerkleProof,
 };
 use statechronicle_domain::resource::ResourceId;
+use statechronicle_domain::signed::Signed;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
+use statechronicle_domain::trade::TradeProof;
 
 use statechronicle_ports::commit_store::CommitStore;
 use statechronicle_ports::proof_index::ProofIndex;
@@ -28,6 +33,7 @@ use statechronicle_ports::state_index::StateIndex;
 
 use crate::bundle::{SnapshotProof, build_snapshot_proof, derive_state_key};
 use crate::error::ProofError;
+use crate::trade::verify_trade_proof;
 use crate::verify::{verify_bundle, verify_non_membership_bundle};
 
 /// Backend-agnostic store set used by [`ProofService`].
@@ -298,5 +304,44 @@ impl ProofService {
             return Err(ProofError::NotFound);
         };
         verify_bundle(proof, &signed, verifying_key, key)
+    }
+
+    /// Verifies a trade proof end-to-end.
+    ///
+    /// Loads each leg's signed settle commit through the [`CommitStore`] port
+    /// (one per tenant), resolves each tenant's verifying key through
+    /// `key_for_tenant`, and runs the pure [`verify_trade_proof`] pipeline.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProofError::Store`] when the commit store cannot be reached,
+    /// [`ProofError::NotFound`] when a leg's commit is not stored,
+    /// [`ProofError::KeyNotFound`] when `key_for_tenant` resolves no key for a
+    /// leg's tenant, and every [`ProofError`] variant of [`verify_trade_proof`].
+    pub async fn verify_trade(
+        &self,
+        proof: &TradeProof,
+        key_for_tenant: &dyn Fn(&TenantId) -> Option<VerifyingKey>,
+    ) -> Result<(), ProofError> {
+        let mut commits_by_tenant: BTreeMap<String, (Signed<Commit>, VerifyingKey)> =
+            BTreeMap::new();
+        for leg in &proof.legs {
+            if commits_by_tenant.contains_key(&leg.tenant.0) {
+                continue;
+            }
+            let Some(signed) = self
+                .ports
+                .commit_store
+                .commit_by_id(&leg.tenant, &leg.commit.commit_id)
+                .await
+                .map_err(|err| ProofError::Store(err.to_string()))?
+            else {
+                return Err(ProofError::NotFound);
+            };
+            let verifying_key = key_for_tenant(&leg.tenant)
+                .ok_or_else(|| ProofError::KeyNotFound(leg.tenant.0.clone()))?;
+            commits_by_tenant.insert(leg.tenant.0.clone(), (signed, verifying_key));
+        }
+        verify_trade_proof(proof, &commits_by_tenant)
     }
 }

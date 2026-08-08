@@ -1,6 +1,6 @@
 [package]
-name = "statechronicle"
-description = "StateChronicle protocol engine: pure-logic verifiable resource-state ledger (umbrella crate)."
+name = "statechronicle-index"
+description = "Trade read-side vertical slice: deterministic index, history, and proof serving for trades."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,20 +8,20 @@ license.workspace = true
 [dependencies]
 statechronicle-core = { workspace = true }
 statechronicle-domain = { workspace = true }
-statechronicle-intent = { workspace = true }
-statechronicle-executor = { workspace = true }
 statechronicle-commit = { workspace = true }
-statechronicle-accumulator = { workspace = true }
-statechronicle-proof = { workspace = true }
 statechronicle-profiles = { workspace = true }
+statechronicle-proof = { workspace = true }
 statechronicle-ports = { workspace = true }
-statechronicle-index = { workspace = true }
+ed25519-dalek = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }
+bcs = { workspace = true }
 chrono = { workspace = true }
-ed25519-dalek = { workspace = true }
-serde_json = { workspace = true }
+proptest = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
 
 [lints]

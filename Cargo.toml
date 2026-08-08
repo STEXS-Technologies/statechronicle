@@ -10,6 +10,7 @@ members = [
     "crates/statechronicle-proof",
     "crates/statechronicle-profiles",
     "crates/statechronicle-ports",
+    "crates/statechronicle-index",
     "crates/statechronicle",
     "fuzz",
 ]
@@ -52,6 +53,7 @@ statechronicle-accumulator = { path = "crates/statechronicle-accumulator" }
 statechronicle-proof = { path = "crates/statechronicle-proof" }
 statechronicle-profiles = { path = "crates/statechronicle-profiles" }
 statechronicle-ports = { path = "crates/statechronicle-ports" }
+statechronicle-index = { path = "crates/statechronicle-index" }
 statechronicle = { path = "crates/statechronicle" }
 
 [profile.release]

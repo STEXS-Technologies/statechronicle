@@ -47,5 +47,8 @@ pub mod ids;
 /// Profile status names (validated, registry-open).
 pub mod status;
 
+/// Trade read-side wire types (index records, history, summary, proofs).
+pub mod trade;
+
 /// Domain error type.
 pub mod error;

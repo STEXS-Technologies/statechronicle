@@ -2,7 +2,7 @@
 //! engine.
 //!
 //! This is the **umbrella crate**: the single dependency consumers add to use
-//! the whole protocol surface. It re-exports the nine underlying protocol
+//! the whole protocol surface. It re-exports the ten underlying protocol
 //! crates under collision-safe namespaces and surfaces the most-used types
 //! directly at the top level.
 //!
@@ -12,12 +12,13 @@
 //! use statechronicle::domain::signed::Signed;
 //! ```
 //!
-//! The [`ports`] module holds the ten trait boundaries consumers implement to
-//! wire their own storage, authority, and transport backends (intent store,
-//! event store, commit store, state index, proof index, snapshot store, tenant
-//! store, TrustGrant evaluator, transaction manager, event publisher). Those
-//! traits are wired into the engine at the consumer's composition root. This
-//! crate ships no storage, HTTP, or authority implementation.
+//! The [`ports`] module holds the eleven trait boundaries consumers implement
+//! to wire their own storage, authority, and transport backends (intent store,
+//! event store, commit store, state index, proof index, trade index, snapshot
+//! store, tenant store, TrustGrant evaluator, transaction manager, event
+//! publisher). Those traits are wired into the engine at the consumer's
+//! composition root. This crate ships no storage, HTTP, or authority
+//! implementation.
 
 #![deny(unsafe_code)]
 #![allow(clippy::must_use_candidate)]
@@ -34,9 +35,11 @@ pub use statechronicle_domain as domain;
 /// The §18.1 execution pipeline that runs validated intents through the port
 /// gates and emits events.
 pub use statechronicle_executor as executor;
+/// The trade read-side vertical slice (index, history, proof serving).
+pub use statechronicle_index as index;
 /// Intent parsing and validation into `ValidatedIntent`.
 pub use statechronicle_intent as intent;
-/// The ten backend-agnostic port traits consumers implement.
+/// The eleven backend-agnostic port traits consumers implement.
 pub use statechronicle_ports as ports;
 /// Baseline resource profiles and their rule sets.
 pub use statechronicle_profiles as profiles;
@@ -83,6 +86,39 @@ pub use statechronicle_domain::subject::SubjectId;
 /// Identifies an isolated tenant scope. See [`domain::tenant::TenantId`].
 pub use statechronicle_domain::tenant::TenantId;
 
+/// The trade proof schema identifier. See [`domain::trade::TRADE_PROOF_SCHEMA`].
+pub use statechronicle_domain::trade::TRADE_PROOF_SCHEMA;
+/// A full trade event in history. See [`domain::trade::TradeEvent`].
+pub use statechronicle_domain::trade::TradeEvent;
+/// A reference to a trade event. See [`domain::trade::TradeEventRef`].
+pub use statechronicle_domain::trade::TradeEventRef;
+/// The ordered trade history view. See [`domain::trade::TradeHistory`].
+pub use statechronicle_domain::trade::TradeHistory;
+/// A portable trade proof. See [`domain::trade::TradeProof`].
+pub use statechronicle_domain::trade::TradeProof;
+/// One per-tenant trade proof leg. See [`domain::trade::TradeProofLeg`].
+pub use statechronicle_domain::trade::TradeProofLeg;
+/// The accumulated trade read-side record. See [`domain::trade::TradeRecord`].
+pub use statechronicle_domain::trade::TradeRecord;
+/// One settled tenant leg of a trade. See [`domain::trade::TradeSide`].
+pub use statechronicle_domain::trade::TradeSide;
+/// Trade lifecycle status. See [`domain::trade::TradeStatus`].
+pub use statechronicle_domain::trade::TradeStatus;
+/// The deterministic trade summary. See [`domain::trade::TradeSummary`].
+pub use statechronicle_domain::trade::TradeSummary;
+/// One declared fungible value leg. See [`domain::trade::TradeValueLeg`].
+pub use statechronicle_domain::trade::TradeValueLeg;
+/// The pure trade index builder. See [`index::build`].
+pub use statechronicle_index::build;
+/// The pure trade index `apply` entry point. See [`index::build::IngestBatch`].
+pub use statechronicle_index::build::IngestBatch;
+/// The trade history reconstruction. See [`index::history`].
+pub use statechronicle_index::history;
+/// The trade read-side port set. See [`index::service::TradePorts`].
+pub use statechronicle_index::service::TradePorts;
+/// The async trade read-side service. See [`index::service::TradeService`].
+pub use statechronicle_index::service::TradeService;
+
 /// The execution engine. See [`executor::pipeline::Executor`].
 pub use statechronicle_executor::pipeline::Executor;
 /// The execution engine's fluent builder. See [`executor::pipeline::ExecutorBuilder`].
@@ -108,3 +144,7 @@ pub use statechronicle_profiles::registry::ProfileRules;
 pub use statechronicle_proof::service::ProofPorts;
 /// Async proof service. See [`proof::service::ProofService`].
 pub use statechronicle_proof::service::ProofService;
+/// Trade proof assembly. See [`proof::trade::build_trade_proof`].
+pub use statechronicle_proof::trade::build_trade_proof;
+/// Trade proof verification. See [`proof::trade::verify_trade_proof`].
+pub use statechronicle_proof::trade::verify_trade_proof;

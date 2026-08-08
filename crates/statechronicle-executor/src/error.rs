@@ -168,8 +168,26 @@ pub enum ExecutorError {
     TransferMismatch(String),
 
     /// A multi-resource batch could not commit atomically (protocol §18.3).
+    ///
+    /// The single `String` carries the underlying cause: at every rollback site
+    /// the failing inner error's full message is preserved here (via
+    /// `error.to_string()`), so a rollback surfaces the root cause rather than
+    /// a bare marker. This keeps the variant a single-field tuple so callers
+    /// can match `AtomicityViolation(..)` without destructuring.
     #[error("atomicity violation: {0}")]
     AtomicityViolation(String),
+
+    /// A value-declaring `trade.settle` intent was routed to a path that cannot
+    /// move value (protocol §18.3, Phase 2).
+    ///
+    /// A `trade.settle` that declares `value_resource` / `value_amount` /
+    /// `value_to_subject` must run through
+    /// [`crate::pipeline::Executor::execute_settle`], which validates the value
+    /// pairs via `validate_settle_batch`. [`crate::pipeline::Executor::execute`]
+    /// and [`crate::pipeline::Executor::execute_batch`] reject such intents so
+    /// an asset can never settle with unvalidated, un-moved value.
+    #[error("value-leg trade.settle intent `{intent_id}` must be settled via execute_settle")]
+    ValueLegSettleRouting { intent_id: String },
 
     /// A backing port failed.
     #[error("store error: {0}")]

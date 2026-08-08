@@ -48,6 +48,7 @@ use statechronicle_executor::atomicity;
 use statechronicle_executor::error::ExecutorError;
 use statechronicle_executor::pipeline::TrustGrantPort;
 use statechronicle_executor::transition;
+use statechronicle_ports::intent_store::IntentStore;
 use statechronicle_ports::state_index::StateIndex;
 use statechronicle_ports::trustgrant_evaluator::TrustGrantError;
 use statechronicle_profiles::error::ProfileError;
@@ -1110,4 +1111,139 @@ async fn aggregate_digest_independent_of_evaluator_order() {
     let forward = evaluate(vec![g1.clone(), g2.clone()]).await;
     let reverse = evaluate(vec![g2, g1]).await;
     assert_eq!(forward, reverse, "aggregate digest is order-independent");
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 / C2: value-leg settle routing and C3: batch partial-replay fail-closed.
+// ---------------------------------------------------------------------------
+
+/// Builds a `trade.settle` validated intent that declares a value leg.
+fn settle_with_value_leg(intent_id: &str) -> statechronicle_intent::validated::ValidatedIntent {
+    intent(
+        intent_id,
+        "trade.settle",
+        Some(StateType::UniqueAsset),
+        3,
+        "asset:sword_001",
+        "alice",
+        &[
+            ("from_owner", serde_json::json!("alice")),
+            ("to_owner", serde_json::json!("bob")),
+            ("trade_id", serde_json::json!("trade_001")),
+            ("value_resource", serde_json::json!("currency:gold")),
+            ("value_amount", serde_json::json!("100")),
+            ("value_to_subject", serde_json::json!("bob")),
+        ],
+        None,
+        None,
+    )
+}
+
+#[tokio::test]
+async fn execute_rejects_value_leg_settle_before_claiming() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let settle = settle_with_value_leg("settle_001");
+
+    let error = harness.executor.execute(&settle).await.unwrap_err();
+    assert!(matches!(
+        error,
+        ExecutorError::ValueLegSettleRouting { intent_id } if intent_id == "int_settle_001"
+    ));
+
+    // The intent was rejected before any claim was recorded: nothing is
+    // stored, so no state or intent escaped.
+    assert!(
+        harness
+            .intent_store
+            .get_intent(
+                &tenant(),
+                &statechronicle_domain::ids::IntentId::new(String::from("int_settle_001")).unwrap()
+            )
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        harness
+            .index
+            .get_state(&tenant(), &ResourceId(String::from("asset:sword_001")))
+            .await
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn execute_batch_rejects_value_leg_settle_with_rollback() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let settle = settle_with_value_leg("settle_001");
+
+    let error = harness.executor.execute_batch(&[settle]).await.unwrap_err();
+    assert!(matches!(error, ExecutorError::AtomicityViolation(_)));
+
+    // Nothing escaped: no event returned, no intent claimed, no state written,
+    // and the transaction log shows begin...rollback (the failure is not a
+    // silent pass-through).
+    assert_eq!(
+        harness.transactions.log(),
+        vec!["begin:acme.game.alpha", "rollback"]
+    );
+    assert!(
+        harness
+            .index
+            .get_state(&tenant(), &ResourceId(String::from("asset:sword_001")))
+            .await
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn execute_batch_fails_closed_on_partial_replay() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+
+    // Seed an accepted (claimed) intent A and its applied state.
+    let minted = harness
+        .executor
+        .execute(&mint("mint_001", "asset:sword_001", "alice"))
+        .await
+        .unwrap();
+    harness.index.apply(&minted[0], StateType::UniqueAsset);
+
+    // Retry batch [A, B]: A replays idempotently (empty output), B is fresh.
+    // A mixed replay + execute batch must fail closed so no partial batch with
+    // A's transition silently lost can escape.
+    let intents = vec![
+        mint("mint_001", "asset:sword_001", "alice"),
+        mint("mint_002", "asset:shield_002", "bob"),
+    ];
+    let error = harness.executor.execute_batch(&intents).await.unwrap_err();
+    assert!(matches!(error, ExecutorError::AtomicityViolation(_)));
+
+    assert_eq!(
+        harness.transactions.log(),
+        vec!["begin:acme.game.alpha", "rollback"]
+    );
+
+    // Nothing escaped: the fresh mint_002 did not commit, so its resource has
+    // no state and its intent is not claimed.
+    assert!(
+        harness
+            .index
+            .get_state(&tenant(), &ResourceId(String::from("asset:shield_002")))
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        harness
+            .intent_store
+            .get_intent(
+                &tenant(),
+                &statechronicle_domain::ids::IntentId::new(String::from("int_mint_002")).unwrap()
+            )
+            .await
+            .unwrap()
+            .is_none()
+    );
 }

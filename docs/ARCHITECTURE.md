@@ -108,9 +108,11 @@ statechronicle/
     ├── statechronicle-profiles/     # baseline profile registry: unique_asset,
     │                                #   paid_unique_asset, consumable_stack, fungible_balance,
     │                                #   entitlement, meter, listing/escrow (protocol §20)
+    ├── statechronicle-index/        # ★ trade read-side vertical slice: deterministic index
+    │                                #   builder, history reconstruction, proof serving
     ├── statechronicle-ports/        # ★ backend-agnostic port traits ONLY (no impls):
     │                                #   IntentStore, EventStore, CommitStore, StateIndex,
-    │                                #   ProofIndex, SnapshotStore, TenantStore,
+    │                                #   ProofIndex, TradeIndex, SnapshotStore, TenantStore,
     │                                #   TrustGrantEvaluator,
     │                                #   TransactionManager, EventPublisher
     └── statechronicle/              # ★ umbrella crate: namespaced re-exports + facade
@@ -129,7 +131,7 @@ There is no `statechronicle-http`, `statechronicle-shared`, `statechronicle-shar
 These crates contain **no transport, no persistence, no framework**:
 
 - `statechronicle-core`, `-domain`, `-intent`, `-executor`, `-commit`,
-  `-accumulator`, `-proof`, `-profiles`
+  `-accumulator`, `-proof`, `-profiles`, `-index`
 
 They implement the protocol deterministically. They consume ports from
 `statechronicle-ports` only as traits passed into functions (trustgrant pattern: the core
@@ -144,7 +146,7 @@ composition root. This is what keeps core free of persistence/transport.
 
 ### 5.3 The umbrella crate (`statechronicle`)
 
-A thin facade that re-exports the nine protocol crates under collision-safe namespaces and
+A thin facade that re-exports the protocol crates under collision-safe namespaces and
 surfaces the most-used types directly. Consumers depend on this single crate and wire
 their own port adapters at their composition root.
 
@@ -215,6 +217,7 @@ the consumer at its composition root:
 | Commit store | `CommitStore` | Signed batch commits |
 | State index | `StateIndex` | Current state projection |
 | Proof index | `ProofIndex` | Efficient proof generation |
+| Trade index | `TradeIndex` | Trade read-side records, keyed by `trade_id` (Phase 2) |
 | Snapshot store | `SnapshotStore` | Optional compact checkpoints |
 | Tenant scope | `TenantStore` | Tenant roots, isolation modes |
 | Authority | `TrustGrantEvaluator` | Delegated-authority evaluation (consumer-owned adapter) |

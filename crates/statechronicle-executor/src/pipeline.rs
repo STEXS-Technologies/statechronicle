@@ -335,10 +335,43 @@ impl Executor {
     /// Returns every [`ExecutorError`] variant in fail-closed order above. No
     /// event is emitted when any check fails.
     pub async fn execute(&self, validated: &ValidatedIntent) -> Result<Vec<Event>, ExecutorError> {
+        self.execute_inner(validated, false).await
+    }
+
+    /// The shared execution core, parameterized over whether value-leg
+    /// `trade.settle` intents are admitted.
+    ///
+    /// `allow_value_legs == false` for the single-tenant [`Self::execute`] and
+    /// [`Self::execute_batch`]: a `trade.settle` that declares a value leg must
+    /// be settled via [`Self::execute_settle`]. `allow_value_legs == true` for
+    /// the cross-tenant legs (through [`Self::run_batch`]), where value legs
+    /// are declared in the trade manifest and validated by the cross-tenant
+    /// validator, not the settle intent.
+    async fn execute_inner(
+        &self,
+        validated: &ValidatedIntent,
+        allow_value_legs: bool,
+    ) -> Result<Vec<Event>, ExecutorError> {
         let intent = &validated.intent;
         let tenant = &intent.tenant_id;
         let resource = &intent.resource_id;
         let operation = &intent.operation;
+
+        // Phase 2 routing gate: a `trade.settle` that declares a value leg
+        // (value_resource / value_amount / value_to_subject) must be settled via
+        // [`Self::execute_settle`], which validates the value pairs. This path
+        // cannot move value, so a value-leg settle is rejected up front — before
+        // any claim is recorded — rather than silently settling the asset with
+        // no value moved and no error. The cross-tenant path admits value-leg
+        // settles because their value legs are declared in the manifest.
+        if !allow_value_legs
+            && operation == asset_op::trade_settle()
+            && atomicity::declares_value_leg(intent)
+        {
+            return Err(ExecutorError::ValueLegSettleRouting {
+                intent_id: intent.intent_id.0.clone(),
+            });
+        }
 
         // §18.1 steps 1–2: schema/size are enforced upstream by the intent
         // crate; re-check the canonical size here as a defense-in-depth gate.
@@ -699,7 +732,7 @@ impl Executor {
         // Both a leg failure and an inconsistent-batch validation failure are
         // rolled back atomically (a failed validation must not short-circuit
         // past the rollback via `?`).
-        let result = match self.run_batch(intents).await {
+        let result = match self.run_batch_fail_closed(intents).await {
             Ok(events) => atomicity::validate_batch_consistency(&events).map(|()| events),
             Err(error) => Err(error),
         };
@@ -965,10 +998,48 @@ impl Executor {
     }
 
     /// Executes every intent in order, short-circuiting on the first failure.
+    ///
+    /// Used by the cross-tenant legs, where value-leg `trade.settle` intents
+    /// are admitted (their value legs are declared in the trade manifest and
+    /// validated by the cross-tenant validator).
     async fn run_batch(&self, intents: &[ValidatedIntent]) -> Result<Vec<Event>, ExecutorError> {
         let mut events = Vec::new();
         for validated in intents {
-            events.extend(self.execute(validated).await?);
+            events.extend(self.execute_inner(validated, true).await?);
+        }
+        Ok(events)
+    }
+
+    /// Executes a single-tenant batch and fails closed on partial replay.
+    ///
+    /// Mirrors the cross-tenant fail-closed behavior for the batch entry point.
+    /// Because the transaction wrapper is symbolic, a mid-batch failure leaves
+    /// earlier intents claimed in the intent store; a retry would otherwise
+    /// replay those as idempotent (empty output) alongside fresh intents and
+    /// return a partial batch with the earlier transition silently lost. Here an
+    /// intent whose execution emits no events is treated as an idempotent replay
+    /// and rejects the whole batch, so no partial batch can silently escape.
+    /// Value-leg `trade.settle` intents are rejected (single-tenant batch).
+    ///
+    /// # Errors
+    ///
+    /// Returns the first intent failure, or
+    /// [`ExecutorError::AtomicityViolation`] when any intent in the batch
+    /// replayed idempotently (emitted no events) rather than executing fresh.
+    async fn run_batch_fail_closed(
+        &self,
+        intents: &[ValidatedIntent],
+    ) -> Result<Vec<Event>, ExecutorError> {
+        let mut events = Vec::new();
+        for validated in intents {
+            let produced = self.execute_inner(validated, false).await?;
+            if produced.is_empty() {
+                return Err(ExecutorError::AtomicityViolation(format!(
+                    "partial replay detected in batch: intent `{}` was already claimed and replayed idempotently; the batch fails closed so no partial results escape",
+                    validated.intent.intent_id.as_str()
+                )));
+            }
+            events.extend(produced);
         }
         Ok(events)
     }

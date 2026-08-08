@@ -40,6 +40,9 @@ path = "../crates/statechronicle-commit"
 [dependencies.statechronicle-executor]
 path = "../crates/statechronicle-executor"
 
+[dependencies.statechronicle-index]
+path = "../crates/statechronicle-index"
+
 [[bin]]
 name = "fuzz_digest"
 path = "fuzz_targets/fuzz_digest.rs"
@@ -139,5 +142,17 @@ doc = false
 [[bin]]
 name = "fuzz_non_membership"
 path = "fuzz_targets/fuzz_non_membership.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_trade_index_build"
+path = "fuzz_targets/fuzz_trade_index_build.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_trade_proof_verify"
+path = "fuzz_targets/fuzz_trade_proof_verify.rs"
 test = false
 doc = false

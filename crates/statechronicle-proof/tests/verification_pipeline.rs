@@ -51,6 +51,9 @@ use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
+use statechronicle_domain::trade::{
+    TRADE_PROOF_SCHEMA, TradeProof, TradeProofLeg, TradeStatus, TradeSummary,
+};
 
 use statechronicle_ports::commit_store::{CommitStore, CommitStoreError};
 use statechronicle_ports::proof_index::{ProofIndex, ProofIndexError};
@@ -625,6 +628,82 @@ async fn service_verifies_only_when_commit_is_stored() {
     assert!(matches!(
         service.verify(&proof, &fixed_key().verifying_key()).await,
         Err(ProofError::NotFound)
+    ));
+}
+
+#[tokio::test]
+async fn service_verify_trade_loads_leg_commits_and_resolves_keys() {
+    let fixture = fixture();
+    let state_proof = build_proof(&fixture);
+
+    // A single-leg trade proof over tenant alpha, pinning the fixture's commit.
+    let trade_proof = TradeProof {
+        schema: String::from(TRADE_PROOF_SCHEMA),
+        trade_id: String::from("trade_001"),
+        summary: TradeSummary {
+            trade_id: String::from("trade_001"),
+            status: TradeStatus::Settled,
+            sides: Vec::new(),
+            value_legs: Vec::new(),
+        },
+        legs: vec![TradeProofLeg {
+            tenant: tenant(),
+            commit: state_proof.commit.clone(),
+            state_proofs: vec![state_proof],
+        }],
+    };
+
+    // Fail closed when a leg's settle commit is not stored: the service must
+    // surface NotFound rather than proceeding with an unverifiable leg.
+    let empty_store = ProofService::new(ProofPorts {
+        proof_index: Box::new(FakeProofIndex::default()),
+        state_index: Box::new(FakeStateIndex::default()),
+        commit_store: Box::new(FakeCommitStore::default()),
+        snapshot_store: Box::new(FakeSnapshotStore::default()),
+    });
+    assert!(matches!(
+        empty_store
+            .verify_trade(&trade_proof, &|_tenant: &TenantId| None)
+            .await,
+        Err(ProofError::NotFound)
+    ));
+
+    // Fail closed when the leg's commit is stored but no verifying key resolves
+    // for its tenant: KeyNotFound, before any cryptographic work.
+    let commit_store = FakeCommitStore::default();
+    commit_store
+        .put_commit(&tenant(), &fixture.signed)
+        .await
+        .unwrap();
+    let store_with_commit = ProofService::new(ProofPorts {
+        proof_index: Box::new(FakeProofIndex::default()),
+        state_index: Box::new(FakeStateIndex::default()),
+        commit_store: Box::new(commit_store.clone()),
+        snapshot_store: Box::new(FakeSnapshotStore::default()),
+    });
+    assert!(matches!(
+        store_with_commit
+            .verify_trade(&trade_proof, &|_tenant: &TenantId| None)
+            .await,
+        Err(ProofError::KeyNotFound(_))
+    ));
+
+    // With a resolving key the service proceeds into the pure verifier; the
+    // summary's empty side set makes it fail closed on the trade shape check
+    // (TradeMissingSide) rather than passing, proving the delegation path runs.
+    let store_with_key = ProofService::new(ProofPorts {
+        proof_index: Box::new(FakeProofIndex::default()),
+        state_index: Box::new(FakeStateIndex::default()),
+        commit_store: Box::new(commit_store),
+        snapshot_store: Box::new(FakeSnapshotStore::default()),
+    });
+    assert!(matches!(
+        store_with_key
+            .verify_trade(&trade_proof, &|_tenant: &TenantId| Some(
+                fixed_key().verifying_key()
+            ))
+            .await,
+        Err(ProofError::TradeMissingSide(_))
     ));
 }
 

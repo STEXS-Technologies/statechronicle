@@ -8,7 +8,7 @@
 //! deterministically before this crate consumes it.
 
 use statechronicle_core::canonicalize::canonicalize;
-use statechronicle_core::limits::MAX_COMMIT_BYTES;
+use statechronicle_core::limits::{MAX_COMMIT_BYTES, MAX_EVENT_BYTES};
 
 use statechronicle_domain::commit::CommitScope;
 use statechronicle_domain::event::Event;
@@ -53,18 +53,23 @@ impl CommitBatch {
         self.events.is_empty()
     }
 
-    /// Appends a validated event, fail-closed on scope or id conflicts.
+    /// Appends a validated event, fail-closed on scope, id, or size conflicts.
     ///
     /// For a tenant-scoped batch, every event must belong to the batch's
     /// tenant (protocol §13.1). A global-checkpoint-scoped batch holds no
-    /// direct events (§13.4), so no tenant constraint is applied there.
+    /// direct events (§13.4), so no tenant constraint is applied there. An
+    /// event whose BCS canonical bytes exceed [`MAX_EVENT_BYTES`] is rejected
+    /// at append time (protocol §30) so an oversized event never enters a
+    /// batch.
     ///
     /// # Errors
     ///
     /// Returns [`CommitError::MixedTenant`] when the batch is tenant-scoped
-    /// and `event.tenant_id` differs from the batch tenant, and
+    /// and `event.tenant_id` differs from the batch tenant,
     /// [`CommitError::DuplicateEventId`] when the batch already contains an
-    /// event with the same id.
+    /// event with the same id, and [`CommitError::SizeLimitExceeded`] (with
+    /// `name == "event"`) when the event's canonical bytes exceed
+    /// [`MAX_EVENT_BYTES`].
     pub fn add_event(&mut self, event: Event) -> Result<(), CommitError> {
         if let Some(tenant) = &self.scope.tenant_id
             && tenant != &event.tenant_id
@@ -78,6 +83,17 @@ impl CommitBatch {
         {
             return Err(CommitError::DuplicateEventId {
                 event_id: String::from(event.event_id.as_str()),
+            });
+        }
+        // Protocol §30: reject a single oversized event at append time rather
+        // than allowing it into the batch. `canonicalize` returns a
+        // `StateChronicleError`, remapped onto the typed `SizeLimitExceeded`.
+        let canonical_len = canonicalize(&event)?.len();
+        if canonical_len > MAX_EVENT_BYTES {
+            return Err(CommitError::SizeLimitExceeded {
+                name: String::from("event"),
+                limit: MAX_EVENT_BYTES,
+                actual: canonical_len,
             });
         }
         self.events.push(event);
@@ -240,18 +256,20 @@ mod tests {
     }
 
     #[test]
-    fn validate_rejects_oversized_batch() {
+    fn add_event_rejects_event_over_max_event_bytes() {
         let mut batch = CommitBatch::new(tenant_scope());
-        let blob = "x".repeat(MAX_COMMIT_BYTES.saturating_add(1));
+        // A single event whose BCS canonical bytes exceed MAX_EVENT_BYTES is
+        // rejected at append time (protocol §30).
+        let blob = "x".repeat(MAX_EVENT_BYTES.saturating_add(1));
         let state = serde_json::json!({ "blob": blob });
         let after = sample_commitment(1, state);
         let before = sample_commitment(0, serde_json::json!({}));
         let event = Event::new(
             TenantId(String::from("acme.game.alpha")),
-            EventId::new(String::from("evt_big")).unwrap(),
-            IntentId::new(String::from("int_big")).unwrap(),
+            EventId::new(String::from("evt_oversize")).unwrap(),
+            IntentId::new(String::from("int_oversize")).unwrap(),
             Operation::new(String::from("asset.transfer")).unwrap(),
-            ResourceId(String::from("asset:big")),
+            ResourceId(String::from("asset:oversize")),
             SubjectId(String::from("account:example:player_123")),
             before,
             after,
@@ -259,7 +277,41 @@ mod tests {
             SubjectId(String::from("service:statechronicle.example.net")),
             timestamp(),
         );
-        batch.add_event(event).unwrap();
+        let error = batch.add_event(event).unwrap_err();
+        assert!(matches!(
+            error,
+            CommitError::SizeLimitExceeded { name, limit, actual }
+            if name == "event" && limit == MAX_EVENT_BYTES && actual > MAX_EVENT_BYTES
+        ));
+        assert_eq!(batch.event_count(), 0);
+    }
+
+    #[test]
+    fn validate_rejects_oversized_batch() {
+        let mut batch = CommitBatch::new(tenant_scope());
+        // Each event stays under MAX_EVENT_BYTES (so add_event accepts it),
+        // but the summed batch exceeds MAX_COMMIT_BYTES, so validate() (not
+        // add_event) rejects the oversized batch.
+        let blob = "x".repeat(MAX_EVENT_BYTES - 4096);
+        for i in 0..32 {
+            let state = serde_json::json!({ "blob": blob, "i": i });
+            let after = sample_commitment(1, state);
+            let before = sample_commitment(0, serde_json::json!({}));
+            let event = Event::new(
+                TenantId(String::from("acme.game.alpha")),
+                EventId::new(format!("evt_big_{i}")).unwrap(),
+                IntentId::new(format!("int_big_{i}")).unwrap(),
+                Operation::new(String::from("asset.transfer")).unwrap(),
+                ResourceId(String::from("asset:big")),
+                SubjectId(String::from("account:example:player_123")),
+                before,
+                after,
+                None,
+                SubjectId(String::from("service:statechronicle.example.net")),
+                timestamp(),
+            );
+            batch.add_event(event).unwrap();
+        }
         let error = batch.validate().unwrap_err();
         assert!(matches!(error, CommitError::SizeLimitExceeded { .. }));
     }

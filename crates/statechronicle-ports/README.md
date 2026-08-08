@@ -2,7 +2,7 @@
 
 ## What it is
 
-The ten backend-agnostic port traits consumers implement to wire their own
+The eleven backend-agnostic port traits consumers implement to wire their own
 storage, authority, and transport backends. Following the trustgrant-ports
 convention, this crate declares port traits only: there are no implementations
 inside. Driven adapters implement these traits and are wired at the consumer's
@@ -16,7 +16,7 @@ composition root.
 | §28 | API Surface | The surfaces adapters expose to consumers |
 | §19 | Commit Authority | The delegated-authority evaluator port (see ADR-003) |
 
-## Key types (the ten port traits)
+## Key types (the eleven port traits)
 
 - `intent_store::IntentStore`: dedup + idempotency for intents.
 - `event_store::EventStore`: append-only storage of validated events.
@@ -29,6 +29,7 @@ composition root.
   and freshness checks (trait-only, dependency-free by construction).
 - `transaction_manager::TransactionManager`: atomic multi-store coordination.
 - `event_publisher::EventPublisher`: delivery of committed events and commits.
+- `trade_index::TradeIndex`: keyed read access to accumulated trade records.
 
 ## How it's used
 

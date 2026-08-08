@@ -67,6 +67,23 @@ pub struct CommittedEvent<'event> {
 /// is present. Current-state projections are derived via [`projections_for`]
 /// for the composition root's index adapter (see module docs).
 ///
+/// **Validation.** The commit body's declared `event_count` and
+/// `event_merkle_root` are re-derived from the supplied `entries` and compared
+/// fail-closed against the signed commit before anything is written: a count
+/// mismatch or root mismatch aborts with [`CommitError::EventRootMismatch`]
+/// and no store write occurs.
+///
+/// **Caller contract (adapter-transactional writes).** [`persist`] issues the
+/// three store writes (`put_commit`, `append_events`, and the publisher calls)
+/// as separate port calls and does NOT wrap them in a transaction: the commit
+/// and event stores are independent append-only adapters. The caller (the
+/// composition root) is responsible for making these writes transactional at
+/// the adapter layer — e.g. by staging them inside its `TransactionManager` so
+/// the commit, its events, and the derived projections commit or roll back
+/// together. [`persist`] is deterministic and side-effect-free on any
+/// validation failure, so a caller that gates the write on a successful
+/// [`persist`] return keeps the lanes consistent.
+///
 /// # Errors
 ///
 /// Returns [`CommitError::Store`] when the commit is not tenant-scoped (global

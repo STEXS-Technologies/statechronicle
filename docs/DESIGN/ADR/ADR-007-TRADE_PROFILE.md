@@ -117,9 +117,9 @@ All six deferred items were designed in depth; recommendations below.
 | v2-4 | Auto-settle on mutual-acceptance deadline | **Include first** (small; Penelope-only) | Cheapest operational win; needs v0 to define an acceptance *event* (replayable predicate), else the precondition is unreplayable |
 | v2-5 | Manual-review resolution actions | **Include** (medium) | Completes the escalation contract v0 promises; resolution becomes a first-class input event, authorized at the adapter boundary |
 | v2-1 | Value legs (asset for gold) | **Include** (medium) | The economically meaningful trade shape; same settle-manifest validator reused by v2-2/3; do not weaken `validate_transfer_pair` (new shape validator, not a relaxed rule) |
-| v2-2 | Cross-tenant settle, three legs | **Include after v2-1** (medium-large) | The 3-leg cross-tenant case genuinely fails today's inferred-linkage rule; use a declared-linkage extension (manifest as the signed binding), not the marker-event workaround |
-| v2-3 | Bundle trades (N assets per side) | **Defer** unless a customer demands it | N-lock atomicity is already free via `execute_batch`; the cost is manifest + bundle validator + Penelope batch-compensation; builds cheaply on v2-1/2 later |
-| v2-6 | Trade proofs / history queries | **Defer** (large; read-side project) | Drags in the first generic read API; full value needs v2-1/2's manifest as the join key; a single-tenant `get_history` slice can ship on v0 alone |
+| v2-2 | Cross-tenant settle, three legs | **Include after v2-1** (medium-large) | ✅ **Done (Phase 1, 3-tenant generalized manifest).** The declared-linkage manifest is the signed binding; `validate_cross_tenant_trade` admits N settle legs and M value legs |
+| v2-3 | Bundle trades (N assets per side) | **Defer** unless a customer demands it | N-lock atomicity is already free via `execute_batch`; the cost is manifest + bundle validator + Penelope batch-compensation; builds cheaply on v2-1/2 later. Superseded by the generalized N-leg manifest (D1): a bundle is just a multi-leg manifest |
+| v2-6 | Trade proofs / history queries | **Defer** (large; read-side project) | ✅ **Done (Phase 2).** `statechronicle-index` (read-side slice) + `TradeIndex` port + `TradeHistory`/`TradeProof` wire types; per-tenant trade proof verification |
 
 **v2 sequencing** (if all are wanted): v2-4 + v2-5 first (Penelope-only, zero
 executor risk, ship as `trade.v1` def v0.1), then v2-1 → v2-2 → v2-3 as one

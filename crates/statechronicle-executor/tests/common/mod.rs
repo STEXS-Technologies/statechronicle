@@ -762,6 +762,7 @@ impl TransactionHandle for FakeTransactionHandle {
 pub struct Harness {
     pub executor: Executor,
     pub index: FakeStateIndex,
+    pub intent_store: FakeIntentStore,
     pub tenant_store: FakeTenantStore,
     pub transactions: FakeTransactionManager,
 }
@@ -835,9 +836,10 @@ impl Harness {
         let tenant_store = FakeTenantStore::default();
         tenant_store.register(tenant());
         let transactions = FakeTransactionManager::default();
+        let intent_store = FakeIntentStore::default();
 
         let ports = Ports::builder()
-            .intent_store(Box::new(FakeIntentStore::default()))
+            .intent_store(Box::new(intent_store.clone()))
             .state_index(Box::new(index.clone()))
             .tenant_store(Box::new(tenant_store.clone()))
             .trustgrant(authority_ports)
@@ -860,6 +862,7 @@ impl Harness {
         Self {
             executor,
             index,
+            intent_store,
             tenant_store,
             transactions,
         }

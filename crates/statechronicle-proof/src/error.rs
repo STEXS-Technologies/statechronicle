@@ -148,6 +148,23 @@ pub enum ProofError {
     /// The proof index rejected or could not serve the claim.
     #[error("proof index rejected the claim: {0}")]
     ProofIndex(String),
+
+    /// A trade proof's `trade_id` does not match its embedded summary.
+    #[error("trade proof trade_id `{actual}` does not match summary trade_id `{expected}`")]
+    TradeIdMismatch {
+        /// The summary's trade id.
+        expected: String,
+        /// The proof's trade id.
+        actual: String,
+    },
+
+    /// A trade proof leg references a tenant with no summary side.
+    #[error("trade proof leg has no summary side for tenant `{0}`")]
+    TradeMissingSide(String),
+
+    /// A trade proof leg's settle proof operation is not `trade.settle`.
+    #[error("trade proof leg settle proof operation is `{0}`, expected `trade.settle`")]
+    TradeOperation(String),
 }
 
 impl From<StateChronicleError> for ProofError {

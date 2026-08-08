@@ -32,6 +32,9 @@ pub mod inclusion;
 /// State proofs.
 pub mod state;
 
+/// Trade proof assembly and verification.
+pub mod trade;
+
 /// Ownership proofs.
 pub mod ownership;
 

@@ -3,7 +3,7 @@
 ## What it is
 
 The **umbrella crate**: the single dependency consumers add to use the whole
-protocol surface. It re-exports the nine underlying protocol crates under
+protocol surface. It re-exports the ten underlying protocol crates under
 collision-safe namespaces and surfaces the most-used types directly at the top
 level. It ships no storage, HTTP, or authority implementation.
 
@@ -56,11 +56,11 @@ each prints a narrative, asserts its outcome, and exits 0 only on success.
 
 ## Dependencies
 
-The nine protocol crates: `statechronicle-core`, `statechronicle-domain`,
+The ten protocol crates: `statechronicle-core`, `statechronicle-domain`,
 `statechronicle-intent`, `statechronicle-executor`, `statechronicle-commit`,
 `statechronicle-accumulator`, `statechronicle-proof`, `statechronicle-profiles`,
-`statechronicle-ports`. Dev-only: `tokio`, `serde_json`, `ed25519-dalek`,
-`chrono`, `async-trait`.
+`statechronicle-ports`, `statechronicle-index`. Dev-only: `tokio`,
+`serde_json`, `ed25519-dalek`, `chrono`, `async-trait`.
 
 ## Tests
 

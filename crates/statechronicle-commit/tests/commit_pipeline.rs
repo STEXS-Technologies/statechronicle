@@ -592,6 +592,60 @@ async fn persist_rejects_event_root_mismatch_without_writing() {
 }
 
 #[tokio::test]
+async fn persist_rejects_event_root_mismatch_same_count_without_writing() {
+    // A commit over a one-event batch, but persist is handed a DIFFERENT event
+    // with the same count (1) and a different payload/owner. The event count
+    // agrees, so only the recomputed Merkle root can catch the mismatch: it
+    // must differ from the declared event_merkle_root and persist must fail
+    // closed without writing anything.
+    let events = vec![unique_event("sword", "alice")];
+    let batch = batch_from(&events);
+    let commit = CommitBuilder::builder()
+        .scope(CommitScope::tenant(tenant()))
+        .sequence(1)
+        .executor(executor())
+        .profile(profile())
+        .created_at(timestamp())
+        .build(&batch, hash_bytes(b"genesis"), &[], || commit_id(1))
+        .unwrap();
+    let signed = sign_commit(&commit, &fixed_key(), key_id()).unwrap();
+
+    let commit_store = FakeCommitStore::default();
+    let event_store = FakeEventStore::default();
+    let ports = CommitPorts {
+        commit_store: Box::new(commit_store.clone()),
+        event_store: Box::new(event_store.clone()),
+        state_index: Box::new(FakeStateIndex::default()),
+        event_publisher: None,
+    };
+
+    // Same event id and resource, but a different owner: same count, wrong root.
+    let wrong_event = unique_event("sword", "mallory");
+    let wrong = vec![CommittedEvent {
+        event: &wrong_event,
+        state_type: StateType::UniqueAsset,
+    }];
+    let error = persist(&ports, &signed, &wrong).await.unwrap_err();
+    assert!(matches!(error, CommitError::EventRootMismatch));
+
+    // Nothing was written.
+    assert!(
+        commit_store
+            .commit_by_id(&tenant(), &commit.commit_id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        event_store
+            .event_by_id(&tenant(), &events[0].event_id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[tokio::test]
 async fn persist_rejects_global_checkpoint_commits() {
     let events = vec![unique_event("sword", "alice")];
     // A global checkpoint commit carries tenant roots, not direct events

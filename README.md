@@ -11,7 +11,7 @@ history and verify that the current state is exactly what the recorded events
 produce.
 
 It is a *pure-logic* engine: it ships no database, no HTTP server, and no
-authorization system. Those are the consumer's job, supplied behind ten small
+authorization system. Those are the consumer's job, supplied behind eleven small
 trait interfaces (`statechronicle-ports`) and wired together at the consumer's
 composition root. What you get instead is a deterministic, fully testable core
 that cannot silently diverge, lose a transaction, or round a balance.
@@ -64,7 +64,7 @@ that cannot silently diverge, lose a transaction, or round a balance.
 
 ## Run the examples
 
-The repository ships eight runnable examples in
+The repository ships eleven runnable examples in
 `crates/statechronicle/examples/`. Each runs the real cross-crate pipeline
 (submit → execute → commit → proof → verify) over in-memory port fakes, prints
 a short narrative, asserts its outcome, and exits 0 only on success. Runs are
@@ -82,6 +82,9 @@ every time.
 | `cross_tenant` | `cargo run -p statechronicle --example cross_tenant` | Cross-tenant atomic transaction via `execute_cross_tenant` |
 | `proofs` | `cargo run -p statechronicle --example proofs` | State, ownership, and non-membership proofs |
 | `paid_asset` | `cargo run -p statechronicle --example paid_asset` | Paid unique asset overlay: owner consent and hard delete |
+| `trade_value` | `cargo run -p statechronicle --example trade_value` | Asset-for-gold value-leg settlement via `execute_settle` |
+| `trade_cross_tenant` | `cargo run -p statechronicle --example trade_cross_tenant` | Cross-tenant trade settlement via `execute_cross_tenant_trade` |
+| `trade_bundle` | `cargo run -p statechronicle --example trade_bundle` | Multi-asset bundle settlement in one atomic commit |
 
 The examples construct validated intents both ways: the typed path
 (`Intent::new` → `ValidatedIntent::from_intent`) is the workhorse across most
@@ -113,28 +116,31 @@ StateChronicle works with whatever shape your data is already in.
 
 **Already-typed data (no parsing).** If your platform builds the `Intent`
 itself (for example, a handler that already deserialized and validated the
-request), construct the validated intent directly:
+request), the intended DX is the fluent `Intent::builder()`, which sets only
+the fields you care about and fills the rest with safe defaults:
 
 ```rust
-use statechronicle::domain::intent::{Intent, Operation, Nonce};
+use statechronicle::domain::intent::{Intent, Nonce, Operation};
 use statechronicle::intent::validated::ValidatedIntent;
 
-let intent = Intent::new(
-    tenant_id,            // TenantId
-    intent_id,            // IntentId
-    operation,            // Operation
-    actor,                // SubjectId
-    resource_id,          // ResourceId
-    Some(state_type),     // Option<StateType>
-    expected_version,     // u64
-    inputs,               // BTreeMap<String, serde_json::Value>
-    authority,            // Option<AuthorityProof>
-    created_at,           // DateTime<Utc>
-    expires_at,           // Option<DateTime<Utc>>
-    nonce,                // Nonce
-);
+let intent = Intent::builder()
+    .tenant(tenant_id)          // TenantId
+    .intent_id(intent_id)       // IntentId
+    .operation(operation)       // Operation
+    .actor(actor)               // SubjectId
+    .resource(resource_id)      // ResourceId
+    .state_type(state_type)     // StateType
+    .expected_version(expected_version) // u64 (defaults to 0)
+    .input("to_owner", serde_json::json!("alice")) // append one input
+    .created_at(now)            // DateTime<Utc>
+    .nonce(nonce)               // Nonce
+    .build()?;
 let validated = ValidatedIntent::from_intent(intent, None); // typed in, no parsing
 ```
+
+The positional constructor `Intent::new(...)` (twelve required fields) is also
+available when you have every field at hand; the builder is recommended for
+clarity and defaults.
 
 A complete typed-path example lives in `crates/statechronicle/examples/currency.rs`.
 
@@ -174,7 +180,7 @@ production composition root would.
 | `statechronicle-accumulator` | Sparse-Merkle state accumulator and state roots |
 | `statechronicle-proof` | Proof serving and verification (incl. non-membership) |
 | `statechronicle-profiles` | Baseline resource profiles and their rule sets |
-| `statechronicle-ports` | The ten backend-agnostic port traits consumers implement |
+| `statechronicle-ports` | The eleven backend-agnostic port traits consumers implement |
 
 Each crate carries a README with a "Protocol sections owned" table, so the
 section numbers referenced throughout this workspace resolve to a concrete
@@ -211,6 +217,7 @@ StateChronicle separates two distinct concerns:
 | `TrustGrantEvaluator` | Delegated-authority evaluation and freshness checks (trait-only; TrustGrant is one option) |
 | `TransactionManager` | Atomic multi-store transaction coordination |
 | `EventPublisher` | Delivery of committed events and signed commits |
+| `TradeIndex` | Keyed read access to accumulated trade records (`trade_id` → `TradeRecord`) |
 
 Implement these traits against your storage, authority, and transport
 backends (no implementations live inside the `statechronicle-ports` crate),
@@ -255,13 +262,13 @@ below maps every section to its owning crate README.
 
 ## Verification
 
-The workspace is fully test-locked (608 tests; check/test/clippy/fmt gates),
+The workspace is fully test-locked (706 tests; check/test/clippy/fmt gates),
 and every protocol decision is recorded in `docs/DESIGN/ADR/`, with ADR-006
 resolving the open protocol questions.
 
 ## Where to go next
 
-- `crates/statechronicle/examples/`: the eight runnable examples (start with
+- `crates/statechronicle/examples/`: the eleven runnable examples (start with
   `inventory`, then `currency` and `cross_tenant`).
 - `crates/statechronicle/tests/e2e.rs`: the end-to-end lifecycle test with
   tamper and non-membership proof variants.

@@ -718,6 +718,7 @@ dependencies = [
  "statechronicle-core",
  "statechronicle-domain",
  "statechronicle-executor",
+ "statechronicle-index",
  "statechronicle-intent",
  "statechronicle-ports",
  "statechronicle-profiles",
@@ -828,9 +829,31 @@ dependencies = [
  "statechronicle-core",
  "statechronicle-domain",
  "statechronicle-executor",
+ "statechronicle-index",
  "statechronicle-intent",
  "statechronicle-profiles",
  "statechronicle-proof",
+]
+
+[[package]]
+name = "statechronicle-index"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "bcs",
+ "chrono",
+ "ed25519-dalek",
+ "proptest",
+ "serde",
+ "serde_json",
+ "statechronicle-commit",
+ "statechronicle-core",
+ "statechronicle-domain",
+ "statechronicle-ports",
+ "statechronicle-profiles",
+ "statechronicle-proof",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

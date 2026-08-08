@@ -19,6 +19,9 @@ pub mod commit_store;
 /// Port trait for the current-state index.
 pub mod state_index;
 
+/// Port trait for the trade read-side index.
+pub mod trade_index;
+
 /// Port trait for the proof index.
 pub mod proof_index;
 
