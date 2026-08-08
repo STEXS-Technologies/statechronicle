@@ -225,11 +225,30 @@ fn is_free_status(status: &str) -> bool {
 }
 
 /// Returns the escape operations permitted from a non-terminal blocking status.
+///
+/// The `listed` and `locked` statuses are shared between unique assets and
+/// marketplace resources (a listing is `listed`, an escrow is `locked`), so
+/// each shared status also admits the marketplace escape operations. This is
+/// safe because the profile layer is state-type-scoped: a unique asset in
+/// `listed` status can never execute `listing.buy` (unknown operation for the
+/// unique-asset profile), and a listing can never execute `asset.delist`.
 fn status_escapes(status: &str) -> &'static [&'static str] {
     match status {
-        LOCKED => &["asset.unlock", "asset.restrict"],
+        LOCKED => &[
+            "asset.unlock",
+            "asset.restrict",
+            "escrow.release",
+            "escrow.refund",
+        ],
         ESCROWED => &["asset.release", "asset.restrict"],
-        LISTED => &["asset.delist", "asset.redeem", "asset.restrict"],
+        LISTED => &[
+            "asset.delist",
+            "asset.redeem",
+            "asset.restrict",
+            "listing.buy",
+            "listing.cancel",
+            "listing.expire",
+        ],
         "suspended" => &["entitlement.restore", "entitlement.expire"],
         "granted" => &[
             "entitlement.activate",
@@ -420,6 +439,45 @@ mod tests {
             if resource == "asset:sword_001"
         ));
         assert!(check_resource_availability(&current, &op("asset.restrict")).is_ok());
+    }
+
+    #[test]
+    fn resource_availability_locked_admits_escrow_settlement() {
+        // An escrow resource is `locked`; its settlement escapes must be
+        // admitted so marketplace settlement can execute atomically.
+        let current = asset("locked", "alice");
+        for name in ["escrow.release", "escrow.refund"] {
+            assert!(
+                check_resource_availability(&current, &op(name)).is_ok(),
+                "{name} should escape locked"
+            );
+        }
+        assert!(matches!(
+            check_resource_availability(&current, &op("asset.transfer")),
+            Err(ExecutorError::ResourceLocked { .. })
+        ));
+    }
+
+    #[test]
+    fn resource_availability_listed_admits_marketplace_ops() {
+        // A listing resource is `listed`; buy/cancel/expire must be admitted
+        // (buy executes inside the atomic settlement batch).
+        let current = asset("listed", "alice");
+        for name in [
+            "listing.buy",
+            "listing.cancel",
+            "listing.expire",
+            "asset.delist",
+        ] {
+            assert!(
+                check_resource_availability(&current, &op(name)).is_ok(),
+                "{name} should escape listed"
+            );
+        }
+        assert!(matches!(
+            check_resource_availability(&current, &op("asset.transfer")),
+            Err(ExecutorError::ResourceLocked { .. })
+        ));
     }
 
     #[test]
