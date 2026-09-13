@@ -169,10 +169,16 @@ fn validate_profile_id(value: &str) -> Result<(), DomainError> {
             "profile id must not be empty",
         )));
     }
-    if value.len() > MAX_ID_LENGTH {
+    let length = value.chars().count();
+    if value.chars().any(char::is_control) {
+        return Err(DomainError::InvalidProfile(String::from(
+            "profile id must not contain control characters",
+        )));
+    }
+    if length > MAX_ID_LENGTH {
         return Err(DomainError::InvalidProfile(format!(
             "profile id must be at most {MAX_ID_LENGTH} chars, got {}",
-            value.len()
+            value.chars().count()
         )));
     }
     Ok(())
@@ -317,5 +323,8 @@ mod tests {
         assert!(ProfileId::new(String::new()).is_err());
         assert!(ProfileId::new(String::from("statechronicle.profile.resource.v0")).is_ok());
         assert!(ProfileId::from_str("statechronicle.profile.resource.v0").is_ok());
+        assert!(ProfileId::new("é".repeat(MAX_ID_LENGTH)).is_ok());
+        assert!(ProfileId::new("é".repeat(MAX_ID_LENGTH.saturating_add(1))).is_err());
+        assert!(ProfileId::new(String::from("profile\rlegacy")).is_err());
     }
 }

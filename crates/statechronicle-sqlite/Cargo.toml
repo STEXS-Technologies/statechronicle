@@ -1,0 +1,23 @@
+[package]
+name = "statechronicle-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "SQLite durable ledger adapter for StateChronicle"
+
+[dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+bcs.workspace = true
+rusqlite.workspace = true
+uuid.workspace = true
+statechronicle-core.workspace = true
+statechronicle-domain.workspace = true
+statechronicle-ports.workspace = true
+statechronicle-commit.workspace = true
+statechronicle-index.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+
+[lints]
+workspace = true

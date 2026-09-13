@@ -195,10 +195,16 @@ fn validate_operation(value: &str) -> Result<(), DomainError> {
             "operation must not be empty",
         )));
     }
-    if value.len() > MAX_ID_LENGTH {
+    let length = value.chars().count();
+    if value.chars().any(char::is_control) {
+        return Err(DomainError::InvalidOperation(String::from(
+            "operation must not contain control characters",
+        )));
+    }
+    if length > MAX_ID_LENGTH {
         return Err(DomainError::InvalidOperation(format!(
             "operation must be at most {MAX_ID_LENGTH} chars, got {}",
-            value.len()
+            length
         )));
     }
     Ok(())
@@ -397,10 +403,16 @@ fn validate_key_id(value: &str) -> Result<(), DomainError> {
             "key id must not be empty",
         )));
     }
-    if value.len() > MAX_ID_LENGTH {
+    let length = value.chars().count();
+    if value.chars().any(char::is_control) {
+        return Err(DomainError::InvalidKeyId(String::from(
+            "key id must not contain control characters",
+        )));
+    }
+    if length > MAX_ID_LENGTH {
         return Err(DomainError::InvalidKeyId(format!(
             "key id must be at most {MAX_ID_LENGTH} chars, got {}",
-            value.len()
+            length
         )));
     }
     Ok(())
@@ -802,6 +814,9 @@ mod tests {
         ));
         assert!(Operation::new("x".repeat(MAX_ID_LENGTH.saturating_add(1))).is_err());
         assert!(Operation::new(String::from("asset.transfer")).is_ok());
+        assert!(Operation::new("é".repeat(MAX_ID_LENGTH)).is_ok());
+        assert!(Operation::new("é".repeat(MAX_ID_LENGTH.saturating_add(1))).is_err());
+        assert!(Operation::new(String::from("asset.\ntransfer")).is_err());
     }
 
     #[test]
@@ -809,6 +824,9 @@ mod tests {
         assert!(KeyId::new(String::new()).is_err());
         assert!(KeyId::new("x".repeat(MAX_ID_LENGTH.saturating_add(1))).is_err());
         assert!(KeyId::new(String::from("did:key:z6Mk...#key-1")).is_ok());
+        assert!(KeyId::new("é".repeat(MAX_ID_LENGTH)).is_ok());
+        assert!(KeyId::new("é".repeat(MAX_ID_LENGTH.saturating_add(1))).is_err());
+        assert!(KeyId::new(String::from("key\t01")).is_err());
     }
 
     #[test]

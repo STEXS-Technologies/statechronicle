@@ -14,7 +14,7 @@ use statechronicle_domain::state_type::StateType;
 
 use crate::error::ProfileError;
 use crate::registry::{
-    ProfileRules, input_amount, input_str, parse_amount_str, require_current, require_unborn,
+    ProfileRules, input_amount, input_str, require_current, require_unborn, state_amount,
 };
 
 /// Typed operation constants accepted by the consumable stack profile.
@@ -279,10 +279,7 @@ fn check_adjust(
 /// field or it is not a canonical non-negative integer string, and
 /// [`ProfileError::FloatForbidden`] for float-formatted values.
 fn current_quantity(current: &StateProjection) -> Result<Amount, ProfileError> {
-    let value = current.state.get("quantity").ok_or_else(|| {
-        ProfileError::InvalidInput(String::from("state payload has no `quantity`"))
-    })?;
-    parse_amount_str(value, "quantity")
+    state_amount(current, "quantity")
 }
 
 /// Enforces `0 < requested <= available`.
@@ -327,11 +324,15 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state: serde_json::json!({
-                "subject": "account:example:player_123",
-                "quantity": quantity,
-                "unit": "arrows"
-            }),
+            state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::ConsumableStack,
+                serde_json::json!({
+                    "subject": "account:example:player_123",
+                    "quantity": quantity,
+                    "unit": "arrows"
+                }),
+            )
+            .unwrap(),
         }
     }
 
@@ -399,11 +400,13 @@ mod tests {
             Err(ProfileError::FloatForbidden)
         ));
         // A float quantity in the projected state also fails closed.
-        let broken = stack("3.5");
-        assert!(matches!(
-            rules.check(&op("stack.debit"), Some(&broken), &float_input),
-            Err(ProfileError::FloatForbidden)
-        ));
+        assert!(
+            statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::ConsumableStack,
+                serde_json::json!({ "subject": "alice", "quantity": "3.5", "unit": "arrows" }),
+            )
+            .is_err()
+        );
         // JSON numbers, not strings, are invalid input rather than floats.
         let number_input = inputs(&[("quantity", serde_json::json!(5))]);
         assert!(matches!(

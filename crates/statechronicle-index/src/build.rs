@@ -1,8 +1,8 @@
 //! Pure, deterministic trade index builder (Phase 2 of the trade completion).
 //!
-//! [`apply`] projects one committed batch (trade events + the settle intents
+//! [`apply`](crate::build::apply) projects one committed batch (trade events + the settle intents
 //! that declared them + the committing signed commit) into a
-//! [`BTreeMap<String, TradeRecord>`] keyed by `trade_id`. The builder is pure
+//! `BTreeMap<String, TradeRecord>` keyed by `trade_id`. The builder is pure
 //! and deterministic by construction: it uses only `BTreeMap`/`BTreeSet`,
 //! sorted iteration, no wall clock, no RNG, and no `HashMap` in any output, so
 //! applying an event stream incrementally yields exactly the same index as
@@ -28,6 +28,7 @@ use statechronicle_domain::ids::{EventId, IntentId};
 use statechronicle_domain::intent::{Intent, Operation};
 use statechronicle_domain::proof::CommitRef;
 use statechronicle_domain::resource::ResourceId;
+use statechronicle_domain::resource_state::ResourceState;
 use statechronicle_domain::signed::Signed;
 use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
@@ -64,6 +65,7 @@ pub struct IngestBatch {
 /// settle intents. Used by the service to seed the index state before applying
 /// a batch, so incremental ingestion merges into (rather than clobbers)
 /// existing records.
+#[allow(clippy::collapsible_if)]
 pub fn batch_trade_ids(batch: &IngestBatch) -> Vec<String> {
     let mut ids: BTreeSet<String> = BTreeSet::new();
     for event in &batch.events {
@@ -72,10 +74,10 @@ pub fn batch_trade_ids(batch: &IngestBatch) -> Vec<String> {
         }
     }
     for intent in &batch.settle_intents {
-        if declares_value_leg(intent)
-            && let Ok(id) = intent_str(intent, keys::TRADE_ID)
-        {
-            ids.insert(id);
+        if declares_value_leg(intent) {
+            if let Ok(id) = intent_str(intent, keys::TRADE_ID) {
+                ids.insert(id);
+            }
         }
     }
     ids.into_iter().collect()
@@ -242,11 +244,10 @@ fn upsert_side(
 ///
 /// Returns [`IndexError::MalformedValue`] when the state carries no string
 /// `owner` field.
-fn owner_of_state(state: &Value) -> Result<String, IndexError> {
+fn owner_of_state(state: &ResourceState) -> Result<String, IndexError> {
     state
-        .get("owner")
-        .and_then(Value::as_str)
-        .map(String::from)
+        .owner()
+        .map(|owner| owner.0.clone())
         .filter(|owner| !owner.is_empty())
         .ok_or_else(|| {
             IndexError::MalformedValue(String::from(
@@ -288,12 +289,21 @@ fn trade_id_of(event: &Event) -> Result<Option<String>, IndexError> {
 }
 
 /// Reads a string field from a projected state payload.
-fn state_str_opt(state: &Value, key: &str) -> Option<String> {
-    state
-        .get(key)
-        .and_then(Value::as_str)
-        .map(String::from)
-        .filter(|value| !value.is_empty())
+fn state_str_opt(state: &ResourceState, key: &str) -> Option<String> {
+    let value = match key {
+        keys::SUBJECT => state.subject().map(|s| s.0.clone()),
+        keys::TRADE_ID => match state {
+            ResourceState::UniqueAsset(v) => v.trade_id.clone(),
+            ResourceState::ConsumableStack(_)
+            | ResourceState::FungibleBalance(_)
+            | ResourceState::Entitlement(_)
+            | ResourceState::MeteredResource(_)
+            | ResourceState::Listing(_)
+            | ResourceState::Escrow(_) => None,
+        },
+        _ => None,
+    }?;
+    (!value.is_empty()).then_some(value)
 }
 
 /// A net-zero `balance.transfer` value pair recovered from a batch (the atomic
@@ -348,8 +358,8 @@ fn recover_value_pairs(events: &[Event]) -> Result<Vec<RecoveredValuePair>, Inde
         let mut debit = Amount::ZERO;
         let mut credited_subject: Option<SubjectId> = None;
         for event in &group {
-            let before = commitment_amount(&event.before.state)?;
-            let after = commitment_amount(&event.after.state)?;
+            let before = commitment_amount(&event.before.state);
+            let after = commitment_amount(&event.after.state);
             if before > after {
                 let delta = before
                     .checked_sub(after)
@@ -511,13 +521,11 @@ fn intent_str(intent: &Intent, key: &str) -> Result<String, IndexError> {
 ///
 /// Returns [`IndexError::MalformedValue`] when the field is present but not a
 /// canonical non-negative integer string.
-fn commitment_amount(state: &Value) -> Result<Amount, IndexError> {
-    let Some(text) = state.get(keys::BALANCE).and_then(Value::as_str) else {
-        return Ok(Amount::ZERO);
+fn commitment_amount(state: &ResourceState) -> Amount {
+    let Some(amount) = state.amount("balance") else {
+        return Amount::ZERO;
     };
-    Amount::try_from_str(text).map_err(|_source| {
-        IndexError::MalformedValue(format!("malformed `{}` amount", keys::BALANCE))
-    })
+    amount
 }
 
 /// The `balance.transfer` operation literal.
@@ -623,6 +631,20 @@ mod tests {
         after: serde_json::Value,
         intent: &str,
     ) -> Event {
+        let state_type = if op == "balance.transfer" {
+            statechronicle_domain::state_type::StateType::FungibleBalance
+        } else {
+            statechronicle_domain::state_type::StateType::UniqueAsset
+        };
+        let before = if before.as_object().is_some_and(|object| object.is_empty()) {
+            if state_type == statechronicle_domain::state_type::StateType::FungibleBalance {
+                serde_json::json!({"subject":"alice","balance":"0","unit":"gold"})
+            } else {
+                serde_json::json!({"owner":"alice","status":"active"})
+            }
+        } else {
+            before
+        };
         Event::new(
             tenant(tenant_name),
             EventId::new(format!("evt_{id}")).unwrap(),
@@ -633,12 +655,18 @@ mod tests {
             StateCommitment {
                 version: 1,
                 state_hash: hash_bytes(b"before"),
-                state: before,
+                state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                    state_type, before,
+                )
+                .unwrap(),
             },
             StateCommitment {
                 version: 2,
                 state_hash: hash_bytes(b"after"),
-                state: after,
+                state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                    state_type, after,
+                )
+                .unwrap(),
             },
             None,
             SubjectId(String::from("service:statechronicle.example.net")),
@@ -1064,6 +1092,7 @@ mod tests {
 
     /// Derives a deterministic batch from a byte slice using fixed event
     /// templates, so the builder is exercised over arbitrary shapes.
+    #[allow(clippy::manual_is_multiple_of)]
     fn batch_from_bytes(data: &[u8]) -> IngestBatch {
         let tenant_name = if data.first().copied().unwrap_or(0) % 2 == 0 {
             "acme.game.alpha"
@@ -1072,7 +1101,7 @@ mod tests {
         };
         let trade = format!("trade_{:03}", data.get(1).copied().unwrap_or(0) % 7);
         let mut events = Vec::new();
-        if data.len() > 2 && !data[2].is_multiple_of(3) {
+        if data.len() > 2 && data[2] % 3 != 0 {
             events.push(lock_event(
                 "f1",
                 tenant_name,
@@ -1081,7 +1110,7 @@ mod tests {
                 "alice",
             ));
         }
-        if data.len() > 3 && data[3].is_multiple_of(2) {
+        if data.len() > 3 && data[3] % 2 == 0 {
             events.push(settle_event(
                 "f2",
                 tenant_name,
@@ -1100,7 +1129,7 @@ mod tests {
             ));
         }
         let mut settle_intents = Vec::new();
-        if data.len() > 4 && data[4].is_multiple_of(2) {
+        if data.len() > 4 && data[4] % 2 == 0 {
             let amount = (data.get(5).copied().unwrap_or(0) % 100).to_string();
             settle_intents.push(value_settle_intent(&trade, "wallet:gold", &amount, "alice"));
         }

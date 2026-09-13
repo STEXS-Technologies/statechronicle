@@ -25,7 +25,9 @@ tenant checkpoint commits, and fork/failure semantics.
 - `builder::CommitBuilder`: assembles a `Commit` from a batch, previous root,
   and references.
 - `roots::{compute_state_root, state_root_updates}`: pure state-root functions.
-- `sign::{sign_commit, verify_commit}`: Ed25519 commit signing/verification.
+- `sign::{sign_commit, sign_commit_with_signer, verify_commit}`: local or
+  provider-backed Ed25519 commit signing/verification. Use
+  `sign_commit_with_signer` for KMS/HSM integration.
 - `ordering`: deterministic event ordering.
 - `persist`: commit persistence orchestration.
 - `checkpoint`: tenant checkpoint commits.

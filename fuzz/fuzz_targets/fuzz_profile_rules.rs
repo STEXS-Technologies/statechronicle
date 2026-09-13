@@ -8,6 +8,7 @@ use statechronicle_core::digest::ContentDigest;
 use statechronicle_domain::ids::{CommitId, EventId};
 use statechronicle_domain::intent::Operation;
 use statechronicle_domain::resource::ResourceId;
+use statechronicle_domain::resource_state::ResourceState;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::status::Status;
@@ -83,6 +84,6 @@ fn projection(state: serde_json::Value) -> Option<StateProjection> {
         last_event_id: event_id,
         last_commit_id: commit_id,
         state_hash: ContentDigest::new([0u8; 32]),
-        state,
+        state: ResourceState::from_legacy_json(StateType::UniqueAsset, state).ok()?,
     })
 }

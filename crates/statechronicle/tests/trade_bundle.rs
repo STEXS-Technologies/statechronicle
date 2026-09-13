@@ -212,8 +212,8 @@ async fn two_for_two_bundle_settles_in_one_commit() {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(held.state["owner"], json!(expected_owner));
-        assert_eq!(held.state["status"], json!("active"));
+        assert_eq!(held.state.get("owner").unwrap(), json!(expected_owner));
+        assert_eq!(held.state.get("status").unwrap(), json!("active"));
     }
 }
 
@@ -251,8 +251,8 @@ async fn bundle_settle_with_unlocked_asset_fails_closed_and_rolls_back() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(sword.state["owner"], json!(ALICE));
-    assert_eq!(sword.state["status"], json!("trade_held"));
+    assert_eq!(sword.state.get("owner").unwrap(), json!(ALICE));
+    assert_eq!(sword.state.get("status").unwrap(), json!("trade_held"));
 
     let helm = harness
         .index
@@ -260,8 +260,8 @@ async fn bundle_settle_with_unlocked_asset_fails_closed_and_rolls_back() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(helm.state["owner"], json!(BOB));
-    assert_eq!(helm.state["status"], json!("active"));
+    assert_eq!(helm.state.get("owner").unwrap(), json!(BOB));
+    assert_eq!(helm.state.get("status").unwrap(), json!("active"));
 }
 
 #[tokio::test]
@@ -298,6 +298,6 @@ async fn duplicate_asset_bundle_rejected_atomically() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(sword.state["owner"], json!(ALICE));
-    assert_eq!(sword.state["status"], json!("trade_held"));
+    assert_eq!(sword.state.get("owner").unwrap(), json!(ALICE));
+    assert_eq!(sword.state.get("status").unwrap(), json!("trade_held"));
 }

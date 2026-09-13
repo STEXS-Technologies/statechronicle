@@ -67,8 +67,7 @@ struct AuthorityAggregate {
 /// deployment's authority members were evaluated. With a single unique digest
 /// the identity rule applies: the sub-digest itself is returned, preserving
 /// v0 single-evaluator bytes. Otherwise the BCS bytes of the
-/// [`AuthorityAggregate`] envelope are hashed via
-/// [`hash_bytes`](statechronicle_core::digest::hash_bytes). This function is
+/// internal authority-aggregate envelope are hashed via [`hash_bytes`]. This function is
 /// total and never panics (protocol §12.1, ADR-006 §36 Q5).
 pub fn aggregate_evaluation_digest(
     policy: AggregationPolicy,
@@ -80,9 +79,7 @@ pub fn aggregate_evaluation_digest(
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();
-    if sorted.len() == 1
-        && let Some(single) = sorted.first()
-    {
+    if let [single] = sorted.as_slice() {
         return single.clone();
     }
     let aggregate = AuthorityAggregate {

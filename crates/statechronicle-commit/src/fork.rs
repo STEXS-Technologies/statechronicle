@@ -7,9 +7,11 @@
 //! commits; and recovery never rewrites accepted event objects without
 //! preserving audit history.
 //!
-//! This module supplies the pure, fail-closed predicates ([`detect_fork`],
-//! [`check_chain_continuity`], and [`validate_no_event_rewrite`]) plus the
-//! [`ForkEvidence`] value record an implementation persists append-only.
+//! This module supplies the pure, fail-closed predicates
+//! ([`detect_fork`](crate::fork::detect_fork),
+//! [`check_chain_continuity`](crate::fork::check_chain_continuity), and
+//! [`validate_no_event_rewrite`](crate::fork::validate_no_event_rewrite)) plus the
+//! [`ForkEvidence`](crate::fork::ForkEvidence) value record an implementation persists append-only.
 //! Nothing here performs persistence or policy; those are the platform's job.
 
 use core::fmt;
@@ -208,12 +210,20 @@ mod tests {
             StateCommitment {
                 version: 1,
                 state_hash: hash_bytes(b"before"),
-                state: serde_json::json!({}),
+                state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                    statechronicle_domain::state_type::StateType::UniqueAsset,
+                    serde_json::json!({"owner":"alice","status":"active"}),
+                )
+                .unwrap(),
             },
             StateCommitment {
                 version: 2,
                 state_hash: hash_bytes(b"after"),
-                state,
+                state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                    statechronicle_domain::state_type::StateType::UniqueAsset,
+                    state,
+                )
+                .unwrap(),
             },
             None,
             executor(),

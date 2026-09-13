@@ -5,7 +5,7 @@
 //!
 //! The concrete values below are **provisional protocol defaults**, to be
 //! finalized in ADR-004 §7. Protocol §30 only mandates "bounded input sizes";
-//! the specific byte/character bounds are ours to define, and [`check_size`] is
+//! the specific byte/character bounds are ours to define, and [`check_size`](crate::limits::check_size) is
 //! the single choke point so tightening a bound later is a one-line change.
 
 use crate::error::StateChronicleError;
@@ -19,8 +19,29 @@ pub const MAX_EVENT_BYTES: usize = 64 * 1024;
 /// Maximum canonical byte length of a commit body.
 pub const MAX_COMMIT_BYTES: usize = 1024 * 1024;
 
+/// Maximum number of events admitted to one durable commit.
+pub const MAX_EVENTS_PER_COMMIT: usize = 256;
+
+/// Maximum aggregate canonical event bytes in one durable commit.
+pub const MAX_EVENT_BATCH_BYTES: usize = 4 * 1024 * 1024;
+
+/// Maximum number of outbox records claimed by one worker pass.
+pub const MAX_OUTBOX_CLAIM: usize = 1024;
+
+/// Maximum opaque payload bytes stored in one outbox record.
+pub const MAX_OUTBOX_PAYLOAD_BYTES: usize = 1024 * 1024;
+
+/// Maximum serialized proof payload accepted by proof-facing adapters.
+pub const MAX_PROOF_BYTES: usize = 2 * 1024 * 1024;
+
+/// Maximum nesting depth for JSON compatibility boundaries.
+pub const MAX_JSON_DEPTH: usize = 32;
+
 /// Maximum character length of a protocol id string (tenant, resource, etc.).
 pub const MAX_ID_LENGTH: usize = 128;
+
+/// Maximum UTF-8 byte length of a quota/rate-limit dimension key.
+pub const MAX_QUOTA_KEY_BYTES: usize = 512;
 
 /// Checks that `actual` is within `limit`, failing closed otherwise.
 ///

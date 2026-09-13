@@ -93,7 +93,10 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[0].after.state["status"], json!("granted"));
+    assert_eq!(
+        events[0].after.state.get("status").unwrap(),
+        json!("granted")
+    );
     println!("entitlement.grant(BOB)  -> {}", events[0].after.state);
 
     run_entitlement(
@@ -110,7 +113,10 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[1].after.state["status"], json!("active"));
+    assert_eq!(
+        events[1].after.state.get("status").unwrap(),
+        json!("active")
+    );
     println!("entitlement.activate    -> {}", events[1].after.state);
 
     run_entitlement(
@@ -127,7 +133,10 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[2].after.state["status"], json!("suspended"));
+    assert_eq!(
+        events[2].after.state.get("status").unwrap(),
+        json!("suspended")
+    );
     println!("entitlement.suspend     -> {}", events[2].after.state);
 
     run_entitlement(
@@ -144,7 +153,10 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[3].after.state["status"], json!("active"));
+    assert_eq!(
+        events[3].after.state.get("status").unwrap(),
+        json!("active")
+    );
     println!("entitlement.restore     -> {}", events[3].after.state);
 
     // Fail-closed: the grant is non-transferable, so a transfer is rejected.
@@ -178,10 +190,13 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[4].after.state["status"], json!("revoked"));
+    assert_eq!(
+        events[4].after.state.get("status").unwrap(),
+        json!("revoked")
+    );
     println!(
         "entitlement.revoke      -> {} (terminal)",
-        events[4].after.state["status"]
+        events[4].after.state.get("status").unwrap()
     );
 
     // --- Meter: refill is deterministic; set_maximum clamps. ---
@@ -219,7 +234,7 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[6].after.state["remaining"], json!("35"));
+    assert_eq!(events[6].after.state.get("remaining").unwrap(), json!("35"));
     println!("meter.consume(5)        -> {}", events[6].after.state);
 
     run_meter(
@@ -236,8 +251,11 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[7].after.state["remaining"], json!("100"));
-    assert_eq!(events[7].after.state["maximum"], json!("100"));
+    assert_eq!(
+        events[7].after.state.get("remaining").unwrap(),
+        json!("100")
+    );
+    assert_eq!(events[7].after.state.get("maximum").unwrap(), json!("100"));
     println!(
         "meter.refill            -> {} (remaining == maximum)",
         events[7].after.state
@@ -258,8 +276,8 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[8].after.state["remaining"], json!("60"));
-    assert_eq!(events[8].after.state["maximum"], json!("60"));
+    assert_eq!(events[8].after.state.get("remaining").unwrap(), json!("60"));
+    assert_eq!(events[8].after.state.get("maximum").unwrap(), json!("60"));
     println!(
         "meter.set_maximum(60)   -> {} (clamped)",
         events[8].after.state
@@ -279,7 +297,7 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[9].after.state["remaining"], json!("0"));
+    assert_eq!(events[9].after.state.get("remaining").unwrap(), json!("0"));
     println!("meter.reset             -> {}", events[9].after.state);
 
     run_meter(
@@ -298,7 +316,7 @@ async fn main() {
     .await;
     println!(
         "meter.expire            -> {} (terminal)",
-        events[10].after.state["remaining"]
+        events[10].after.state.get("remaining").unwrap()
     );
 
     // Build the signed commit + accumulator over every emitted event.

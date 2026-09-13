@@ -6,8 +6,10 @@
 //! a `trade.settle` intent declaring the value leg plus one `balance.transfer`
 //! intent (the value leg), distinct intent ids. The settle batch therefore
 //! grows from `[trade.settle]` to `[trade.settle, balance.transfer x2]` - one
-//! settle event and one atomic debit + credit pair, all in ONE atomic
+//! settle event and one atomic debit + credit pair, all in ONE in-memory
 //! transaction.
+//! The wrapper is symbolic in this example; production callers must use
+//! `execute_settle_durable` with a durable batch sink.
 //!
 //! Asserted in one commit: the asset's owner changes to the buyer, the buyer's
 //! balance is debited by the value amount, and the seller's balance is credited
@@ -216,8 +218,8 @@ async fn main() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(held.state["owner"], json!(BOB));
-    assert_eq!(held.state["status"], json!("active"));
+    assert_eq!(held.state.get("owner").unwrap(), json!(BOB));
+    assert_eq!(held.state.get("status").unwrap(), json!("active"));
 
     // The buyer is debited; the seller is credited (create-on-credit).
     let bob_wallet = harness
@@ -227,7 +229,7 @@ async fn main() {
         .unwrap()
         .unwrap();
     assert_eq!(
-        bob_wallet.state["balance"],
+        bob_wallet.state.get("balance").unwrap(),
         json!((1000 - PRICE).to_string())
     );
     let alice_wallet = harness
@@ -236,10 +238,14 @@ async fn main() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(alice_wallet.state["balance"], json!(PRICE.to_string()));
+    assert_eq!(
+        alice_wallet.state.get("balance").unwrap(),
+        json!(PRICE.to_string())
+    );
     println!(
         "asset owned by BOB; buyer debited to {}; seller credited to {}",
-        bob_wallet.state["balance"], alice_wallet.state["balance"]
+        bob_wallet.state.get("balance").unwrap(),
+        alice_wallet.state.get("balance").unwrap()
     );
 
     println!("trade_value: OK");

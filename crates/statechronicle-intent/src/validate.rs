@@ -82,12 +82,13 @@ pub fn validate(raw: &RawIntent) -> Result<ValidatedIntent, IntentError> {
         .map(|value| parse_timestamp("expires_at", value))
         .transpose()?;
 
-    if let Some(expiry) = &expires_at
-        && *expiry <= created_at
-    {
-        return Err(IntentError::InvalidExpiry(format!(
-            "expires_at `{expiry}` must be after created_at `{created_at}`"
-        )));
+    match expires_at.as_ref() {
+        Some(expiry) if *expiry <= created_at => {
+            return Err(IntentError::InvalidExpiry(format!(
+                "expires_at `{expiry}` must be after created_at `{created_at}`"
+            )));
+        }
+        _ => {}
     }
 
     let nonce = Nonce::from_b64u_str(&raw.nonce)?;

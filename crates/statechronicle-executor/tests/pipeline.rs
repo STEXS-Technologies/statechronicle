@@ -46,9 +46,15 @@ use statechronicle_domain::subject::SubjectId;
 use statechronicle_accumulator::key::StateKey;
 use statechronicle_executor::atomicity;
 use statechronicle_executor::error::ExecutorError;
-use statechronicle_executor::pipeline::TrustGrantPort;
+use statechronicle_executor::pipeline::{
+    DurableBatchSink, DurableMutationSink, PlayerBatchItem, TrustGrantPort,
+};
 use statechronicle_executor::transition;
+use statechronicle_ports::authorization::{
+    AuthenticatedPrincipal, AuthorizationContext, AuthorizationError, Authorizer, DenyAllAuthorizer,
+};
 use statechronicle_ports::intent_store::IntentStore;
+use statechronicle_ports::key_registry::{KeyRecord, KeyStatus, MemoryKeyRegistry};
 use statechronicle_ports::state_index::StateIndex;
 use statechronicle_ports::trustgrant_evaluator::TrustGrantError;
 use statechronicle_profiles::error::ProfileError;
@@ -477,15 +483,27 @@ async fn balance_transfer_emits_atomic_debit_credit_pair() {
     assert_eq!(events[0].resource_id, events[1].resource_id);
 
     // Source debit: 100 -> 60.
-    assert_eq!(events[0].after.state["balance"], serde_json::json!("60"));
-    assert_eq!(events[0].after.state["subject"], serde_json::json!("alice"));
+    assert_eq!(
+        events[0].after.state.get("balance"),
+        Some(serde_json::json!("60"))
+    );
+    assert_eq!(
+        events[0].after.state.get("subject"),
+        Some(serde_json::json!("alice"))
+    );
 
     // Destination credit: create-on-credit at version 0 -> balance 40.
     assert_eq!(events[1].before.version, 0);
     assert_eq!(events[1].before.state, serde_json::json!({}));
     assert_eq!(events[1].after.version, 1);
-    assert_eq!(events[1].after.state["balance"], serde_json::json!("40"));
-    assert_eq!(events[1].after.state["subject"], serde_json::json!("bob"));
+    assert_eq!(
+        events[1].after.state.get("balance"),
+        Some(serde_json::json!("40"))
+    );
+    assert_eq!(
+        events[1].after.state.get("subject"),
+        Some(serde_json::json!("bob"))
+    );
 
     // The pair is the atomic net-zero unit.
     assert!(atomicity::validate_batch_consistency(&events).is_ok());
@@ -503,7 +521,7 @@ async fn balance_transfer_emits_atomic_debit_credit_pair() {
         .await
         .unwrap()
         .expect("bob's balance persisted");
-    assert_eq!(bob.state["balance"], serde_json::json!("40"));
+    assert_eq!(bob.state.get("balance"), Some(serde_json::json!("40")));
 }
 
 #[tokio::test]
@@ -531,11 +549,23 @@ async fn stack_transfer_emits_atomic_debit_credit_pair() {
 
     assert_eq!(events.len(), 2);
     assert_eq!(events[0].intent_id, events[1].intent_id);
-    assert_eq!(events[0].after.state["quantity"], serde_json::json!("6"));
-    assert_eq!(events[0].after.state["subject"], serde_json::json!("alice"));
+    assert_eq!(
+        events[0].after.state.get("quantity"),
+        Some(serde_json::json!("6"))
+    );
+    assert_eq!(
+        events[0].after.state.get("subject"),
+        Some(serde_json::json!("alice"))
+    );
     assert_eq!(events[1].before.version, 0);
-    assert_eq!(events[1].after.state["quantity"], serde_json::json!("4"));
-    assert_eq!(events[1].after.state["subject"], serde_json::json!("bob"));
+    assert_eq!(
+        events[1].after.state.get("quantity"),
+        Some(serde_json::json!("4"))
+    );
+    assert_eq!(
+        events[1].after.state.get("subject"),
+        Some(serde_json::json!("bob"))
+    );
     assert!(atomicity::validate_batch_consistency(&events).is_ok());
 }
 
@@ -570,8 +600,14 @@ async fn transfer_to_nonexistent_destination_creates_it_at_version_zero() {
     // Destination did not exist: created at version 0, credited 25.
     assert_eq!(events[1].before.version, 0);
     assert_eq!(events[1].after.version, 1);
-    assert_eq!(events[1].after.state["balance"], serde_json::json!("25"));
-    assert_eq!(events[1].after.state["subject"], serde_json::json!("carol"));
+    assert_eq!(
+        events[1].after.state.get("balance"),
+        Some(serde_json::json!("25"))
+    );
+    assert_eq!(
+        events[1].after.state.get("subject"),
+        Some(serde_json::json!("carol"))
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -614,6 +650,217 @@ async fn valid_signature_passes_actor_authentication() {
     let events = harness.executor.execute(&request).await.unwrap();
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].intent_id.as_str(), "int_mint_001");
+}
+
+#[tokio::test]
+async fn player_ingress_rejects_unsigned_mutation_before_policy_or_state() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let request = mint("unsigned_player", "asset:sword_001", "alice");
+    let principal = AuthenticatedPrincipal {
+        subject: SubjectId(String::from("alice")),
+        credential_id: String::from("session-1"),
+        tenant: tenant(),
+    };
+    let error = harness
+        .executor
+        .execute_player(&request, &principal, &DenyAllAuthorizer)
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        ExecutorError::ActorAuthenticationFailed(message)
+            if message.contains("detached intent signature")
+    ));
+}
+
+struct RejectingDurableSink;
+
+#[async_trait]
+impl DurableMutationSink for RejectingDurableSink {
+    async fn persist_player_mutation(
+        &self,
+        _validated: &statechronicle_intent::validated::ValidatedIntent,
+        _principal: &AuthenticatedPrincipal,
+        _events: &[statechronicle_domain::event::Event],
+    ) -> Result<(), String> {
+        Err(String::from("durable sink unavailable"))
+    }
+}
+
+struct AcceptingDurableSink;
+
+#[async_trait]
+impl DurableMutationSink for AcceptingDurableSink {
+    async fn persist_player_mutation(
+        &self,
+        _validated: &statechronicle_intent::validated::ValidatedIntent,
+        _principal: &AuthenticatedPrincipal,
+        _events: &[statechronicle_domain::event::Event],
+    ) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+struct AcceptingDurableBatchSink;
+
+#[async_trait]
+impl DurableBatchSink for AcceptingDurableBatchSink {
+    async fn persist_batch(
+        &self,
+        _intents: &[statechronicle_intent::validated::ValidatedIntent],
+        _events: &[statechronicle_domain::event::Event],
+    ) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+struct AllowAuthorizer;
+
+#[async_trait]
+impl Authorizer for AllowAuthorizer {
+    async fn authorize(
+        &self,
+        _context: AuthorizationContext<'_>,
+    ) -> Result<(), AuthorizationError> {
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn durable_player_failure_does_not_leave_legacy_replay_marker() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let request = with_signature(
+        mint("durable_fail", "asset:sword_001", "alice"),
+        &fixed_key(),
+    );
+    let principal = AuthenticatedPrincipal {
+        subject: SubjectId(String::from("alice")),
+        credential_id: String::from("session-1"),
+        tenant: tenant(),
+    };
+    let error = harness
+        .executor
+        .execute_player_durable(
+            &request,
+            &principal,
+            &AllowAuthorizer,
+            &RejectingDurableSink,
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error, ExecutorError::Store(message) if message.contains("unavailable")));
+    assert!(
+        IntentStore::get_intent(&harness.intent_store, &tenant(), &request.intent.intent_id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn durable_player_ingress_requires_registered_key_before_persisting() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let request = with_signature(
+        mint("durable_key_registry", "asset:sword_001", "alice"),
+        &fixed_key(),
+    );
+    let principal = AuthenticatedPrincipal {
+        subject: SubjectId(String::from("alice")),
+        credential_id: String::from("session-1"),
+        tenant: tenant(),
+    };
+    let registry = MemoryKeyRegistry::new();
+
+    let error = harness
+        .executor
+        .execute_player_durable_with_key_registry(
+            &request,
+            &principal,
+            &AllowAuthorizer,
+            &registry,
+            &RejectingDurableSink,
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error, ExecutorError::ActorAuthenticationFailed(_)));
+
+    registry
+        .register(KeyRecord {
+            key_id: request.signature.as_ref().unwrap().key_id.clone(),
+            tenant: tenant(),
+            subject: Some(principal.subject.clone()),
+            operations: vec![request.intent.operation.clone()],
+            valid_from: request.intent.created_at,
+            valid_until: None,
+            status: KeyStatus::Active,
+        })
+        .unwrap();
+    let events = harness
+        .executor
+        .execute_player_durable_with_key_registry(
+            &request,
+            &principal,
+            &AllowAuthorizer,
+            &registry,
+            &AcceptingDurableSink,
+        )
+        .await
+        .unwrap();
+    assert_eq!(events.len(), 1);
+}
+
+#[tokio::test]
+async fn durable_player_batch_requires_every_item_to_have_a_scoped_key() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let request = with_signature(
+        mint("durable_batch_key_registry", "asset:sword_001", "alice"),
+        &fixed_key(),
+    );
+    let principal = AuthenticatedPrincipal {
+        subject: SubjectId(String::from("alice")),
+        credential_id: String::from("session-1"),
+        tenant: tenant(),
+    };
+    let registry = MemoryKeyRegistry::new();
+    let items = [PlayerBatchItem {
+        validated: &request,
+        principal: &principal,
+    }];
+
+    let error = harness
+        .executor
+        .execute_player_batch_durable_with_key_registry(
+            &items,
+            &AllowAuthorizer,
+            &registry,
+            &AcceptingDurableBatchSink,
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error, ExecutorError::ActorAuthenticationFailed(_)));
+
+    registry
+        .register(KeyRecord {
+            key_id: request.signature.as_ref().unwrap().key_id.clone(),
+            tenant: tenant(),
+            subject: Some(principal.subject.clone()),
+            operations: vec![request.intent.operation.clone()],
+            valid_from: request.intent.created_at,
+            valid_until: None,
+            status: KeyStatus::Active,
+        })
+        .unwrap();
+    let events = harness
+        .executor
+        .execute_player_batch_durable_with_key_registry(
+            &items,
+            &AllowAuthorizer,
+            &registry,
+            &AcceptingDurableBatchSink,
+        )
+        .await
+        .unwrap();
+    assert_eq!(events.len(), 1);
 }
 
 #[tokio::test]

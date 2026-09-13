@@ -1,0 +1,22 @@
+services:
+  statechronicle-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: statechronicle
+      POSTGRES_USER: statechronicle
+      POSTGRES_PASSWORD: ${STATECHRONICLE_POSTGRES_PASSWORD:?set a secret}
+    ports:
+      - "127.0.0.1:${STATECHRONICLE_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - statechronicle-postgres-data:/var/lib/postgresql/data
+      - ../docs/OPERATIONS/postgres_schema.sql:/docker-entrypoint-initdb.d/001-statechronicle.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U statechronicle -d statechronicle"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    stop_grace_period: 60s
+
+volumes:
+  statechronicle-postgres-data:

@@ -1,9 +1,9 @@
 //! Trade read-side wire types (Phase 2 of the trade completion).
 //!
 //! These are the canonical, BCS-deterministic domain objects for the trade
-//! read-side vertical slice: the accumulated [`TradeRecord`] produced by the
-//! index builder, the assembled [`TradeHistory`] and [`TradeSummary`] views,
-//! and the portable [`TradeProof`] that ties a settled trade's per-tenant state
+//! read-side vertical slice: the accumulated [`TradeRecord`](crate::trade::TradeRecord) produced by the
+//! index builder, the assembled [`TradeHistory`](crate::trade::TradeHistory) and [`TradeSummary`](crate::trade::TradeSummary) views,
+//! and the portable [`TradeProof`](crate::trade::TradeProof) that ties a settled trade's per-tenant state
 //! proofs together.
 //!
 //! Every type here is serde + BCS-deterministic: collections that must be

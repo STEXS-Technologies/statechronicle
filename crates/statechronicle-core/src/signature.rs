@@ -30,7 +30,7 @@ pub const B64U_PREFIX: &str = "b64u:";
 
 /// An Ed25519 signature over BCS canonical bytes.
 ///
-/// Stored as the raw 64 signature bytes. Serde serialization and [`Display`]
+/// Stored as the raw 64 signature bytes. Serde serialization and [`Display`](std::fmt::Display)
 /// use the protocol's `b64u:<base64url-unpadded>` string form (§17); the raw
 /// bytes are exposed via [`as_bytes`](Self::as_bytes) and construction from
 /// raw bytes via [`from_bytes`](Self::from_bytes).

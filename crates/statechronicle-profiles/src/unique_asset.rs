@@ -14,7 +14,9 @@ use statechronicle_domain::status::Status;
 
 use crate::error::ProfileError;
 use crate::keys;
-use crate::registry::{ProfileRules, input_amount, input_str, require_from, state_str};
+use crate::registry::{
+    ProfileRules, input_amount, input_str, require_from, state_str, state_trade_id,
+};
 
 /// Typed wire status names for a unique asset.
 pub mod status {
@@ -373,7 +375,7 @@ fn check_trade_unlock(
 ) -> Result<(), ProfileError> {
     let current = require_from(current, "trade.unlock", &[status::trade_held().to_owned()])?;
     let trade_id = input_str(inputs, "trade_id")?;
-    let stored = state_str(current, "trade_id")?;
+    let stored = state_trade_id(current)?;
     if trade_id != stored {
         return Err(ProfileError::InvalidInput(format!(
             "trade_id `{trade_id}` does not match stored trade_id"
@@ -417,7 +419,7 @@ fn check_trade_settle(
     let trade_id = input_str(inputs, "trade_id")?;
     check_value_leg(inputs)?;
     let owner = state_str(current, "owner")?;
-    let stored = state_str(current, "trade_id")?;
+    let stored = state_trade_id(current)?;
     if from_owner != owner {
         return Err(ProfileError::OwnershipMismatch {
             expected: String::from(owner),
@@ -478,7 +480,11 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state: serde_json::json!({ "owner": owner, "status": status.as_str() }),
+            state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::UniqueAsset,
+                serde_json::json!({ "owner": owner, "status": status.as_str() }),
+            )
+            .unwrap(),
         }
     }
 
@@ -499,11 +505,15 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state: serde_json::json!({
-                "owner": "alice",
-                "status": status::trade_held().as_str(),
-                "trade_id": trade_id,
-            }),
+            state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::UniqueAsset,
+                serde_json::json!({
+                    "owner": "alice",
+                    "status": status::trade_held().as_str(),
+                    "trade_id": trade_id,
+                }),
+            )
+            .unwrap(),
         }
     }
 
@@ -763,21 +773,13 @@ mod tests {
 
     #[test]
     fn malformed_payload_fails_closed() {
-        let rules = UniqueAssetRules;
-        let broken = StateProjection {
-            tenant_id: TenantId(String::from("tenant.test")),
-            resource_id: ResourceId(String::from("asset:test")),
-            state_type: StateType::UniqueAsset,
-            version: 1,
-            last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
-            last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
-            state_hash: ContentDigest::new([0u8; 32]),
-            state: serde_json::json!({ "owner": "alice" }),
-        };
-        assert!(matches!(
-            rules.check(&op("asset.lock"), Some(&broken), &BTreeMap::new()),
-            Err(ProfileError::InvalidInput(_))
-        ));
+        assert!(
+            statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::UniqueAsset,
+                serde_json::json!({ "owner": "alice" }),
+            )
+            .is_err()
+        );
     }
 
     #[test]

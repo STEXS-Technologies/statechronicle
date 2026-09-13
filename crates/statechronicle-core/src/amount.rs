@@ -1,18 +1,18 @@
 //! Exact fixed-point monetary amounts.
 //!
 //! StateChronicle stores every economic quantity, balance, and meter value as
-//! an exact fixed-point [`Amount`]: an unsigned `u128` mantissa multiplied by
+//! an exact fixed-point [`Amount`](crate::amount::Amount): an unsigned `u128` mantissa multiplied by
 //! `10^-scale`, with `scale <= [`MAX_SCALE`]`. This is the protocol's internal
 //! arithmetic representation. It is exact, never rounds, and never touches
 //! floats (ADR-004 no-float-by-construction). The wire form is unchanged: an
 //! `Amount` serializes as a canonical non-negative decimal **integer** string
-//! via [`Amount::to_canonical_string`], so amounts never appear in BCS bytes as
+//! via [`Amount::to_canonical_string`](crate::amount::Amount::to_canonical_string), so amounts never appear in BCS bytes as
 //! anything but their canonical integer string.
 //!
 //! # Unsigned rationale
 //!
 //! The protocol has no negative amounts: the wire grammar is `[0-9]+` only, so
-//! every decrement is fail-closed. An underflowing [`Amount::checked_sub`]
+//! every decrement is fail-closed. An underflowing [`Amount::checked_sub`](crate::amount::Amount::checked_sub)
 //! returns `None` rather than representing a negative balance.
 //!
 //! # Future division rule (pinned)
@@ -346,6 +346,34 @@ impl fmt::Display for Amount {
     /// Renders the canonical string form (used in error messages).
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.to_canonical_string())
+    }
+}
+
+impl serde::Serialize for Amount {
+    /// Serializes as the canonical non-negative integer string (the wire form,
+    /// ADR-004), so an `Amount` never appears in BCS bytes as anything but its
+    /// canonical integer string.
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_canonical_string())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Amount {
+    /// Parses a canonical non-negative integer string back into an [`Amount`].
+    ///
+    /// # Errors
+    ///
+    /// Returns a serde error when the string is not a canonical non-negative
+    /// integer.
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let text = String::deserialize(deserializer)?;
+        Self::try_from_str(&text).map_err(serde::de::Error::custom)
     }
 }
 

@@ -146,10 +146,16 @@ fn validate_status(value: &str) -> Result<(), DomainError> {
             "status must not be empty",
         )));
     }
-    if value.len() > MAX_ID_LENGTH {
+    let length = value.chars().count();
+    if value.chars().any(char::is_control) {
+        return Err(DomainError::InvalidStatus(String::from(
+            "status must not contain control characters",
+        )));
+    }
+    if length > MAX_ID_LENGTH {
         return Err(DomainError::InvalidStatus(format!(
             "status must be at most {MAX_ID_LENGTH} chars, got {}",
-            value.len()
+            length
         )));
     }
     Ok(())
@@ -191,6 +197,9 @@ mod tests {
     fn at_limit_status_is_accepted() {
         let at_limit = "x".repeat(MAX_ID_LENGTH);
         assert!(Status::new(at_limit).is_ok());
+        assert!(Status::new("é".repeat(MAX_ID_LENGTH)).is_ok());
+        assert!(Status::new("é".repeat(MAX_ID_LENGTH.saturating_add(1))).is_err());
+        assert!(Status::new(String::from("active\nlocked")).is_err());
     }
 
     #[test]

@@ -47,7 +47,10 @@ fn projection(state_type: StateType, state: serde_json::Value) -> StateProjectio
         last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
         last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
         state_hash: ContentDigest::new([0u8; 32]),
-        state,
+        state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+            state_type, state,
+        )
+        .unwrap(),
     }
 }
 
@@ -435,9 +438,18 @@ fn check_never_panics_on_garbage_payloads() {
     // example `stack.expire`) may still return `Ok`; they never read the
     // payload.
     let registry = ProfileRegistry::baseline();
+    // Malformed legacy payloads are rejected at the typed boundary rather
+    // than being representable as an invalid `StateProjection`.
+    assert!(
+        statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+            StateType::UniqueAsset,
+            serde_json::json!({ "not": ["a", "valid", 1.5, null, true] }),
+        )
+        .is_err()
+    );
     let garbage = projection(
         StateType::UniqueAsset,
-        serde_json::json!({ "not": ["a", "valid", 1.5, null, true] }),
+        serde_json::json!({ "status": "active", "owner": "alice" }),
     );
     for state_type in ALL_STATE_TYPES {
         let rules = registry.get(state_type).unwrap();

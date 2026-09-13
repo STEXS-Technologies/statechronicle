@@ -1,11 +1,11 @@
 //! Port traits for atomic multi-store transactions (protocol §18.3).
 //!
 //! The executor stages writes across the logical stores inside a
-//! [`TransactionHandle`], then commits them atomically or rolls back on
+//! [`TransactionHandle`](crate::transaction_manager::TransactionHandle), then commits them atomically or rolls back on
 //! failure. Handles consume themselves on completion: commit or rollback is
 //! called exactly once.
 //!
-//! Both [`TransactionManager`] and [`TransactionHandle`] use
+//! Both [`TransactionManager`](crate::transaction_manager::TransactionManager) and [`TransactionHandle`](crate::transaction_manager::TransactionHandle) use
 //! `#[async_trait]`. `trait_variant::make(Send)` was rejected here because its
 //! `async fn` desugar to `-> impl Future + Send`, which is not object-safe,
 //! the very property `begin` relies on when it returns

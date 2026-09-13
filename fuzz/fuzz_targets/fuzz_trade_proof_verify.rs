@@ -12,7 +12,9 @@ use statechronicle_domain::ids::{CommitId, EventId};
 use statechronicle_domain::intent::{KeyId, Operation, SignatureAlg, SignatureBlock};
 use statechronicle_domain::proof::{CommitRef, EventRef, ResourceStateProof, SparseMerkleProof};
 use statechronicle_domain::resource::ResourceId;
+use statechronicle_domain::resource_state::ResourceState;
 use statechronicle_domain::signed::Signed;
+use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_domain::trade::{
@@ -21,16 +23,16 @@ use statechronicle_domain::trade::{
 use statechronicle_proof::trade::verify_trade_proof;
 
 // `verify_trade_proof` is total over arbitrary proofs: any structurally
-// arbitrary trade proof plus an arbitrary commits-by-tenant map must return a
+// arbitrary trade proof plus an arbitrary commits-by-id map must return a
 // `Result`, never panic. The byte stream derives the proof's legs, summary,
 // state proofs, and the signed commits, so every fail-closed path (unsupported
-// schema, missing tenant key, commit-ref/signature mismatch, structural
+// schema, missing commit key, commit-ref/signature mismatch, structural
 // checks) is reachable.
 fuzz_target!(|data: &[u8]| {
     let Some(proof) = proof_from_bytes(data) else {
         return;
     };
-    let commits = commits_by_tenant(data);
+    let commits = commits_by_id(data);
     let _ = verify_trade_proof(&proof, &commits);
 });
 
@@ -96,7 +98,11 @@ fn state_proof(data: &[u8], tenant: &str) -> ResourceStateProof {
                 "asset:shield"
             },
         )),
-        serde_json::json!({ "owner": "account:example:player_456", "status": "active" }),
+        ResourceState::from_legacy_json(
+            StateType::UniqueAsset,
+            serde_json::json!({ "owner": "account:example:player_456", "status": "active" }),
+        )
+        .unwrap(),
         commit_ref(data, tenant),
         SparseMerkleProof::new(path, digest(data, 4)),
         EventRef {
@@ -145,13 +151,13 @@ fn proof_from_bytes(data: &[u8]) -> Option<TradeProof> {
     })
 }
 
-fn commits_by_tenant(
-    data: &[u8],
-) -> BTreeMap<String, (Signed<Commit>, ed25519_dalek::VerifyingKey)> {
+fn commits_by_id(data: &[u8]) -> BTreeMap<String, (Signed<Commit>, ed25519_dalek::VerifyingKey)> {
     let tenant = tenant_name(data);
+    let commit_id =
+        CommitId::new(format!("cmt_{:08}", data.first().copied().unwrap_or(1))).unwrap();
     let commit = Commit::new(
         CommitScope::tenant(TenantId(String::from(tenant))),
-        CommitId::new(format!("cmt_{:08}", data.first().copied().unwrap_or(1))).unwrap(),
+        commit_id.clone(),
         None,
         data.get(1).copied().unwrap_or(0) as u64,
         1,
@@ -165,6 +171,6 @@ fn commits_by_tenant(
     let signed = Signed::new(commit, signature_block(data));
     let seed = ed25519_dalek::SigningKey::from_bytes(&[42u8; 32]);
     let mut map = BTreeMap::new();
-    map.insert(String::from(tenant), (signed, seed.verifying_key()));
+    map.insert(commit_id.0.clone(), (signed, seed.verifying_key()));
     map
 }

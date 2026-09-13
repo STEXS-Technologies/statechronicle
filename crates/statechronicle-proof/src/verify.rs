@@ -19,6 +19,7 @@ use statechronicle_accumulator::sparse_merkle::{
     EMPTY_LEAF_HASH, StateAccumulator, StateRoot, TREE_DEPTH, leaf_hash,
 };
 use statechronicle_core::canonicalize::{canonicalize, canonicalize_and_digest};
+use statechronicle_core::limits::MAX_PROOF_BYTES;
 use statechronicle_core::signature::verify as verify_signature;
 use statechronicle_domain::commit::Commit;
 use statechronicle_domain::proof::{
@@ -142,6 +143,19 @@ pub fn verify_proof(
     verify_claimed_state(proof, key)
 }
 
+fn check_proof_size<T: serde::Serialize>(proof: &T) -> Result<(), ProofError> {
+    let actual = bcs::to_bytes(proof)
+        .map_err(|error| ProofError::InvalidState(format!("proof serialization failed: {error}")))?
+        .len();
+    if actual > MAX_PROOF_BYTES {
+        return Err(ProofError::SizeLimitExceeded {
+            limit: MAX_PROOF_BYTES,
+            actual,
+        });
+    }
+    Ok(())
+}
+
 /// Verifies that a proof's claimed state names `expected_subject` as the
 /// owner (protocol §29 step 8).
 ///
@@ -242,6 +256,7 @@ pub fn verify_bundle(
     verifying_key: &VerifyingKey,
     key: &StateKey,
 ) -> Result<(), ProofError> {
+    check_proof_size(proof)?;
     if proof.schema != RESOURCE_STATE_PROOF_SCHEMA {
         return Err(ProofError::UnsupportedSchema(proof.schema.clone()));
     }
@@ -281,6 +296,7 @@ pub fn verify_non_membership(
     root: &StateRoot,
     key: &StateKey,
 ) -> Result<(), ProofError> {
+    check_proof_size(bundle)?;
     if bundle.schema != NON_MEMBERSHIP_PROOF_SCHEMA {
         return Err(ProofError::UnsupportedSchema(bundle.schema.clone()));
     }
@@ -434,15 +450,21 @@ mod tests {
         (root, proof)
     }
 
-    fn claimed_state() -> serde_json::Value {
-        serde_json::json!({
-            "owner": "account:example:player_456",
-            "status": "active",
-            "version": 42,
-        })
+    fn claimed_state() -> statechronicle_domain::resource_state::ResourceState {
+        statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+            statechronicle_domain::state_type::StateType::UniqueAsset,
+            serde_json::json!({
+                "owner": "account:example:player_456",
+                "status": "active",
+            }),
+        )
+        .unwrap()
     }
 
-    fn proof_for(key: StateKey, claimed: serde_json::Value) -> ResourceStateProof {
+    fn proof_for(
+        key: StateKey,
+        claimed: statechronicle_domain::resource_state::ResourceState,
+    ) -> ResourceStateProof {
         let state_digest = canonicalize_and_digest(&claimed).unwrap();
         let (root, inclusion) = tree_with(key, *state_digest.as_bytes());
         let _ = root;
@@ -507,11 +529,15 @@ mod tests {
         let state_digest = canonicalize_and_digest(&claimed).unwrap();
         let (root, _) = tree_with(key, *state_digest.as_bytes());
         let mut proof = proof_for(key, claimed);
-        proof.claimed_state = serde_json::json!({
-            "owner": "account:example:player_789",
-            "status": "active",
-            "version": 42,
-        });
+        proof.claimed_state =
+            statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                statechronicle_domain::state_type::StateType::UniqueAsset,
+                serde_json::json!({
+                    "owner": "account:example:player_789",
+                    "status": "active",
+                }),
+            )
+            .unwrap();
         assert!(matches!(
             verify_proof(&proof, &root, &key),
             Err(ProofError::ClaimedStateMismatch)
@@ -586,12 +612,23 @@ mod tests {
             Err(ProofError::SubjectMismatch { .. })
         ));
 
-        let mut no_owner = proof_for(key, serde_json::json!({ "status": "active" }));
+        let mut no_owner = proof_for(
+            key,
+            statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                statechronicle_domain::state_type::StateType::UniqueAsset,
+                serde_json::json!({ "owner": "", "status": "active" }),
+            )
+            .unwrap(),
+        );
         let _ = &mut no_owner;
         let missing = ResourceStateProof::new(
             tenant(),
             statechronicle_domain::resource::ResourceId(resource()),
-            serde_json::json!({ "status": "active" }),
+            statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                statechronicle_domain::state_type::StateType::UniqueAsset,
+                serde_json::json!({ "owner": "", "status": "active" }),
+            )
+            .unwrap(),
             proof.commit.clone(),
             SparseMerkleProof::new(Vec::new(), hash_bytes(b"leaf")),
             proof.latest_event.clone(),

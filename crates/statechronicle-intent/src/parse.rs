@@ -3,7 +3,7 @@
 //! Converts canonical JSON payloads into typed, stage-separated intent
 //! documents.
 
-use statechronicle_core::limits::{MAX_INTENT_BYTES, check_size};
+use statechronicle_core::limits::{MAX_INTENT_BYTES, MAX_JSON_DEPTH, check_size};
 
 use crate::error::IntentError;
 use crate::raw::RawIntent;
@@ -23,9 +23,36 @@ use crate::raw::RawIntent;
 /// payload is not valid JSON or does not deserialize into a [`RawIntent`].
 pub fn parse_intent(payload: &[u8]) -> Result<RawIntent, IntentError> {
     check_size("intent", MAX_INTENT_BYTES, payload.len())?;
-    let raw = serde_json::from_slice(payload)?;
+    let value: serde_json::Value = serde_json::from_slice(payload)?;
+    if json_depth(&value) > MAX_JSON_DEPTH {
+        return Err(IntentError::InvalidField(format!(
+            "JSON nesting depth exceeds limit {MAX_JSON_DEPTH}"
+        )));
+    }
+    let raw = serde_json::from_value(value)?;
     tracing::debug!(bytes = payload.len(), "parsed raw intent payload");
     Ok(raw)
+}
+
+fn json_depth(value: &serde_json::Value) -> usize {
+    match value {
+        serde_json::Value::Array(values) => values
+            .iter()
+            .map(json_depth)
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1),
+        serde_json::Value::Object(values) => values
+            .values()
+            .map(json_depth)
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1),
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => 0,
+    }
 }
 
 /// Parses a canonical JSON intent payload string into a [`RawIntent`].
@@ -122,6 +149,19 @@ mod tests {
         assert!(matches!(
             parse_intent(&payload),
             Err(IntentError::InvalidJson { .. })
+        ));
+    }
+
+    #[test]
+    fn parse_intent_rejects_excessive_json_nesting() {
+        let mut value = serde_json::json!({});
+        for _ in 0..=statechronicle_core::limits::MAX_JSON_DEPTH {
+            value = serde_json::json!([value]);
+        }
+        let payload = serde_json::to_vec(&value).unwrap();
+        assert!(matches!(
+            parse_intent(&payload),
+            Err(IntentError::InvalidField(message)) if message.contains("nesting depth")
         ));
     }
 }

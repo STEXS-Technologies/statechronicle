@@ -2,7 +2,7 @@
 //!
 //! The protocol signs an explicit body type (`body` + `signature`) so the
 //! signature covers only the BCS canonical bytes of `body`, never a
-//! `signature` field (ADR-004 §2). [`Signed`] is the generic envelope used for
+//! `signature` field (ADR-004 §2). [`Signed`](crate::signed::Signed) is the generic envelope used for
 //! intents, commits, and snapshots.
 
 use serde::{Deserialize, Serialize};

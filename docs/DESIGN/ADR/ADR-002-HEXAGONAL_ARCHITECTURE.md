@@ -191,6 +191,7 @@ trait TenantStore {}      // tenant scope + isolation
 trait TrustGrantEvaluator {} // authority evaluation (see ADR-003)
 trait TransactionManager {}
 trait EventPublisher {}
+trait TradeIndex {}      // trade read-side records (see ADR-007)
 ```
 
 ### Adapter Naming

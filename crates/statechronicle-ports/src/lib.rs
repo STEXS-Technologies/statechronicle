@@ -37,5 +37,23 @@ pub mod trustgrant_evaluator;
 /// Port trait for atomic multi-store transactions.
 pub mod transaction_manager;
 
+/// Durable atomic ledger transaction boundary.
+pub mod ledger_store;
+
+/// Mandatory authenticated actor and authorization boundary.
+pub mod authorization;
+
+/// Durable post-commit outbox delivery.
+pub mod outbox;
+
+/// Tenant-scoped signing-key lifecycle and trust resolution.
+pub mod key_registry;
+
+/// Privacy-safe mutation telemetry.
+pub mod observability;
+
+/// Shared distributed quota/rate-limit port.
+pub mod quota;
+
 /// Port trait for event publication.
 pub mod event_publisher;

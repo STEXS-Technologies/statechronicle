@@ -1,4 +1,5 @@
 #![no_main]
+#![allow(clippy::manual_is_multiple_of)]
 
 use std::collections::BTreeMap;
 
@@ -14,7 +15,9 @@ use statechronicle_domain::intent::{
     Intent, KeyId, Nonce, Operation, SignatureAlg, SignatureBlock,
 };
 use statechronicle_domain::resource::ResourceId;
+use statechronicle_domain::resource_state::ResourceState;
 use statechronicle_domain::signed::Signed;
+use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_index::build::{IngestBatch, apply};
@@ -60,6 +63,8 @@ fn event(id: usize, tenant: &str, op: &str, trade_id: &str) -> Event {
         "trade.settle" => serde_json::json!({ "owner": "bob", "status": "active" }),
         _ => serde_json::json!({ "owner": "alice", "status": "active" }),
     };
+    let before = ResourceState::from_legacy_json(StateType::UniqueAsset, before).unwrap();
+    let after = ResourceState::from_legacy_json(StateType::UniqueAsset, after).unwrap();
     Event::new(
         TenantId(String::from(tenant)),
         EventId::new(format!("evt_{id:020}")).ok().unwrap(),
@@ -100,7 +105,7 @@ fn batch_from_bytes(data: &[u8]) -> Option<IngestBatch> {
             }
         }
     }
-    if data.len() > 2 && data[2].is_multiple_of(3) {
+    if data.len() > 2 && data[2] % 3 == 0 {
         let amount = format!("{}", data.get(3).copied().unwrap_or(0) % 100);
         let mut inputs = std::collections::BTreeMap::new();
         inputs.insert(String::from("trade_id"), serde_json::json!(trade_id));

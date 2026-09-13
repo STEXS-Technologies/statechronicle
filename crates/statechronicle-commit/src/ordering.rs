@@ -66,6 +66,7 @@ pub fn order_events(mut events: Vec<Event>) -> Result<Vec<Event>, CommitError> {
 /// earlier one, [`CommitError::DuplicateEventId`] when the same event id
 /// appears twice, and [`CommitError::DuplicateCanonicalKey`] when two
 /// different events share the same `(resource_id, after.version)`.
+#[allow(clippy::collapsible_if)]
 pub fn validate_order(events: &[Event]) -> Result<(), CommitError> {
     let mut seen_event_ids: HashSet<&str> = HashSet::new();
     let mut seen_keys: HashSet<(&str, u64)> = HashSet::new();
@@ -83,13 +84,13 @@ pub fn validate_order(events: &[Event]) -> Result<(), CommitError> {
                 version: event.after.version,
             });
         }
-        if let Some(previous_key) = previous
-            && previous_key > key
-        {
-            return Err(CommitError::OutOfOrder {
-                resource_id: String::from(event.resource_id.0.as_str()),
-                version: event.after.version,
-            });
+        if let Some(previous_key) = previous {
+            if previous_key > key {
+                return Err(CommitError::OutOfOrder {
+                    resource_id: String::from(event.resource_id.0.as_str()),
+                    version: event.after.version,
+                });
+            }
         }
         previous = Some(key);
     }
@@ -121,7 +122,11 @@ mod tests {
     }
 
     fn commitment(version: u64) -> StateCommitment {
-        let state = serde_json::json!({ "owner": "account:example:player_123" });
+        let state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+            statechronicle_domain::state_type::StateType::UniqueAsset,
+            serde_json::json!({ "owner": "account:example:player_123", "status": "active" }),
+        )
+        .unwrap();
         StateCommitment {
             version,
             state_hash: canonicalize_and_digest(&state).unwrap(),

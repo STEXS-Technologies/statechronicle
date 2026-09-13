@@ -206,8 +206,8 @@ impl FakeStateIndex {
                 .after
                 .state
                 .get("subject")
-                .and_then(Value::as_str)
-                .map(|subject| SubjectId(String::from(subject)))
+                .and_then(|value| value.as_str().map(String::from))
+                .map(SubjectId)
         } else {
             None
         };

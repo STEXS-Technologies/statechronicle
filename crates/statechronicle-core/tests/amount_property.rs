@@ -96,13 +96,13 @@ proptest! {
         x in arbitrary_amount(),
         y in arbitrary_amount(),
     ) {
-        if let Some(sum) = x.checked_add(y)
-            && let Some(back) = sum.checked_sub(y)
+        if let (Some(_sum), Some(back)) =
+            (x.checked_add(y), x.checked_add(y).and_then(|sum| sum.checked_sub(y)))
         {
             prop_assert_eq!(back, x);
         }
-        if let Some(diff) = x.checked_sub(y)
-            && let Some(back) = diff.checked_add(y)
+        if let (Some(_diff), Some(back)) =
+            (x.checked_sub(y), x.checked_sub(y).and_then(|diff| diff.checked_add(y)))
         {
             prop_assert_eq!(back, x);
         }

@@ -363,13 +363,14 @@ fn check_restrict_overlay(
         ],
     )?;
     let owner = state_str(current, "owner")?;
-    if let Some(provided) = inputs.get("owner").and_then(serde_json::Value::as_str)
-        && provided != owner
-    {
-        return Err(ProfileError::OwnershipMismatch {
-            expected: String::from(owner),
-            actual: String::from(provided),
-        });
+    match inputs.get("owner").and_then(serde_json::Value::as_str) {
+        Some(provided) if provided != owner => {
+            return Err(ProfileError::OwnershipMismatch {
+                expected: String::from(owner),
+                actual: String::from(provided),
+            });
+        }
+        _ => {}
     }
     if let Some(target) = inputs.get("status").and_then(serde_json::Value::as_str) {
         let Ok(target_status) = Status::try_from_str(target) else {
@@ -430,7 +431,11 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state: serde_json::json!({ "owner": owner, "status": status.as_str() }),
+            state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::UniqueAsset,
+                serde_json::json!({ "owner": owner, "status": status.as_str() }),
+            )
+            .unwrap(),
         }
     }
 
@@ -451,11 +456,15 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state: serde_json::json!({
-                "owner": "alice",
-                "status": status::trade_held().as_str(),
-                "trade_id": trade_id,
-            }),
+            state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::UniqueAsset,
+                serde_json::json!({
+                    "owner": "alice",
+                    "status": status::trade_held().as_str(),
+                    "trade_id": trade_id,
+                }),
+            )
+            .unwrap(),
         }
     }
 

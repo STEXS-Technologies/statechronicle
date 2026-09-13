@@ -4,8 +4,8 @@
 //! projected state payloads (protocol §11.1, §20). These are deliberately
 //! **plain string constants, not newtypes**: they are wire-format map keys that
 //! must stay byte-identical to the protocol literals, and profiles read and
-//! write them through [`crate::registry::input_str`] /
-//! [`crate::registry::state_str`]. Grouping them here removes literal drift and
+//! write them through the registry's validated input/state string readers.
+//! Grouping them here removes literal drift and
 //! lets the executor reference the same keys as the profiles.
 
 /// The current owner/actor input key.

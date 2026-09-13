@@ -2,10 +2,12 @@
 //!
 //! A BUNDLE trade settlement under the baseline profiles (Phase 4, protocol
 //! §18.3): a trade that freezes N assets per side and settles them in ONE
-//! atomic batch. Player A offers a sword + shield for player B's helm +
+//! in-memory atomic batch. Player A offers a sword + shield for player B's helm +
 //! gauntlets (2-for-2). Each `trade.lock` freezes one `active` asset into a
 //! pending trade (N locks run atomically via `execute_batch`), then all four
 //! assets settle in one all-or-nothing `execute_settle`.
+//! The example uses symbolic transaction fakes; production callers must route
+//! the batches through the durable sink variants.
 //!
 //! The settle batch is four `trade.settle` intents, one per asset, each
 //! DECLARING the bundle: a `bundle_size` input (the total 4 assets) and the
@@ -243,8 +245,8 @@ async fn main() {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(held.state["owner"], json!(expected_owner));
-        assert_eq!(held.state["status"], json!("active"));
+        assert_eq!(held.state.get("owner").unwrap(), json!(expected_owner));
+        assert_eq!(held.state.get("status").unwrap(), json!("active"));
     }
     println!("all four owners flipped to their new owners in one commit");
 

@@ -84,6 +84,20 @@ fn key_id() -> KeyId {
 }
 
 fn commitment(version: u64, state: serde_json::Value) -> StateCommitment {
+    let mut state = state;
+    if let Some(object) = state.as_object_mut() {
+        object
+            .entry(String::from("owner"))
+            .or_insert_with(|| serde_json::json!("account:example:player_123"));
+        object
+            .entry(String::from("status"))
+            .or_insert_with(|| serde_json::json!("active"));
+    }
+    let state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+        statechronicle_domain::state_type::StateType::UniqueAsset,
+        state,
+    )
+    .unwrap();
     StateCommitment {
         version,
         state_hash: canonicalize_and_digest(&state).unwrap(),

@@ -2,13 +2,13 @@
 //!
 //! A trade proof ties a settled trade's per-tenant state proofs together. There
 //! is deliberately **no cross-tenant root**: each settled asset is proven by a
-//! per-tenant [`ResourceStateProof`] under that tenant's own commit and
+//! per-tenant [`ResourceStateProof`](statechronicle_domain::proof::ResourceStateProof) under that tenant's own commit and
 //! verifying key, and `trade_id` is the semantic binding that a caller uses to
 //! join the legs. This keeps every leg independently verifiable with the
 //! existing single-tenant [`crate::verify::verify_bundle`] pipeline while
 //! leaving the cross-leg join to the caller's trust of the `trade_id` linkage.
 //!
-//! [`build_trade_proof`] is pure and assembling; [`verify_trade_proof`] is pure
+//! [`build_trade_proof`](crate::trade::build_trade_proof) is pure and assembling; [`verify_trade_proof`](crate::trade::verify_trade_proof) is pure
 //! and fail-closed.
 
 use std::collections::BTreeMap;
@@ -81,12 +81,14 @@ pub fn build_trade_proof(
 
 /// Verifies a trade proof fail-closed.
 ///
-/// `commits_by_tenant` maps each tenant id string to the signed settle commit
-/// and verifying key for that tenant. For every leg, each state proof is
-/// verified through the existing [`verify_bundle`] pipeline (schema, tenant
-/// scope, commit reference, commit signature over the BCS body, sparse Merkle
-/// inclusion, claimed-state hash) under that tenant's key, then checked
-/// structurally against the summary:
+/// `commits_by_id` maps each commit id string to the signed settle commit and
+/// verifying key for the tenant that produced it. Each state proof is resolved
+/// against **the commit its own `commit_ref` names** (a tenant may settle two
+/// assets of one trade in two different commits, so each leg's proofs may pin
+/// distinct commits), then verified through the existing [`verify_bundle`]
+/// pipeline (schema, tenant scope, commit reference, commit signature over the
+/// BCS body, sparse Merkle inclusion, claimed-state hash) under that commit's
+/// tenant key, and checked structurally against the summary:
 ///
 /// * `summary.trade_id` equals `proof.trade_id`;
 /// * the proof carries exactly as many legs as the summary declares sides, and
@@ -101,16 +103,16 @@ pub fn build_trade_proof(
 /// # Errors
 ///
 /// Returns [`ProofError::UnsupportedSchema`], [`ProofError::KeyNotFound`] when
-/// no commit/key is supplied for a leg's tenant, [`ProofError::TradeMissingSide`]
-/// when a leg has no summary side, [`ProofError::TradeProofTruncated`] when the
-/// proof carries fewer legs than sides or fewer state proofs than a side's
-/// settle assets, [`ProofError::TradeIdMismatch`],
-/// [`ProofError::TradeOperation`], [`ProofError::ResourceMismatch`],
-/// [`ProofError::SubjectMismatch`], or every [`ProofError`] variant of
-/// [`verify_bundle`], in fail-closed order.
+/// no commit/key is supplied for a state proof's own commit,
+/// [`ProofError::TradeMissingSide`] when a leg has no summary side,
+/// [`ProofError::TradeProofTruncated`] when the proof carries fewer legs than
+/// sides or fewer state proofs than a side's settle assets,
+/// [`ProofError::TradeIdMismatch`], [`ProofError::TradeOperation`],
+/// [`ProofError::ResourceMismatch`], [`ProofError::SubjectMismatch`], or every
+/// [`ProofError`] variant of [`verify_bundle`], in fail-closed order.
 pub fn verify_trade_proof(
     proof: &TradeProof,
-    commits_by_tenant: &BTreeMap<String, (Signed<Commit>, VerifyingKey)>,
+    commits_by_id: &BTreeMap<String, (Signed<Commit>, VerifyingKey)>,
 ) -> Result<(), ProofError> {
     if proof.schema != TRADE_PROOF_SCHEMA {
         return Err(ProofError::UnsupportedSchema(proof.schema.clone()));
@@ -154,9 +156,6 @@ pub fn verify_trade_proof(
     }
 
     for leg in &proof.legs {
-        let Some((signed, verifying_key)) = commits_by_tenant.get(&leg.tenant.0) else {
-            return Err(ProofError::KeyNotFound(leg.tenant.0.clone()));
-        };
         let Some(side) = proof
             .summary
             .sides
@@ -167,6 +166,16 @@ pub fn verify_trade_proof(
         };
 
         for state_proof in &leg.state_proofs {
+            // Resolve this proof against the commit its OWN commit_ref names,
+            // not the leg's representative commit: a tenant may settle two
+            // assets of one trade in two different commits, so each proof must
+            // be verified under the commit that pinned it.
+            let Some((signed, verifying_key)) = commits_by_id.get(&state_proof.commit.commit_id.0)
+            else {
+                return Err(ProofError::KeyNotFound(String::from(
+                    state_proof.commit.commit_id.as_str(),
+                )));
+            };
             let state_key = derive_state_key(state_proof)?;
             verify_bundle(state_proof, signed, verifying_key, &state_key)?;
 
@@ -232,10 +241,14 @@ mod tests {
         ResourceStateProof::new(
             TenantId(String::from(tenant)),
             ResourceId(String::from(asset)),
-            serde_json::json!({
-                "owner": "account:example:player_456",
-                "status": "active",
-            }),
+            statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                statechronicle_domain::state_type::StateType::UniqueAsset,
+                serde_json::json!({
+                    "owner": "account:example:player_456",
+                    "status": "active",
+                }),
+            )
+            .unwrap(),
             commit_ref(),
             SparseMerkleProof::new(
                 Vec::new(),

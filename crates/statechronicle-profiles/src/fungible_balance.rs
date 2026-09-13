@@ -15,7 +15,7 @@ use statechronicle_domain::state_type::StateType;
 
 use crate::error::ProfileError;
 use crate::registry::{
-    ProfileRules, input_amount, input_str, parse_amount_str, require_current, require_unborn,
+    ProfileRules, input_amount, input_str, require_current, require_unborn, state_amount,
 };
 
 /// Typed operation constants accepted by the fungible balance profile.
@@ -322,10 +322,7 @@ fn check_convert(
 /// field or it is not a canonical non-negative integer string, and
 /// [`ProfileError::FloatForbidden`] for float-formatted values.
 fn current_balance(current: &StateProjection) -> Result<Amount, ProfileError> {
-    let value = current.state.get("balance").ok_or_else(|| {
-        ProfileError::InvalidInput(String::from("state payload has no `balance`"))
-    })?;
-    parse_amount_str(value, "balance")
+    state_amount(current, "balance")
 }
 
 /// Enforces a strictly positive amount.
@@ -382,11 +379,15 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state: serde_json::json!({
-                "subject": "account:example:player_123",
-                "balance": balance,
-                "unit": "gold_minor"
-            }),
+            state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::FungibleBalance,
+                serde_json::json!({
+                    "subject": "account:example:player_123",
+                    "balance": balance,
+                    "unit": "gold_minor"
+                }),
+            )
+            .unwrap(),
         }
     }
 
@@ -605,15 +606,13 @@ mod tests {
             ),
             Err(ProfileError::FloatForbidden)
         ));
-        let float_state = balance("10.5");
-        assert!(matches!(
-            rules.check(
-                &op("balance.credit"),
-                Some(&float_state),
-                &inputs(&[("amount", serde_json::json!("1"))])
-            ),
-            Err(ProfileError::FloatForbidden)
-        ));
+        assert!(
+            statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::FungibleBalance,
+                serde_json::json!({ "subject": "alice", "balance": "10.5", "unit": "gold" }),
+            )
+            .is_err()
+        );
     }
 
     #[test]

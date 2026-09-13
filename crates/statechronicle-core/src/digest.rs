@@ -2,9 +2,9 @@
 //!
 //! Digests are computed over BCS canonical bytes (ADR-004) so that the same
 //! logical object always yields the same digest, independent of key order or
-//! formatting. [`ContentDigest`] is the protocol's validated digest newtype
+//! formatting. [`ContentDigest`](crate::digest::ContentDigest) is the protocol's validated digest newtype
 //! (§17): the only string→digest boundary is
-//! [`ContentDigest::from_hex_sha256`] / [`FromStr`], and everything else is
+//! [`ContentDigest::from_hex_sha256`](crate::digest::ContentDigest::from_hex_sha256) / [`FromStr`](std::str::FromStr), and everything else is
 //! typed.
 
 use core::fmt;

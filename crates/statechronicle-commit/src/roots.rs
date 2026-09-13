@@ -2,7 +2,7 @@
 //!
 //! Two independent roots commit a batch:
 //!
-//! - [`event_root`]: a balanced Merkle root over the BCS canonical bytes of
+//! - [`event_root`](crate::roots::event_root): a balanced Merkle root over the BCS canonical bytes of
 //!   each event. The tree mirrors the accumulator's node convention
 //!   (ADR-005): leaves are `H(0x11 || event_digest)` (the
 //!   `LEAF_NODE_TAG` domain byte, with no key for events) and internal nodes
@@ -10,13 +10,13 @@
 //!   odd node count duplicates its last node, exactly like the checkpoint
 //!   tree. A single event therefore roots at its own leaf hash.
 //!
-//! - [`compute_state_root`]: the sparse Merkle state root produced by
-//!   inserting the batch's [`StateUpdate`]s into a [`StateAccumulator`]
+//! - [`compute_state_root`](crate::roots::compute_state_root): the sparse Merkle state root produced by
+//!   inserting the batch's [`StateUpdate`](statechronicle_accumulator::sparse_merkle::StateUpdate)s into a [`StateAccumulator`](statechronicle_accumulator::sparse_merkle::StateAccumulator)
 //!   (ADR-005). Keys are derived per event from its after-state: subject-held
 //!   state types (consumable stack, fungible balance, entitlement, metered
 //!   resource) key by `(tenant, resource, subject)` via
-//!   [`StateKey::for_subject_held`]; owner-based types (unique asset, listing,
-//!   escrow) key by `(tenant, resource)` via [`StateKey::for_resource`].
+//!   [`StateKey::for_subject_held`](statechronicle_accumulator::key::StateKey::for_subject_held); owner-based types (unique asset, listing,
+//!   escrow) key by `(tenant, resource)` via [`StateKey::for_resource`](statechronicle_accumulator::key::StateKey::for_resource).
 //!
 //! The SMT root is a pure function of the `(key → digest)` set, so insertion
 //! order never changes the result (ADR-005). Updates are nevertheless sorted
@@ -119,7 +119,7 @@ pub fn state_key_for(event: &Event, state_type: StateType) -> Result<StateKey, C
 /// Returns [`CommitError::InvalidEvent`] when the after-state carries a
 /// `subject` that is not a non-empty string.
 pub fn infer_state_key(event: &Event) -> Result<StateKey, CommitError> {
-    if event.after.state.get("subject").is_some() {
+    if event.after.state.subject().is_some() {
         let subject = event_subject(event)?;
         Ok(StateKey::for_subject_held(
             &event.tenant_id.0,
@@ -231,21 +231,12 @@ fn event_leaf_hash(event_digest: [u8; 32]) -> [u8; 32] {
 /// Returns [`CommitError::InvalidEvent`] when the after-state is missing a
 /// `subject` field, its `subject` is not a string, or the subject is empty.
 fn event_subject(event: &Event) -> Result<&str, CommitError> {
-    let subject = event
+    event
         .after
         .state
-        .get("subject")
-        .ok_or_else(|| CommitError::InvalidEvent(String::from("after-state is missing `subject`")))?
-        .as_str()
-        .ok_or_else(|| {
-            CommitError::InvalidEvent(String::from("after-state `subject` is not a string"))
-        })?;
-    if subject.is_empty() {
-        return Err(CommitError::InvalidEvent(String::from(
-            "after-state `subject` is empty",
-        )));
-    }
-    Ok(subject)
+        .subject()
+        .map(|s| s.0.as_str())
+        .ok_or_else(|| CommitError::InvalidEvent(String::from("after-state is missing `subject`")))
 }
 
 #[cfg(test)]
@@ -270,6 +261,20 @@ mod tests {
     }
 
     fn sample_commitment(version: u64, state: serde_json::Value) -> StateCommitment {
+        let state = if state.as_object().is_some_and(|v| v.is_empty()) {
+            serde_json::json!({ "owner": "account:example:player_123", "status": "active" })
+        } else {
+            state
+        };
+        let state_type = if state.get("balance").is_some() {
+            statechronicle_domain::state_type::StateType::FungibleBalance
+        } else {
+            statechronicle_domain::state_type::StateType::UniqueAsset
+        };
+        let state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+            state_type, state,
+        )
+        .unwrap();
         StateCommitment {
             version,
             state_hash: canonicalize_and_digest(&state).unwrap(),

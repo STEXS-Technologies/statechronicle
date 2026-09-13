@@ -31,13 +31,94 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Check workspace (incl. fuzz targets)
-        run: cargo check --workspace --all-targets
+        run: cargo check --workspace --all-targets --all-features --locked
 
-      - name: Test workspace
-        run: cargo test --workspace
+      - name: Test finite workspace targets
+        # libFuzzer binaries are intentionally excluded: `cargo test` would
+        # launch them as unbounded fuzz jobs and never terminate.
+        run: cargo test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked
 
       - name: Clippy (deny warnings)
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
       - name: Format check
-        run: cargo fmt --all --check
+        run: cargo fmt --all -- --check
+
+      - name: Dependency audit
+        uses: actions-rust-lang/audit@v1
+
+      - name: Dependency policy
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories bans licenses sources
+
+  fuzz-smoke:
+    name: Bounded fuzz smoke tests
+    runs-on: ubuntu-latest
+    needs: check-test
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - fuzz_accumulator
+          - fuzz_amount_parse
+          - fuzz_authority_aggregate
+          - fuzz_canonicalize
+          - fuzz_commit_extras
+          - fuzz_commit_roots
+          - fuzz_cross_tenant_consistency
+          - fuzz_cross_tenant_trade
+          - fuzz_digest
+          - fuzz_domain_roundtrip
+          - fuzz_executor_transition
+          - fuzz_intent_parse
+          - fuzz_non_membership
+          - fuzz_operation_name
+          - fuzz_profile_rules
+          - fuzz_proof_verify
+          - fuzz_settle_batch
+          - fuzz_signature_verify
+          - fuzz_status
+          - fuzz_trade_index_build
+          - fuzz_trade_proof_verify
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run bounded fuzz smoke
+        run: cargo run -p statechronicle-fuzz --bin ${{ matrix.target }} -- -runs=100
+
+  msrv:
+    name: MSRV compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MSRV toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+      - name: Check locked workspace at MSRV
+        run: cargo check --workspace --all-targets --all-features --locked
+
+  postgres-integration:
+    name: PostgreSQL durable adapter integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: statechronicle
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d statechronicle"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run live PostgreSQL adapter test
+        env:
+          STATECHRONICLE_POSTGRES_URL: host=localhost user=postgres password=postgres dbname=statechronicle
+        run: cargo test -p statechronicle-postgres --test integration --all-features --locked

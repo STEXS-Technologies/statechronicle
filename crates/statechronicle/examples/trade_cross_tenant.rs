@@ -242,8 +242,8 @@ async fn main() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(held.state["owner"], json!(BOB));
-    assert_eq!(held.state["status"], json!("active"));
+    assert_eq!(held.state.get("owner").unwrap(), json!(BOB));
+    assert_eq!(held.state.get("status").unwrap(), json!("active"));
 
     // In beta, the buyer is debited and the seller is credited (create-on-credit).
     let bob_wallet = harness
@@ -253,7 +253,7 @@ async fn main() {
         .unwrap()
         .unwrap();
     assert_eq!(
-        bob_wallet.state["balance"],
+        bob_wallet.state.get("balance").unwrap(),
         json!((1000 - PRICE).to_string())
     );
     let alice_wallet = harness
@@ -262,10 +262,14 @@ async fn main() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(alice_wallet.state["balance"], json!(PRICE.to_string()));
+    assert_eq!(
+        alice_wallet.state.get("balance").unwrap(),
+        json!(PRICE.to_string())
+    );
     println!(
         "alpha: asset owned by BOB; beta: buyer debited to {}, seller credited to {}",
-        bob_wallet.state["balance"], alice_wallet.state["balance"]
+        bob_wallet.state.get("balance").unwrap(),
+        alice_wallet.state.get("balance").unwrap()
     );
 
     println!("trade_cross_tenant: OK");

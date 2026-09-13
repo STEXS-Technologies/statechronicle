@@ -1,6 +1,6 @@
 //! Port trait for the trade read-side index (Phase 2).
 //!
-//! Stores and serves the accumulated [`TradeRecord`] projections of the trade
+//! Stores and serves the accumulated [`TradeRecord`](statechronicle_domain::trade::TradeRecord) projections of the trade
 //! read-side vertical slice, keyed by `trade_id`. Purely additive: the
 //! read-side consumes events/commits through the existing event/commit/proof
 //! ports and publishes its derived records through this new port. There are no

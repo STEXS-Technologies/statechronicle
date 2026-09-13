@@ -22,5 +22,8 @@ pub mod signature;
 /// Size and safety bounds used across the protocol.
 pub mod limits;
 
+/// Local token-bucket rate-limiting primitive.
+pub mod rate_limit;
+
 /// The shared protocol error type and conversion rules.
 pub mod error;

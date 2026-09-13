@@ -12,7 +12,7 @@ use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::status::Status;
 
 use crate::error::ProfileError;
-use crate::registry::{ProfileRules, input_str, require_from, require_unborn};
+use crate::registry::{ProfileRules, input_str, require_from, require_unborn, state_bool};
 
 /// Typed wire status names for an entitlement.
 pub mod status {
@@ -175,9 +175,7 @@ fn check_grant(
 ) -> Result<(), ProfileError> {
     require_unborn(current, "entitlement.grant")?;
     input_str(inputs, "subject")?;
-    if let Some(value) = inputs.get("transferable")
-        && !value.is_boolean()
-    {
+    if matches!(inputs.get("transferable"), Some(value) if !value.is_boolean()) {
         return Err(ProfileError::InvalidInput(String::from(
             "`transferable` must be a boolean",
         )));
@@ -221,12 +219,7 @@ fn check_transfer(
 /// Returns [`ProfileError::InvalidInput`] when the payload has no
 /// `transferable` field or it is not a boolean.
 fn is_transferable(current: &StateProjection) -> Result<bool, ProfileError> {
-    let value = current.state.get("transferable").ok_or_else(|| {
-        ProfileError::InvalidInput(String::from("state payload has no `transferable`"))
-    })?;
-    value
-        .as_bool()
-        .ok_or_else(|| ProfileError::InvalidInput(String::from("`transferable` must be a boolean")))
+    state_bool(current, "transferable")
 }
 
 #[cfg(test)]
@@ -247,11 +240,15 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state: serde_json::json!({
-                "subject": "account:example:player_123",
-                "status": status.as_str(),
-                "transferable": transferable
-            }),
+            state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::Entitlement,
+                serde_json::json!({
+                    "subject": "account:example:player_123",
+                    "status": status.as_str(),
+                    "transferable": transferable
+                }),
+            )
+            .unwrap(),
         }
     }
 

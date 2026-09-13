@@ -6,9 +6,9 @@
 //! `event_count` and recompute the declared `event_merkle_root`, otherwise
 //! nothing is written.
 //!
-//! The v0 [`StateIndex`] port is read-only (§27): it exposes `get_state` and
+//! The v0 [`StateIndex`](statechronicle_ports::state_index::StateIndex) port is read-only (§27): it exposes `get_state` and
 //! `get_subject_state` but no write operation. [`persist`] therefore derives
-//! the current-state projections via [`projections_for`] and leaves applying
+//! the current-state projections via [`projections_for`](crate::persist::projections_for) and leaves applying
 //! them to the composition root's index adapter (e.g. inside its
 //! `TransactionManager`), the documented integration point for projection
 //! writes in this workspace.
@@ -18,6 +18,12 @@
 //! committed events (with their state types) from the caller: the executor
 //! that assembled the batch.
 
+#![allow(clippy::let_underscore_must_use)]
+
+use statechronicle_core::canonicalize::canonicalize_and_digest;
+use statechronicle_core::limits::{
+    MAX_COMMIT_BYTES, MAX_EVENT_BATCH_BYTES, MAX_EVENTS_PER_COMMIT, check_size,
+};
 use statechronicle_domain::commit::{Commit, ScopeKind};
 use statechronicle_domain::event::Event;
 use statechronicle_domain::ids::CommitId;
@@ -26,9 +32,14 @@ use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::tenant::TenantId;
 
+use statechronicle_ports::authorization::{
+    AuthenticatedPrincipal, AuthorizationContext, AuthorizationError, Authorizer,
+};
 use statechronicle_ports::commit_store::CommitStore;
 use statechronicle_ports::event_publisher::EventPublisher;
 use statechronicle_ports::event_store::EventStore;
+use statechronicle_ports::ledger_store::{IdempotencyClaim, LedgerStore, OutboxRecord};
+use statechronicle_ports::observability::{MetricsSink, MutationMetric, MutationOutcome};
 use statechronicle_ports::state_index::StateIndex;
 
 use crate::error::CommitError;
@@ -58,6 +69,300 @@ pub struct CommittedEvent<'event> {
     /// The state type of the event's resource, needed to derive the index
     /// projection (the event body itself does not carry `StateType`).
     pub state_type: StateType,
+}
+
+/// Result of a durable persistence attempt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DurablePersistResult {
+    /// A new mutation was committed.
+    Committed { commit_id: CommitId },
+    /// The idempotency key already referred to this committed mutation.
+    Replay { commit_id: CommitId },
+}
+
+/// Input to [`persist_durable_verified`].
+pub struct DurableCommitRequest<'request> {
+    /// Authenticated principal used for the mandatory actor binding check.
+    pub principal: &'request AuthenticatedPrincipal,
+    /// Canonical validated intent that owns the mutation.
+    pub intent: &'request statechronicle_domain::intent::Intent,
+    /// Digest of the canonical intent/payload.
+    pub payload_digest: &'request statechronicle_core::digest::ContentDigest,
+    /// Events covered by the signed commit.
+    pub entries: &'request [CommittedEvent<'request>],
+    /// Signed tenant commit to append.
+    pub commit: &'request Signed<Commit>,
+    /// Deterministic projections derived from `entries`.
+    pub projections: &'request [StateProjection],
+    /// Outbox rows to insert before commit.
+    pub outbox: &'request [OutboxRecord],
+}
+
+/// Cryptographic verifier required by the verified durable-ingress helper.
+/// Implementations should resolve the commit key through the deployment's
+/// tenant-scoped registry/KMS before checking the detached signature.
+pub trait SignedCommitVerifier: Send + Sync {
+    /// Verifies the signature and trust policy for one prepared commit.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the key is unknown, revoked, out of scope, or the
+    /// detached signature does not verify.
+    fn verify(&self, commit: &Signed<Commit>) -> Result<(), String>;
+}
+
+/// Internal implementation for the verified durable write path.
+///
+/// External callers must use [`persist_durable_verified`] (or its metrics
+/// variant). Keeping the signature/trust check at the public boundary prevents
+/// a composition root from accidentally persisting a cryptographically
+/// unverified commit.
+///
+/// # Errors
+///
+/// Returns [`CommitError`] when authentication, event-root validation,
+/// idempotency, any durable write, or the final transaction commit fails.
+pub(crate) async fn persist_durable(
+    ledger: &dyn LedgerStore,
+    authorizer: &dyn Authorizer,
+    request: DurableCommitRequest<'_>,
+) -> Result<DurablePersistResult, CommitError> {
+    let tenant = commit_tenant(&request.commit.body)?;
+    let canonical_digest = canonicalize_and_digest(request.intent).map_err(CommitError::Core)?;
+    if canonical_digest != *request.payload_digest {
+        return Err(CommitError::PayloadDigestMismatch);
+    }
+    validate_durable_scope(request.intent, request.principal, tenant)?;
+    authorizer
+        .authorize(AuthorizationContext {
+            principal: request.principal,
+            tenant,
+            intent: request.intent,
+            resource: &request.intent.resource_id,
+        })
+        .await
+        .map_err(|error| CommitError::Store(error.to_string()))?;
+
+    let events: Vec<Event> = request
+        .entries
+        .iter()
+        .map(|entry| entry.event.clone())
+        .collect();
+    if events.is_empty() {
+        return Err(CommitError::InvalidEvent(String::from(
+            "durable commit must contain at least one event",
+        )));
+    }
+    if events.len() > MAX_EVENTS_PER_COMMIT {
+        return Err(CommitError::InvalidEvent(format!(
+            "event count {} exceeds durable limit {MAX_EVENTS_PER_COMMIT}",
+            events.len()
+        )));
+    }
+    let event_bytes = events
+        .iter()
+        .map(|event| bcs::to_bytes(event).map(|bytes| bytes.len()))
+        .try_fold(0usize, |total, bytes| {
+            bytes.map(|size| total.saturating_add(size))
+        })
+        .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+    check_size("event_batch", MAX_EVENT_BATCH_BYTES, event_bytes)
+        .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+    let commit_bytes = bcs::to_bytes(request.commit)
+        .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+    check_size("commit", MAX_COMMIT_BYTES, commit_bytes.len())
+        .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+    for event in &events {
+        if event.tenant_id != *tenant
+            || event.intent_id != request.intent.intent_id
+            || event.actor != request.intent.actor
+            || event.operation != request.intent.operation
+        {
+            return Err(CommitError::Store(String::from(
+                "durable event is not bound to the authenticated intent scope or operation",
+            )));
+        }
+    }
+    for projection in request.projections {
+        if projection.tenant_id != *tenant
+            || projection.last_commit_id != request.commit.body.commit_id
+        {
+            return Err(CommitError::Store(String::from(
+                "durable projection is not bound to the commit scope",
+            )));
+        }
+    }
+    for outbox in request.outbox {
+        if outbox.tenant != *tenant || outbox.commit_id != request.commit.body.commit_id {
+            return Err(CommitError::Store(String::from(
+                "durable outbox record is not bound to the commit scope",
+            )));
+        }
+    }
+    let event_count = u64::try_from(events.len())
+        .map_err(|error| CommitError::InvalidEvent(format!("event count overflow: {error}")))?;
+    if event_count != request.commit.body.event_count
+        || event_root(&events)? != request.commit.body.event_merkle_root
+    {
+        return Err(CommitError::EventRootMismatch);
+    }
+
+    let mut transaction = ledger
+        .begin(tenant)
+        .await
+        .map_err(|error| CommitError::Store(error.to_string()))?;
+    let claim = transaction
+        .claim_idempotency(tenant, request.intent, request.payload_digest)
+        .await
+        .map_err(|error| CommitError::Store(error.to_string()))?;
+    let attempt_id = match claim {
+        IdempotencyClaim::Committed { commit_id } => {
+            transaction
+                .rollback()
+                .await
+                .map_err(|error| CommitError::Store(error.to_string()))?;
+            return Ok(DurablePersistResult::Replay { commit_id });
+        }
+        IdempotencyClaim::NewReservation { attempt_id } => attempt_id,
+        IdempotencyClaim::InProgress { .. } => {
+            transaction
+                .rollback()
+                .await
+                .map_err(|error| CommitError::Store(error.to_string()))?;
+            return Err(CommitError::Store(String::from(
+                "idempotency reservation in progress",
+            )));
+        }
+        IdempotencyClaim::ConflictDifferentPayload => {
+            transaction
+                .rollback()
+                .await
+                .map_err(|error| CommitError::Store(error.to_string()))?;
+            return Err(CommitError::Store(String::from(
+                "idempotency payload conflict",
+            )));
+        }
+    };
+
+    if let Err(error) = transaction.append_events(&events).await {
+        let _ = transaction.rollback().await;
+        return Err(CommitError::Store(error.to_string()));
+    }
+    if let Err(error) = transaction.append_commit(request.commit).await {
+        let _ = transaction.rollback().await;
+        return Err(CommitError::Store(error.to_string()));
+    }
+    for projection in request.projections {
+        if let Err(error) = transaction.upsert_projection(projection).await {
+            let _ = transaction.rollback().await;
+            return Err(CommitError::Store(error.to_string()));
+        }
+    }
+    for outbox in request.outbox {
+        if let Err(error) = transaction.enqueue_outbox(outbox).await {
+            let _ = transaction.rollback().await;
+            return Err(CommitError::Store(error.to_string()));
+        }
+    }
+    if let Err(error) = transaction
+        .finalize_idempotency(
+            tenant,
+            &request.intent.intent_id,
+            &attempt_id,
+            &request.commit.body.commit_id,
+        )
+        .await
+    {
+        let _ = transaction.rollback().await;
+        return Err(CommitError::Store(error.to_string()));
+    }
+    transaction
+        .commit()
+        .await
+        .map_err(|error| CommitError::Store(error.to_string()))?;
+    Ok(DurablePersistResult::Committed {
+        commit_id: request.commit.body.commit_id.clone(),
+    })
+}
+
+fn validate_durable_scope(
+    intent: &statechronicle_domain::intent::Intent,
+    principal: &AuthenticatedPrincipal,
+    commit_tenant: &TenantId,
+) -> Result<(), CommitError> {
+    if intent.tenant_id != *commit_tenant
+        || principal.tenant != *commit_tenant
+        || principal.subject != intent.actor
+    {
+        return Err(CommitError::Store(
+            AuthorizationError::ContextMismatch(String::from(
+                "principal, intent, and commit tenant/actor are not consistently bound",
+            ))
+            .to_string(),
+        ));
+    }
+    Ok(())
+}
+
+/// Verifies a prepared commit and then persists it through the durable ledger
+/// boundary. This is the preferred composition-root entry point when commit
+/// signatures are required; verification happens before idempotency claiming.
+///
+/// # Errors
+///
+/// Returns [`CommitError::Store`] when signature/trust verification fails, or
+/// the same persistence errors as the internal durable write implementation.
+pub async fn persist_durable_verified(
+    ledger: &dyn LedgerStore,
+    authorizer: &dyn Authorizer,
+    verifier: &dyn SignedCommitVerifier,
+    request: DurableCommitRequest<'_>,
+) -> Result<DurablePersistResult, CommitError> {
+    verifier
+        .verify(request.commit)
+        .map_err(CommitError::Store)?;
+    persist_durable(ledger, authorizer, request).await
+}
+
+/// Verified durable persistence wrapper with privacy-safe mutation metrics.
+///
+/// This is the preferred composition-root helper for player mutations: commit
+/// trust verification and canonical payload-digest validation both happen
+/// before the idempotency reservation, while telemetry remains non-fatal.
+///
+/// # Errors
+///
+/// Returns the same [`CommitError`] as [`persist_durable_verified`].
+pub async fn persist_durable_verified_with_metrics(
+    ledger: &dyn LedgerStore,
+    authorizer: &dyn Authorizer,
+    verifier: &dyn SignedCommitVerifier,
+    metrics: &dyn MetricsSink,
+    request: DurableCommitRequest<'_>,
+) -> Result<DurablePersistResult, CommitError> {
+    let tenant = commit_tenant(&request.commit.body)?.clone();
+    let operation = request.intent.operation.clone();
+    let started = std::time::Instant::now();
+    let result = persist_durable_verified(ledger, authorizer, verifier, request).await;
+    let outcome = match &result {
+        Ok(DurablePersistResult::Committed { .. }) => MutationOutcome::Committed,
+        Ok(DurablePersistResult::Replay { .. }) => MutationOutcome::Replay,
+        Err(CommitError::Store(message))
+            if message.contains("unavailable") || message.contains("in progress") =>
+        {
+            MutationOutcome::RetryableFailure
+        }
+        Err(_) => MutationOutcome::Rejected,
+    };
+    metrics
+        .record_mutation(MutationMetric {
+            tenant,
+            operation,
+            outcome,
+            latency_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+        })
+        .await;
+    result
 }
 
 /// Persists a signed commit and its events, fail-closed on validation.
@@ -180,4 +485,72 @@ fn commit_tenant(body: &Commit) -> Result<&TenantId, CommitError> {
             "tenant-scoped commit is missing its tenant id",
         ))
     })
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+mod tests {
+    use super::*;
+    use chrono::{DateTime, Utc};
+    use statechronicle_domain::ids::IntentId;
+    use statechronicle_domain::intent::{Intent, Nonce, Operation};
+    use statechronicle_domain::resource::ResourceId;
+    use statechronicle_domain::state_type::StateType;
+    use statechronicle_domain::subject::SubjectId;
+
+    fn intent(tenant: &str, actor: &str) -> Intent {
+        Intent::new(
+            TenantId(String::from(tenant)),
+            IntentId::new(String::from("int_scope_test")).unwrap(),
+            Operation::from_static("asset.transfer"),
+            SubjectId(String::from(actor)),
+            ResourceId(String::from("asset:sword")),
+            Some(StateType::UniqueAsset),
+            0,
+            std::collections::BTreeMap::new(),
+            None,
+            DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            None,
+            Nonce::from_bytes(vec![1]).unwrap(),
+        )
+    }
+
+    fn make_principal(tenant: &str, actor: &str) -> AuthenticatedPrincipal {
+        AuthenticatedPrincipal {
+            subject: SubjectId(String::from(actor)),
+            credential_id: String::from("session-scope-test"),
+            tenant: TenantId(String::from(tenant)),
+        }
+    }
+
+    #[test]
+    fn durable_scope_requires_intent_principal_and_commit_tenant_match() {
+        let intent = intent("game", "account:alice");
+        let principal = make_principal("game", "account:alice");
+        assert!(
+            validate_durable_scope(&intent, &principal, &TenantId(String::from("game"))).is_ok()
+        );
+        assert!(
+            validate_durable_scope(&intent, &principal, &TenantId(String::from("other-game")))
+                .is_err()
+        );
+        assert!(
+            validate_durable_scope(
+                &intent,
+                &make_principal("other-game", "account:alice"),
+                &TenantId(String::from("game"))
+            )
+            .is_err()
+        );
+        assert!(
+            validate_durable_scope(
+                &intent,
+                &make_principal("game", "account:mallory"),
+                &TenantId(String::from("game"))
+            )
+            .is_err()
+        );
+    }
 }

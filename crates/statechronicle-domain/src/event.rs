@@ -16,6 +16,7 @@ use crate::authority::AuthorityProof;
 use crate::ids::{EventId, IntentId};
 use crate::intent::Operation;
 use crate::resource::ResourceId;
+use crate::resource_state::ResourceState;
 use crate::subject::SubjectId;
 use crate::tenant::TenantId;
 
@@ -24,7 +25,7 @@ pub const EVENT_SCHEMA: &str = "statechronicle.event.v0";
 
 /// A before/after state commitment bound into an event.
 ///
-/// `state` is the profile projection payload (owner/status, balance/unit,
+/// `state` is the typed profile projection payload (owner/status, balance/unit,
 /// quantity, ...) and `state_hash` is its canonical content digest; together
 /// they let a verifier check the transition without the full history
 /// (protocol §12.1, ADR-004 §4).
@@ -34,8 +35,8 @@ pub struct StateCommitment {
     pub version: u64,
     /// Canonical digest of the projected state.
     pub state_hash: ContentDigest,
-    /// The profile-defined projected state payload.
-    pub state: serde_json::Value,
+    /// The typed, profile-defined projected state payload.
+    pub state: ResourceState,
 }
 
 /// A validated, append-only state transition (protocol §12.1).
@@ -104,11 +105,16 @@ impl Event {
 mod tests {
     use super::*;
     use crate::authority::{AuthorityProof, EvaluationResult, TRUSTGRANT_EVALUATION_KIND};
+    use crate::resource_state::UniqueAssetState;
     use statechronicle_core::canonicalize::canonicalize_and_digest;
     use statechronicle_core::digest::hash_bytes;
 
     fn sample_commitment(version: u64, owner: &str) -> StateCommitment {
-        let state = serde_json::json!({ "owner": owner, "status": "active" });
+        let state = ResourceState::UniqueAsset(UniqueAssetState {
+            owner: crate::subject::SubjectId(String::from(owner)),
+            status: crate::status::Status::from_static("active"),
+            trade_id: None,
+        });
         let digest = canonicalize_and_digest(&state).unwrap();
         StateCommitment {
             version,
@@ -153,14 +159,13 @@ mod tests {
 
     #[test]
     fn bcs_canonicalization_is_deterministic() {
-        // The `state` payload is `serde_json::Value`, which is BCS-encodable
-        // but not BCS-decodable (BCS is not self-describing, ADR-004), so the
-        // BCS check is encode-side determinism, the property signing relies on.
+        // `state` is a typed struct, so BCS both encodes and decodes the event.
         let event = sample_event();
         let first = bcs::to_bytes(&event).unwrap();
         let second = bcs::to_bytes(&event).unwrap();
         assert_eq!(first, second);
         assert!(!first.is_empty());
+        let _: Event = bcs::from_bytes(&first).unwrap();
     }
 
     #[test]

@@ -192,7 +192,7 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[6].after.state["quantity"], json!("0"));
+    assert_eq!(events[6].after.state.get("quantity").unwrap(), json!("0"));
     println!("adjust(0)              -> {}", events[6].after.state);
 
     // expire: terminal, quantity set to 0.

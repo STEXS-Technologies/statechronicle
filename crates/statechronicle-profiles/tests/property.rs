@@ -42,8 +42,27 @@ fn projection(state_type: StateType, state: serde_json::Value) -> StateProjectio
         last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
         last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
         state_hash: ContentDigest::new([0u8; 32]),
-        state,
+        state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+            state_type, state,
+        )
+        .unwrap(),
     }
+}
+
+fn projection_if_valid(state_type: StateType, state: serde_json::Value) -> Option<StateProjection> {
+    Some(StateProjection {
+        tenant_id: TenantId(String::from("tenant.test")),
+        resource_id: ResourceId(String::from("res:prop_001")),
+        state_type,
+        version: 1,
+        last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
+        last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
+        state_hash: ContentDigest::new([0u8; 32]),
+        state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+            state_type, state,
+        )
+        .ok()?,
+    })
 }
 
 fn op(name: &str) -> Operation {
@@ -81,7 +100,10 @@ fn check_property(
     input_map: &BTreeMap<String, serde_json::Value>,
 ) {
     let operation = Operation(String::from(op_name));
-    let current = Some(projection(rules.state_type(), payload));
+    let Some(current_projection) = projection_if_valid(rules.state_type(), payload) else {
+        return;
+    };
+    let current = Some(current_projection);
 
     let with_resource = rules.check(&operation, current.as_ref(), input_map);
     if with_resource.is_ok() {

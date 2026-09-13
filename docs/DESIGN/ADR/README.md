@@ -14,6 +14,7 @@ ADR convention used by its sibling workspaces.
 | [ADR-005](ADR-005-STATE_ACCUMULATOR.md) | Baseline State Accumulator: Sparse Merkle Tree (SMT) | Accepted |
 | [ADR-006](ADR-006-PROTOCOL_DECISIONS_V0.md) | Protocol Decisions for v0 (§36 Resolution) | Accepted |
 | [ADR-007](ADR-007-TRADE_PROFILE.md) | Peer-to-Peer Trades: trade_held Freeze, Atomic Settlement, trade.v1 Process | Proposed |
+| [ADR-008](ADR-008-DURABLE_LEDGER_TRANSACTION.md) | Durable Ledger Transaction Boundary | Accepted (contract; adapter required) |
 
 ## Proposed / Pending
 

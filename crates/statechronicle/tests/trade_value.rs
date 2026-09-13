@@ -207,8 +207,8 @@ async fn value_leg_settle_moves_asset_and_balance_in_one_commit() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(held.state["owner"], json!(BOB));
-    assert_eq!(held.state["status"], json!("active"));
+    assert_eq!(held.state.get("owner").unwrap(), json!(BOB));
+    assert_eq!(held.state.get("status").unwrap(), json!("active"));
 
     // Buyer debited by the amount; seller credited by the amount.
     let bob_wallet = harness
@@ -218,7 +218,7 @@ async fn value_leg_settle_moves_asset_and_balance_in_one_commit() {
         .unwrap()
         .unwrap();
     assert_eq!(
-        bob_wallet.state["balance"],
+        bob_wallet.state.get("balance").unwrap(),
         json!((1000 - PRICE).to_string())
     );
     let alice_wallet = harness
@@ -227,7 +227,10 @@ async fn value_leg_settle_moves_asset_and_balance_in_one_commit() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(alice_wallet.state["balance"], json!(PRICE.to_string()));
+    assert_eq!(
+        alice_wallet.state.get("balance").unwrap(),
+        json!(PRICE.to_string())
+    );
 }
 
 #[tokio::test]
@@ -332,6 +335,6 @@ async fn value_leg_settle_batch_shape_is_fail_closed() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(held.state["owner"], json!(ALICE));
-    assert_eq!(held.state["status"], json!("trade_held"));
+    assert_eq!(held.state.get("owner").unwrap(), json!(ALICE));
+    assert_eq!(held.state.get("status").unwrap(), json!("trade_held"));
 }

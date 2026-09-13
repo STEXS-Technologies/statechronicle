@@ -6,6 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+async-trait = { workspace = true }
 statechronicle-core = { workspace = true }
 statechronicle-domain = { workspace = true }
 statechronicle-commit = { workspace = true }

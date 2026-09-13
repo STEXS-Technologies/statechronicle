@@ -36,12 +36,16 @@ The composition root wires a `Ports` bundle (intent store, state index, tenant
 store, one or more delegated-authority evaluators, transaction manager) plus a
 profile registry, an executor subject, a wall clock, an event-id generator, and
 an intent-signature verifier into `Executor::new`, then calls
-`executor.execute(&validated_intent).await`.
+`executor.execute(&validated_intent).await` for pure planning or explicitly
+trusted service work. It must not be exposed as a player ingress. Player
+requests should use `execute_player_durable_with_key_registry`; multi-action
+player requests should use `execute_player_batch_durable_with_key_registry`,
+with a durable sink that uses verified commit persistence.
 
 ```rust
 use statechronicle_executor::pipeline::{Executor, Ports};
 // Wire ports, registry, clock, id generator, verifier...
-let events = executor.execute(&validated_intent).await?;
+let events = executor.execute(&validated_intent).await?; // planning/trusted work only
 ```
 
 ## See it run

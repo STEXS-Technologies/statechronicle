@@ -144,7 +144,7 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[1].after.state["owner"], json!(BOB));
+    assert_eq!(events[1].after.state.get("owner").unwrap(), json!(BOB));
     println!("studio transfer with consent -> {}", events[1].after.state);
 
     // Studio burn of a buyer-owned asset fails closed (owner mismatch).
@@ -177,8 +177,11 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[2].after.state["owner"], json!(BOB));
-    assert_eq!(events[2].after.state["status"], json!("legal_hold"));
+    assert_eq!(events[2].after.state.get("owner").unwrap(), json!(BOB));
+    assert_eq!(
+        events[2].after.state.get("status").unwrap(),
+        json!("legal_hold")
+    );
     println!(
         "restrict(legal_hold)  -> {} (owner kept)",
         events[2].after.state
@@ -199,7 +202,10 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[3].after.state["status"], json!("active"));
+    assert_eq!(
+        events[3].after.state.get("status").unwrap(),
+        json!("active")
+    );
     println!("restore               -> {}", events[3].after.state);
 
     // hard_delete without consent is forbidden (HardDeleteForbidden).
@@ -238,10 +244,13 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[4].after.state["status"], json!("tombstoned"));
+    assert_eq!(
+        events[4].after.state.get("status").unwrap(),
+        json!("tombstoned")
+    );
     println!(
         "hard_delete with consent -> {} (terminal)",
-        events[4].after.state["status"]
+        events[4].after.state.get("status").unwrap()
     );
 
     // Build the signed commit + accumulator over every emitted event.

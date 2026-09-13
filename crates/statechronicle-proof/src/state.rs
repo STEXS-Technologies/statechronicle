@@ -2,7 +2,7 @@
 //!
 //! Prove the current state of a resource (for example current owner or
 //! balance) from the accumulator root. The v0 bundle is the domain's
-//! [`ResourceStateProof`] envelope (protocol §16.2); the builders live in
+//! [`ResourceStateProof`](statechronicle_domain::proof::ResourceStateProof) envelope (protocol §16.2); the builders live in
 //! [`crate::bundle`] and are re-exported here for callers that reason in
 //! "state proof" terms.
 
@@ -44,7 +44,11 @@ mod tests {
             ))
             .unwrap(),
             state_hash: statechronicle_core::digest::hash_bytes(b"state"),
-            state: serde_json::json!({ "owner": "account:example:player_456" }),
+            state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                statechronicle_domain::state_type::StateType::UniqueAsset,
+                serde_json::json!({ "owner": "account:example:player_456", "status": "active" }),
+            )
+            .unwrap(),
         };
         let key = state_key_for_projection(&projection);
         assert_eq!(

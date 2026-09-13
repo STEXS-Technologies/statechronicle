@@ -5,7 +5,7 @@
 //! rules, and deterministic after-state. Events are emitted only when every
 //! check passes. The pipeline is the protocol's "brain", a deterministic
 //! validator that drives pure [`crate::transition`] and [`crate::conflict`]
-//! logic through injected [`Ports`].
+//! logic through injected [`Ports`](crate::pipeline::Ports).
 //!
 //! Events are **returned**, not persisted: commit formation, root computation,
 //! and signing belong to the `statechronicle-commit` crate (§18.1 steps 13–15).
@@ -29,12 +29,21 @@ use statechronicle_domain::event::{Event, StateCommitment};
 use statechronicle_domain::ids::EventId;
 use statechronicle_domain::intent::{Intent, Operation, SignatureBlock};
 use statechronicle_domain::resource::ResourceId;
+use statechronicle_domain::resource_state::{
+    ConsumableStackState, EntitlementState, EscrowState, FungibleBalanceState, ListingState,
+    MeterState, ResourceState, UniqueAssetState,
+};
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
+use statechronicle_domain::status::Status;
 use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_intent::validated::ValidatedIntent;
+use statechronicle_ports::authorization::{
+    AuthenticatedPrincipal, AuthorizationContext, Authorizer,
+};
 use statechronicle_ports::intent_store::{IntentStore, IntentStoreError};
+use statechronicle_ports::key_registry::KeyRegistry;
 use statechronicle_ports::state_index::StateIndex;
 use statechronicle_ports::tenant_store::TenantStore;
 use statechronicle_ports::transaction_manager::{TransactionManager, TransactionManagerError};
@@ -214,7 +223,7 @@ impl PortsBuilder {
 ///
 /// **Actor authentication (Gap 2).** Signature presence is the platform's
 /// submission policy: the executor verifies a present intent signature via the
-/// injected [`intent_verifier`](Self::intent_verifier) (which the composition
+/// injected intent verifier (which the composition
 /// root wires to key resolution) and, when a signature is absent, applies the
 /// v0 policy of allowing unsigned intents only for operations the active
 /// profile does not require authority for. Authority-required paths are gated
@@ -248,6 +257,56 @@ pub struct Executor {
     intent_verifier: IntentVerifier,
 }
 
+/// Persistence boundary for player-facing execution.
+///
+/// The executor owns validation and deterministic event construction; the
+/// composition root owns commit formation, signing, and durable storage. A
+/// deployment that exposes player mutations should provide this sink and call
+/// [`Executor::execute_player_durable`] so an accepted event cannot be
+/// accidentally returned to the API without a persistence attempt.
+#[async_trait]
+pub trait DurableMutationSink: Send + Sync {
+    /// Persists the complete event set atomically with the intent's
+    /// idempotency reservation, signed commit, projections, and outbox.
+    ///
+    /// The sink must return an error unless all durable effects are committed;
+    /// callers must preserve the intent id when retrying.
+    async fn persist_player_mutation(
+        &self,
+        validated: &ValidatedIntent,
+        principal: &AuthenticatedPrincipal,
+        events: &[Event],
+    ) -> Result<(), String>;
+}
+
+/// Persistence boundary for multi-intent inventory, market, and settlement
+/// batches. Implementations must claim every intent and write all events,
+/// projections, commits, and outbox effects in one durable transaction (or
+/// reject unsupported cross-tenant atomicity).
+#[async_trait]
+pub trait DurableBatchSink: Send + Sync {
+    /// Persists a complete, already-validated batch atomically.
+    async fn persist_batch(
+        &self,
+        intents: &[ValidatedIntent],
+        events: &[Event],
+    ) -> Result<(), String>;
+}
+
+/// One player-originated intent and the principal authenticated for it.
+///
+/// Batch and settlement operations frequently contain intents for different
+/// actors. Keeping the principal next to the exact validated intent prevents
+/// a composition root from accidentally authorizing an entire market or trade
+/// batch under one unrelated identity.
+#[derive(Debug, Clone, Copy)]
+pub struct PlayerBatchItem<'item> {
+    /// Signed, validated mutation request.
+    pub validated: &'item ValidatedIntent,
+    /// Principal authenticated for this exact request.
+    pub principal: &'item AuthenticatedPrincipal,
+}
+
 impl Executor {
     /// Starts a fluent, struct-based executor builder.
     ///
@@ -269,13 +328,14 @@ impl Executor {
     ///    `statechronicle-intent` crate (`validate::validate`). The executor
     ///    re-checks the canonical intent size against [`MAX_INTENT_BYTES`] as a
     ///    defense-in-depth gate (fail-closed on `SizeLimitExceeded`).
-    /// 2. **Idempotency**: `intent_store.get_intent`; a stored intent with an
-    ///    equal payload is a replay (`Ok(vec![])`); a stored intent with a
-    ///    different payload is [`ExecutorError::DuplicateIntent`]. Otherwise
-    ///    the intent is claimed with `intent_store.put_intent` *before*
-    ///    executing.
+    /// 2. **Idempotency lookup**: `intent_store.get_intent`; a stored intent
+    ///    with an equal payload is a replay (`Ok(vec![])`); a stored intent
+    ///    with a different payload is [`ExecutorError::DuplicateIntent`]. A
+    ///    legacy claim is made only after authentication, validation, and
+    ///    event construction. Production callers must use the durable ledger
+    ///    claim/finalize path for an atomic reservation.
     /// 3. **Actor authentication**: when `validated.signature` is present, the
-    ///    injected [`intent_verifier`](Self::intent_verifier) is invoked over
+    ///    injected intent verifier is invoked over
     ///    the BCS canonical bytes of the intent body; failure yields
     ///    [`ExecutorError::ActorAuthenticationFailed`]. When a signature is
     ///    absent, the v0 policy applies: unsigned intents are permitted only
@@ -335,7 +395,260 @@ impl Executor {
     /// Returns every [`ExecutorError`] variant in fail-closed order above. No
     /// event is emitted when any check fails.
     pub async fn execute(&self, validated: &ValidatedIntent) -> Result<Vec<Event>, ExecutorError> {
-        self.execute_inner(validated, false).await
+        self.execute_inner(validated, false, true).await
+    }
+
+    /// Executes only after an authenticated principal is explicitly bound to
+    /// the intent actor and an external policy authorizer allows the mutation.
+    ///
+    /// This is the safe ingress helper for player-facing APIs. The legacy
+    /// [`Self::execute`] method remains available for pure planning and trusted
+    /// internal callers, but it must not be exposed directly to clients.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExecutorError::ActorAuthenticationFailed`] when the principal
+    /// is not bound to the intent or policy denies/unavailable, then propagates
+    /// the normal execution pipeline errors.
+    pub async fn execute_authenticated(
+        &self,
+        validated: &ValidatedIntent,
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+    ) -> Result<Vec<Event>, ExecutorError> {
+        self.execute_authenticated_inner(validated, principal, authorizer, true)
+            .await
+    }
+
+    async fn execute_authenticated_inner(
+        &self,
+        validated: &ValidatedIntent,
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        persist_intent: bool,
+    ) -> Result<Vec<Event>, ExecutorError> {
+        if principal.tenant != validated.intent.tenant_id
+            || principal.subject != validated.intent.actor
+        {
+            return Err(ExecutorError::ActorAuthenticationFailed(String::from(
+                "authenticated principal is not bound to intent actor and tenant",
+            )));
+        }
+        authorizer
+            .authorize(AuthorizationContext {
+                principal,
+                tenant: &validated.intent.tenant_id,
+                intent: &validated.intent,
+                resource: &validated.intent.resource_id,
+            })
+            .await
+            .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+        self.execute_inner(validated, false, persist_intent).await
+    }
+
+    /// Executes a player-originated mutation with the strict public-ingress
+    /// policy: a detached signature is mandatory, the authenticated principal
+    /// must match the intent actor/tenant, and the injected authorizer must
+    /// allow the operation.  Use [`Self::execute_authenticated`] only for
+    /// explicitly trusted service jobs that have a separate authentication
+    /// mechanism.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExecutorError::ActorAuthenticationFailed`] when the intent
+    /// has no signature, the principal is not bound to the intent, or the
+    /// authorizer/signature verifier rejects it. Other validation failures
+    /// are propagated from the normal execution pipeline.
+    pub async fn execute_player(
+        &self,
+        validated: &ValidatedIntent,
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+    ) -> Result<Vec<Event>, ExecutorError> {
+        if validated.signature.is_none() {
+            return Err(ExecutorError::ActorAuthenticationFailed(String::from(
+                "player mutation requires a detached intent signature",
+            )));
+        }
+        self.execute_authenticated(validated, principal, authorizer)
+            .await
+    }
+
+    /// Executes a signed player mutation and hands its events to the required
+    /// durable persistence boundary before returning success.
+    ///
+    /// This is the recommended public-ingress route. It preserves the strict
+    /// authentication and authorization checks of [`Self::execute_player`],
+    /// then invokes the deployment's sink exactly once for the constructed
+    /// event set. The sink is responsible for calling the commit crate's
+    /// `persist_durable_verified` (or metrics variant) with an atomic ledger
+    /// transaction. No events are returned when persistence fails.
+    /// Idempotent replays (an empty event set) are returned without invoking
+    /// the sink.
+    ///
+    /// # Errors
+    ///
+    /// Returns the normal player authentication, authorization, validation,
+    /// and transition errors, or [`ExecutorError::Store`] when the sink does
+    /// not report a fully committed durable mutation.
+    pub async fn execute_player_durable(
+        &self,
+        validated: &ValidatedIntent,
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        sink: &dyn DurableMutationSink,
+    ) -> Result<Vec<Event>, ExecutorError> {
+        if validated.signature.is_none() {
+            return Err(ExecutorError::ActorAuthenticationFailed(String::from(
+                "player mutation requires a detached intent signature",
+            )));
+        }
+        let events = self
+            .execute_authenticated_inner(validated, principal, authorizer, false)
+            .await?;
+        // An empty event set is the executor's idempotent replay signal. Do
+        // not rebuild or hand a replay to the persistence sink.
+        if events.is_empty() {
+            return Ok(events);
+        }
+        sink.persist_player_mutation(validated, principal, &events)
+            .await
+            .map_err(ExecutorError::Store)?;
+        Ok(events)
+    }
+
+    /// Player ingress variant that also checks key ownership, tenant scope,
+    /// operation scope, validity interval, and revocation through a
+    /// deployment-provided [`KeyRegistry`] before cryptographic verification.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExecutorError::ActorAuthenticationFailed`] when the intent
+    /// lacks a signature or the registry rejects/unable to resolve its key.
+    /// Signature, authorization, and transition failures are propagated from
+    /// [`Self::execute_player`].
+    pub async fn execute_player_with_key_registry(
+        &self,
+        validated: &ValidatedIntent,
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+    ) -> Result<Vec<Event>, ExecutorError> {
+        let signature = validated.signature.as_ref().ok_or_else(|| {
+            ExecutorError::ActorAuthenticationFailed(String::from(
+                "player mutation requires a detached intent signature",
+            ))
+        })?;
+        key_registry
+            .resolve_intent_key(
+                &validated.intent.tenant_id,
+                &principal.subject,
+                &signature.key_id,
+                &validated.intent.operation,
+                validated.intent.created_at,
+            )
+            .await
+            .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+        self.execute_player(validated, principal, authorizer).await
+    }
+
+    /// Durable player ingress with mandatory key-lifecycle enforcement.
+    ///
+    /// This combines the two production ingress requirements: the detached
+    /// intent key is resolved against the deployment's tenant/actor/operation
+    /// registry, and accepted events are handed to the durable sink before a
+    /// success result is returned. The sink must use the commit crate's
+    /// verified durable-persistence API for the commit-signature boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExecutorError::ActorAuthenticationFailed`] before state
+    /// execution when the signature is absent or its registered key is not
+    /// trusted for this intent. Other errors match [`Self::execute_player_durable`].
+    pub async fn execute_player_durable_with_key_registry(
+        &self,
+        validated: &ValidatedIntent,
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+        sink: &dyn DurableMutationSink,
+    ) -> Result<Vec<Event>, ExecutorError> {
+        let signature = validated.signature.as_ref().ok_or_else(|| {
+            ExecutorError::ActorAuthenticationFailed(String::from(
+                "player mutation requires a detached intent signature",
+            ))
+        })?;
+        key_registry
+            .resolve_intent_key(
+                &validated.intent.tenant_id,
+                &principal.subject,
+                &signature.key_id,
+                &validated.intent.operation,
+                validated.intent.created_at,
+            )
+            .await
+            .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+        self.execute_player_durable(validated, principal, authorizer, sink)
+            .await
+    }
+
+    /// Durably executes a batch of player requests after checking every
+    /// request's signature presence, principal binding, authorization, and
+    /// key lifecycle scope.
+    ///
+    /// This is the public durable route for player-driven inventory batches,
+    /// market actions, and settlement legs. The existing durable batch APIs
+    /// remain appropriate for trusted service jobs; they intentionally do not
+    /// invent an identity for every item in a batch.
+    ///
+    /// # Errors
+    ///
+    /// Rejects the entire batch before execution if any item is unsigned,
+    /// principal-mismatched, unauthorized, or uses an untrusted key. Other
+    /// errors match [`Self::execute_batch_durable`].
+    pub async fn execute_player_batch_durable_with_key_registry(
+        &self,
+        items: &[PlayerBatchItem<'_>],
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+        sink: &dyn DurableBatchSink,
+    ) -> Result<Vec<Event>, ExecutorError> {
+        let mut intents = Vec::with_capacity(items.len());
+        for item in items {
+            let signature = item.validated.signature.as_ref().ok_or_else(|| {
+                ExecutorError::ActorAuthenticationFailed(String::from(
+                    "player mutation requires a detached intent signature",
+                ))
+            })?;
+            if item.principal.tenant != item.validated.intent.tenant_id
+                || item.principal.subject != item.validated.intent.actor
+            {
+                return Err(ExecutorError::ActorAuthenticationFailed(String::from(
+                    "authenticated principal is not bound to intent actor and tenant",
+                )));
+            }
+            authorizer
+                .authorize(AuthorizationContext {
+                    principal: item.principal,
+                    tenant: &item.validated.intent.tenant_id,
+                    intent: &item.validated.intent,
+                    resource: &item.validated.intent.resource_id,
+                })
+                .await
+                .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+            key_registry
+                .resolve_intent_key(
+                    &item.validated.intent.tenant_id,
+                    &item.principal.subject,
+                    &signature.key_id,
+                    &item.validated.intent.operation,
+                    item.validated.intent.created_at,
+                )
+                .await
+                .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+            intents.push(item.validated.clone());
+        }
+        self.execute_batch_durable(&intents, sink).await
     }
 
     /// The shared execution core, parameterized over whether value-leg
@@ -344,13 +657,15 @@ impl Executor {
     /// `allow_value_legs == false` for the single-tenant [`Self::execute`] and
     /// [`Self::execute_batch`]: a `trade.settle` that declares a value leg must
     /// be settled via [`Self::execute_settle`]. `allow_value_legs == true` for
-    /// the cross-tenant legs (through [`Self::run_batch`]), where value legs
+    /// the cross-tenant legs (through the single-tenant batch pipeline), where value legs
     /// are declared in the trade manifest and validated by the cross-tenant
     /// validator, not the settle intent.
+    #[allow(clippy::collapsible_if)]
     async fn execute_inner(
         &self,
         validated: &ValidatedIntent,
         allow_value_legs: bool,
+        persist_intent: bool,
     ) -> Result<Vec<Event>, ExecutorError> {
         let intent = &validated.intent;
         let tenant = &intent.tenant_id;
@@ -394,12 +709,6 @@ impl Executor {
             tracing::debug!(intent_id = %intent.intent_id.as_str(), "idempotent replay");
             return Ok(Vec::new());
         }
-        self.ports
-            .intent_store
-            .put_intent(tenant, intent)
-            .await
-            .map_err(|err| map_intent_store_error(err, &intent.intent_id.0))?;
-
         // §18.1 step 4: actor authentication. Signature presence is the
         // platform's submission policy; the executor verifies a present
         // signature against the BCS canonical bytes of the intent body via the
@@ -413,13 +722,13 @@ impl Executor {
         if let Some(block) = &validated.signature {
             (self.intent_verifier)(block, &bytes)?;
         }
-        if let Some(proof) = &intent.authority
-            && let Some(primary) = self.ports.trustgrant.first()
-        {
-            primary
-                .check_revocation_freshness(proof)
-                .await
-                .map_err(map_trustgrant_error)?;
+        if let Some(proof) = &intent.authority {
+            if let Some(primary) = self.ports.trustgrant.first() {
+                primary
+                    .check_revocation_freshness(proof)
+                    .await
+                    .map_err(map_trustgrant_error)?;
+            }
         }
 
         // §18.1 step 5: tenant scope.
@@ -589,7 +898,7 @@ impl Executor {
         let before_state = current
             .as_ref()
             .map(|c| c.state.clone())
-            .unwrap_or_else(|| serde_json::json!({}));
+            .unwrap_or_else(|| empty_state_for(state_type));
         let before_hash = match current.as_ref() {
             Some(projection) => projection.state_hash.clone(),
             None => canonicalize_and_digest(&before_state)?,
@@ -652,7 +961,7 @@ impl Executor {
             let destination_before_state = destination_current
                 .as_ref()
                 .map(|c| c.state.clone())
-                .unwrap_or_else(|| serde_json::json!({}));
+                .unwrap_or_else(|| empty_state_for(state_type));
             let destination_before_hash = match destination_current.as_ref() {
                 Some(projection) => projection.state_hash.clone(),
                 None => canonicalize_and_digest(&destination_before_state)?,
@@ -685,9 +994,31 @@ impl Executor {
                 event_id = %destination_event.event_id.as_str(),
                 "emitted destination credit event"
             );
+            // Claim only after both transfer legs have been fully validated and
+            // constructed. Durable implementations must make this claim
+            // atomic with persistence of both events and their commit.
+            if persist_intent {
+                self.ports
+                    .intent_store
+                    .put_intent(tenant, intent)
+                    .await
+                    .map_err(|err| map_intent_store_error(err, &intent.intent_id.0))?;
+            }
             return Ok(vec![event, destination_event]);
         }
 
+        // Claim only after authentication, authority, profile, transition, and
+        // complete event construction have passed. This prevents malformed or
+        // unauthorized requests from poisoning the idempotency namespace.
+        // Durable implementations must still make this claim atomic with the
+        // event/commit write (see TODO.md P0-1/P0-2).
+        if persist_intent {
+            self.ports
+                .intent_store
+                .put_intent(tenant, intent)
+                .await
+                .map_err(|err| map_intent_store_error(err, &intent.intent_id.0))?;
+        }
         Ok(vec![event])
     }
 
@@ -716,42 +1047,88 @@ impl Executor {
         &self,
         intents: &[ValidatedIntent],
     ) -> Result<Vec<Event>, ExecutorError> {
+        self.execute_batch_inner(intents, None).await
+    }
+
+    async fn execute_batch_inner(
+        &self,
+        intents: &[ValidatedIntent],
+        sink: Option<&dyn DurableBatchSink>,
+    ) -> Result<Vec<Event>, ExecutorError> {
         let Some(first) = intents.first() else {
             return Err(ExecutorError::AtomicityViolation(String::from(
                 "empty batch",
             )));
         };
         let tenant = &first.intent.tenant_id;
-        let handle = self
-            .ports
-            .transaction_manager
-            .begin(tenant)
-            .await
-            .map_err(|err| map_transaction_manager_error(&err))?;
+        let handle = if sink.is_none() {
+            Some(
+                self.ports
+                    .transaction_manager
+                    .begin(tenant)
+                    .await
+                    .map_err(|err| map_transaction_manager_error(&err))?,
+            )
+        } else {
+            None
+        };
 
         // Both a leg failure and an inconsistent-batch validation failure are
         // rolled back atomically (a failed validation must not short-circuit
         // past the rollback via `?`).
-        let result = match self.run_batch_fail_closed(intents).await {
+        let result = match self.run_batch_fail_closed(intents, sink.is_none()).await {
             Ok(events) => atomicity::validate_batch_consistency(&events).map(|()| events),
             Err(error) => Err(error),
         };
         match result {
             Ok(events) => {
-                handle
-                    .commit()
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?;
+                if let Some(sink) = sink.filter(|_| !events.is_empty())
+                    && let Err(error) = sink.persist_batch(intents, &events).await
+                {
+                    if let Some(handle) = handle
+                        && let Err(rollback_error) = handle.rollback().await
+                    {
+                        tracing::warn!(%rollback_error, "durable batch rollback failed");
+                    }
+                    return Err(ExecutorError::Store(error));
+                }
+                if let Some(handle) = handle {
+                    handle
+                        .commit()
+                        .await
+                        .map_err(|err| map_transaction_manager_error(&err))?;
+                }
                 Ok(events)
             }
             Err(error) => {
                 let message = error.to_string();
-                if let Err(rollback_error) = handle.rollback().await {
+                if let Some(handle) = handle
+                    && let Err(rollback_error) = handle.rollback().await
+                {
                     tracing::warn!(rollback = %rollback_error, "batch rollback failed");
                 }
                 Err(ExecutorError::AtomicityViolation(message))
             }
         }
+    }
+
+    /// Executes a batch and returns success only after the deployment's
+    /// durable batch sink commits every intent and event.
+    ///
+    /// This is the safe routing boundary for shared inventory, marketplace,
+    /// and same-tenant settlement commands. The sink owns commit formation,
+    /// signing, idempotency claims, projections, and outbox writes.
+    ///
+    /// # Errors
+    ///
+    /// Returns the normal batch execution/atomicity errors or
+    /// [`ExecutorError::Store`] when durable persistence fails.
+    pub async fn execute_batch_durable(
+        &self,
+        intents: &[ValidatedIntent],
+        sink: &dyn DurableBatchSink,
+    ) -> Result<Vec<Event>, ExecutorError> {
+        self.execute_batch_inner(intents, Some(sink)).await
     }
 
     /// Runs a value-leg settlement batch atomically (protocol §18.3, Phase 2).
@@ -780,23 +1157,36 @@ impl Executor {
         &self,
         intents: &[ValidatedIntent],
     ) -> Result<Vec<Event>, ExecutorError> {
+        self.execute_settle_inner(intents, None).await
+    }
+
+    async fn execute_settle_inner(
+        &self,
+        intents: &[ValidatedIntent],
+        sink: Option<&dyn DurableBatchSink>,
+    ) -> Result<Vec<Event>, ExecutorError> {
         let Some(first) = intents.first() else {
             return Err(ExecutorError::AtomicityViolation(String::from(
                 "empty settle batch",
             )));
         };
         let tenant = &first.intent.tenant_id;
-        let handle = self
-            .ports
-            .transaction_manager
-            .begin(tenant)
-            .await
-            .map_err(|err| map_transaction_manager_error(&err))?;
+        let handle = if sink.is_none() {
+            Some(
+                self.ports
+                    .transaction_manager
+                    .begin(tenant)
+                    .await
+                    .map_err(|err| map_transaction_manager_error(&err))?,
+            )
+        } else {
+            None
+        };
 
         // Both a leg failure and a validation failure are rolled back atomically.
         // `allow_value_legs` is `true`: the settle batch's value legs are
         // validated by [`atomicity::validate_settle_batch`] below.
-        let result = match self.run_batch(intents, true).await {
+        let result = match self.run_batch(intents, true, sink.is_none()).await {
             Ok(events) => {
                 let settle_intents: Vec<statechronicle_domain::intent::Intent> = intents
                     .iter()
@@ -811,20 +1201,49 @@ impl Executor {
         };
         match result {
             Ok(events) => {
-                handle
-                    .commit()
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?;
+                if let Some(sink) = sink.filter(|_| !events.is_empty())
+                    && let Err(error) = sink.persist_batch(intents, &events).await
+                {
+                    if let Some(handle) = handle
+                        && let Err(rollback_error) = handle.rollback().await
+                    {
+                        tracing::warn!(%rollback_error, "durable settle rollback failed");
+                    }
+                    return Err(ExecutorError::Store(error));
+                }
+                if let Some(handle) = handle {
+                    handle
+                        .commit()
+                        .await
+                        .map_err(|err| map_transaction_manager_error(&err))?;
+                }
                 Ok(events)
             }
             Err(error) => {
                 let message = error.to_string();
-                if let Err(rollback_error) = handle.rollback().await {
+                if let Some(handle) = handle
+                    && let Err(rollback_error) = handle.rollback().await
+                {
                     tracing::warn!(rollback = %rollback_error, "settle rollback failed");
                 }
                 Err(ExecutorError::AtomicityViolation(message))
             }
         }
+    }
+
+    /// Executes a value-leg settlement and persists it through the required
+    /// durable batch boundary before returning success.
+    ///
+    /// # Errors
+    ///
+    /// Returns the settlement validation/atomicity errors or
+    /// [`ExecutorError::Store`] when the sink rejects the durable write.
+    pub async fn execute_settle_durable(
+        &self,
+        intents: &[ValidatedIntent],
+        sink: &dyn DurableBatchSink,
+    ) -> Result<Vec<Event>, ExecutorError> {
+        self.execute_settle_inner(intents, Some(sink)).await
     }
 
     /// Runs a cross-tenant batch atomically (protocol §8.2, §18.3).
@@ -833,7 +1252,7 @@ impl Executor {
     /// affected-tenant set is derived by partitioning the intents by
     /// `tenant_id` (preserving input order within each tenant); the sorted
     /// tenant keys are passed to `transaction_manager.begin_multi`, then each
-    /// tenant's leg runs through the single-tenant [`Self::run_batch`] pipeline.
+    /// tenant's leg runs through the single-tenant batch pipeline.
     /// The per-tenant groups are validated with
     /// [`atomicity::validate_cross_tenant_consistency`], then committed
     /// atomically: success commits and returns one
@@ -857,6 +1276,14 @@ impl Executor {
         &self,
         intents: &[ValidatedIntent],
     ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
+        self.execute_cross_tenant_inner(intents, None).await
+    }
+
+    async fn execute_cross_tenant_inner(
+        &self,
+        intents: &[ValidatedIntent],
+        sink: Option<&dyn DurableBatchSink>,
+    ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
         // Partition by tenant id, preserving input order within each tenant.
         // Keyed by the tenant id string: `TenantId` is not `Ord`, so sorting by
         // the id string yields the same deterministic sorted-tenant scope.
@@ -875,38 +1302,80 @@ impl Executor {
             )));
         }
 
-        let handle = self
-            .ports
-            .transaction_manager
-            .begin_multi(&sorted_tenants)
-            .await
-            .map_err(|err| map_transaction_manager_error(&err))?;
+        let handle = if sink.is_none() {
+            Some(
+                self.ports
+                    .transaction_manager
+                    .begin_multi(&sorted_tenants)
+                    .await
+                    .map_err(|err| map_transaction_manager_error(&err))?,
+            )
+        } else {
+            None
+        };
 
         // Both a leg failure and an inconsistent-group validation failure are
         // rolled back atomically (a failed validation must not short-circuit
         // past the rollback via `?`). `allow_value_legs` is `false`: a value-leg
         // `trade.settle` has no declared manifest here, so it must fail the
         // value-leg routing gate (see [`Self::execute_inner`]).
-        let result = match self.run_cross_tenant_legs(&by_name, false).await {
+        let result = match self
+            .run_cross_tenant_legs(&by_name, false, sink.is_none())
+            .await
+        {
             Ok(groups) => atomicity::validate_cross_tenant_consistency(&groups).map(|()| groups),
             Err(error) => Err(error),
         };
         match result {
             Ok(groups) => {
-                handle
-                    .commit()
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?;
+                let events: Vec<Event> = groups
+                    .iter()
+                    .flat_map(|group| group.events.iter().cloned())
+                    .collect();
+                if let Some(sink) = sink.filter(|_| !events.is_empty())
+                    && let Err(error) = sink.persist_batch(intents, &events).await
+                {
+                    if let Some(handle) = handle
+                        && let Err(rollback_error) = handle.rollback().await
+                    {
+                        tracing::warn!(%rollback_error, "durable cross-tenant rollback failed");
+                    }
+                    return Err(ExecutorError::Store(error));
+                }
+                if let Some(handle) = handle {
+                    handle
+                        .commit()
+                        .await
+                        .map_err(|err| map_transaction_manager_error(&err))?;
+                }
                 Ok(groups)
             }
             Err(error) => {
                 let message = error.to_string();
-                if let Err(rollback_error) = handle.rollback().await {
+                if let Some(handle) = handle
+                    && let Err(rollback_error) = handle.rollback().await
+                {
                     tracing::warn!(rollback = %rollback_error, "cross-tenant rollback failed");
                 }
                 Err(ExecutorError::AtomicityViolation(message))
             }
         }
+    }
+
+    /// Executes a validated cross-tenant batch through the required durable
+    /// sink. The sink must persist every tenant leg in one supported database
+    /// transaction; independent databases cannot provide atomic settlement.
+    ///
+    /// # Errors
+    ///
+    /// Returns cross-tenant validation/atomicity errors or
+    /// [`ExecutorError::Store`] when durable persistence fails.
+    pub async fn execute_cross_tenant_durable(
+        &self,
+        intents: &[ValidatedIntent],
+        sink: &dyn DurableBatchSink,
+    ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
+        self.execute_cross_tenant_inner(intents, Some(sink)).await
     }
 
     /// Runs a cross-tenant trade settlement atomically (protocol §8.2, §18.3,
@@ -920,7 +1389,7 @@ impl Executor {
     /// transaction wrapper: the affected-tenant set is derived by partitioning
     /// the intents by `tenant_id`, the sorted tenant keys are passed to
     /// `transaction_manager.begin_multi`, each tenant's leg runs through the
-    /// single-tenant [`Self::run_batch`] pipeline, and the per-tenant groups are
+    /// single-tenant batch pipeline, and the per-tenant groups are
     /// validated with [`atomicity::validate_cross_tenant_trade`] before an
     /// atomic commit. Any error rolls back and surfaces as
     /// [`ExecutorError::AtomicityViolation`].
@@ -942,6 +1411,16 @@ impl Executor {
         intents: &[ValidatedIntent],
         manifest: &atomicity::TradeManifest,
     ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
+        self.execute_cross_tenant_trade_inner(intents, manifest, None)
+            .await
+    }
+
+    async fn execute_cross_tenant_trade_inner(
+        &self,
+        intents: &[ValidatedIntent],
+        manifest: &atomicity::TradeManifest,
+        sink: Option<&dyn DurableBatchSink>,
+    ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
         // Partition by tenant id, preserving input order within each tenant.
         let mut by_name: BTreeMap<String, Vec<ValidatedIntent>> = BTreeMap::new();
         for validated in intents {
@@ -958,17 +1437,25 @@ impl Executor {
             )));
         }
 
-        let handle = self
-            .ports
-            .transaction_manager
-            .begin_multi(&sorted_tenants)
-            .await
-            .map_err(|err| map_transaction_manager_error(&err))?;
+        let handle = if sink.is_none() {
+            Some(
+                self.ports
+                    .transaction_manager
+                    .begin_multi(&sorted_tenants)
+                    .await
+                    .map_err(|err| map_transaction_manager_error(&err))?,
+            )
+        } else {
+            None
+        };
 
         // Both a leg failure and a manifest-validation failure are rolled back
         // atomically (a failed validation must not short-circuit past the
         // rollback via `?`).
-        let result = match self.run_cross_tenant_legs(&by_name, true).await {
+        let result = match self
+            .run_cross_tenant_legs(&by_name, true, sink.is_none())
+            .await
+        {
             Ok(groups) => {
                 let settle_intents: Vec<statechronicle_domain::intent::Intent> = intents
                     .iter()
@@ -982,15 +1469,33 @@ impl Executor {
         };
         match result {
             Ok(groups) => {
-                handle
-                    .commit()
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?;
+                let events: Vec<Event> = groups
+                    .iter()
+                    .flat_map(|group| group.events.iter().cloned())
+                    .collect();
+                if let Some(sink) = sink.filter(|_| !events.is_empty())
+                    && let Err(error) = sink.persist_batch(intents, &events).await
+                {
+                    if let Some(handle) = handle
+                        && let Err(rollback_error) = handle.rollback().await
+                    {
+                        tracing::warn!(%rollback_error, "durable cross-tenant rollback failed");
+                    }
+                    return Err(ExecutorError::Store(error));
+                }
+                if let Some(handle) = handle {
+                    handle
+                        .commit()
+                        .await
+                        .map_err(|err| map_transaction_manager_error(&err))?;
+                }
                 Ok(groups)
             }
             Err(error) => {
                 let message = error.to_string();
-                if let Err(rollback_error) = handle.rollback().await {
+                if let Some(handle) = handle
+                    && let Err(rollback_error) = handle.rollback().await
+                {
                     tracing::warn!(
                         rollback = %rollback_error,
                         "cross-tenant trade rollback failed"
@@ -999,6 +1504,27 @@ impl Executor {
                 Err(ExecutorError::AtomicityViolation(message))
             }
         }
+    }
+
+    /// Executes a manifest-validated cross-tenant trade and persists every
+    /// tenant leg through the required durable batch sink before success.
+    ///
+    /// The sink must use one supported atomic database transaction and retain
+    /// the manifest linkage in its own audit metadata; independent databases
+    /// are not made atomic by this helper.
+    ///
+    /// # Errors
+    ///
+    /// Returns cross-tenant validation/atomicity errors or
+    /// [`ExecutorError::Store`] when durable persistence fails.
+    pub async fn execute_cross_tenant_trade_durable(
+        &self,
+        intents: &[ValidatedIntent],
+        manifest: &atomicity::TradeManifest,
+        sink: &dyn DurableBatchSink,
+    ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
+        self.execute_cross_tenant_trade_inner(intents, manifest, Some(sink))
+            .await
     }
 
     /// Executes every intent in order, short-circuiting on the first failure.
@@ -1012,10 +1538,14 @@ impl Executor {
         &self,
         intents: &[ValidatedIntent],
         allow_value_legs: bool,
+        persist_intent: bool,
     ) -> Result<Vec<Event>, ExecutorError> {
         let mut events = Vec::new();
         for validated in intents {
-            events.extend(self.execute_inner(validated, allow_value_legs).await?);
+            events.extend(
+                self.execute_inner(validated, allow_value_legs, persist_intent)
+                    .await?,
+            );
         }
         Ok(events)
     }
@@ -1039,10 +1569,11 @@ impl Executor {
     async fn run_batch_fail_closed(
         &self,
         intents: &[ValidatedIntent],
+        persist_intent: bool,
     ) -> Result<Vec<Event>, ExecutorError> {
         let mut events = Vec::new();
         for validated in intents {
-            let produced = self.execute_inner(validated, false).await?;
+            let produced = self.execute_inner(validated, false, persist_intent).await?;
             if produced.is_empty() {
                 return Err(ExecutorError::AtomicityViolation(format!(
                     "partial replay detected in batch: intent `{}` was already claimed and replayed idempotently; the batch fails closed so no partial results escape",
@@ -1057,7 +1588,7 @@ impl Executor {
     /// Runs each tenant's leg in sorted tenant order, collecting the emitted
     /// events into tenant-scoped groups.
     ///
-    /// `allow_value_legs` is threaded into each tenant's [`Self::run_batch`]:
+    /// `allow_value_legs` is threaded into each tenant's batch execution:
     /// the cross-tenant trade path admits value-leg settles (declared in the
     /// trade manifest), while the plain cross-tenant path rejects them so a
     /// value-declaring `trade.settle` cannot silently settle an asset for a
@@ -1066,10 +1597,13 @@ impl Executor {
         &self,
         by_name: &BTreeMap<String, Vec<ValidatedIntent>>,
         allow_value_legs: bool,
+        persist_intent: bool,
     ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
         let mut groups = Vec::new();
         for (name, sub_intents) in by_name {
-            let events = self.run_batch(sub_intents, allow_value_legs).await?;
+            let events = self
+                .run_batch(sub_intents, allow_value_legs, persist_intent)
+                .await?;
             groups.push(atomicity::TenantEventGroup {
                 tenant: TenantId(name.clone()),
                 events,
@@ -1196,6 +1730,47 @@ const fn subject_for(intent: &Intent, state_type: StateType) -> Option<&SubjectI
     }
 }
 
+fn empty_state_for(state_type: StateType) -> ResourceState {
+    let subject = SubjectId(String::new());
+    let status = Status::from_static("active");
+    match state_type {
+        StateType::UniqueAsset => ResourceState::UniqueAsset(UniqueAssetState {
+            owner: subject,
+            status,
+            trade_id: None,
+        }),
+        StateType::ConsumableStack => ResourceState::ConsumableStack(ConsumableStackState {
+            subject,
+            quantity: statechronicle_core::amount::Amount::ZERO,
+            unit: String::new(),
+        }),
+        StateType::FungibleBalance => ResourceState::FungibleBalance(FungibleBalanceState {
+            subject,
+            balance: statechronicle_core::amount::Amount::ZERO,
+            unit: String::new(),
+        }),
+        StateType::Entitlement => ResourceState::Entitlement(EntitlementState {
+            subject,
+            status,
+            transferable: false,
+        }),
+        StateType::MeteredResource => ResourceState::MeteredResource(MeterState {
+            subject,
+            remaining: statechronicle_core::amount::Amount::ZERO,
+            maximum: statechronicle_core::amount::Amount::ZERO,
+        }),
+        StateType::Listing => ResourceState::Listing(ListingState {
+            seller: subject,
+            status,
+        }),
+        StateType::Escrow => ResourceState::Escrow(EscrowState {
+            buyer: subject.clone(),
+            seller: subject,
+            status,
+        }),
+    }
+}
+
 /// Resolves the authoritative holder of a subject-held resource
 /// (protocol §9/§10).
 ///
@@ -1203,6 +1778,7 @@ const fn subject_for(intent: &Intent, state_type: StateType) -> Option<&SubjectI
 /// resource exists; the acting actor is only the creator default used when no
 /// projection exists yet (the create path). Returns `None` for owner-based
 /// state types, which key by resource alone.
+#[allow(clippy::collapsible_if)]
 fn holder_for(
     current: Option<&StateProjection>,
     intent: &Intent,
@@ -1213,11 +1789,12 @@ fn holder_for(
         | StateType::FungibleBalance
         | StateType::Entitlement
         | StateType::MeteredResource => {
-            if let Some(projection) = current
-                && let Some(subject) = projection.state.get("subject").and_then(Value::as_str)
-                && !subject.is_empty()
-            {
-                return Some(SubjectId(String::from(subject)));
+            if let Some(projection) = current {
+                if let Some(subject) = projection.state.subject().map(|s| s.0.as_str()) {
+                    if !subject.is_empty() {
+                        return Some(SubjectId(String::from(subject)));
+                    }
+                }
             }
             Some(intent.actor.clone())
         }
@@ -1387,11 +1964,15 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state: serde_json::json!({
-                "subject": subject,
-                "balance": "100",
-                "unit": "gold_minor",
-            }),
+            state: ResourceState::from_legacy_json(
+                state_type,
+                serde_json::json!({
+                    "subject": subject,
+                    "balance": "100",
+                    "unit": "gold_minor",
+                }),
+            )
+            .unwrap(),
         }
     }
 

@@ -10,11 +10,11 @@ statechronicle-core = { workspace = true }
 statechronicle-domain = { workspace = true }
 statechronicle-accumulator = { workspace = true }
 async-trait = { workspace = true }
+chrono = { workspace = true }
 trait-variant = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-chrono = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
 
 [lints]

@@ -57,7 +57,22 @@ fn projection(state_type: StateType, state: serde_json::Value) -> StateProjectio
         last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
         last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
         state_hash: ContentDigest::new([0u8; 32]),
-        state,
+        state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+            state_type,
+            state,
+        )
+        .unwrap_or_else(|_| {
+            let fallback = match state_type {
+                StateType::UniqueAsset => serde_json::json!({ "owner": "alice", "status": "active" }),
+                StateType::ConsumableStack => serde_json::json!({ "subject": "alice", "quantity": "0", "unit": "items" }),
+                StateType::FungibleBalance => serde_json::json!({ "subject": "alice", "balance": "0", "unit": "gold" }),
+                StateType::Entitlement => serde_json::json!({ "subject": "alice", "status": "active", "transferable": true }),
+                StateType::MeteredResource => serde_json::json!({ "subject": "alice", "remaining": "0", "maximum": "0" }),
+                StateType::Listing => serde_json::json!({ "seller": "alice", "status": "listed" }),
+                StateType::Escrow => serde_json::json!({ "buyer": "alice", "seller": "bob", "status": "held" }),
+            };
+            statechronicle_domain::resource_state::ResourceState::from_legacy_json(state_type, fallback).unwrap()
+        }),
     }
 }
 
@@ -238,7 +253,7 @@ proptest! {
             Ok(after) => {
                 let quantity = after
                     .get("quantity")
-                    .and_then(serde_json::Value::as_str)
+                    .and_then(|value| value.as_str().map(String::from))
                     .expect("after-state carries a quantity string");
                 prop_assert!(!quantity.contains(['.', 'e', 'E']));
                 let parsed = quantity
@@ -316,17 +331,17 @@ fn transfer_executes_atomically_net_zero_for_arbitrary_amounts() {
             }
         };
         prop_assert_eq!(events.len(), 2);
-        let source_before = events[0].before.state["balance"]
+        let source_before = events[0].before.state.get("balance").unwrap()
             .as_str()
             .unwrap()
             .parse::<u128>()
             .unwrap();
-        let source_after = events[0].after.state["balance"]
+        let source_after = events[0].after.state.get("balance").unwrap()
             .as_str()
             .unwrap()
             .parse::<u128>()
             .unwrap();
-        let dest_after = events[1].after.state["balance"]
+        let dest_after = events[1].after.state.get("balance").unwrap()
             .as_str()
             .unwrap()
             .parse::<u128>()

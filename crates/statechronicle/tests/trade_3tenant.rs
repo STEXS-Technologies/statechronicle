@@ -327,8 +327,8 @@ async fn three_tenant_asset_swap_with_value_lands_in_one_commit() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(held_a.state["owner"], json!(BOB));
-    assert_eq!(held_a.state["status"], json!("active"));
+    assert_eq!(held_a.state.get("owner").unwrap(), json!(BOB));
+    assert_eq!(held_a.state.get("status").unwrap(), json!("active"));
     // B moved BOB -> ALICE in beta.
     let held_b = harness
         .index
@@ -336,8 +336,8 @@ async fn three_tenant_asset_swap_with_value_lands_in_one_commit() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(held_b.state["owner"], json!(ALICE));
-    assert_eq!(held_b.state["status"], json!("active"));
+    assert_eq!(held_b.state.get("owner").unwrap(), json!(ALICE));
+    assert_eq!(held_b.state.get("status").unwrap(), json!("active"));
 
     // Gamma: BOB debited, ALICE credited.
     let bob_wallet = harness
@@ -347,7 +347,7 @@ async fn three_tenant_asset_swap_with_value_lands_in_one_commit() {
         .unwrap()
         .unwrap();
     assert_eq!(
-        bob_wallet.state["balance"],
+        bob_wallet.state.get("balance").unwrap(),
         json!((1000 - PRICE).to_string())
     );
     let alice_wallet = harness
@@ -356,7 +356,10 @@ async fn three_tenant_asset_swap_with_value_lands_in_one_commit() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(alice_wallet.state["balance"], json!(PRICE.to_string()));
+    assert_eq!(
+        alice_wallet.state.get("balance").unwrap(),
+        json!(PRICE.to_string())
+    );
 }
 
 #[tokio::test]
@@ -502,7 +505,9 @@ async fn pure_three_tenant_no_value_swap_lands_in_one_commit() {
             .await
             .unwrap()
             .unwrap()
-            .state["owner"],
+            .state
+            .get("owner")
+            .unwrap(),
         json!(BOB)
     );
     assert_eq!(
@@ -512,7 +517,9 @@ async fn pure_three_tenant_no_value_swap_lands_in_one_commit() {
             .await
             .unwrap()
             .unwrap()
-            .state["owner"],
+            .state
+            .get("owner")
+            .unwrap(),
         json!(CAROL)
     );
     assert_eq!(
@@ -522,7 +529,9 @@ async fn pure_three_tenant_no_value_swap_lands_in_one_commit() {
             .await
             .unwrap()
             .unwrap()
-            .state["owner"],
+            .state
+            .get("owner")
+            .unwrap(),
         json!(ALICE)
     );
 }
@@ -588,16 +597,16 @@ async fn stale_version_leg_rolls_back_atomically() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(held_a.state["owner"], json!(ALICE));
-    assert_eq!(held_a.state["status"], json!("trade_held"));
+    assert_eq!(held_a.state.get("owner").unwrap(), json!(ALICE));
+    assert_eq!(held_a.state.get("status").unwrap(), json!("trade_held"));
     let held_b = harness
         .index
         .get_state(&beta, &asset_b)
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(held_b.state["owner"], json!(BOB));
-    assert_eq!(held_b.state["status"], json!("trade_held"));
+    assert_eq!(held_b.state.get("owner").unwrap(), json!(BOB));
+    assert_eq!(held_b.state.get("status").unwrap(), json!("trade_held"));
 
     // Gamma balance unchanged and ALICE was never credited.
     let bob_wallet = harness
@@ -606,7 +615,7 @@ async fn stale_version_leg_rolls_back_atomically() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(bob_wallet.state["balance"], json!("1000"));
+    assert_eq!(bob_wallet.state.get("balance").unwrap(), json!("1000"));
     assert!(
         harness
             .index

@@ -1,6 +1,6 @@
 //! Commit batching.
 //!
-//! [`CommitBatch`] accumulates validated events for one commit (protocol
+//! [`CommitBatch`](crate::batch::CommitBatch) accumulates validated events for one commit (protocol
 //! §13.1). It is pure and deterministic: events are appended in call order,
 //! every event in a tenant-scoped batch must share the batch's tenant, and
 //! duplicate event ids are rejected fail-closed (§18.2). Batching is separated
@@ -44,12 +44,14 @@ impl CommitBatch {
     }
 
     /// Returns the number of events in the batch.
-    pub const fn event_count(&self) -> usize {
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn event_count(&self) -> usize {
         self.events.len()
     }
 
     /// Returns whether the batch holds no events.
-    pub const fn is_empty(&self) -> bool {
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn is_empty(&self) -> bool {
         self.events.is_empty()
     }
 
@@ -70,11 +72,12 @@ impl CommitBatch {
     /// event with the same id, and [`CommitError::SizeLimitExceeded`] (with
     /// `name == "event"`) when the event's canonical bytes exceed
     /// [`MAX_EVENT_BYTES`].
+    #[allow(clippy::collapsible_if)]
     pub fn add_event(&mut self, event: Event) -> Result<(), CommitError> {
-        if let Some(tenant) = &self.scope.tenant_id
-            && tenant != &event.tenant_id
-        {
-            return Err(CommitError::MixedTenant);
+        if let Some(tenant) = &self.scope.tenant_id {
+            if tenant != &event.tenant_id {
+                return Err(CommitError::MixedTenant);
+            }
         }
         if self
             .events
@@ -164,6 +167,23 @@ mod tests {
     }
 
     fn sample_commitment(version: u64, state: serde_json::Value) -> StateCommitment {
+        let mut state = state;
+        if let Some(object) = state.as_object_mut() {
+            object
+                .entry(String::from("owner"))
+                .or_insert_with(|| serde_json::json!("account:example:player_123"));
+            object
+                .entry(String::from("status"))
+                .or_insert_with(|| serde_json::json!("active"));
+            if let Some(blob) = object.remove("blob") {
+                object.insert(String::from("trade_id"), blob);
+            }
+        }
+        let state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+            statechronicle_domain::state_type::StateType::UniqueAsset,
+            state,
+        )
+        .unwrap();
         StateCommitment {
             version,
             state_hash: canonicalize_and_digest(&state).unwrap(),

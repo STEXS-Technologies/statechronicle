@@ -110,7 +110,7 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[0].after.state["balance"], json!("0"));
+    assert_eq!(events[0].after.state.get("balance").unwrap(), json!("0"));
     println!("balance.create(BOB)    -> {}", events[0].after.state);
 
     // Raw-path callout: this mint "arrived over the wire", so it is parsed +
@@ -119,7 +119,7 @@ async fn main() {
     println!("raw payload over the wire -> {}", mint_payload);
     let mint = harness.accept(&mint_payload, None);
     apply(&harness, &mut events, &mint).await;
-    assert_eq!(events[1].after.state["balance"], json!("50"));
+    assert_eq!(events[1].after.state.get("balance").unwrap(), json!("50"));
     println!("mint(50, treasury)     -> {}", events[1].after.state);
 
     // credit(25): 50 -> 75.
@@ -135,7 +135,7 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[2].after.state["balance"], json!("75"));
+    assert_eq!(events[2].after.state.get("balance").unwrap(), json!("75"));
     println!("credit(25)             -> {}", events[2].after.state);
 
     // transfer(to_subject=ALICE, 30): an atomic debit + credit pair sharing one
@@ -154,9 +154,9 @@ async fn main() {
         harness.index.apply(event, StateType::FungibleBalance);
     }
     // Source (BOB) debited 75 -> 45; destination (ALICE) created at 30.
-    assert_eq!(pair[0].after.state["balance"], json!("45"));
-    assert_eq!(pair[1].after.state["subject"], json!(ALICE));
-    assert_eq!(pair[1].after.state["balance"], json!("30"));
+    assert_eq!(pair[0].after.state.get("balance").unwrap(), json!("45"));
+    assert_eq!(pair[1].after.state.get("subject").unwrap(), json!(ALICE));
+    assert_eq!(pair[1].after.state.get("balance").unwrap(), json!("30"));
     println!(
         "transfer(BOB->ALICE, 30) -> {} events, one intent id",
         pair.len()
@@ -221,7 +221,10 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[7].after.state["unit"], json!("gold_major"));
+    assert_eq!(
+        events[7].after.state.get("unit").unwrap(),
+        json!("gold_major")
+    );
     println!("convert(gold_major)     -> {}", events[7].after.state);
 
     // burn(5, authorized_by): 5 -> 0.
@@ -237,7 +240,7 @@ async fn main() {
         ),
     )
     .await;
-    assert_eq!(events[8].after.state["balance"], json!("0"));
+    assert_eq!(events[8].after.state.get("balance").unwrap(), json!("0"));
     println!("burn(5, treasury)      -> {}", events[8].after.state);
 
     // Amount math: canonical integer-string arithmetic (no floats).

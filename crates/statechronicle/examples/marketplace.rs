@@ -1,11 +1,16 @@
 //! Run: `cargo run -p statechronicle --example marketplace`
 //!
-//! An atomic purchase settlement under the baseline profiles (protocol §20.9):
+//! An in-memory atomic purchase-settlement plan under the baseline profiles
+//! (protocol §20.9). The executor's transaction wrapper is symbolic here;
+//! player-facing production callers must persist through
+//! `execute_player_batch_durable_with_key_registry` (trusted service jobs may
+//! use `execute_batch_durable`):
 //! seed buyer + seller wallets, mint an asset, create a listing and lock an
 //! escrow, then settle ownership and payment in one all-or-nothing
 //! `execute_batch`: `listing.buy`, `escrow.release`, `asset.transfer`, buyer
 //! debit, and seller credit. A stale expected-version batch rolls back
-//! atomically (nothing escapes).
+//! atomically in the plan (nothing escapes). No durable ledger is configured
+//! by this example.
 
 #![allow(
     clippy::panic,
@@ -299,7 +304,7 @@ async fn main() {
         .unwrap()
         .unwrap();
     assert_eq!(
-        bob_wallet.state["balance"],
+        bob_wallet.state.get("balance").unwrap(),
         json!((1000 - PRICE).to_string())
     );
     let alice_wallet = harness
@@ -309,7 +314,7 @@ async fn main() {
         .unwrap()
         .unwrap();
     assert_eq!(
-        alice_wallet.state["balance"],
+        alice_wallet.state.get("balance").unwrap(),
         json!((500 + PRICE).to_string())
     );
     let asset = harness
@@ -318,25 +323,26 @@ async fn main() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(asset.state["owner"], json!(BOB));
+    assert_eq!(asset.state.get("owner").unwrap(), json!(BOB));
     let listing = harness
         .index
         .get_state(&harness.tenant(), &ResourceId(String::from(LISTING)))
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(listing.state["status"], json!("sold"));
+    assert_eq!(listing.state.get("status").unwrap(), json!("sold"));
     let escrow = harness
         .index
         .get_state(&harness.tenant(), &ResourceId(String::from(ESCROW)))
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(escrow.state["status"], json!("released"));
+    assert_eq!(escrow.state.get("status").unwrap(), json!("released"));
     println!(
         "buyer debited to {}; seller credited to {}; asset owned by BOB; \
          listing sold; escrow released",
-        bob_wallet.state["balance"], alice_wallet.state["balance"]
+        bob_wallet.state.get("balance").unwrap(),
+        alice_wallet.state.get("balance").unwrap()
     );
 
     println!("marketplace: OK");

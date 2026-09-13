@@ -36,6 +36,9 @@ use statechronicle_domain::proof::{
     CommitRef, EventRef, NonMembershipProofBundle, ResourceStateProof,
 };
 use statechronicle_domain::resource::ResourceId;
+use statechronicle_domain::resource_state::{ResourceState, UniqueAssetState};
+use statechronicle_domain::status::Status;
+use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 
 use statechronicle_proof::error::ProofError;
@@ -50,24 +53,24 @@ fn arb_key() -> impl Strategy<Value = StateKey> {
 
 /// Generates a BCS-encodable claimed state: a JSON object of short ASCII
 /// string fields (no floats, since the protocol bans floating-point state).
-fn arb_state() -> impl Strategy<Value = serde_json::Value> {
+fn arb_state() -> impl Strategy<Value = ResourceState> {
     fn arb_ascii() -> impl Strategy<Value = String> {
         prop::collection::vec(prop::char::range('a', 'z'), 1..=12)
             .prop_map(|chars| chars.into_iter().collect::<String>())
     }
-    prop::collection::btree_map(arb_ascii(), arb_ascii(), 1..=6).prop_map(|entries| {
-        let mut object = serde_json::Map::new();
-        for (key, value) in entries {
-            object.insert(key, serde_json::Value::String(value));
-        }
-        serde_json::Value::Object(object)
+    (arb_ascii(), arb_ascii()).prop_map(|(owner, status)| {
+        ResourceState::UniqueAsset(UniqueAssetState {
+            owner: SubjectId(owner),
+            status: Status::new(status).unwrap(),
+            trade_id: None,
+        })
     })
 }
 
 /// Builds a bundle whose claimed state is `state`, committed at `key` in the
 /// accumulator that produced `inclusion`.
 fn sample_proof(
-    state: serde_json::Value,
+    state: ResourceState,
     inclusion: &InclusionProof,
     root: &statechronicle_accumulator::sparse_merkle::StateRoot,
 ) -> ResourceStateProof {

@@ -2,9 +2,10 @@
 //!
 //! Failures from batching, root computation, signing, and persistence, built
 //! with `thiserror`. Mirrors `statechronicle-intent`'s conversion convention:
-//! [`StateChronicleError::SizeLimitExceeded`] is remapped onto the typed
-//! [`CommitError::SizeLimitExceeded`] variant instead of the generic
-//! [`CommitError::Core`] wrapper, so callers can match the specific failure
+//! [`StateChronicleError::SizeLimitExceeded`](statechronicle_core::error::StateChronicleError::SizeLimitExceeded)
+//! is remapped onto the typed [`CommitError::SizeLimitExceeded`](crate::error::CommitError::SizeLimitExceeded)
+//! variant instead of the generic [`CommitError::Core`](crate::error::CommitError::Core)
+//! wrapper, so callers can match the specific failure
 //! without string matching (CODE_STANDARDS §5).
 
 use statechronicle_accumulator::error::AccumulatorError;
@@ -158,6 +159,11 @@ pub enum CommitError {
     /// Ed25519 commit signing or envelope construction failed.
     #[error("commit signing failed: {0}")]
     Signing(String),
+
+    /// The caller-supplied idempotency digest does not match the canonical
+    /// intent bytes recomputed at the durable boundary.
+    #[error("idempotency payload digest mismatch")]
+    PayloadDigestMismatch,
 
     /// A store or publisher rejected the write.
     #[error("store operation failed: {0}")]

@@ -1,10 +1,9 @@
 //! Async trade service over the read-side ports.
 //!
-//! [`TradeService`] is the composition layer for the trade read side: it
-//! ingests committed batches into the trade index ([`Self::ingest_batch`]),
-//! rebuilds the index from a raw batch stream ([`Self::rebuild`]), and serves
-//! ordered history ([`Self::get_history`]) and portable trade proofs
-//! ([`Self::get_proof`]). All verification is delegated to the pure builder
+//! [`TradeService`](crate::service::TradeService) is the composition layer for the trade read side: it
+//! ingests committed batches into the trade index, rebuilds the index from a
+//! raw batch stream, and serves ordered history and portable trade proofs.
+//! All verification is delegated to the pure builder
 //! ([`crate::build`]) and the pure proof verifiers; the service itself holds no
 //! logic.
 
@@ -250,42 +249,45 @@ impl TradeService {
         Ok(Some(proof))
     }
 
-    /// Verifies a trade proof by loading each tenant's commit and resolving its
-    /// verifying key.
+    /// Verifies a trade proof by loading every distinct commit each leg's
+    /// state proofs pin (a tenant may settle two assets of one trade in two
+    /// different commits) and resolving each leg's verifying key.
     ///
     /// # Errors
     ///
-    /// Returns [`TradeServiceError::CommitStore`] when a leg's commit is not
-    /// stored or unreachable, [`TradeServiceError::Proof`] when verification
-    /// fails or no key resolves for a tenant.
+    /// Returns [`TradeServiceError::CommitStore`] when a state proof's own
+    /// commit is not stored or unreachable, [`TradeServiceError::Proof`] when
+    /// verification fails or no key resolves for a tenant.
     async fn verify_inline(&self, proof: &TradeProof) -> Result<(), TradeServiceError> {
-        let mut commits_by_tenant: BTreeMap<String, (Signed<Commit>, VerifyingKey)> =
-            BTreeMap::new();
+        let mut commits_by_id: BTreeMap<String, (Signed<Commit>, VerifyingKey)> = BTreeMap::new();
         for leg in &proof.legs {
-            if commits_by_tenant.contains_key(&leg.tenant.0) {
-                continue;
+            for state_proof in &leg.state_proofs {
+                let commit_id = state_proof.commit.commit_id.0.clone();
+                if commits_by_id.contains_key(&commit_id) {
+                    continue;
+                }
+                let Some(signed) = self
+                    .ports
+                    .commit_store
+                    .commit_by_id(&leg.tenant, &state_proof.commit.commit_id)
+                    .await
+                    .map_err(|err| TradeServiceError::CommitStore(err.to_string()))?
+                else {
+                    return Err(TradeServiceError::CommitStore(format!(
+                        "commit `{}` not found for tenant `{}`",
+                        state_proof.commit.commit_id.as_str(),
+                        leg.tenant.0
+                    )));
+                };
+                let Some(key) = (self.key_for_tenant)(&leg.tenant) else {
+                    return Err(TradeServiceError::Proof(
+                        statechronicle_proof::error::ProofError::KeyNotFound(leg.tenant.0.clone()),
+                    ));
+                };
+                commits_by_id.insert(commit_id, (signed, key));
             }
-            let Some(signed) = self
-                .ports
-                .commit_store
-                .commit_by_id(&leg.tenant, &leg.commit.commit_id)
-                .await
-                .map_err(|err| TradeServiceError::CommitStore(err.to_string()))?
-            else {
-                return Err(TradeServiceError::CommitStore(format!(
-                    "commit `{}` not found for tenant `{}`",
-                    leg.commit.commit_id.as_str(),
-                    leg.tenant.0
-                )));
-            };
-            let Some(key) = (self.key_for_tenant)(&leg.tenant) else {
-                return Err(TradeServiceError::Proof(
-                    statechronicle_proof::error::ProofError::KeyNotFound(leg.tenant.0.clone()),
-                ));
-            };
-            commits_by_tenant.insert(leg.tenant.0.clone(), (signed, key));
         }
-        verify_trade_proof(proof, &commits_by_tenant)?;
+        verify_trade_proof(proof, &commits_by_id)?;
         Ok(())
     }
 }

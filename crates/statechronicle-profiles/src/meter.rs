@@ -19,7 +19,7 @@ use statechronicle_domain::state_type::StateType;
 
 use crate::error::ProfileError;
 use crate::registry::{
-    ProfileRules, input_amount, input_str, parse_amount_str, require_current, require_unborn,
+    ProfileRules, input_amount, input_str, require_current, require_unborn, state_amount,
 };
 
 /// Typed operation constants accepted by the meter profile.
@@ -224,10 +224,7 @@ fn check_expire(current: Option<&StateProjection>) -> Result<(), ProfileError> {
 /// field or it is not a canonical non-negative integer string, and
 /// [`ProfileError::FloatForbidden`] for float-formatted values.
 fn current_remaining(current: &StateProjection) -> Result<Amount, ProfileError> {
-    let value = current.state.get("remaining").ok_or_else(|| {
-        ProfileError::InvalidInput(String::from("state payload has no `remaining`"))
-    })?;
-    parse_amount_str(value, "remaining")
+    state_amount(current, "remaining")
 }
 
 /// Reads the current `maximum` from a meter's projected payload.
@@ -238,10 +235,7 @@ fn current_remaining(current: &StateProjection) -> Result<Amount, ProfileError> 
 /// field or it is not a canonical non-negative integer string, and
 /// [`ProfileError::FloatForbidden`] for float-formatted values.
 fn current_maximum(current: &StateProjection) -> Result<Amount, ProfileError> {
-    let value = current.state.get("maximum").ok_or_else(|| {
-        ProfileError::InvalidInput(String::from("state payload has no `maximum`"))
-    })?;
-    parse_amount_str(value, "maximum")
+    state_amount(current, "maximum")
 }
 
 #[cfg(test)]
@@ -262,11 +256,15 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state: serde_json::json!({
-                "subject": "account:example:player_123",
-                "remaining": remaining,
-                "maximum": maximum
-            }),
+            state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::MeteredResource,
+                serde_json::json!({
+                    "subject": "account:example:player_123",
+                    "remaining": remaining,
+                    "maximum": maximum
+                }),
+            )
+            .unwrap(),
         }
     }
 
@@ -361,11 +359,13 @@ mod tests {
                 .is_ok()
         );
 
-        let broken = meter("10", "10.5");
-        assert!(matches!(
-            rules.check(&op("meter.refill"), Some(&broken), &BTreeMap::new()),
-            Err(ProfileError::FloatForbidden)
-        ));
+        assert!(
+            statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::MeteredResource,
+                serde_json::json!({ "subject": "alice", "remaining": "10", "maximum": "10.5" }),
+            )
+            .is_err()
+        );
     }
 
     #[test]

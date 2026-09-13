@@ -9,6 +9,8 @@ use statechronicle_domain::event::{Event, StateCommitment};
 use statechronicle_domain::ids::{EventId, IntentId};
 use statechronicle_domain::intent::Operation;
 use statechronicle_domain::resource::ResourceId;
+use statechronicle_domain::resource_state::ResourceState;
+use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 
@@ -60,12 +62,20 @@ fn build_pool() -> Option<Vec<Event>> {
             StateCommitment {
                 version: 1,
                 state_hash: hash_bytes(b"before"),
-                state: serde_json::json!({}),
+                state: ResourceState::from_legacy_json(
+                    StateType::UniqueAsset,
+                    serde_json::json!({ "owner": "alice", "status": "active" }),
+                )
+                .ok()?,
             },
             StateCommitment {
                 version: 2,
                 state_hash: hash_bytes(b"after"),
-                state: serde_json::json!({ "owner": "bob", "status": "active" }),
+                state: ResourceState::from_legacy_json(
+                    StateType::UniqueAsset,
+                    serde_json::json!({ "owner": "bob", "status": "active" }),
+                )
+                .ok()?,
             },
             None,
             SubjectId(String::from("service:statechronicle.example.net")),

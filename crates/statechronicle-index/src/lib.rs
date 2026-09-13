@@ -2,7 +2,7 @@
 //!
 //! This crate owns the trade read side end-to-end: a pure, deterministic index
 //! builder ([`build`]) that projects committed trade events and settle intents
-//! into [`TradeRecord`]s, history reconstruction ([`history`]), and the async
+//! into [`TradeRecord`](statechronicle_domain::trade::TradeRecord)s, history reconstruction ([`history`]), and the async
 //! composition layer over the trade/event/proof/commit ports ([`service`]).
 //!
 //! The builder is deterministic by construction: it uses `BTreeMap`/`BTreeSet`
@@ -21,6 +21,9 @@ pub mod history;
 
 /// Async trade service over the read-side ports.
 pub mod service;
+
+/// Deterministic projection rebuild from canonical events.
+pub mod rebuild;
 
 /// Index and service error types.
 pub mod error;

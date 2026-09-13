@@ -20,6 +20,9 @@ pub mod subject;
 /// Resource state types.
 pub mod state_type;
 
+/// Typed, BCS-native resource state payloads.
+pub mod resource_state;
+
 /// Intents: requested state transitions.
 pub mod intent;
 

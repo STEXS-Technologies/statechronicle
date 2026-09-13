@@ -1,9 +1,9 @@
 //! Proof bundle assembly (protocol §16.2).
 //!
 //! Combines inclusion, state, ownership, and authority proofs into a portable
-//! [`ResourceStateProof`] envelope that can be verified independently of the
+//! [`ResourceStateProof`](statechronicle_domain::proof::ResourceStateProof) envelope that can be verified independently of the
 //! issuing server. The envelope pins the enclosing signed commit (via
-//! [`CommitRef`], whose detached signature lets a verifier check the commit
+//! [`CommitRef`](statechronicle_domain::proof::CommitRef), whose detached signature lets a verifier check the commit
 //! signature against the bundle) and carries a dense v0 sparse Merkle proof
 //! of the claimed state leaf.
 //!
@@ -27,6 +27,7 @@ use statechronicle_domain::proof::{
     CommitRef, EventRef, NonMembershipProofBundle, ResourceStateProof, SparseMerkleProof,
 };
 use statechronicle_domain::resource::ResourceId;
+use statechronicle_domain::resource_state::ResourceState;
 use statechronicle_domain::signed::Signed;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::subject::SubjectId;
@@ -265,11 +266,7 @@ pub fn state_key_for_proof(proof: &ResourceStateProof) -> StateKey {
 pub fn derive_state_key(proof: &ResourceStateProof) -> Result<StateKey, ProofError> {
     let tenant = &proof.tenant_id.0;
     let resource = &proof.resource_id.0;
-    if let Some(subject) = proof
-        .claimed_state
-        .get("subject")
-        .and_then(|value| value.as_str())
-    {
+    if let Some(subject) = proof.claimed_state.subject().map(|s| s.0.as_str()) {
         if subject.is_empty() {
             return Err(ProofError::InvalidState(String::from(
                 "claimed state `subject` is empty",
@@ -287,19 +284,16 @@ pub fn derive_state_key(proof: &ResourceStateProof) -> Result<StateKey, ProofErr
 ///
 /// Returns [`ProofError::InvalidState`] when the state carries no `owner`
 /// field or its `owner` is not a non-empty string.
-pub fn owner_of(state: &serde_json::Value) -> Result<String, ProofError> {
-    let owner = state
-        .get("owner")
-        .and_then(|value| value.as_str())
-        .ok_or_else(|| {
-            ProofError::InvalidState(String::from("state is missing a string `owner`"))
-        })?;
-    if owner.is_empty() {
+pub fn owner_of(state: &ResourceState) -> Result<String, ProofError> {
+    let owner = state.owner().ok_or_else(|| {
+        ProofError::InvalidState(String::from("state is missing a string `owner`"))
+    })?;
+    if owner.0.is_empty() {
         return Err(ProofError::InvalidState(String::from(
             "state `owner` is empty",
         )));
     }
-    Ok(String::from(owner))
+    Ok(owner.0.clone())
 }
 
 /// Extracts the signed commit reference embedded in proof bundles.
@@ -431,6 +425,11 @@ mod tests {
             "status": "active",
             "version": 42,
         });
+        let state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+            StateType::UniqueAsset,
+            state,
+        )
+        .unwrap();
         let state_hash = canonicalize_and_digest(&state).unwrap();
         let mut acc = StateAccumulator::empty();
         acc.insert_batch(&[StateUpdate::new(key, *state_hash.as_bytes())])
@@ -448,7 +447,11 @@ mod tests {
     }
 
     fn inclusion(key: StateKey) -> InclusionProof {
-        let state = serde_json::json!({ "owner": owner(), "status": "active", "version": 42 });
+        let state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+            StateType::UniqueAsset,
+            serde_json::json!({ "owner": owner(), "status": "active" }),
+        )
+        .unwrap();
         let state_hash = canonicalize_and_digest(&state).unwrap();
         let mut acc = StateAccumulator::empty();
         acc.insert_batch(&[StateUpdate::new(key, *state_hash.as_bytes())])
@@ -520,7 +523,10 @@ mod tests {
             key,
         )
         .unwrap();
-        assert_eq!(proof.claimed_state["owner"], serde_json::json!(owner()));
+        assert_eq!(
+            proof.claimed_state.get("owner"),
+            Some(serde_json::json!(owner()))
+        );
 
         let bad = SubjectId(String::from("account:example:player_789"));
         let error = build_ownership_proof(
@@ -599,7 +605,11 @@ mod tests {
         let mut proof = ResourceStateProof::new(
             tenant(),
             resource(),
-            serde_json::json!({ "owner": owner(), "status": "active" }),
+            statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::UniqueAsset,
+                serde_json::json!({ "owner": owner(), "status": "active" }),
+            )
+            .unwrap(),
             commit_ref(&signed_commit()).unwrap(),
             SparseMerkleProof::new(Vec::new(), hash_bytes(b"leaf")),
             EventRef {
@@ -613,16 +623,18 @@ mod tests {
             StateKey::for_resource(&tenant().0, &resource().0)
         );
 
-        proof.claimed_state = serde_json::json!({
-            "subject": "account:example:player_123",
-            "balance": "100",
-        });
+        proof.claimed_state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(StateType::FungibleBalance, serde_json::json!({"subject":"account:example:player_123","balance":"100","unit":"gold"})).unwrap();
         assert_eq!(
             derive_state_key(&proof).unwrap(),
             StateKey::for_subject_held(&tenant().0, &resource().0, "account:example:player_123")
         );
 
-        proof.claimed_state = serde_json::json!({ "subject": "" });
+        proof.claimed_state =
+            statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                StateType::FungibleBalance,
+                serde_json::json!({"subject":"","balance":"0","unit":"gold"}),
+            )
+            .unwrap();
         assert!(matches!(
             derive_state_key(&proof),
             Err(ProofError::InvalidState(_))

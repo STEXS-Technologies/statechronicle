@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 /// constraints and failures are reported as field-level errors.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RawIntent {
-    /// Schema identifier, checked against [`INTENT_SCHEMA`] in validation.
+    /// Schema identifier, checked against [`INTENT_SCHEMA`](statechronicle_domain::intent::INTENT_SCHEMA) in validation.
     pub schema: String,
     /// Tenant scope of the transition (§11.1).
     pub tenant_id: String,

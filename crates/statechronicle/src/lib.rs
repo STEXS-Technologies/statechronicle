@@ -119,10 +119,16 @@ pub use statechronicle_index::service::TradePorts;
 /// The async trade read-side service. See [`index::service::TradeService`].
 pub use statechronicle_index::service::TradeService;
 
+/// Required composition-root persistence boundary for multi-intent batches.
+pub use statechronicle_executor::pipeline::DurableBatchSink;
+/// Required composition-root persistence boundary for player mutations.
+pub use statechronicle_executor::pipeline::DurableMutationSink;
 /// The execution engine. See [`executor::pipeline::Executor`].
 pub use statechronicle_executor::pipeline::Executor;
 /// The execution engine's fluent builder. See [`executor::pipeline::ExecutorBuilder`].
 pub use statechronicle_executor::pipeline::ExecutorBuilder;
+/// One authenticated player request in a durable player batch.
+pub use statechronicle_executor::pipeline::PlayerBatchItem;
 /// The executor's injected port bundle. See [`executor::pipeline::Ports`].
 pub use statechronicle_executor::pipeline::Ports;
 /// The executor's port-bundle builder. See [`executor::pipeline::PortsBuilder`].

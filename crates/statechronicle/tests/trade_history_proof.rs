@@ -701,25 +701,25 @@ async fn history_and_proof_for_a_settled_two_tenant_trade() {
     assert_eq!(proof.legs[0].state_proofs.len(), 1);
 
     // --- verify_trade_proof succeeds on the genuine proof ---
-    let mut commits_by_tenant: BTreeMap<String, (Signed<Commit>, _)> = BTreeMap::new();
-    commits_by_tenant.insert(
-        alpha.0.clone(),
+    let mut commits_by_id: BTreeMap<String, (Signed<Commit>, _)> = BTreeMap::new();
+    commits_by_id.insert(
+        signed_alpha.body.commit_id.0.clone(),
         (signed_alpha.clone(), fixed_key().verifying_key()),
     );
-    assert!(verify_trade_proof(&proof, &commits_by_tenant).is_ok());
+    assert!(verify_trade_proof(&proof, &commits_by_id).is_ok());
 
     // --- a tampered proof fails closed ---
     let mut tampered = proof.clone();
     tampered.summary.sides[0].to_owner = String::from("account:example:player_999");
     assert!(matches!(
-        verify_trade_proof(&tampered, &commits_by_tenant),
+        verify_trade_proof(&tampered, &commits_by_id),
         Err(ProofError::SubjectMismatch { .. })
     ));
 
     let mut tampered_id = proof.clone();
     tampered_id.trade_id = String::from("trade_999");
     assert!(matches!(
-        verify_trade_proof(&tampered_id, &commits_by_tenant),
+        verify_trade_proof(&tampered_id, &commits_by_id),
         Err(ProofError::TradeIdMismatch { .. })
     ));
 
@@ -1091,14 +1091,27 @@ async fn get_proof_uses_per_asset_commit_for_two_commit_settle() {
         !requested.contains(&(asset_b.clone(), signed_c1.body.commit_id.0.clone())),
         "asset B must not be fetched at the stale first commit"
     );
-    // It must not fail with the stale-commit proof-index miss; any failure
-    // must come from later, genuine proof verification (same-tenant,
-    // two-commit settlement is not representable in the single-commit-per-leg
-    // schema, so failing closed there is the honest outcome).
-    if let Err(TradeServiceError::ProofIndex(message)) = &result {
-        assert!(
-            !message.contains("no state proof stored"),
-            "stale-commit proof-index miss leaked: {message}"
-        );
-    }
+
+    // The two-commit settle must produce a verifiable proof: get_proof returns
+    // Ok(Some(..)) and the assembled proof verifies (each state proof resolved
+    // against the commit its own commit_ref names, so both commits are loaded
+    // and both proofs pass).
+    let proof = result.expect("two-commit settle must produce a proof");
+    let proof = proof.expect("proof must be present");
+    assert_eq!(proof.legs.len(), 1, "both assets settle in the alpha leg");
+    assert_eq!(proof.legs[0].state_proofs.len(), 2);
+    statechronicle::proof::trade::verify_trade_proof(
+        &proof,
+        &BTreeMap::from([
+            (
+                signed_c1.body.commit_id.0.clone(),
+                (signed_c1.clone(), fixed_key().verifying_key()),
+            ),
+            (
+                signed_c2.body.commit_id.0.clone(),
+                (signed_c2.clone(), fixed_key().verifying_key()),
+            ),
+        ]),
+    )
+    .expect("two-commit proof must verify");
 }

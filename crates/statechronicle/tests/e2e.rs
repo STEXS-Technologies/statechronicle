@@ -42,6 +42,7 @@ use statechronicle::domain::event::Event;
 use statechronicle::domain::ids::CommitId;
 use statechronicle::domain::intent::{INTENT_SCHEMA, Operation};
 use statechronicle::domain::resource::ResourceId;
+use statechronicle::domain::resource_state::ResourceState;
 use statechronicle::domain::signed::Signed;
 use statechronicle::domain::state::StateProjection;
 use statechronicle::domain::state_type::StateType;
@@ -286,7 +287,11 @@ async fn tampered_event_state_fails_verification() {
     // Tamper the lock event's after-state: flip `status` back to `active`
     // (a forged state that never happened). Recompute its hash consistently.
     let mut tampered_event = lifecycle.events.get(2).cloned().unwrap();
-    tampered_event.after.state = json!({ "owner": BOB, "status": "active" });
+    tampered_event.after.state = ResourceState::from_legacy_json(
+        StateType::UniqueAsset,
+        json!({ "owner": BOB, "status": "active" }),
+    )
+    .unwrap();
     tampered_event.after.state_hash = canonicalize_and_digest(&tampered_event.after.state).unwrap();
 
     let tampered_events = vec![

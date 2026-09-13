@@ -1,30 +1,37 @@
 //! Deterministic after-state rules.
 //!
 //! For each state type, computes the unique after-state for a validated
-//! transition (protocol §18.1 step 10). [`apply`] is a pure, total function:
+//! transition (protocol §18.1 step 10). [`apply`](crate::transition::apply) is a pure, total function:
 //! the same `(before, operation, inputs)` always produces the same after-state
 //! payload, and any unknown operation, malformed input, integer overflow, or
-//! underflow fails closed with [`ExecutorError::TransitionInvalid`] instead of
+//! underflow fails closed with [`ExecutorError::TransitionInvalid`](crate::error::ExecutorError::TransitionInvalid) instead of
 //! panicking.
+
+#![allow(clippy::wildcard_enum_match_arm)]
 //!
-//! Version increments are the pipeline's job, not this module's: [`apply`]
+//! Version increments are the pipeline's job, not this module's: [`apply`](crate::transition::apply)
 //! returns only the new profile projection payload (the `state` JSON value),
-//! never a full [`StateProjection`].
+//! never a full [`StateProjection`](statechronicle_domain::state::StateProjection).
 //!
 //! Amounts are canonical non-negative integer strings (protocol §10.3 bans
 //! floating-point economic state): every quantity, balance, and meter value is
-//! parsed with checked fixed-point [`Amount`] arithmetic and never touches floats.
+//! parsed with checked fixed-point [`Amount`](statechronicle_core::amount::Amount) arithmetic and never touches floats.
 
 use std::collections::BTreeMap;
 
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use statechronicle_accumulator::key::StateKey;
 use statechronicle_core::amount::Amount;
 use statechronicle_domain::intent::Operation;
 use statechronicle_domain::resource::ResourceId;
+use statechronicle_domain::resource_state::{
+    ConsumableStackState, EntitlementState, EscrowState, FungibleBalanceState, ListingState,
+    MeterState, ResourceState, UniqueAssetState,
+};
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
+use statechronicle_domain::status::Status;
 use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_profiles::consumable_stack::op as stack_op;
@@ -66,7 +73,7 @@ pub fn apply(
     before: Option<&StateProjection>,
     operation: &Operation,
     inputs: &BTreeMap<String, Value>,
-) -> Result<Value, ExecutorError> {
+) -> Result<ResourceState, ExecutorError> {
     let state_type = state_type_of(before, operation)?;
     match state_type {
         StateType::UniqueAsset => apply_unique_asset(before, operation, inputs),
@@ -103,7 +110,7 @@ pub fn transfer_after_state(
     destination: Option<&StateProjection>,
     operation: &Operation,
     inputs: &BTreeMap<String, Value>,
-) -> Result<Value, ExecutorError> {
+) -> Result<ResourceState, ExecutorError> {
     if operation == stack_op::stack_transfer() {
         let to_subject = input_str(inputs, "to_subject")?;
         let unit = state_str(source, "unit")?;
@@ -115,10 +122,10 @@ pub fn transfer_after_state(
         let next = existing
             .checked_add(amount)
             .ok_or_else(|| overflow("stack quantity"))?;
-        Ok(json!({
-            "subject": to_subject,
-            "quantity": next.to_canonical_string(),
-            "unit": unit,
+        Ok(ResourceState::ConsumableStack(ConsumableStackState {
+            subject: SubjectId(String::from(to_subject)),
+            quantity: next,
+            unit: String::from(unit),
         }))
     } else if operation == balance_op::balance_transfer() {
         let to_subject = input_str(inputs, "to_subject")?;
@@ -131,10 +138,10 @@ pub fn transfer_after_state(
         let next = existing
             .checked_add(amount)
             .ok_or_else(|| overflow("balance"))?;
-        Ok(json!({
-            "subject": to_subject,
-            "balance": next.to_canonical_string(),
-            "unit": unit,
+        Ok(ResourceState::FungibleBalance(FungibleBalanceState {
+            subject: SubjectId(String::from(to_subject)),
+            balance: next,
+            unit: String::from(unit),
         }))
     } else {
         Err(ExecutorError::TransitionInvalid(format!(
@@ -193,59 +200,85 @@ fn apply_unique_asset(
     before: Option<&StateProjection>,
     operation: &Operation,
     inputs: &BTreeMap<String, Value>,
-) -> Result<Value, ExecutorError> {
+) -> Result<ResourceState, ExecutorError> {
     let owner = match before {
         Some(current) => state_str(current, "owner")?.to_owned(),
         None => String::new(),
     };
     if operation == asset_op::asset_mint() || operation == asset_op::asset_transfer() {
         let to_owner = input_str(inputs, "to_owner")?;
-        Ok(json!({ "owner": to_owner, "status": asset_status::active().as_str() }))
+        Ok(unique_asset(
+            to_owner,
+            asset_status::active().as_str(),
+            None,
+        )?)
     } else if operation == asset_op::asset_burn() {
-        Ok(json!({ "owner": owner, "status": asset_status::burned().as_str() }))
+        Ok(unique_asset(&owner, asset_status::burned().as_str(), None)?)
     } else if operation == asset_op::asset_lock() {
-        Ok(json!({ "owner": owner, "status": asset_status::locked().as_str() }))
+        Ok(unique_asset(&owner, asset_status::locked().as_str(), None)?)
     } else if operation == asset_op::asset_unlock() {
-        Ok(json!({ "owner": owner, "status": asset_status::active().as_str() }))
+        Ok(unique_asset(&owner, asset_status::active().as_str(), None)?)
     } else if operation == asset_op::asset_list() {
-        Ok(json!({ "owner": owner, "status": asset_status::listed().as_str() }))
+        Ok(unique_asset(&owner, asset_status::listed().as_str(), None)?)
     } else if operation == asset_op::asset_delist() {
-        Ok(json!({ "owner": owner, "status": asset_status::active().as_str() }))
+        Ok(unique_asset(&owner, asset_status::active().as_str(), None)?)
     } else if operation == asset_op::asset_escrow() {
-        Ok(json!({ "owner": owner, "status": asset_status::escrowed().as_str() }))
+        Ok(unique_asset(
+            &owner,
+            asset_status::escrowed().as_str(),
+            None,
+        )?)
     } else if operation == asset_op::asset_release() {
-        Ok(json!({ "owner": owner, "status": asset_status::active().as_str() }))
+        Ok(unique_asset(&owner, asset_status::active().as_str(), None)?)
     } else if operation == asset_op::asset_redeem() {
-        Ok(json!({ "owner": owner, "status": asset_status::redeemed().as_str() }))
+        Ok(unique_asset(
+            &owner,
+            asset_status::redeemed().as_str(),
+            None,
+        )?)
     } else if operation == asset_op::asset_restrict() {
         let target = inputs
             .get("status")
             .and_then(Value::as_str)
             .unwrap_or("restricted");
-        Ok(json!({ "owner": owner, "status": target }))
+        Ok(unique_asset(&owner, target, None)?)
     } else if operation == asset_op::asset_restore() {
-        Ok(json!({ "owner": owner, "status": asset_status::active().as_str() }))
+        Ok(unique_asset(&owner, asset_status::active().as_str(), None)?)
     } else if operation == paid_op::asset_hard_delete() {
-        Ok(json!({ "owner": owner, "status": asset_status::tombstoned().as_str() }))
+        Ok(unique_asset(
+            &owner,
+            asset_status::tombstoned().as_str(),
+            None,
+        )?)
     } else if operation == asset_op::trade_lock() {
         let current = require_current(before, operation)?;
         input_str(inputs, "from_owner")?;
         let trade_id = input_str(inputs, "trade_id")?;
         let current_owner = state_str(current, "owner")?;
-        Ok(
-            json!({ "owner": current_owner, "status": asset_status::trade_held().as_str(), "trade_id": trade_id }),
-        )
+        Ok(unique_asset(
+            current_owner,
+            asset_status::trade_held().as_str(),
+            Some(trade_id),
+        )?)
     } else if operation == asset_op::trade_unlock() {
         let current = require_current(before, operation)?;
         input_str(inputs, "trade_id")?;
         let current_owner = state_str(current, "owner")?;
-        Ok(json!({ "owner": current_owner, "status": asset_status::active().as_str() }))
+        Ok(unique_asset(
+            current_owner,
+            asset_status::active().as_str(),
+            None,
+        )?)
     } else if operation == asset_op::trade_settle() {
         require_current(before, operation)?;
         input_str(inputs, "from_owner")?;
         let to_owner = input_str(inputs, "to_owner")?;
         input_str(inputs, "trade_id")?;
-        Ok(json!({ "owner": to_owner, "status": asset_status::active().as_str() }))
+        Ok(unique_asset(
+            to_owner,
+            asset_status::active().as_str(),
+            None,
+        )?)
     } else if operation == asset_op::asset_attach_content()
         || operation == asset_op::asset_detach_content()
         || operation == asset_op::asset_update_metadata()
@@ -265,6 +298,20 @@ fn apply_unique_asset(
     }
 }
 
+/// Builds a [`ResourceState::UniqueAsset`] payload.
+fn unique_asset(
+    owner: &str,
+    status: &str,
+    trade_id: Option<&str>,
+) -> Result<ResourceState, ExecutorError> {
+    Ok(ResourceState::UniqueAsset(UniqueAssetState {
+        owner: SubjectId(String::from(owner)),
+        status: Status::new(String::from(status))
+            .map_err(|error| invalid_input(error.to_string()))?,
+        trade_id: trade_id.map(String::from),
+    }))
+}
+
 // ---------------------------------------------------------------------------
 // Consumable stack (subject/quantity/unit).
 // ---------------------------------------------------------------------------
@@ -273,15 +320,15 @@ fn apply_stack(
     before: Option<&StateProjection>,
     operation: &Operation,
     inputs: &BTreeMap<String, Value>,
-) -> Result<Value, ExecutorError> {
+) -> Result<ResourceState, ExecutorError> {
     if operation == stack_op::stack_create() {
         let subject = input_str(inputs, "subject")?;
         let unit = input_str(inputs, "unit")?;
         let quantity = input_amount(inputs, "quantity")?;
-        Ok(json!({
-            "subject": subject,
-            "quantity": quantity.to_canonical_string(),
-            "unit": unit,
+        Ok(ResourceState::ConsumableStack(ConsumableStackState {
+            subject: SubjectId(String::from(subject)),
+            quantity,
+            unit: String::from(unit),
         }))
     } else if operation == stack_op::stack_credit() || operation == stack_op::stack_release() {
         let current = require_current(before, operation)?;
@@ -292,10 +339,10 @@ fn apply_stack(
         let next = quantity
             .checked_add(amount)
             .ok_or_else(|| overflow("stack quantity"))?;
-        Ok(json!({
-            "subject": subject,
-            "quantity": next.to_canonical_string(),
-            "unit": unit,
+        Ok(ResourceState::ConsumableStack(ConsumableStackState {
+            subject: SubjectId(String::from(subject)),
+            quantity: next,
+            unit: String::from(unit),
         }))
     } else if operation == stack_op::stack_debit()
         || operation == stack_op::stack_consume()
@@ -309,10 +356,10 @@ fn apply_stack(
         let next = quantity
             .checked_sub(amount)
             .ok_or_else(|| underflow("stack quantity"))?;
-        Ok(json!({
-            "subject": subject,
-            "quantity": next.to_canonical_string(),
-            "unit": unit,
+        Ok(ResourceState::ConsumableStack(ConsumableStackState {
+            subject: SubjectId(String::from(subject)),
+            quantity: next,
+            unit: String::from(unit),
         }))
     } else if operation == stack_op::stack_transfer() {
         // `stack.transfer` debits the source stack and preserves its subject.
@@ -328,29 +375,29 @@ fn apply_stack(
         let next = quantity
             .checked_sub(amount)
             .ok_or_else(|| underflow("stack quantity"))?;
-        Ok(json!({
-            "subject": subject,
-            "quantity": next.to_canonical_string(),
-            "unit": unit,
+        Ok(ResourceState::ConsumableStack(ConsumableStackState {
+            subject: SubjectId(String::from(subject)),
+            quantity: next,
+            unit: String::from(unit),
         }))
     } else if operation == stack_op::stack_adjust() {
         let current = require_current(before, operation)?;
         let subject = state_str(current, "subject")?;
         let unit = state_str(current, "unit")?;
         let quantity = input_amount(inputs, "quantity")?;
-        Ok(json!({
-            "subject": subject,
-            "quantity": quantity.to_canonical_string(),
-            "unit": unit,
+        Ok(ResourceState::ConsumableStack(ConsumableStackState {
+            subject: SubjectId(String::from(subject)),
+            quantity,
+            unit: String::from(unit),
         }))
     } else if operation == stack_op::stack_expire() {
         let current = require_current(before, operation)?;
         let subject = state_str(current, "subject")?;
         let unit = state_str(current, "unit")?;
-        Ok(json!({
-            "subject": subject,
-            "quantity": "0".to_owned(),
-            "unit": unit,
+        Ok(ResourceState::ConsumableStack(ConsumableStackState {
+            subject: SubjectId(String::from(subject)),
+            quantity: Amount::ZERO,
+            unit: String::from(unit),
         }))
     } else {
         Err(ExecutorError::TransitionInvalid(format!(
@@ -368,15 +415,15 @@ fn apply_balance(
     before: Option<&StateProjection>,
     operation: &Operation,
     inputs: &BTreeMap<String, Value>,
-) -> Result<Value, ExecutorError> {
+) -> Result<ResourceState, ExecutorError> {
     if operation == balance_op::balance_create() {
         let subject = input_str(inputs, "subject")?;
         let unit = input_str(inputs, "unit")?;
         let balance = input_amount(inputs, "balance")?;
-        Ok(json!({
-            "subject": subject,
-            "balance": balance.to_canonical_string(),
-            "unit": unit,
+        Ok(ResourceState::FungibleBalance(FungibleBalanceState {
+            subject: SubjectId(String::from(subject)),
+            balance,
+            unit: String::from(unit),
         }))
     } else if operation == balance_op::balance_mint()
         || operation == balance_op::balance_credit()
@@ -390,10 +437,10 @@ fn apply_balance(
         let next = balance
             .checked_add(amount)
             .ok_or_else(|| overflow("balance"))?;
-        Ok(json!({
-            "subject": subject,
-            "balance": next.to_canonical_string(),
-            "unit": unit,
+        Ok(ResourceState::FungibleBalance(FungibleBalanceState {
+            subject: SubjectId(String::from(subject)),
+            balance: next,
+            unit: String::from(unit),
         }))
     } else if operation == balance_op::balance_debit()
         || operation == balance_op::balance_spend()
@@ -408,10 +455,10 @@ fn apply_balance(
         let next = balance
             .checked_sub(amount)
             .ok_or_else(|| underflow("balance"))?;
-        Ok(json!({
-            "subject": subject,
-            "balance": next.to_canonical_string(),
-            "unit": unit,
+        Ok(ResourceState::FungibleBalance(FungibleBalanceState {
+            subject: SubjectId(String::from(subject)),
+            balance: next,
+            unit: String::from(unit),
         }))
     } else if operation == balance_op::balance_transfer() {
         // `balance.transfer` debits the source balance and preserves its
@@ -427,10 +474,10 @@ fn apply_balance(
         let next = balance
             .checked_sub(amount)
             .ok_or_else(|| underflow("balance"))?;
-        Ok(json!({
-            "subject": subject,
-            "balance": next.to_canonical_string(),
-            "unit": unit,
+        Ok(ResourceState::FungibleBalance(FungibleBalanceState {
+            subject: SubjectId(String::from(subject)),
+            balance: next,
+            unit: String::from(unit),
         }))
     } else if operation == balance_op::balance_convert() {
         let current = require_current(before, operation)?;
@@ -441,10 +488,10 @@ fn apply_balance(
         let next = balance
             .checked_sub(amount)
             .ok_or_else(|| underflow("balance"))?;
-        Ok(json!({
-            "subject": subject,
-            "balance": next.to_canonical_string(),
-            "unit": to_unit,
+        Ok(ResourceState::FungibleBalance(FungibleBalanceState {
+            subject: SubjectId(String::from(subject)),
+            balance: next,
+            unit: String::from(to_unit),
         }))
     } else {
         Err(ExecutorError::TransitionInvalid(format!(
@@ -462,17 +509,17 @@ fn apply_entitlement(
     before: Option<&StateProjection>,
     operation: &Operation,
     inputs: &BTreeMap<String, Value>,
-) -> Result<Value, ExecutorError> {
+) -> Result<ResourceState, ExecutorError> {
     if operation == entitlement_op::entitlement_grant() {
         let subject = input_str(inputs, "subject")?;
         let transferable = inputs
             .get("transferable")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        Ok(json!({
-            "subject": subject,
-            "status": entitlement_status::granted().as_str(),
-            "transferable": transferable,
+        Ok(ResourceState::Entitlement(EntitlementState {
+            subject: SubjectId(String::from(subject)),
+            status: Status::from_static(entitlement_status::granted().as_str()),
+            transferable,
         }))
     } else if operation == entitlement_op::entitlement_activate() {
         Ok(entitlement_with_status(
@@ -509,10 +556,11 @@ fn apply_entitlement(
         let to_subject = input_str(inputs, "to_subject")?;
         let status = state_str(current, "status")?;
         let transferable = state_bool(current, "transferable")?;
-        Ok(json!({
-            "subject": to_subject,
-            "status": status,
-            "transferable": transferable,
+        Ok(ResourceState::Entitlement(EntitlementState {
+            subject: SubjectId(String::from(to_subject)),
+            status: Status::new(String::from(status))
+                .map_err(|error| invalid_input(error.to_string()))?,
+            transferable,
         }))
     } else {
         Err(ExecutorError::TransitionInvalid(format!(
@@ -533,14 +581,15 @@ fn entitlement_with_status(
     before: Option<&StateProjection>,
     operation: &Operation,
     status: &str,
-) -> Result<Value, ExecutorError> {
+) -> Result<ResourceState, ExecutorError> {
     let current = require_current(before, operation)?;
     let subject = state_str(current, "subject")?;
     let transferable = state_bool(current, "transferable")?;
-    Ok(json!({
-        "subject": subject,
-        "status": status,
-        "transferable": transferable,
+    Ok(ResourceState::Entitlement(EntitlementState {
+        subject: SubjectId(String::from(subject)),
+        status: Status::new(String::from(status))
+            .map_err(|error| invalid_input(error.to_string()))?,
+        transferable,
     }))
 }
 
@@ -552,15 +601,15 @@ fn apply_meter(
     before: Option<&StateProjection>,
     operation: &Operation,
     inputs: &BTreeMap<String, Value>,
-) -> Result<Value, ExecutorError> {
+) -> Result<ResourceState, ExecutorError> {
     if operation == meter_op::meter_create() {
         let subject = input_str(inputs, "subject")?;
         let remaining = input_amount(inputs, "remaining")?;
         let maximum = input_amount(inputs, "maximum")?;
-        Ok(json!({
-            "subject": subject,
-            "remaining": remaining.to_canonical_string(),
-            "maximum": maximum.to_canonical_string(),
+        Ok(ResourceState::MeteredResource(MeterState {
+            subject: SubjectId(String::from(subject)),
+            remaining,
+            maximum,
         }))
     } else if operation == meter_op::meter_consume() {
         let current = require_current(before, operation)?;
@@ -571,19 +620,19 @@ fn apply_meter(
         let next = remaining
             .checked_sub(amount)
             .ok_or_else(|| underflow("meter remaining"))?;
-        Ok(json!({
-            "subject": subject,
-            "remaining": next.to_canonical_string(),
-            "maximum": maximum.to_canonical_string(),
+        Ok(ResourceState::MeteredResource(MeterState {
+            subject: SubjectId(String::from(subject)),
+            remaining: next,
+            maximum,
         }))
     } else if operation == meter_op::meter_refill() {
         let current = require_current(before, operation)?;
         let subject = state_str(current, "subject")?;
         let maximum = state_amount(current, "maximum")?;
-        Ok(json!({
-            "subject": subject,
-            "remaining": maximum.to_canonical_string(),
-            "maximum": maximum.to_canonical_string(),
+        Ok(ResourceState::MeteredResource(MeterState {
+            subject: SubjectId(String::from(subject)),
+            remaining: maximum,
+            maximum,
         }))
     } else if operation == meter_op::meter_set_maximum() {
         let current = require_current(before, operation)?;
@@ -591,19 +640,19 @@ fn apply_meter(
         let remaining = state_amount(current, "remaining")?;
         let maximum = input_amount(inputs, "maximum")?;
         let clamped = remaining.min(maximum);
-        Ok(json!({
-            "subject": subject,
-            "remaining": clamped.to_canonical_string(),
-            "maximum": maximum.to_canonical_string(),
+        Ok(ResourceState::MeteredResource(MeterState {
+            subject: SubjectId(String::from(subject)),
+            remaining: clamped,
+            maximum,
         }))
     } else if operation == meter_op::meter_reset() || operation == meter_op::meter_expire() {
         let current = require_current(before, operation)?;
         let subject = state_str(current, "subject")?;
         let maximum = state_amount(current, "maximum")?;
-        Ok(json!({
-            "subject": subject,
-            "remaining": "0".to_owned(),
-            "maximum": maximum.to_canonical_string(),
+        Ok(ResourceState::MeteredResource(MeterState {
+            subject: SubjectId(String::from(subject)),
+            remaining: Amount::ZERO,
+            maximum,
         }))
     } else {
         Err(ExecutorError::TransitionInvalid(format!(
@@ -621,10 +670,10 @@ fn apply_listing(
     before: Option<&StateProjection>,
     operation: &Operation,
     inputs: &BTreeMap<String, Value>,
-) -> Result<Value, ExecutorError> {
+) -> Result<ResourceState, ExecutorError> {
     if operation == marketplace_op::listing_create() {
         let seller = input_str(inputs, "seller")?;
-        Ok(json!({ "seller": seller, "status": listing_status::listed().as_str() }))
+        listing(seller, listing_status::listed().as_str())
     } else if operation == marketplace_op::listing_cancel() {
         Ok(listing_with_status(
             before,
@@ -661,10 +710,19 @@ fn listing_with_status(
     before: Option<&StateProjection>,
     operation: &Operation,
     status: &str,
-) -> Result<Value, ExecutorError> {
+) -> Result<ResourceState, ExecutorError> {
     let current = require_current(before, operation)?;
     let seller = state_str(current, "seller")?;
-    Ok(json!({ "seller": seller, "status": status }))
+    listing(seller, status)
+}
+
+/// Builds a [`ResourceState::Listing`] payload.
+fn listing(seller: &str, status: &str) -> Result<ResourceState, ExecutorError> {
+    Ok(ResourceState::Listing(ListingState {
+        seller: SubjectId(String::from(seller)),
+        status: Status::new(String::from(status))
+            .map_err(|error| invalid_input(error.to_string()))?,
+    }))
 }
 
 // ---------------------------------------------------------------------------
@@ -675,15 +733,11 @@ fn apply_escrow(
     before: Option<&StateProjection>,
     operation: &Operation,
     inputs: &BTreeMap<String, Value>,
-) -> Result<Value, ExecutorError> {
+) -> Result<ResourceState, ExecutorError> {
     if operation == marketplace_op::escrow_lock() {
         let buyer = input_str(inputs, "buyer")?;
         let seller = input_str(inputs, "seller")?;
-        Ok(json!({
-            "buyer": buyer,
-            "seller": seller,
-            "status": escrow_status::locked().as_str(),
-        }))
+        escrow(buyer, seller, escrow_status::locked().as_str())
     } else if operation == marketplace_op::escrow_release() {
         Ok(escrow_with_status(
             before,
@@ -714,14 +768,20 @@ fn escrow_with_status(
     before: Option<&StateProjection>,
     operation: &Operation,
     status: &str,
-) -> Result<Value, ExecutorError> {
+) -> Result<ResourceState, ExecutorError> {
     let current = require_current(before, operation)?;
     let buyer = state_str(current, "buyer")?;
     let seller = state_str(current, "seller")?;
-    Ok(json!({
-        "buyer": buyer,
-        "seller": seller,
-        "status": status,
+    escrow(buyer, seller, status)
+}
+
+/// Builds a [`ResourceState::Escrow`] payload.
+fn escrow(buyer: &str, seller: &str, status: &str) -> Result<ResourceState, ExecutorError> {
+    Ok(ResourceState::Escrow(EscrowState {
+        buyer: SubjectId(String::from(buyer)),
+        seller: SubjectId(String::from(seller)),
+        status: Status::new(String::from(status))
+            .map_err(|error| invalid_input(error.to_string()))?,
     }))
 }
 
@@ -809,7 +869,7 @@ fn input_amount(inputs: &BTreeMap<String, Value>, key: &str) -> Result<Amount, E
     parse_amount_str(value, key)
 }
 
-/// Reads a string field from a projection's state payload.
+/// Reads a string field from a projection's typed state payload.
 ///
 /// # Errors
 ///
@@ -819,44 +879,81 @@ fn state_str<'projection>(
     projection: &'projection StateProjection,
     key: &str,
 ) -> Result<&'projection str, ExecutorError> {
-    let value = projection
-        .state
-        .get(key)
-        .ok_or_else(|| invalid_input(format!("state payload has no `{key}`")))?;
-    value
-        .as_str()
-        .ok_or_else(|| invalid_input(format!("`{key}` must be a string")))
+    let subject = |s: &'projection SubjectId| -> &'projection str { &s.0 };
+    let text: &'projection str = match &projection.state {
+        ResourceState::UniqueAsset(v) => match key {
+            "owner" => &v.owner.0,
+            "status" => v.status.as_str(),
+            _ => return Err(no_field(key)),
+        },
+        ResourceState::ConsumableStack(v) => match key {
+            "subject" => subject(&v.subject),
+            "unit" => &v.unit,
+            _ => return Err(no_field(key)),
+        },
+        ResourceState::FungibleBalance(v) => match key {
+            "subject" => subject(&v.subject),
+            "unit" => &v.unit,
+            _ => return Err(no_field(key)),
+        },
+        ResourceState::Entitlement(v) => match key {
+            "subject" => subject(&v.subject),
+            "status" => v.status.as_str(),
+            _ => return Err(no_field(key)),
+        },
+        ResourceState::MeteredResource(v) => match key {
+            "subject" => subject(&v.subject),
+            _ => return Err(no_field(key)),
+        },
+        ResourceState::Listing(v) => match key {
+            "seller" => subject(&v.seller),
+            _ => return Err(no_field(key)),
+        },
+        ResourceState::Escrow(v) => match key {
+            "buyer" => subject(&v.buyer),
+            "seller" => subject(&v.seller),
+            _ => return Err(no_field(key)),
+        },
+    };
+    if text.is_empty() {
+        return Err(invalid_input(format!("`{key}` must not be empty")));
+    }
+    Ok(text)
 }
 
-/// Reads a non-negative integer-string field from a projection's state payload.
-///
-/// # Errors
-///
-/// Returns [`ExecutorError::TransitionInvalid`] when the payload field is
-/// missing or not a canonical non-negative integer string, and fails closed on
-/// float-formatted strings.
-fn state_amount(projection: &StateProjection, key: &str) -> Result<Amount, ExecutorError> {
-    let value = projection
-        .state
-        .get(key)
-        .ok_or_else(|| invalid_input(format!("state payload has no `{key}`")))?;
-    parse_amount_str(value, key)
-}
-
-/// Reads a boolean field from a projection's state payload.
+/// Reads an exact fixed-point amount field from a projection's typed state.
 ///
 /// # Errors
 ///
 /// Returns [`ExecutorError::TransitionInvalid`] when the payload has no `key`
-/// field or it is not a boolean.
+/// amount field.
+fn state_amount(projection: &StateProjection, key: &str) -> Result<Amount, ExecutorError> {
+    let amount = match &projection.state {
+        ResourceState::ConsumableStack(v) if key == "quantity" => v.quantity,
+        ResourceState::FungibleBalance(v) if key == "balance" => v.balance,
+        ResourceState::MeteredResource(v) if key == "remaining" => v.remaining,
+        ResourceState::MeteredResource(v) if key == "maximum" => v.maximum,
+        _ => return Err(no_field(key)),
+    };
+    Ok(amount)
+}
+
+/// Reads a boolean field from a projection's typed state payload.
+///
+/// # Errors
+///
+/// Returns [`ExecutorError::TransitionInvalid`] when the payload has no `key`
+/// boolean field.
 fn state_bool(projection: &StateProjection, key: &str) -> Result<bool, ExecutorError> {
-    let value = projection
-        .state
-        .get(key)
-        .ok_or_else(|| invalid_input(format!("state payload has no `{key}`")))?;
-    value
-        .as_bool()
-        .ok_or_else(|| invalid_input(format!("`{key}` must be a boolean")))
+    match &projection.state {
+        ResourceState::Entitlement(v) if key == "transferable" => Ok(v.transferable),
+        _ => Err(no_field(key)),
+    }
+}
+
+/// Builds a missing-state-field error.
+fn no_field(key: &str) -> ExecutorError {
+    invalid_input(format!("state payload has no `{key}`"))
 }
 
 /// Parses a canonical non-negative integer string.
@@ -909,6 +1006,7 @@ fn underflow(field: &str) -> ExecutorError {
 )]
 mod tests {
     use super::*;
+    use serde_json::json;
     use statechronicle_core::digest::ContentDigest;
     use statechronicle_domain::ids::{CommitId, EventId};
     use statechronicle_domain::intent::Operation;
@@ -933,7 +1031,7 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state,
+            state: ResourceState::from_legacy_json(state_type, state).unwrap(),
         }
     }
 

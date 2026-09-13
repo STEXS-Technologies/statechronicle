@@ -17,10 +17,10 @@ sha2 = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+bcs = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }
-bcs = { workspace = true }
 hex = { workspace = true }
 proptest = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }

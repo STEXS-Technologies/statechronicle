@@ -246,8 +246,8 @@ async fn two_tenant_asset_for_gold_settles_in_one_commit() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(held.state["owner"], json!(BOB));
-    assert_eq!(held.state["status"], json!("active"));
+    assert_eq!(held.state.get("owner").unwrap(), json!(BOB));
+    assert_eq!(held.state.get("status").unwrap(), json!("active"));
 
     let bob_wallet = harness
         .index
@@ -256,7 +256,7 @@ async fn two_tenant_asset_for_gold_settles_in_one_commit() {
         .unwrap()
         .unwrap();
     assert_eq!(
-        bob_wallet.state["balance"],
+        bob_wallet.state.get("balance").unwrap(),
         json!((1000 - PRICE).to_string())
     );
     let alice_wallet = harness
@@ -265,7 +265,10 @@ async fn two_tenant_asset_for_gold_settles_in_one_commit() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(alice_wallet.state["balance"], json!(PRICE.to_string()));
+    assert_eq!(
+        alice_wallet.state.get("balance").unwrap(),
+        json!(PRICE.to_string())
+    );
 }
 
 #[tokio::test]
@@ -303,8 +306,8 @@ async fn value_leg_missing_from_manifest_fails_closed_and_rolls_back() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(held.state["owner"], json!(ALICE));
-    assert_eq!(held.state["status"], json!("trade_held"));
+    assert_eq!(held.state.get("owner").unwrap(), json!(ALICE));
+    assert_eq!(held.state.get("status").unwrap(), json!("trade_held"));
     // The buyer's beta balance is unchanged.
     let bob_wallet = harness
         .index
@@ -312,7 +315,7 @@ async fn value_leg_missing_from_manifest_fails_closed_and_rolls_back() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(bob_wallet.state["balance"], json!("1000"));
+    assert_eq!(bob_wallet.state.get("balance").unwrap(), json!("1000"));
     // The seller was never credited in beta.
     assert!(
         harness
@@ -405,8 +408,8 @@ async fn value_leg_settle_via_execute_cross_tenant_rejected_fail_closed() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(held.state["owner"], json!(ALICE));
-    assert_eq!(held.state["status"], json!("trade_held"));
+    assert_eq!(held.state.get("owner").unwrap(), json!(ALICE));
+    assert_eq!(held.state.get("status").unwrap(), json!("trade_held"));
 
     // The seller was never credited in beta and the buyer's wallet is unchanged.
     let wallet = ResourceId(String::from(WALLET));
@@ -424,5 +427,5 @@ async fn value_leg_settle_via_execute_cross_tenant_rejected_fail_closed() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(bob_wallet.state["balance"], json!("1000"));
+    assert_eq!(bob_wallet.state.get("balance").unwrap(), json!("1000"));
 }

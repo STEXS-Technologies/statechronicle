@@ -60,7 +60,14 @@ fn validate_id(kind: &'static str, prefix: &str, value: &str) -> Result<(), Doma
             expected_prefix: String::from(prefix),
         });
     }
-    if value.len() > MAX_ID_LENGTH {
+    if value.chars().any(char::is_control) {
+        return Err(DomainError::InvalidId {
+            kind,
+            value: String::from(value),
+            expected_prefix: String::from(prefix),
+        });
+    }
+    if value.chars().count() > MAX_ID_LENGTH {
         return Err(DomainError::InvalidId {
             kind,
             value: String::from(value),
@@ -587,6 +594,23 @@ mod tests {
             StateId::new(over_limit),
             Err(DomainError::InvalidId { kind: "state", .. })
         ));
+    }
+
+    #[test]
+    fn unicode_id_limit_counts_characters_not_utf8_bytes() {
+        let at_limit = format!("stc_{}", "é".repeat(MAX_ID_LENGTH.saturating_sub(4)));
+        assert!(StateId::new(at_limit).is_ok());
+        let over_limit = format!("stc_{}", "é".repeat(MAX_ID_LENGTH.saturating_sub(3)));
+        assert!(StateId::new(over_limit).is_err());
+    }
+
+    #[test]
+    fn ids_reject_control_characters() {
+        assert!(StateId::new(String::from("stc_bad\nvalue")).is_err());
+        assert!(IntentId::new(String::from("int_bad\tvalue")).is_err());
+        assert!(EventId::new(String::from("evt_bad\rvalue")).is_err());
+        assert!(CommitId::new(String::from("cmt_bad\u{0000}value")).is_err());
+        assert!(SnapshotId::new(String::from("snp_bad\u{0007}value")).is_err());
     }
 
     #[test]

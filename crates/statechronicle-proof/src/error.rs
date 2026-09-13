@@ -31,6 +31,15 @@ pub enum ProofError {
     #[error(transparent)]
     Core(StateChronicleError),
 
+    /// A proof payload exceeds the configured resource bound.
+    #[error("proof payload exceeds limit: {actual} bytes (maximum {limit})")]
+    SizeLimitExceeded {
+        /// Maximum permitted serialized proof bytes.
+        limit: usize,
+        /// Actual serialized proof bytes.
+        actual: usize,
+    },
+
     /// No proof could be produced for the requested claim.
     #[error("no proof available for the requested claim")]
     NotFound,
@@ -71,6 +80,20 @@ pub enum ProofError {
     /// The enclosing commit is not tenant-scoped.
     #[error("commit is not tenant-scoped: {0}")]
     CommitScope(String),
+
+    /// The signed commit is valid but is not the current canonical head.
+    #[error("proof commit `{commit_id}` is not the canonical head for tenant `{tenant}`")]
+    NonCanonicalCommit {
+        /// Tenant whose canonical head was checked.
+        tenant: String,
+        /// Commit referenced by the proof.
+        commit_id: String,
+    },
+
+    /// Canonical-head verification was requested but the adapter does not
+    /// expose a canonical head.
+    #[error("commit store does not expose a canonical head")]
+    CanonicalHeadUnavailable,
 
     /// A verifying key could not be resolved for the referenced key id.
     #[error("verifying key not found for key id `{0}`")]

@@ -5,6 +5,7 @@
 //! commit ids are rejected fail-closed (§27 logical stores).
 
 use async_trait::async_trait;
+use statechronicle_core::digest::ContentDigest;
 use statechronicle_domain::commit::Commit;
 use statechronicle_domain::ids::CommitId;
 use statechronicle_domain::signed::Signed;
@@ -20,6 +21,17 @@ pub enum CommitStoreError {
     /// The backing store could not be reached or resolved.
     #[error("commit store unavailable: {0}")]
     Unavailable(String),
+}
+
+/// Canonical head metadata for a tenant/scope.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CanonicalHead {
+    /// Current canonical commit identifier.
+    pub commit_id: CommitId,
+    /// Current canonical sequence.
+    pub sequence: u64,
+    /// State root declared by the canonical commit.
+    pub state_root: ContentDigest,
 }
 
 /// Backend-agnostic append-only commit store port (no implementations in this
@@ -70,6 +82,16 @@ pub trait CommitStore: Sync + Send {
         tenant: &TenantId,
         sequence: u64,
     ) -> Result<Option<Signed<Commit>>, CommitStoreError>;
+
+    /// Returns the canonical head when the adapter tracks one. Adapters that
+    /// expose only append-only commit lookup may return `Ok(None)`; production
+    /// proof verification should require a non-`None` head implementation.
+    async fn canonical_head(
+        &self,
+        _tenant: &TenantId,
+    ) -> Result<Option<CanonicalHead>, CommitStoreError> {
+        Ok(None)
+    }
 }
 
 #[cfg(test)]

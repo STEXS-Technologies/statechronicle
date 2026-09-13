@@ -4,17 +4,17 @@
 //! checkpoint commits that contain tenant roots rather than directly
 //! containing all events. The wire shape is the
 //! `statechronicle.global_checkpoint.v0` schema: a sequence number, one
-//! [`TenantRootEntry`] per anchored tenant (carrying the tenant's tip
+//! [`TenantRootEntry`](crate::checkpoint::TenantRootEntry) per anchored tenant (carrying the tenant's tip
 //! `commit_id` and `state_root`), and a `tenant_merkle_root` over the sorted
 //! `(tenant_id, state_root)` pairs committed by the accumulator's
-//! [`CheckpointRoot`]. The root is a pure function of the pair set, so it is
+//! [`CheckpointRoot`](statechronicle_accumulator::checkpoint::CheckpointRoot). The root is a pure function of the pair set, so it is
 //! independent of entry order; the per-entry `commit_id` is anchored next to
 //! the root but is deliberately *not* part of the merkle root derivation.
 //!
 //! Note on object identity: the domain `Commit` type exposes a
 //! global-checkpoint *scope* (`statechronicle_domain::commit::CommitScope::global_checkpoint`),
 //! which lets a `Commit` be scoped globally. This module's dedicated
-//! [`GlobalCheckpoint`] is the distinct §13.4 wire shape with its own schema
+//! [`GlobalCheckpoint`](crate::checkpoint::GlobalCheckpoint) is the distinct §13.4 wire shape with its own schema
 //! (unlike `statechronicle_domain::commit::COMMIT_SCHEMA`): a tenant-scoped
 //! `Commit` (carrying direct events) and a global checkpoint (carrying tenant
 //! roots) are deliberately different objects.
@@ -63,7 +63,7 @@ pub struct TenantRootEntry {
     ///
     /// [`StateRoot`] does not implement serde (the accumulator keeps serde
     /// out of its dependency graph), so it is serialized as its raw 32 bytes
-    /// via [`serialize_state_root`] / [`deserialize_state_root`].
+    /// via raw 32-byte serializer/deserializer helpers.
     #[serde(
         serialize_with = "serialize_state_root",
         deserialize_with = "deserialize_state_root"

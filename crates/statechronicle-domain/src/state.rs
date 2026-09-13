@@ -7,10 +7,10 @@
 //! previous state + valid committed event = next state
 //! ```
 //!
-//! A [`StateProjection`] is derived, cacheable, and indexable. It is never the
+//! A [`StateProjection`](crate::state::StateProjection) is derived, cacheable, and indexable. It is never the
 //! source of truth (protocol §9). `StateType` shapes each projection's rules;
 //! the profile-specific payload (`owner`/`status`, `balance`/`unit`,
-//! `quantity`, ...) lives in the opaque `state` JSON value.
+//! `quantity`, ...) lives in the typed `state` [`ResourceState`](crate::resource_state::ResourceState) value.
 
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +18,7 @@ use statechronicle_core::digest::ContentDigest;
 
 use crate::ids::{CommitId, EventId};
 use crate::resource::ResourceId;
+use crate::resource_state::ResourceState;
 use crate::state_type::StateType;
 use crate::tenant::TenantId;
 
@@ -38,21 +39,25 @@ pub struct StateProjection {
     pub last_commit_id: CommitId,
     /// Canonical digest of the projected state payload.
     pub state_hash: ContentDigest,
-    /// The profile-defined projected state payload.
-    pub state: serde_json::Value,
+    /// The typed, profile-defined projected state payload.
+    pub state: ResourceState,
 }
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
+    use crate::resource_state::{FungibleBalanceState, UniqueAssetState};
+    use crate::status::Status;
+    use crate::subject::SubjectId;
+    use statechronicle_core::amount::Amount;
     use statechronicle_core::canonicalize::canonicalize_and_digest;
 
     fn sample_projection(
         resource_id: &str,
         state_type: StateType,
         version: u64,
-        state: serde_json::Value,
+        state: ResourceState,
     ) -> StateProjection {
         let state_hash = canonicalize_and_digest(&state).unwrap();
         StateProjection {
@@ -73,10 +78,10 @@ mod tests {
             "asset:sword_001",
             StateType::UniqueAsset,
             42,
-            serde_json::json!({
-                "owner": "account:example:player_456",
-                "status": "active",
-                "version": 42
+            ResourceState::UniqueAsset(UniqueAssetState {
+                owner: SubjectId(String::from("account:example:player_456")),
+                status: Status::from_static("active"),
+                trade_id: None,
             }),
         );
 
@@ -84,12 +89,11 @@ mod tests {
         let decoded: StateProjection = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, projection);
 
-        // The `state` payload is `serde_json::Value`, BCS-encodable but not
-        // BCS-decodable (BCS is not self-describing, ADR-004), so the BCS
-        // check is encode-side determinism.
+        // `state` is a typed struct, so BCS both encodes and decodes it.
         let first = bcs::to_bytes(&projection).unwrap();
         let second = bcs::to_bytes(&projection).unwrap();
         assert_eq!(first, second);
+        let _: StateProjection = bcs::from_bytes(&first).unwrap();
     }
 
     #[test]
@@ -98,11 +102,10 @@ mod tests {
             "currency:gold",
             StateType::FungibleBalance,
             88,
-            serde_json::json!({
-                "subject": "account:example:player_123",
-                "balance": "125000",
-                "unit": "gold_minor",
-                "version": 88
+            ResourceState::FungibleBalance(FungibleBalanceState {
+                subject: SubjectId(String::from("account:example:player_123")),
+                balance: Amount::from_u64(125000),
+                unit: String::from("gold_minor"),
             }),
         );
 
@@ -113,5 +116,6 @@ mod tests {
         let first = bcs::to_bytes(&projection).unwrap();
         let second = bcs::to_bytes(&projection).unwrap();
         assert_eq!(first, second);
+        let _: StateProjection = bcs::from_bytes(&first).unwrap();
     }
 }

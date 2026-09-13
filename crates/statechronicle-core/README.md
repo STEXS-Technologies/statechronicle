@@ -27,6 +27,11 @@ I/O of any kind: pure functions and newtypes over bytes.
 - `signature::{sign, verify}`: Ed25519 over canonical bytes.
 - `limits::{MAX_INTENT_BYTES, check_size}`: bounded input sizes for
   intent/event/commit payloads.
+- `rate_limit::{TokenBucket, KeyedRateLimiter}`: deterministic local weighted
+  throttling with bounded per-dimension bucket cardinality; use
+  `KeyedRateLimiter::try_acquire_many` for atomic account/tenant/operation
+  charging. Distributed deployments must mirror the policy in shared
+  infrastructure.
 - `error`: the shared protocol error type.
 
 ## How it's used

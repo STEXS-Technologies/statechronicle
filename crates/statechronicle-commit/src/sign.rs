@@ -8,6 +8,7 @@
 use ed25519_dalek::{SigningKey, VerifyingKey};
 
 use statechronicle_core::canonicalize::canonicalize;
+use statechronicle_core::signature::Signature;
 use statechronicle_core::signature::{sign, verify};
 
 use statechronicle_domain::commit::Commit;
@@ -15,6 +16,73 @@ use statechronicle_domain::intent::{KeyId, SignatureAlg, SignatureBlock};
 use statechronicle_domain::signed::Signed;
 
 use crate::error::CommitError;
+use crate::persist::SignedCommitVerifier;
+
+/// Deployment-provided commit signer boundary.
+///
+/// Production implementations should delegate `sign` to a KMS/HSM and
+/// return only the detached signature. The private key never needs to enter
+/// the StateChronicle process. The `key_id` is supplied so the provider can
+/// enforce tenant/scope rotation policy before signing.
+pub trait CommitSigner: Send + Sync {
+    /// Signs canonical commit-body bytes for `key_id`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CommitError`] when canonicalization fails or the provider
+    /// rejects/unavailable the signing request.
+    fn sign_bytes(&self, key_id: &KeyId, canonical: &[u8]) -> Result<Signature, CommitError>;
+}
+
+/// Forms a signed commit through a deployment-provided signer.
+///
+/// Unlike [`sign_commit`], this function does not require a local private key
+/// and is suitable for a remote KMS/HSM adapter.
+///
+/// # Errors
+///
+/// Returns [`CommitError::Core`] when canonicalization fails, or the provider
+/// error returned by [`CommitSigner::sign_bytes`].
+pub fn sign_commit_with_signer(
+    body: &Commit,
+    key_id: KeyId,
+    signer: &dyn CommitSigner,
+) -> Result<Signed<Commit>, CommitError> {
+    let canonical = canonicalize(body)?;
+    let signature = signer.sign_bytes(&key_id, &canonical)?;
+    Ok(Signed::new(
+        body.clone(),
+        SignatureBlock {
+            alg: SignatureAlg::Ed25519,
+            key_id,
+            sig: signature,
+        },
+    ))
+}
+
+/// Adapter that resolves a commit key through a caller-supplied registry and
+/// then performs strict Ed25519 verification. The resolver must enforce tenant,
+/// validity, and revocation policy before returning a verifying key.
+pub struct Ed25519CommitVerifier<F> {
+    resolver: F,
+}
+
+impl<F> Ed25519CommitVerifier<F> {
+    /// Creates a verifier from a key-resolution callback.
+    pub const fn new(resolver: F) -> Self {
+        Self { resolver }
+    }
+}
+
+impl<F> SignedCommitVerifier for Ed25519CommitVerifier<F>
+where
+    F: Fn(&Signed<Commit>) -> Result<VerifyingKey, String> + Send + Sync,
+{
+    fn verify(&self, commit: &Signed<Commit>) -> Result<(), String> {
+        let key = (self.resolver)(commit)?;
+        verify_commit(commit, &key).map_err(|error| error.to_string())
+    }
+}
 
 /// Signs a commit body and wraps it in the signed envelope.
 ///
@@ -47,6 +115,13 @@ pub fn verify_commit(
     signed: &Signed<Commit>,
     verifying_key: &VerifyingKey,
 ) -> Result<(), CommitError> {
+    if signed.signature.alg != SignatureAlg::Ed25519 {
+        return Err(CommitError::Core(
+            statechronicle_core::error::StateChronicleError::SignatureVerification(String::from(
+                "unsupported commit signature algorithm",
+            )),
+        ));
+    }
     let canonical = canonicalize(&signed.body)?;
     verify(&canonical, verifying_key, &signed.signature.sig)?;
     Ok(())
@@ -103,6 +178,26 @@ mod tests {
             signed.signature.key_id.as_str(),
             "did:key:z6Mk...#statechronicle-commit"
         );
+        assert!(verify_commit(&signed, &key.verifying_key()).is_ok());
+        let verifier = Ed25519CommitVerifier::new(move |_commit: &Signed<Commit>| {
+            Ok::<VerifyingKey, String>(key.verifying_key())
+        });
+        assert!(verifier.verify(&signed).is_ok());
+    }
+
+    struct TestSigner(SigningKey);
+
+    impl CommitSigner for TestSigner {
+        fn sign_bytes(&self, _key_id: &KeyId, canonical: &[u8]) -> Result<Signature, CommitError> {
+            Ok(sign(canonical, &self.0))
+        }
+    }
+
+    #[test]
+    fn signer_provider_forms_verifiable_commit_without_local_api() {
+        let body = sample_commit();
+        let key = fixed_key();
+        let signed = sign_commit_with_signer(&body, key_id(), &TestSigner(key.clone())).unwrap();
         assert!(verify_commit(&signed, &key.verifying_key()).is_ok());
     }
 

@@ -1,6 +1,6 @@
 //! History reconstruction over a trade record.
 //!
-//! [`reconstruct_history`] assembles an ordered [`TradeHistory`] from a trade
+//! [`reconstruct_history`](crate::history::reconstruct_history) assembles an ordered [`TradeHistory`](statechronicle_domain::trade::TradeHistory) from a trade
 //! record by resolving each recorded event id through an event map and deriving
 //! the distinct committing commits. It is pure: it orders strictly by the
 //! record's canonical `events` ordering and never consults a clock or store.
@@ -17,7 +17,7 @@ use crate::error::IndexError;
 /// Reconstructs the ordered history of a trade record.
 ///
 /// `events_by_id` maps a `(tenant_id_string, event_id_string)` key to its full
-/// [`Event`](statechronicle_domain::event::Event). Every recorded event
+/// [`Event`]. Every recorded event
 /// reference in the record is resolved in canonical order; a missing reference
 /// fails closed. The distinct committing commits are collected from the record's
 /// sides and value legs in canonical order, deduplicated per `(tenant, commit)`.

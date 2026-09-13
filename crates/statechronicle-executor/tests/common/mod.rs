@@ -23,7 +23,6 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use serde_json::Value;
 
 use statechronicle_core::digest::hash_bytes;
 
@@ -529,8 +528,8 @@ impl FakeStateIndex {
                 .after
                 .state
                 .get("subject")
-                .and_then(Value::as_str)
-                .map(|subject| SubjectId(String::from(subject)))
+                .and_then(|value| value.as_str().map(String::from))
+                .map(SubjectId)
         } else {
             None
         };

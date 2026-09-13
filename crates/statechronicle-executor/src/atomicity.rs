@@ -15,8 +15,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use serde_json::Value;
-
 use statechronicle_core::amount::Amount;
 use statechronicle_domain::event::{Event, StateCommitment};
 use statechronicle_domain::ids::IntentId;
@@ -103,7 +101,7 @@ pub fn validate_batch_consistency(events: &[Event]) -> Result<(), ExecutorError>
 ///
 /// * (a) exactly one `trade.settle` event per settle intent in the batch, or,
 ///   when the settle intents declare a bundle (Phase 4), a bundle shape via
-///   [`check_bundle_shape`]: every settle intent declares the same positive
+///   bundle-shape check: every settle intent declares the same positive
 ///   `bundle_size` and `trade_id`, the settle-event count equals the declared
 ///   bundle size, and the settled assets are distinct;
 /// * (b) for every settle intent that declares a value leg, exactly one
@@ -116,7 +114,7 @@ pub fn validate_batch_consistency(events: &[Event]) -> Result<(), ExecutorError>
 /// * (d) all events share the batch's tenant scope.
 ///
 /// This validator is strictly additive: it does NOT weaken
-/// [`validate_transfer_pair`] (the value pair is still validated by the
+/// the transfer-pair validator (the value pair is still validated by the
 /// existing transfer-pair rule) or [`validate_batch_consistency`].
 ///
 /// # Errors
@@ -388,7 +386,7 @@ fn check_bundle_shape(
 /// A value leg is declared when any of `value_resource`, `value_amount`, or
 /// `value_to_subject` is present (the profile requires all three together;
 /// `validate_settle_batch` fails closed on a partial declaration via
-/// [`declared_value_leg_tuple`]).
+/// the shared declared-value-leg tuple helper).
 ///
 /// The pipeline uses this to route value-leg settlements to
 /// [`crate::pipeline::Executor::execute_settle`], which is the only path that
@@ -567,12 +565,7 @@ fn recover_value_pairs(events: &[&Event]) -> Result<Vec<RecoveredValuePair>, Exe
                 let before = commitment_amount(&event.before, keys::BALANCE)?;
                 let after = commitment_amount(&event.after, keys::BALANCE)?;
                 if after > before {
-                    credited_subject = event
-                        .after
-                        .state
-                        .get(keys::SUBJECT)
-                        .and_then(Value::as_str)
-                        .map(|subject| SubjectId(String::from(subject)));
+                    credited_subject = event.after.state.subject().cloned();
                 }
             }
             pairs.push(RecoveredValuePair {
@@ -669,7 +662,7 @@ pub struct ValueLeg {
 ///   appears in two or more distinct tenant groups (the linkage that ties the
 ///   legs together).
 ///
-/// The existing per-tenant transfer-pair rule ([`validate_transfer_pair`],
+/// The existing per-tenant transfer-pair rule,
 /// reached through [`validate_batch_consistency`]) is still enforced within each
 /// group; this function introduces no new conservation rules.
 ///
@@ -729,16 +722,25 @@ pub fn validate_cross_tenant_consistency(groups: &[TenantEventGroup]) -> Result<
 ///   `(amount, resource, credited_subject)` matches the declared legs exactly
 ///   (order-independent and deterministic). Zero declared legs implies zero
 ///   pairs;
+/// * (c2) every value leg declared on a settle intent must have an equal tuple
+///   in the manifest's `value_legs`: the manifest is the authoritative value-leg
+///   declaration, so a value-declaring settle intent's `(value_amount,
+///   value_resource, value_to_subject)` multiset must be a subset of (consistent
+///   with) the manifest's value-leg tuples. A settle declaring a value leg the
+///   manifest omits (or that mismatches in amount/resource/recipient) fails
+///   closed, while a manifest value leg with no settle-intent declaration is
+///   fine (the separate `balance.transfer` pair moves it, and (c1) matches that
+///   pair against the manifest);
 /// * (d) every intent id in the batch resolves to a declared settle-leg id or a
 ///   value-pair id: no undeclared multi-event or single-event intent groups, and
 ///   the value-pair ids are disjoint from the settle-leg ids;
 /// * (e) the batch spans at least two distinct tenant groups.
 ///
 /// This validator is strictly additive: it does NOT weaken
-/// [`validate_cross_tenant_consistency`] or [`validate_transfer_pair`]. The
+/// [`validate_cross_tenant_consistency`] or the transfer-pair validator. The
 /// value pair is still validated by the existing per-tenant transfer-pair rule
 /// (reached through [`validate_batch_consistency`]), and the value-pair shape is
-/// recovered by the shared [`recover_value_pairs`] helper that the single-tenant
+/// recovered by the shared value-pair recovery helper that the single-tenant
 /// [`validate_settle_batch`] also uses, so the two cannot drift.
 ///
 /// # Errors
@@ -747,8 +749,9 @@ pub fn validate_cross_tenant_consistency(groups: &[TenantEventGroup]) -> Result<
 /// (fewer than two tenants, a partition mismatch, an empty settle-leg set, a
 /// duplicate asset or settle intent id, a settle intent absent from
 /// `settle_intents`, a settle-event set that does not equal the declared legs,
-/// a value-leg count or multiset mismatch, a value-pair id colliding with a
-/// settle-leg id, or an undeclared intent id), and
+/// a value-leg count or multiset mismatch, a settle-intent value-leg declaration
+/// that has no equal tuple in the manifest's value legs, a value-pair id
+/// colliding with a settle-leg id, or an undeclared intent id), and
 /// [`ExecutorError::TransferMismatch`] when a manifest value amount is not a
 /// canonical non-negative integer string.
 pub fn validate_cross_tenant_trade(
@@ -872,6 +875,35 @@ pub fn validate_cross_tenant_trade(
         return Err(ExecutorError::AtomicityViolation(String::from(
             "cross-tenant trade value-leg multiset mismatch: declared (amount, resource, recipient) value legs do not match the batch's balance.transfer pairs",
         )));
+    }
+
+    // (c2) Every value leg DECLARED ON A SETTLE INTENT must have an equal tuple
+    // in the manifest's `value_legs`. The manifest is the authoritative value-leg
+    // declaration; a settle intent may legitimately carry its own signed
+    // `(value_amount, value_resource, value_to_subject)` declaration, but such a
+    // declaration must be backed by a matching manifest value leg or it is dead
+    // input that could be ignored while value still moves. A manifest value leg
+    // with no settle-intent declaration is FINE (the separate `balance.transfer`
+    // pair moves it, and (c1) already matches that pair against the manifest), so
+    // this is a subset/consistency check in the safe direction only: a settle
+    // declaring a value leg the manifest omits (or that mismatches in
+    // amount/resource/recipient) fails closed, while a manifest value leg with no
+    // settle declaration passes. Tuples use the same shape and helper
+    // [`declared_value_leg_tuple`] the single-tenant validator uses.
+    let mut manifest_value_legs: Vec<(Amount, String, Option<String>)> = declared_values;
+    for intent in settle_intents {
+        if declares_value_leg(intent) {
+            let tuple = declared_value_leg_tuple(intent)?;
+            let Some(pos) = manifest_value_legs
+                .iter()
+                .position(|candidate| *candidate == tuple)
+            else {
+                return Err(ExecutorError::AtomicityViolation(String::from(
+                    "cross-tenant trade settle-intent value-leg declarations do not match the manifest's value legs",
+                )));
+            };
+            manifest_value_legs.swap_remove(pos);
+        }
     }
 
     // (d) Every intent id in the batch must resolve to a declared settle-leg id
@@ -998,12 +1030,12 @@ fn transfer_field(operation: &Operation) -> Option<&'static str> {
 ///
 /// Returns [`ExecutorError::TransferMismatch`] when the field is present but
 /// not a canonical non-negative decimal integer string.
+#[allow(clippy::unnecessary_wraps)]
 fn commitment_amount(commitment: &StateCommitment, field: &str) -> Result<Amount, ExecutorError> {
-    let Some(text) = commitment.state.get(field).and_then(Value::as_str) else {
+    let Some(amount) = commitment.state.amount(field) else {
         return Ok(Amount::ZERO);
     };
-    Amount::try_from_str(text)
-        .map_err(|_source| ExecutorError::TransferMismatch(format!("malformed `{field}` amount")))
+    Ok(amount)
 }
 
 /// Builds the fail-closed duplicate-intent error for a non-transfer group.
@@ -1027,6 +1059,14 @@ mod tests {
     use statechronicle_domain::subject::SubjectId;
     use statechronicle_domain::tenant::TenantId;
 
+    fn typed(
+        state_type: StateType,
+        value: serde_json::Value,
+    ) -> statechronicle_domain::resource_state::ResourceState {
+        statechronicle_domain::resource_state::ResourceState::from_legacy_json(state_type, value)
+            .unwrap()
+    }
+
     fn tenant(name: &str) -> TenantId {
         TenantId(String::from(name))
     }
@@ -1042,12 +1082,18 @@ mod tests {
             statechronicle_domain::event::StateCommitment {
                 version: 1,
                 state_hash: hash_bytes(b"before"),
-                state: serde_json::json!({}),
+                state: typed(
+                    StateType::UniqueAsset,
+                    serde_json::json!({"owner":"alice","status":"active"}),
+                ),
             },
             statechronicle_domain::event::StateCommitment {
                 version: 2,
                 state_hash: hash_bytes(b"after"),
-                state: serde_json::json!({ "owner": "bob", "status": "active" }),
+                state: typed(
+                    StateType::UniqueAsset,
+                    serde_json::json!({ "owner": "bob", "status": "active" }),
+                ),
             },
             None,
             SubjectId(String::from("service:statechronicle.example.net")),
@@ -1129,20 +1175,26 @@ mod tests {
             StateCommitment {
                 version: 1,
                 state_hash: hash_bytes(b"before"),
-                state: serde_json::json!({
-                    "subject": "alice",
-                    "balance": before,
-                    "unit": "gold_minor",
-                }),
+                state: typed(
+                    StateType::FungibleBalance,
+                    serde_json::json!({
+                        "subject": "alice",
+                        "balance": before,
+                        "unit": "gold_minor",
+                    }),
+                ),
             },
             StateCommitment {
                 version: 2,
                 state_hash: hash_bytes(b"after"),
-                state: serde_json::json!({
-                    "subject": subject,
-                    "balance": after,
-                    "unit": "gold_minor",
-                }),
+                state: typed(
+                    StateType::FungibleBalance,
+                    serde_json::json!({
+                        "subject": subject,
+                        "balance": after,
+                        "unit": "gold_minor",
+                    }),
+                ),
             },
             None,
             SubjectId(String::from("service:statechronicle.example.net")),
@@ -1258,20 +1310,26 @@ mod tests {
             StateCommitment {
                 version: 1,
                 state_hash: hash_bytes(b"before"),
-                state: serde_json::json!({
-                    "subject": "alice",
-                    "balance": before,
-                    "unit": "gold_minor",
-                }),
+                state: typed(
+                    StateType::FungibleBalance,
+                    serde_json::json!({
+                        "subject": "alice",
+                        "balance": before,
+                        "unit": "gold_minor",
+                    }),
+                ),
             },
             StateCommitment {
                 version: 2,
                 state_hash: hash_bytes(b"after"),
-                state: serde_json::json!({
-                    "subject": subject,
-                    "balance": after,
-                    "unit": "gold_minor",
-                }),
+                state: typed(
+                    StateType::FungibleBalance,
+                    serde_json::json!({
+                        "subject": subject,
+                        "balance": after,
+                        "unit": "gold_minor",
+                    }),
+                ),
             },
             None,
             SubjectId(String::from("service:statechronicle.example.net")),
@@ -1453,16 +1511,22 @@ mod tests {
             StateCommitment {
                 version: 3,
                 state_hash: hash_bytes(b"before"),
-                state: serde_json::json!({
-                    "owner": "alice",
-                    "status": "trade_held",
-                    "trade_id": "trade_001",
-                }),
+                state: typed(
+                    StateType::UniqueAsset,
+                    serde_json::json!({
+                        "owner": "alice",
+                        "status": "trade_held",
+                        "trade_id": "trade_001",
+                    }),
+                ),
             },
             StateCommitment {
                 version: 4,
                 state_hash: hash_bytes(b"after"),
-                state: serde_json::json!({ "owner": "bob", "status": "active" }),
+                state: typed(
+                    StateType::UniqueAsset,
+                    serde_json::json!({ "owner": "bob", "status": "active" }),
+                ),
             },
             None,
             SubjectId(String::from("service:statechronicle.example.net")),
@@ -1730,7 +1794,12 @@ mod tests {
     #[test]
     fn cross_tenant_trade_asset_for_gold_passes() {
         // Two tenants: a settle in alpha, a net-zero gold value pair in beta.
-        let intents = vec![settle_intent("settle", None)];
+        // The settle intent's signed declaration matches the manifest's value
+        // leg and the recovered pair, so the legit value-leg path passes.
+        let intents = vec![settle_intent(
+            "settle",
+            Some(("currency:gold", "100", "bob")),
+        )];
         let manifest = trade_manifest(vec![gold_value_leg()]);
         assert!(validate_cross_tenant_trade(&asset_for_gold_groups(), &manifest, &intents).is_ok());
     }
@@ -1808,7 +1877,10 @@ mod tests {
             },
             settle_group("acme.game.beta", "s2", "s2", "asset:shield_001"),
         ];
-        let intents = vec![settle_intent("settle", None), settle_intent("s2", None)];
+        let intents = vec![
+            settle_intent("settle", Some(("currency:gold", "100", "bob"))),
+            settle_intent("s2", None),
+        ];
         let manifest = TradeManifest {
             trade_id: String::from("trade_001"),
             settle_legs: vec![
@@ -1834,7 +1906,10 @@ mod tests {
             },
             settle_group("acme.game.gamma", "s2", "s2", "asset:shield_001"),
         ];
-        let intents = vec![settle_intent("settle", None), settle_intent("s2", None)];
+        let intents = vec![
+            settle_intent("settle", Some(("currency:gold", "100", "bob"))),
+            settle_intent("s2", None),
+        ];
         let manifest = TradeManifest {
             trade_id: String::from("trade_001"),
             settle_legs: vec![
@@ -1938,6 +2013,92 @@ mod tests {
             validate_cross_tenant_trade(&asset_for_gold_groups(), &manifest, &intents),
             Err(ExecutorError::AtomicityViolation(message))
             if message.contains("balance.transfer pair")
+        ));
+    }
+
+    #[test]
+    fn cross_tenant_trade_undeclared_settle_value_fails() {
+        // The settle intent's SIGNED declaration (gold, 100, alice) has no
+        // matching manifest value leg: the manifest declares none, so the
+        // settle-intent declarations must also be empty. Fails closed rather
+        // than silently dropping ALICE's declared value.
+        let groups = vec![
+            settle_group("acme.game.alpha", "s1", "settle", "asset:sword_001"),
+            settle_group("acme.game.beta", "s2", "s2", "asset:shield_001"),
+        ];
+        let intents = vec![
+            settle_intent("settle", Some(("currency:gold", "100", "alice"))),
+            settle_intent("s2", None),
+        ];
+        let manifest = legs_manifest(&[("asset:sword_001", "settle"), ("asset:shield_001", "s2")]);
+        assert!(matches!(
+            validate_cross_tenant_trade(&groups, &manifest, &intents),
+            Err(ExecutorError::AtomicityViolation(message))
+            if message.contains("settle-intent value-leg declarations do not match")
+        ));
+    }
+
+    #[test]
+    fn cross_tenant_trade_settle_value_manifest_mismatch_fails() {
+        // The settle intent declares value_amount 100 but the manifest declares
+        // a value leg of 50 (which the pair moves): the signed declaration does
+        // not match the manifest, so the trade fails closed.
+        let groups = vec![
+            settle_group("acme.game.alpha", "s1", "settle", "asset:sword_001"),
+            TenantEventGroup {
+                tenant: tenant("acme.game.beta"),
+                events: vec![
+                    transfer_event("acme.game.beta", "vsrc", "value", "alice", "100", "50"),
+                    transfer_event("acme.game.beta", "vdst", "value", "bob", "0", "50"),
+                ],
+            },
+        ];
+        let intents = vec![settle_intent(
+            "settle",
+            Some(("currency:gold", "100", "bob")),
+        )];
+        let manifest = TradeManifest {
+            trade_id: String::from("trade_001"),
+            settle_legs: vec![settle_leg("asset:sword_001", "settle")],
+            value_legs: vec![ValueLeg {
+                resource: ResourceId(String::from("currency:gold")),
+                amount: String::from("50"),
+                to_subject: SubjectId(String::from("bob")),
+            }],
+        };
+        assert!(matches!(
+            validate_cross_tenant_trade(&groups, &manifest, &intents),
+            Err(ExecutorError::AtomicityViolation(message))
+            if message.contains("settle-intent value-leg declarations do not match")
+        ));
+    }
+
+    #[test]
+    fn cross_tenant_trade_manifest_value_leg_without_declaration_passes() {
+        // The manifest declares a value leg but NO settle intent declares it:
+        // the manifest is the authoritative value-leg declaration, and the
+        // separate `balance.transfer` pair (matched to the manifest by (c1))
+        // moves it, so a manifest value leg with no settle-intent declaration
+        // is legitimate and passes.
+        let intents = vec![settle_intent("settle", None)];
+        let manifest = trade_manifest(vec![gold_value_leg()]);
+        assert!(validate_cross_tenant_trade(&asset_for_gold_groups(), &manifest, &intents).is_ok());
+    }
+
+    #[test]
+    fn cross_tenant_trade_settle_value_recipient_mismatch_fails() {
+        // The settle intent declares value to alice but the manifest's value leg
+        // (and the pair) credit bob: amount and resource agree, but the
+        // recipient of the signed declaration differs, so it fails closed.
+        let intents = vec![settle_intent(
+            "settle",
+            Some(("currency:gold", "100", "alice")),
+        )];
+        let manifest = trade_manifest(vec![gold_value_leg()]);
+        assert!(matches!(
+            validate_cross_tenant_trade(&asset_for_gold_groups(), &manifest, &intents),
+            Err(ExecutorError::AtomicityViolation(message))
+            if message.contains("settle-intent value-leg declarations do not match")
         ));
     }
 

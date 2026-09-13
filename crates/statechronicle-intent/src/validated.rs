@@ -5,6 +5,10 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use statechronicle_core::canonicalize::{canonicalize, canonicalize_and_digest};
+use statechronicle_core::digest::ContentDigest;
+use statechronicle_core::error::StateChronicleError;
+use statechronicle_core::limits::{MAX_ID_LENGTH, MAX_INTENT_BYTES, MAX_JSON_DEPTH};
 
 use statechronicle_domain::ids::IntentId;
 use statechronicle_domain::intent::{Intent, Operation, SignatureBlock};
@@ -69,6 +73,70 @@ pub struct ValidatedIntent {
 }
 
 impl ValidatedIntent {
+    /// Validates an already-typed intent before wrapping it for execution.
+    /// This is the safe constructor for transport adapters that deserialize
+    /// domain objects directly instead of going through [`crate::parse`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::IntentError`] when schema, identity, expiry, or
+    /// canonical serialized-size invariants are invalid.
+    pub fn try_from_intent(
+        intent: Intent,
+        signature: Option<SignatureBlock>,
+    ) -> Result<Self, crate::error::IntentError> {
+        if intent.schema != statechronicle_domain::intent::INTENT_SCHEMA {
+            return Err(crate::error::IntentError::InvalidSchema {
+                found: intent.schema,
+                expected: String::from(statechronicle_domain::intent::INTENT_SCHEMA),
+            });
+        }
+        for (name, value) in [
+            ("tenant", intent.tenant_id.0.as_str()),
+            ("actor", intent.actor.0.as_str()),
+            ("resource", intent.resource_id.0.as_str()),
+        ] {
+            if value.is_empty() {
+                return Err(crate::error::IntentError::InvalidField(format!(
+                    "{name} identifier must not be empty"
+                )));
+            }
+            if value.chars().count() > MAX_ID_LENGTH {
+                return Err(crate::error::IntentError::InvalidField(format!(
+                    "{name} identifier exceeds {MAX_ID_LENGTH} characters"
+                )));
+            }
+            if value.chars().any(char::is_control) {
+                return Err(crate::error::IntentError::InvalidField(format!(
+                    "{name} identifier must not contain control characters"
+                )));
+            }
+        }
+        if intent
+            .expires_at
+            .is_some_and(|expiry| expiry <= intent.created_at)
+        {
+            return Err(crate::error::IntentError::InvalidExpiry(String::from(
+                "expires_at must be after created_at",
+            )));
+        }
+        let input_depth = intent.inputs.values().map(json_depth).max().unwrap_or(0);
+        if input_depth > MAX_JSON_DEPTH {
+            return Err(crate::error::IntentError::InvalidField(format!(
+                "intent input nesting depth exceeds limit {MAX_JSON_DEPTH}"
+            )));
+        }
+        let size = canonicalize(&intent)?.len();
+        if size > MAX_INTENT_BYTES {
+            return Err(crate::error::IntentError::SizeLimitExceeded {
+                name: String::from("intent"),
+                limit: MAX_INTENT_BYTES,
+                actual: size,
+            });
+        }
+        Ok(Self::from_intent(intent, signature))
+    }
+
     /// Constructs a validated intent directly from an already-typed intent
     /// body, skipping raw-payload parsing.
     ///
@@ -77,8 +145,10 @@ impl ValidatedIntent {
     /// caller's own transport layer), so no [`crate::parse`] step is needed.
     /// The §11.2 idempotency tuple is derived from the intent's fields.
     ///
-    /// This complements [`crate::validate::validate`], which is the entry
-    /// point for raw wire payloads.
+    /// This is a trusted/internal constructor and does not repeat structural
+    /// checks; transport adapters should use [`Self::try_from_intent`] instead.
+    /// It complements [`crate::validate::validate`], which is the entry point
+    /// for raw wire payloads.
     pub fn from_intent(intent: Intent, signature: Option<SignatureBlock>) -> Self {
         let idempotency_key = IdempotencyKey::new(
             intent.tenant_id.clone(),
@@ -100,6 +170,33 @@ impl ValidatedIntent {
     /// `expires_at` is present and not strictly after `now` (protocol §11.1).
     pub fn is_expired(&self, now: DateTime<Utc>) -> bool {
         self.intent.expires_at.is_some_and(|expiry| expiry <= now)
+    }
+
+    /// Computes the canonical digest that must be bound to a durable
+    /// idempotency reservation.  The digest covers the complete typed intent,
+    /// including inputs, nonce, expiry, and authority—not merely `intent_id`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a canonicalization error when the intent cannot be serialized
+    /// to its protocol BCS representation.
+    pub fn payload_digest(&self) -> Result<ContentDigest, StateChronicleError> {
+        canonicalize_and_digest(&self.intent)
+    }
+}
+
+fn json_depth(value: &serde_json::Value) -> usize {
+    match value {
+        serde_json::Value::Array(values) => {
+            1usize.saturating_add(values.iter().map(json_depth).max().unwrap_or(0))
+        }
+        serde_json::Value::Object(values) => {
+            1usize.saturating_add(values.values().map(json_depth).max().unwrap_or(0))
+        }
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => 0,
     }
 }
 
@@ -184,6 +281,35 @@ mod tests {
     }
 
     #[test]
+    fn try_from_intent_rejects_invalid_typed_fields() {
+        let mut intent = sample_intent();
+        intent.actor = SubjectId(String::new());
+        assert!(ValidatedIntent::try_from_intent(intent, None).is_err());
+    }
+
+    #[test]
+    fn try_from_intent_rejects_unbounded_or_control_identifiers() {
+        let mut oversized = sample_intent();
+        oversized.tenant_id = TenantId("é".repeat(MAX_ID_LENGTH + 1));
+        assert!(ValidatedIntent::try_from_intent(oversized, None).is_err());
+
+        let mut control = sample_intent();
+        control.resource_id = ResourceId(String::from("asset:bad\nvalue"));
+        assert!(ValidatedIntent::try_from_intent(control, None).is_err());
+    }
+
+    #[test]
+    fn try_from_intent_rejects_deep_typed_inputs() {
+        let mut intent = sample_intent();
+        let mut value = serde_json::Value::Null;
+        for _ in 0..=MAX_JSON_DEPTH {
+            value = serde_json::Value::Array(vec![value]);
+        }
+        intent.inputs.insert(String::from("nested"), value);
+        assert!(ValidatedIntent::try_from_intent(intent, None).is_err());
+    }
+
+    #[test]
     fn signature_block_field_is_serializable() {
         let block = SignatureBlock {
             alg: statechronicle_domain::intent::SignatureAlg::Ed25519,
@@ -196,5 +322,38 @@ mod tests {
         let json = serde_json::to_string(&block).unwrap();
         let decoded: SignatureBlock = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, block);
+    }
+
+    #[test]
+    fn payload_digest_binds_full_intent_not_only_intent_id() {
+        let base = ValidatedIntent::from_intent(sample_intent(), None);
+        let mut changed = base.intent.clone();
+        changed
+            .inputs
+            .insert(String::from("amount"), serde_json::json!("1"));
+        let changed = ValidatedIntent::from_intent(changed, None);
+        assert_ne!(
+            base.payload_digest().unwrap(),
+            changed.payload_digest().unwrap()
+        );
+    }
+
+    fn sample_intent() -> Intent {
+        Intent::new(
+            TenantId(String::from("acme.game.alpha")),
+            IntentId::new(String::from("int_01JZ8WJ1V6MJ6Y3Z6Z9CA8B2K2")).unwrap(),
+            Operation::new(String::from("asset.transfer")).unwrap(),
+            SubjectId(String::from("account:example:player_123")),
+            ResourceId(String::from("asset:sword_001")),
+            Some(StateType::UniqueAsset),
+            41,
+            std::collections::BTreeMap::new(),
+            None,
+            DateTime::parse_from_rfc3339("2026-07-14T00:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            None,
+            Nonce::from_bytes(vec![1, 2, 3]).unwrap(),
+        )
     }
 }

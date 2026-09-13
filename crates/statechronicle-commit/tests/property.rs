@@ -14,7 +14,8 @@
     clippy::unwrap_in_result,
     clippy::panic_in_result_fn,
     clippy::indexing_slicing,
-    clippy::arithmetic_side_effects
+    clippy::arithmetic_side_effects,
+    clippy::manual_is_multiple_of
 )]
 
 use chrono::{DateTime, Utc};
@@ -98,7 +99,7 @@ fn build_event(chunk: &[u8], index: usize) -> Option<Event> {
     let owner = format!("account:example:player_{}", index % 17);
     // Every third event is subject-held, exercising the `for_subject_held`
     // key derivation; the rest are owner-based (`for_resource`).
-    let (state, resource) = if index.is_multiple_of(3) {
+    let (state, resource) = if index % 3 == 0 {
         (
             serde_json::json!({ "subject": &owner, "quantity": "1", "unit": "items" }),
             format!("stack:item_{index}"),
@@ -109,6 +110,11 @@ fn build_event(chunk: &[u8], index: usize) -> Option<Event> {
             format!("asset:item_{index}"),
         )
     };
+    let state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+        statechronicle_domain::state_type::StateType::UniqueAsset,
+        state,
+    )
+    .ok()?;
     let state_hash = canonicalize_and_digest(&state).ok()?;
     let version = u64::try_from(index).ok()?;
     let after = StateCommitment {
@@ -119,7 +125,11 @@ fn build_event(chunk: &[u8], index: usize) -> Option<Event> {
     let before = StateCommitment {
         version,
         state_hash,
-        state: serde_json::json!({}),
+        state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+            statechronicle_domain::state_type::StateType::UniqueAsset,
+            serde_json::json!({"owner":"alice","status":"active"}),
+        )
+        .ok()?,
     };
     Some(Event::new(
         TenantId(String::from("acme.game.alpha")),

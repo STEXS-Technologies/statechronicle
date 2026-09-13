@@ -1,18 +1,22 @@
 //! Baseline profile registry.
 //!
 //! Maps profile identifiers to their state type and rule set (protocol §10,
-//! §20). The [`ProfileRules`] trait is the single gate every state transition
-//! passes through; the [`ProfileRegistry`] resolves a resource's state type to
+//! §20). The [`ProfileRules`](crate::registry::ProfileRules) trait is the single gate every state transition
+//! passes through; the [`ProfileRegistry`](crate::registry::ProfileRegistry) resolves a resource's state type to
 //! its rule set and keeps the paid unique asset overlay reachable separately.
+
+#![allow(clippy::wildcard_enum_match_arm)]
 
 use std::collections::BTreeMap;
 
 use statechronicle_core::amount::Amount;
 use statechronicle_domain::authority::AggregationPolicy;
 use statechronicle_domain::intent::Operation;
+use statechronicle_domain::resource_state::ResourceState;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::status::Status;
+use statechronicle_domain::subject::SubjectId;
 
 use crate::consumable_stack::ConsumableStackRules;
 use crate::entitlement::EntitlementRules;
@@ -65,7 +69,7 @@ pub trait ProfileRules: Sync {
     /// (protocol §11.2, ADR-006 §36 Q5 / deferral item 4).
     ///
     /// When this returns `true` for an operation, the executor rejects the
-    /// intent with [`ExecutorError::AuthorityMissing`] unless it binds an
+    /// intent with an authority-missing executor error unless it binds an
     /// authority proof. The default is `false` (authority optional; the
     /// profile's transition and consent rules govern), matching v0 behavior.
     fn requires_authority(&self, _operation: &Operation) -> bool {
@@ -126,23 +130,115 @@ pub(crate) fn input_str<'input>(
     Ok(text)
 }
 
-/// Reads a required string field from a projection's state payload.
+/// Reads a required string field from a projection's typed state payload.
 ///
 /// # Errors
 ///
-/// Returns [`ProfileError::InvalidInput`] when the payload has no `key` field
-/// or it is not a string.
+/// Returns [`ProfileError::InvalidInput`] when the payload has no `key` field.
 pub(crate) fn state_str<'projection>(
     projection: &'projection StateProjection,
     key: &str,
 ) -> Result<&'projection str, ProfileError> {
-    let value = projection
-        .state
-        .get(key)
-        .ok_or_else(|| ProfileError::InvalidInput(format!("state payload has no `{key}`")))?;
-    value
-        .as_str()
-        .ok_or_else(|| ProfileError::InvalidInput(format!("`{key}` must be a string")))
+    let subject = |s: &'projection SubjectId| -> &'projection str { &s.0 };
+    let text: &'projection str = match &projection.state {
+        ResourceState::UniqueAsset(v) => match key {
+            "owner" => &v.owner.0,
+            "status" => v.status.as_str(),
+            _ => return Err(no_field(key)),
+        },
+        ResourceState::ConsumableStack(v) => match key {
+            "subject" => subject(&v.subject),
+            "unit" => &v.unit,
+            _ => return Err(no_field(key)),
+        },
+        ResourceState::FungibleBalance(v) => match key {
+            "subject" => subject(&v.subject),
+            "unit" => &v.unit,
+            _ => return Err(no_field(key)),
+        },
+        ResourceState::Entitlement(v) => match key {
+            "subject" => subject(&v.subject),
+            "status" => v.status.as_str(),
+            _ => return Err(no_field(key)),
+        },
+        ResourceState::MeteredResource(v) => match key {
+            "subject" => subject(&v.subject),
+            _ => return Err(no_field(key)),
+        },
+        ResourceState::Listing(v) => match key {
+            "seller" => subject(&v.seller),
+            "status" => v.status.as_str(),
+            _ => return Err(no_field(key)),
+        },
+        ResourceState::Escrow(v) => match key {
+            "buyer" => subject(&v.buyer),
+            "seller" => subject(&v.seller),
+            "status" => v.status.as_str(),
+            _ => return Err(no_field(key)),
+        },
+    };
+    if text.is_empty() {
+        return Err(ProfileError::InvalidInput(format!(
+            "`{key}` must not be empty"
+        )));
+    }
+    Ok(text)
+}
+
+/// Reads the `trade_id` bound to a trade-held unique asset.
+///
+/// # Errors
+///
+/// Returns [`ProfileError::InvalidInput`] when the payload is not a
+/// trade-held unique asset carrying a `trade_id`.
+pub(crate) fn state_trade_id(projection: &StateProjection) -> Result<&str, ProfileError> {
+    match &projection.state {
+        ResourceState::UniqueAsset(v) => v
+            .trade_id
+            .as_deref()
+            .ok_or_else(|| ProfileError::InvalidInput(String::from("state has no `trade_id`"))),
+        _ => Err(ProfileError::InvalidInput(String::from(
+            "state has no `trade_id`",
+        ))),
+    }
+}
+
+/// Reads an exact fixed-point amount field from a projection's typed state.
+///
+/// # Errors
+///
+/// Returns [`ProfileError::InvalidInput`] when the payload has no `key` amount
+/// field.
+pub(crate) fn state_amount(
+    projection: &StateProjection,
+    key: &str,
+) -> Result<Amount, ProfileError> {
+    let amount = match &projection.state {
+        ResourceState::ConsumableStack(v) if key == "quantity" => v.quantity,
+        ResourceState::FungibleBalance(v) if key == "balance" => v.balance,
+        ResourceState::MeteredResource(v) if key == "remaining" => v.remaining,
+        ResourceState::MeteredResource(v) if key == "maximum" => v.maximum,
+        _ => return Err(no_field(key)),
+    };
+    Ok(amount)
+}
+
+/// Reads a boolean field from a projection's typed state payload.
+///
+/// # Errors
+///
+/// Returns [`ProfileError::InvalidInput`] when the payload has no `key` boolean
+/// field.
+pub(crate) fn state_bool(projection: &StateProjection, key: &str) -> Result<bool, ProfileError> {
+    match &projection.state {
+        ResourceState::Entitlement(v) if key == "transferable" => Ok(v.transferable),
+        _ => Err(no_field(key)),
+    }
+}
+
+/// Builds a missing-state-field error.
+fn no_field(key: &str) -> ProfileError {
+    ProfileError::InvalidInput(format!("state payload has no `{key}`"))
 }
 
 /// Parses a non-negative integer stored as a canonical integer string.

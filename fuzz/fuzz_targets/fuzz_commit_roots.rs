@@ -1,4 +1,5 @@
 #![no_main]
+#![allow(clippy::collapsible_if, clippy::manual_is_multiple_of)]
 
 use libfuzzer_sys::fuzz_target;
 
@@ -10,6 +11,7 @@ use statechronicle_domain::event::{Event, StateCommitment};
 use statechronicle_domain::ids::{EventId, IntentId};
 use statechronicle_domain::intent::Operation;
 use statechronicle_domain::resource::ResourceId;
+use statechronicle_domain::resource_state::ResourceState;
 use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 
@@ -31,17 +33,17 @@ fuzz_target!(|data: &[u8]| {
 
     // state_root_updates + compute_state_root never panic, are deterministic,
     // and are independent of insertion order.
-    if let Ok(updates) = state_root_updates(&events)
-        && let Ok(root) = compute_state_root(&updates)
-    {
-        let again = compute_state_root(&updates);
-        assert!(again.is_ok());
-        assert_eq!(root, again.unwrap());
+    if let Ok(updates) = state_root_updates(&events) {
+        if let Ok(root) = compute_state_root(&updates) {
+            let again = compute_state_root(&updates);
+            assert!(again.is_ok());
+            assert_eq!(root, again.unwrap());
 
-        let mut reversed = updates.clone();
-        reversed.reverse();
-        if let Ok(other) = compute_state_root(&reversed) {
-            assert_eq!(root, other);
+            let mut reversed = updates.clone();
+            reversed.reverse();
+            if let Ok(other) = compute_state_root(&reversed) {
+                assert_eq!(root, other);
+            }
         }
     }
 });
@@ -70,27 +72,30 @@ fn build_event(chunk: &[u8], index: usize) -> Option<Event> {
     let owner = format!("account:example:player_{}", index % 17);
     // Every third event is subject-held, exercising the `for_subject_held`
     // key derivation; the rest are owner-based (`for_resource`).
-    let (state, resource) = if index.is_multiple_of(3) {
+    let (state, resource, state_type) = if index % 3 == 0 {
         (
             serde_json::json!({ "subject": &owner, "quantity": "1", "unit": "items" }),
             format!("stack:item_{index}"),
+            statechronicle_domain::state_type::StateType::ConsumableStack,
         )
     } else {
         (
             serde_json::json!({ "owner": &owner, "status": "active" }),
             format!("asset:item_{index}"),
+            statechronicle_domain::state_type::StateType::UniqueAsset,
         )
     };
+    let state = ResourceState::from_legacy_json(state_type, state).ok()?;
     let state_hash = canonicalize_and_digest(&state).ok()?;
     let after = StateCommitment {
         version: index as u64,
         state_hash: state_hash.clone(),
-        state,
+        state: state.clone(),
     };
     let before = StateCommitment {
         version: after.version,
         state_hash,
-        state: serde_json::json!({}),
+        state: state.clone(),
     };
     Some(Event::new(
         TenantId(String::from("acme.game.alpha")),

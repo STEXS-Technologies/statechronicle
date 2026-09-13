@@ -2,7 +2,7 @@
 //!
 //! Pure, deterministic gates evaluated by the pipeline before any transition
 //! is accepted. Every function here is total: malformed input produces an
-//! [`ExecutorError`] variant, never a panic. Each gate mirrors one line of
+//! [`ExecutorError`](crate::error::ExecutorError) variant, never a panic. Each gate mirrors one line of
 //! protocol §18.2's "must fail closed" list.
 
 use std::collections::BTreeMap;
@@ -117,7 +117,8 @@ pub fn check_expected_version(
 ///
 /// Returns [`ExecutorError::TenantScopeMissing`] when `intent.tenant_id` is
 /// empty.
-pub const fn check_tenant_scope(intent: &Intent) -> Result<(), ExecutorError> {
+#[allow(clippy::missing_const_for_fn)]
+pub fn check_tenant_scope(intent: &Intent) -> Result<(), ExecutorError> {
     if intent.tenant_id.0.is_empty() {
         return Err(ExecutorError::TenantScopeMissing);
     }
@@ -152,9 +153,9 @@ pub fn check_owner(
     };
     let Some(expected) = projection
         .state
-        .get("owner")
-        .and_then(Value::as_str)
-        .or_else(|| projection.state.get("subject").and_then(Value::as_str))
+        .owner()
+        .or_else(|| projection.state.subject())
+        .map(|subject| subject.0.as_str())
     else {
         return Ok(());
     };
@@ -186,7 +187,7 @@ pub fn check_resource_availability(
     current: &StateProjection,
     operation: &Operation,
 ) -> Result<(), ExecutorError> {
-    let Some(status_str) = current.state.get("status").and_then(Value::as_str) else {
+    let Some(status_str) = current.state.status().map(Status::as_str) else {
         return Ok(());
     };
     // An unrecognized status string fails closed: it is treated as locked so
@@ -343,7 +344,10 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state,
+            state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                state_type, state,
+            )
+            .unwrap(),
         }
     }
 

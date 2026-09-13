@@ -1,6 +1,8 @@
 //! Commit body assembly (protocol §13.1).
 //!
-//! [`CommitBuilder`] turns a validated [`CommitBatch`] into a [`Commit`]: it
+//! [`CommitBuilder`](crate::builder::CommitBuilder) turns a validated
+//! [`CommitBatch`](crate::batch::CommitBatch) into a
+//! [`Commit`](statechronicle_domain::commit::Commit): it
 //! computes the event Merkle root, derives the batch's state updates, computes
 //! the next state root on top of the caller's prior state, and assembles the
 //! body. The commit id is supplied per build through an injected generator.
@@ -202,12 +204,20 @@ mod tests {
             StateCommitment {
                 version: 41,
                 state_hash: hash_bytes(b"before"),
-                state: serde_json::json!({}),
+                state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                    statechronicle_domain::state_type::StateType::UniqueAsset,
+                    serde_json::json!({"owner":"alice","status":"active"}),
+                )
+                .unwrap(),
             },
             StateCommitment {
                 version: 42,
                 state_hash: hash_bytes(b"after"),
-                state,
+                state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                    statechronicle_domain::state_type::StateType::UniqueAsset,
+                    state,
+                )
+                .unwrap(),
             },
             None,
             executor(),

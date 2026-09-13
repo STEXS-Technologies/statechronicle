@@ -71,7 +71,11 @@ fn checkpoint_key_id() -> KeyId {
 }
 
 fn commitment(version: u64, owner: &str) -> StateCommitment {
-    let state = serde_json::json!({ "owner": owner, "status": "active" });
+    let state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+        statechronicle_domain::state_type::StateType::UniqueAsset,
+        serde_json::json!({ "owner": owner, "status": "active" }),
+    )
+    .unwrap();
     StateCommitment {
         version,
         state_hash: canonicalize_and_digest(&state).unwrap(),

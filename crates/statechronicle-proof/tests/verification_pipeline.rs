@@ -118,12 +118,15 @@ fn event_id() -> EventId {
 }
 
 /// The claimed state committed at the proven leaf.
-fn claimed_state() -> serde_json::Value {
-    serde_json::json!({
-        "owner": owner(),
-        "status": "active",
-        "version": 42,
-    })
+fn claimed_state() -> statechronicle_domain::resource_state::ResourceState {
+    statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+        StateType::UniqueAsset,
+        serde_json::json!({
+            "owner": owner(),
+            "status": "active",
+        }),
+    )
+    .unwrap()
 }
 
 fn state_hash() -> ContentDigest {
@@ -241,11 +244,14 @@ fn ownership_check_rejects_wrong_subject() {
 fn claimed_state_tamper_is_rejected() {
     let fixture = fixture();
     let mut proof = build_proof(&fixture);
-    proof.claimed_state = serde_json::json!({
-        "owner": "account:example:player_789",
-        "status": "active",
-        "version": 42,
-    });
+    proof.claimed_state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+        StateType::UniqueAsset,
+        serde_json::json!({
+            "owner": "account:example:player_789",
+            "status": "active",
+        }),
+    )
+    .unwrap();
     let key = derive_state_key(&proof).unwrap();
     assert!(matches!(
         verify_bundle(&proof, &fixture.signed, &fixed_key().verifying_key(), &key),

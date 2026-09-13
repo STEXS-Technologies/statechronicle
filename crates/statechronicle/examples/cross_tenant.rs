@@ -4,7 +4,9 @@
 //! tenants (alpha transfers an asset, beta transfers a balance), sharing one
 //! intent id, and commits one tenant-scoped event group per tenant. A failing
 //! variant (beta declares a stale expected version) rolls the whole transaction
-//! back atomically.
+//! back atomically in memory. The transaction wrapper is symbolic in this
+//! example; production callers must use `execute_cross_tenant_durable` with a
+//! single-database durable sink.
 
 #![allow(
     clippy::panic,

@@ -156,3 +156,15 @@ name = "fuzz_trade_proof_verify"
 path = "fuzz_targets/fuzz_trade_proof_verify.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "fuzz_settle_batch"
+path = "fuzz_targets/fuzz_settle_batch.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_cross_tenant_trade"
+path = "fuzz_targets/fuzz_cross_tenant_trade.rs"
+test = false
+doc = false

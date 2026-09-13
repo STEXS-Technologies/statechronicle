@@ -1,0 +1,29 @@
+[package]
+name = "statechronicle-postgres"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "PostgreSQL durable ledger adapter for StateChronicle"
+
+[dependencies]
+async-trait.workspace = true
+bcs.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "time"] }
+tokio-postgres = { workspace = true, features = ["with-chrono-0_4"] }
+openssl = { version = "0.10", optional = true }
+postgres-openssl = { version = "0.5.3", optional = true }
+uuid.workspace = true
+statechronicle-core.workspace = true
+statechronicle-commit.workspace = true
+statechronicle-domain.workspace = true
+statechronicle-ports.workspace = true
+tracing.workspace = true
+
+[features]
+default = []
+tls = ["dep:openssl", "dep:postgres-openssl"]
+
+[lints]
+workspace = true

@@ -1,6 +1,6 @@
 //! Index and trade-service error types.
 //!
-//! [`IndexError`] is produced by the pure builder; [`TradeServiceError`] by the
+//! [`IndexError`](crate::error::IndexError) is produced by the pure builder; [`TradeServiceError`](crate::error::TradeServiceError) by the
 //! async service as it maps port and builder failures into a single type.
 
 use statechronicle_domain::error::DomainError;

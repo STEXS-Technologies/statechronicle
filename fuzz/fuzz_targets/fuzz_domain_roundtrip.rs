@@ -1,4 +1,5 @@
 #![no_main]
+#![allow(clippy::collapsible_if)]
 
 use std::str::FromStr;
 
@@ -77,16 +78,18 @@ fuzz_target!(|data: &[u8]| {
     let Ok(text) = std::str::from_utf8(data) else {
         return;
     };
-    if let Ok(op) = Operation::from_str(text)
-        && let Ok(json) = serde_json::to_string(&op)
-        && let Ok(decoded) = serde_json::from_str::<Operation>(&json)
-    {
-        assert_eq!(decoded, op);
+    if let Ok(op) = Operation::from_str(text) {
+        if let Ok(json) = serde_json::to_string(&op) {
+            if let Ok(decoded) = serde_json::from_str::<Operation>(&json) {
+                assert_eq!(decoded, op);
+            }
+        }
     }
-    if let Ok(status) = Status::try_from_str(text)
-        && let Ok(json) = serde_json::to_string(&status)
-        && let Ok(decoded) = serde_json::from_str::<Status>(&json)
-    {
-        assert_eq!(decoded, status);
+    if let Ok(status) = Status::try_from_str(text) {
+        if let Ok(json) = serde_json::to_string(&status) {
+            if let Ok(decoded) = serde_json::from_str::<Status>(&json) {
+                assert_eq!(decoded, status);
+            }
+        }
     }
 });

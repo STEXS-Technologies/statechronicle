@@ -297,7 +297,10 @@ mod tests {
             last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
             last_commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
             state_hash: ContentDigest::new([0u8; 32]),
-            state,
+            state: statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+                state_type, state,
+            )
+            .unwrap(),
         }
     }
 

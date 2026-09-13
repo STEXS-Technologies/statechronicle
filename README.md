@@ -13,8 +13,9 @@ produce.
 It is a *pure-logic* engine: it ships no database, no HTTP server, and no
 authorization system. Those are the consumer's job, supplied behind eleven small
 trait interfaces (`statechronicle-ports`) and wired together at the consumer's
-composition root. What you get instead is a deterministic, fully testable core
-that cannot silently diverge, lose a transaction, or round a balance.
+composition root. What you get instead is a deterministic, fully testable core;
+durability and atomicity guarantees apply only when the consumer supplies an
+adapter satisfying the durable `LedgerStore` contract.
 
 ## Use cases
 
@@ -52,10 +53,25 @@ that cannot silently diverge, lose a transaction, or round a balance.
 - **Portable proofs**: state, ownership, and non-membership proofs anyone can
   verify against a signed commit, without the full history (a balance is proven
   as a state proof over a balance projection).
-- **Atomic settlement**: `execute_batch` and `execute_cross_tenant` commit
-  multi-resource (and multi-tenant) transactions all-or-nothing, so a purchase
-  that spans an asset, a listing, an escrow, and two wallets either lands whole
-  or not at all (protocol §18.3).
+- **Atomic settlement planning**: `execute_batch` and
+  `execute_cross_tenant` validate multi-resource (and multi-tenant) work
+  all-or-nothing in memory. To make the result durable, route the events
+  through `statechronicle_commit::persist_durable_verified` and a
+  `LedgerStore`; the legacy executor methods alone do not provide a durable
+  commit boundary.
+  Player-facing code should use `Executor::execute_player_durable` with a
+  `DurableMutationSink`, which refuses success until the composition root has
+  completed the verified durable write.
+  Player-driven shared-inventory, marketplace, and settlement batches should
+  use `Executor::execute_player_batch_durable_with_key_registry`, which binds
+  a principal and registered key to every item. `execute_batch_durable` is for
+  explicitly trusted service jobs; plain batch methods remain planning-only.
+  Value-leg settlements have the equivalent `execute_settle_durable` route for
+  trusted service jobs.
+  Generic cross-tenant batches should use `Executor::execute_cross_tenant_durable`
+  with the same single-database sink; the plain method remains planning-only.
+  Cross-tenant trades use `execute_cross_tenant_trade_durable`; the sink must
+  persist all tenant legs in one supported database transaction.
 - **Delegated authority**: the executor checks, per operation, whether a
   delegated third party may act on a resource. The evaluator behind this check
   is a pluggable trait (TrustGrant is one option; your own policy engine is
@@ -78,13 +94,13 @@ every time.
 | `currency` | `cargo run -p statechronicle --example currency` | Fungible balance lifecycle with an atomic debit + credit transfer and exact amount math |
 | `stack` | `cargo run -p statechronicle --example stack` | Consumable stack lifecycle |
 | `access` | `cargo run -p statechronicle --example access` | Entitlement and meter lifecycles |
-| `marketplace` | `cargo run -p statechronicle --example marketplace` | Atomic purchase settlement via `execute_batch` |
-| `cross_tenant` | `cargo run -p statechronicle --example cross_tenant` | Cross-tenant atomic transaction via `execute_cross_tenant` |
+| `marketplace` | `cargo run -p statechronicle --example marketplace` | In-memory purchase-settlement planning via `execute_batch` (player ingress uses the authenticated durable batch route in production) |
+| `cross_tenant` | `cargo run -p statechronicle --example cross_tenant` | In-memory cross-tenant validation via `execute_cross_tenant` (use `execute_cross_tenant_durable` in production) |
 | `proofs` | `cargo run -p statechronicle --example proofs` | State, ownership, and non-membership proofs |
 | `paid_asset` | `cargo run -p statechronicle --example paid_asset` | Paid unique asset overlay: owner consent and hard delete |
-| `trade_value` | `cargo run -p statechronicle --example trade_value` | Asset-for-gold value-leg settlement via `execute_settle` |
-| `trade_cross_tenant` | `cargo run -p statechronicle --example trade_cross_tenant` | Cross-tenant trade settlement via `execute_cross_tenant_trade` |
-| `trade_bundle` | `cargo run -p statechronicle --example trade_bundle` | Multi-asset bundle settlement in one atomic commit |
+| `trade_value` | `cargo run -p statechronicle --example trade_value` | In-memory asset-for-gold settlement planning via `execute_settle` (use `execute_settle_durable` in production) |
+| `trade_cross_tenant` | `cargo run -p statechronicle --example trade_cross_tenant` | In-memory cross-tenant trade planning via `execute_cross_tenant_trade` (use the durable variant in production) |
+| `trade_bundle` | `cargo run -p statechronicle --example trade_bundle` | In-memory multi-asset bundle planning (persist through a durable batch sink in production) |
 
 The examples construct validated intents both ways: the typed path
 (`Intent::new` → `ValidatedIntent::from_intent`) is the workhorse across most
@@ -155,7 +171,9 @@ let raw = parse_intent(&bytes)?;      // cheap structural check + size limit
 let validated = validate(&raw)?;      // schema, newtypes, expiry, signature
 ```
 
-Both paths produce the same `ValidatedIntent` and feed the same executor.
+Both paths produce the same `ValidatedIntent` and feed the same executor. The
+executor is a planning/validation layer; persistence is an explicit subsequent
+step through the durable commit API.
 
 ## Example: a full lifecycle
 
@@ -164,8 +182,9 @@ The fastest way to see the whole pipeline wired is
 transfer → lock → unlock → restrict → restore → burn, with fail-closed
 rejections). For the tamper and non-membership proof variants, see the end-to-end
 test in `crates/statechronicle/tests/e2e.rs` (run with `cargo test -p
-statechronicle`). Both build the signed commit + state accumulator exactly as a
-production composition root would.
+statechronicle`). These examples demonstrate deterministic planning and commit
+formation; production deployments must add authenticated ingress and the
+durable adapter/recovery controls described in `TODO.md`.
 
 ## Crate map
 
@@ -180,7 +199,9 @@ production composition root would.
 | `statechronicle-accumulator` | Sparse-Merkle state accumulator and state roots |
 | `statechronicle-proof` | Proof serving and verification (incl. non-membership) |
 | `statechronicle-profiles` | Baseline resource profiles and their rule sets |
-| `statechronicle-ports` | The eleven backend-agnostic port traits consumers implement |
+| `statechronicle-ports` | Backend-agnostic storage, transaction, authorization, and delivery port traits |
+| `statechronicle-sqlite` | SQLite durable ledger transaction adapter for single-database deployments |
+| `statechronicle-postgres` | PostgreSQL `SERIALIZABLE` durable ledger adapter for server-database deployments |
 
 Each crate carries a README with a "Protocol sections owned" table, so the
 section numbers referenced throughout this workspace resolve to a concrete
@@ -191,9 +212,10 @@ owner.
 StateChronicle separates two distinct concerns:
 
 - **Platform basic authorization**: owner/actor identity and basic
-  authorization are your platform's own auth system, applied before (or
-  alongside) the execution pipeline. StateChronicle does not implement general
-  authorization.
+  authorization must be supplied through `statechronicle-ports::authorization`
+  and applied before the durable execution path. `DenyAllAuthorizer` is the
+  safe default; the executor's legacy pure-planning API is not a public auth
+  boundary.
 - **Delegated-authority evaluation**: the `TrustGrantEvaluator` port (in
   `statechronicle-ports`) is a **delegation-of-authority boundary**, not a
   general auth system. It is trait-only and dependency-free by construction: it
@@ -216,6 +238,9 @@ StateChronicle separates two distinct concerns:
 | `TenantStore` | Tenant scope existence resolution |
 | `TrustGrantEvaluator` | Delegated-authority evaluation and freshness checks (trait-only; TrustGrant is one option) |
 | `TransactionManager` | Atomic multi-store transaction coordination |
+| `LedgerStore` / `LedgerTransaction` | One durable mutation boundary for idempotency, events, signed commits, projections, and outbox |
+| `Authorizer` | Authenticated principal binding and default-deny policy |
+| `OutboxStore` | Lease-based post-commit delivery and retry |
 | `EventPublisher` | Delivery of committed events and signed commits |
 | `TradeIndex` | Keyed read access to accumulated trade records (`trade_id` → `TradeRecord`) |
 
@@ -226,12 +251,64 @@ then wire them into `Executor::new` and `ProofService`. The composition root
 generator are assembled) is owned by the consuming platform, not by
 StateChronicle.
 
+## Durable adapter
+
+The workspace includes `statechronicle-sqlite`, a reference SQLite adapter for
+the durable ledger contract. It enforces unique event/commit/idempotency keys,
+canonical head continuity, monotonic projections, and transactional outbox
+writes. Call `SqliteLedgerStore::verify_all_integrity` during startup/restore
+and block writes on any reported chain or orphan-event violation. Use a server
+database adapter for horizontally scaled writers; do not use the legacy
+non-transactional `persist` API for valuable mutations.
+`SqliteLedgerStore::open_verified` combines opening and the fail-closed scan
+for startup code that must not expose a writable store before verification.
+Use `persist_durable_verified` when the composition root has a commit
+signature/KMS verifier; `Ed25519CommitVerifier` adapts a tenant-scoped key
+resolver and verifies trust before reserving idempotency state.
+For horizontally scaled writers, use `statechronicle-postgres` with the
+reviewed PostgreSQL schema and migration process; it provides `SERIALIZABLE`
+transactions, deterministic multi-tenant head locking, and canonical-head
+locking. Cross-tenant settlement is safe only when all tenant rows share this
+single database transaction and the caller validates a tenant/commit manifest;
+independent databases are not atomic.
+Use `PostgresLedgerStore::new_verified` to require an all-tenant integrity scan
+before exposing the store to mutation traffic.
+TLS deployments can use `new_with_tls_verified` for the same fail-closed gate.
+Enable the adapter's `tls` feature and use `PostgresLedgerStore::new_with_tls`
+with a reviewed CA file when database traffic crosses a trust boundary.
+The required relational schema, locking order, isolation, and fault-injection
+test contract for that adapter is documented in
+[the relational adapter contract](docs/OPERATIONS/RELATIONAL_ADAPTER.md).
+Run `scripts/run_postgres_integration.sh` for a reproducible local PostgreSQL
+16 integration gate; it removes its temporary container on exit.
+Proof endpoints should use `ProofService::verify_canonical` (or
+`verify_with_key_canonical`) so verification fails closed when the requested
+commit is not the tenant's current canonical head.
+
+The `statechronicle_ports::outbox::dispatch_once` helper supplies a bounded
+worker pass: it claims leased rows, verifies payload digests, publishes through
+the consumer's broker adapter, and releases failed deliveries for retry.
+Operators should follow [the recovery runbook](docs/OPERATIONS/RECOVERY.md)
+for startup integrity checks, restore promotion, projection rebuilds, outbox
+incidents, and signer compromise.
+
+For derived read models, `statechronicle_index::rebuild_projections` replays a
+verified `(event, commit_id)` stream, selects the latest version per scoped
+resource, rejects conflicting equal versions, and writes through an injected
+projection sink.
+Large histories can use `rebuild_projections_chunk` and persist its returned
+checkpoint between bounded passes.
+The SQLite adapter additionally exposes `canonical_events` and
+`rebuild_projections_from_canonical`, which verify the tenant chain before
+replaying its durable event stream with persisted checkpoints. Operator
+checkpoint keys are tenant-scoped; clear them with
+`clear_rebuild_checkpoint_for_tenant` after promotion.
+
 ## What's not included
 
-StateChronicle ships no HTTP server, no database, no object store, no queue,
-and no authority implementation. It is a pure-logic engine. Any such concerns
-are the consumer's, supplied through the `statechronicle-ports` traits and
-wired at the composition root.
+StateChronicle ships no HTTP server, object store, queue worker, or authority
+policy implementation. Those concerns remain the consumer's, supplied through
+the ports and wired at the composition root.
 
 ## Protocol section index
 
@@ -262,9 +339,11 @@ below maps every section to its owning crate README.
 
 ## Verification
 
-The workspace is fully test-locked (716 tests; check/test/clippy/fmt gates),
+The workspace is fully test-locked (workspace test suite; check/test/clippy/fmt gates),
 and every protocol decision is recorded in `docs/DESIGN/ADR/`, with ADR-006
 resolving the open protocol questions.
+Run `scripts/run_release_checks.sh` to execute the finite workspace, security,
+dependency, and bounded fuzz gates in one reproducible command.
 
 ## Where to go next
 

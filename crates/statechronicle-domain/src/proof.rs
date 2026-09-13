@@ -2,7 +2,7 @@
 //!
 //! Proof bundles prove current state, historical inclusion, and ownership
 //! without replaying the full history. The v0 proof bundle references the
-//! enclosing signed commit via [`CommitRef`], whose signature block lets a
+//! enclosing signed commit via [`CommitRef`](crate::proof::CommitRef), whose signature block lets a
 //! verifier check the commit signature against the bundle (protocol §16.2,
 //! §16.3).
 
@@ -14,6 +14,7 @@ use crate::authority::AuthorityProof;
 use crate::ids::{CommitId, EventId};
 use crate::intent::{Operation, SignatureBlock};
 use crate::resource::ResourceId;
+use crate::resource_state::ResourceState;
 use crate::tenant::TenantId;
 
 /// Schema identifier for v0 resource state proofs (protocol §16.2).
@@ -107,7 +108,7 @@ pub struct ResourceStateProof {
     /// The resource whose state is claimed.
     pub resource_id: ResourceId,
     /// The claimed current state projection.
-    pub claimed_state: serde_json::Value,
+    pub claimed_state: ResourceState,
     /// The signed commit that pins the state root.
     pub commit: CommitRef,
     /// The sparse Merkle inclusion proof of the claimed leaf.
@@ -124,7 +125,7 @@ impl ResourceStateProof {
     pub fn new(
         tenant_id: TenantId,
         resource_id: ResourceId,
-        claimed_state: serde_json::Value,
+        claimed_state: ResourceState,
         commit: CommitRef,
         state_inclusion_proof: SparseMerkleProof,
         latest_event: EventRef,
@@ -193,6 +194,7 @@ impl NonMembershipProofBundle {
 mod tests {
     use super::*;
     use crate::intent::{KeyId, SignatureAlg};
+    use crate::resource_state::UniqueAssetState;
     use statechronicle_core::digest::hash_bytes;
     use statechronicle_core::signature::Signature;
 
@@ -209,7 +211,11 @@ mod tests {
         ResourceStateProof::new(
             TenantId(String::from("acme.game.alpha")),
             ResourceId(String::from("asset:sword_001")),
-            serde_json::json!({ "owner": "account:example:player_456", "status": "active" }),
+            ResourceState::UniqueAsset(UniqueAssetState {
+                owner: crate::subject::SubjectId(String::from("account:example:player_456")),
+                status: crate::status::Status::from_static("active"),
+                trade_id: None,
+            }),
             CommitRef {
                 commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
                 sequence: 918273,
@@ -262,14 +268,13 @@ mod tests {
 
     #[test]
     fn bcs_canonicalization_is_deterministic() {
-        // `claimed_state` is `serde_json::Value`, BCS-encodable but not
-        // BCS-decodable (BCS is not self-describing, ADR-004), so the BCS
-        // check is encode-side determinism.
+        // `claimed_state` is a typed struct, so BCS both encodes and decodes.
         let proof = sample_proof();
         let first = bcs::to_bytes(&proof).unwrap();
         let second = bcs::to_bytes(&proof).unwrap();
         assert_eq!(first, second);
         assert!(!first.is_empty());
+        let _: ResourceStateProof = bcs::from_bytes(&first).unwrap();
     }
 
     fn sample_non_membership() -> NonMembershipProofBundle {

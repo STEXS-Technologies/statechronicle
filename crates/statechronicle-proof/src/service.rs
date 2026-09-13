@@ -1,12 +1,12 @@
 //! Proof service (protocol §16, reference service `get_*_proof` /
 //! `verify_proof` operations).
 //!
-//! [`ProofService`] is the async composition layer over the proof lane's
+//! [`ProofService`](crate::service::ProofService) is the async composition layer over the proof lane's
 //! driven ports: it serves portable state, ownership, and inclusion proofs
-//! through the [`ProofIndex`] port, loads the enclosing signed commit through
-//! the [`CommitStore`] port for bundle verification, fetches snapshot
-//! payloads through the [`SnapshotStore`] port, and exposes current-state
-//! projections through the [`StateIndex`] port. All verification is delegated
+//! through the [`ProofIndex`](statechronicle_ports::proof_index::ProofIndex) port, loads the enclosing signed commit through
+//! the [`CommitStore`](statechronicle_ports::commit_store::CommitStore) port for bundle verification, fetches snapshot
+//! payloads through the [`SnapshotStore`](statechronicle_ports::snapshot_store::SnapshotStore) port, and exposes current-state
+//! projections through the [`StateIndex`](statechronicle_ports::state_index::StateIndex) port. All verification is delegated
 //! to the pure [`crate::verify`] functions; the service itself holds no
 //! verification logic.
 
@@ -306,16 +306,100 @@ impl ProofService {
         verify_bundle(proof, &signed, verifying_key, key)
     }
 
+    /// Verifies a proof and additionally requires its commit to be the
+    /// adapter's current canonical tenant head.
+    ///
+    /// This is the recommended method for serving player-facing proofs when
+    /// the caller means "current" state. Plain [`Self::verify`] remains
+    /// useful for historical proofs pinned to an explicitly selected commit.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProofError::CanonicalHeadUnavailable`] when the commit store
+    /// does not expose a canonical head, [`ProofError::NonCanonicalCommit`]
+    /// when the signed commit is not that head, and otherwise the same errors
+    /// as [`Self::verify`].
+    pub async fn verify_canonical(
+        &self,
+        proof: &ResourceStateProof,
+        verifying_key: &VerifyingKey,
+    ) -> Result<(), ProofError> {
+        let key = derive_state_key(proof)?;
+        let Some(signed) = self
+            .ports
+            .commit_store
+            .commit_by_id(&proof.tenant_id, &proof.commit.commit_id)
+            .await
+            .map_err(|err| ProofError::Store(err.to_string()))?
+        else {
+            return Err(ProofError::NotFound);
+        };
+        self.ensure_canonical(&proof.tenant_id, &signed).await?;
+        verify_bundle(proof, &signed, verifying_key, &key)
+    }
+
+    /// Variant of [`Self::verify_canonical`] with an explicit state key.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Self::verify_canonical`] and
+    /// [`Self::verify_with_key`].
+    pub async fn verify_with_key_canonical(
+        &self,
+        proof: &ResourceStateProof,
+        verifying_key: &VerifyingKey,
+        key: &StateKey,
+    ) -> Result<(), ProofError> {
+        let Some(signed) = self
+            .ports
+            .commit_store
+            .commit_by_id(&proof.tenant_id, &proof.commit.commit_id)
+            .await
+            .map_err(|err| ProofError::Store(err.to_string()))?
+        else {
+            return Err(ProofError::NotFound);
+        };
+        self.ensure_canonical(&proof.tenant_id, &signed).await?;
+        verify_bundle(proof, &signed, verifying_key, key)
+    }
+
+    async fn ensure_canonical(
+        &self,
+        tenant: &TenantId,
+        signed: &Signed<Commit>,
+    ) -> Result<(), ProofError> {
+        let head = self
+            .ports
+            .commit_store
+            .canonical_head(tenant)
+            .await
+            .map_err(|err| ProofError::Store(err.to_string()))?
+            .ok_or(ProofError::CanonicalHeadUnavailable)?;
+        if head.commit_id != signed.body.commit_id
+            || head.sequence != signed.body.sequence
+            || head.state_root != signed.body.next_state_root
+        {
+            return Err(ProofError::NonCanonicalCommit {
+                tenant: tenant.0.clone(),
+                commit_id: signed.body.commit_id.0.clone(),
+            });
+        }
+        Ok(())
+    }
+
     /// Verifies a trade proof end-to-end.
     ///
-    /// Loads each leg's signed settle commit through the [`CommitStore`] port
-    /// (one per tenant), resolves each tenant's verifying key through
-    /// `key_for_tenant`, and runs the pure [`verify_trade_proof`] pipeline.
+    /// Loads every distinct signed settle commit each leg's state proofs pin
+    /// (a tenant may settle two assets of one trade in two different commits)
+    /// through the [`CommitStore`] port, resolves each leg's tenant verifying
+    /// key through `key_for_tenant`, and runs the pure [`verify_trade_proof`]
+    /// pipeline, which resolves each proof against the commit its own
+    /// `commit_ref` names.
     ///
     /// # Errors
     ///
     /// Returns [`ProofError::Store`] when the commit store cannot be reached,
-    /// [`ProofError::NotFound`] when a leg's commit is not stored,
+    /// [`ProofError::NotFound`] when a state proof's own commit is not stored,
     /// [`ProofError::KeyNotFound`] when `key_for_tenant` resolves no key for a
     /// leg's tenant, and every [`ProofError`] variant of [`verify_trade_proof`].
     pub async fn verify_trade(
@@ -323,25 +407,27 @@ impl ProofService {
         proof: &TradeProof,
         key_for_tenant: &dyn Fn(&TenantId) -> Option<VerifyingKey>,
     ) -> Result<(), ProofError> {
-        let mut commits_by_tenant: BTreeMap<String, (Signed<Commit>, VerifyingKey)> =
-            BTreeMap::new();
+        let mut commits_by_id: BTreeMap<String, (Signed<Commit>, VerifyingKey)> = BTreeMap::new();
         for leg in &proof.legs {
-            if commits_by_tenant.contains_key(&leg.tenant.0) {
-                continue;
+            for state_proof in &leg.state_proofs {
+                let commit_id = state_proof.commit.commit_id.0.clone();
+                if commits_by_id.contains_key(&commit_id) {
+                    continue;
+                }
+                let Some(signed) = self
+                    .ports
+                    .commit_store
+                    .commit_by_id(&leg.tenant, &state_proof.commit.commit_id)
+                    .await
+                    .map_err(|err| ProofError::Store(err.to_string()))?
+                else {
+                    return Err(ProofError::NotFound);
+                };
+                let verifying_key = key_for_tenant(&leg.tenant)
+                    .ok_or_else(|| ProofError::KeyNotFound(leg.tenant.0.clone()))?;
+                commits_by_id.insert(commit_id, (signed, verifying_key));
             }
-            let Some(signed) = self
-                .ports
-                .commit_store
-                .commit_by_id(&leg.tenant, &leg.commit.commit_id)
-                .await
-                .map_err(|err| ProofError::Store(err.to_string()))?
-            else {
-                return Err(ProofError::NotFound);
-            };
-            let verifying_key = key_for_tenant(&leg.tenant)
-                .ok_or_else(|| ProofError::KeyNotFound(leg.tenant.0.clone()))?;
-            commits_by_tenant.insert(leg.tenant.0.clone(), (signed, verifying_key));
         }
-        verify_trade_proof(proof, &commits_by_tenant)
+        verify_trade_proof(proof, &commits_by_id)
     }
 }
