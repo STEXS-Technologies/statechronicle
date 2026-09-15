@@ -288,7 +288,7 @@ async fn tenant_scoped_authority_deny_aborts_whole_transaction() {
 }
 
 #[tokio::test]
-async fn fully_replayed_cross_tenant_batch_aborts_and_rolls_back() {
+async fn pure_cross_tenant_planning_does_not_claim_intents() {
     let harness = Harness::new(FakeTrustGrant::allow());
     let alpha = alpha();
     let beta = beta();
@@ -342,8 +342,9 @@ async fn fully_replayed_cross_tenant_batch_aborts_and_rolls_back() {
         ),
     ];
 
-    // First submission commits the batch; the intent store now holds every
-    // intent with an identical payload.
+    // Pure cross-tenant execution is a planning API. It returns events and
+    // records only the symbolic transaction outcome; the independent intent
+    // store is not mutated.
     let first = harness
         .executor
         .execute_cross_tenant(&intents)
@@ -355,15 +356,14 @@ async fn fully_replayed_cross_tenant_batch_aborts_and_rolls_back() {
         vec!["begin_multi:acme.game.alpha,acme.game.beta", "commit"]
     );
 
-    // Re-submitting the same batch fully replays: every leg emits no events,
-    // so the empty groups carry no cross-tenant intent linkage and the whole
-    // transaction aborts as an AtomicityViolation with a rollback.
-    let error = harness
+    // Re-submission plans the same events again; durable callers must use
+    // `execute_cross_tenant_durable` to obtain idempotent claims.
+    let second = harness
         .executor
         .execute_cross_tenant(&intents)
         .await
-        .unwrap_err();
-    assert!(matches!(error, ExecutorError::AtomicityViolation(_)));
+        .unwrap();
+    assert_eq!(second.len(), 2);
 
     assert_eq!(
         harness.transactions.log(),
@@ -371,7 +371,7 @@ async fn fully_replayed_cross_tenant_batch_aborts_and_rolls_back() {
             "begin_multi:acme.game.alpha,acme.game.beta",
             "commit",
             "begin_multi:acme.game.alpha,acme.game.beta",
-            "rollback",
+            "commit",
         ]
     );
 }

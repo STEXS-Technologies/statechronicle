@@ -1034,9 +1034,11 @@ impl Executor {
     /// one intent id).
     ///
     /// v0 note: the transaction wrapper is symbolic. The executor does not
-    /// persist anything itself (events are returned for the commit crate), so
-    /// the handle records commit/rollback intent. Production adapters would
-    /// stage the intent-store claims inside the transaction for true atomicity.
+    /// persist anything itself (events are returned for the commit crate), and
+    /// therefore this pure/planning route does not claim intents. The handle
+    /// records commit/rollback intent only. Use [`Self::execute_batch_durable`]
+    /// for claims and event persistence through one adapter-owned atomic
+    /// boundary.
     ///
     /// # Errors
     ///
@@ -1076,7 +1078,10 @@ impl Executor {
         // Both a leg failure and an inconsistent-batch validation failure are
         // rolled back atomically (a failed validation must not short-circuit
         // past the rollback via `?`).
-        let result = match self.run_batch_fail_closed(intents, sink.is_none()).await {
+        // The symbolic transaction manager cannot roll back the independent
+        // intent store. Only a durable sink owns an atomic claim boundary;
+        // pure/planning batches must never leave partial claims behind.
+        let result = match self.run_batch_fail_closed(intents, sink.is_some()).await {
             Ok(events) => atomicity::validate_batch_consistency(&events).map(|()| events),
             Err(error) => Err(error),
         };
@@ -1146,6 +1151,8 @@ impl Executor {
     ///
     /// The settle intents passed to the shape check are those whose operation
     /// is `trade.settle`; the value-leg `balance.transfer` intents are the rest.
+    /// The pure/planning route does not claim intents; use
+    /// [`Self::execute_settle_durable`] for durable idempotency.
     ///
     /// # Errors
     ///
@@ -1186,7 +1193,7 @@ impl Executor {
         // Both a leg failure and a validation failure are rolled back atomically.
         // `allow_value_legs` is `true`: the settle batch's value legs are
         // validated by [`atomicity::validate_settle_batch`] below.
-        let result = match self.run_batch(intents, true, sink.is_none()).await {
+        let result = match self.run_batch(intents, true, sink.is_some()).await {
             Ok(events) => {
                 let settle_intents: Vec<statechronicle_domain::intent::Intent> = intents
                     .iter()
@@ -1265,6 +1272,9 @@ impl Executor {
     /// `validate_cross_tenant_consistency` fails and the whole transaction
     /// aborts with [`ExecutorError::AtomicityViolation`] and rolls back. A
     /// cross-tenant retry is therefore fail-closed and deterministic.
+    /// The pure/planning route does not claim intents because its symbolic
+    /// transaction handle cannot roll back an independent intent store; use
+    /// [`Self::execute_cross_tenant_durable`] for durable idempotency.
     ///
     /// # Errors
     ///
@@ -1320,7 +1330,7 @@ impl Executor {
         // `trade.settle` has no declared manifest here, so it must fail the
         // value-leg routing gate (see [`Self::execute_inner`]).
         let result = match self
-            .run_cross_tenant_legs(&by_name, false, sink.is_none())
+            .run_cross_tenant_legs(&by_name, false, sink.is_some())
             .await
         {
             Ok(groups) => atomicity::validate_cross_tenant_consistency(&groups).map(|()| groups),
@@ -1394,7 +1404,7 @@ impl Executor {
     /// atomic commit. Any error rolls back and surfaces as
     /// [`ExecutorError::AtomicityViolation`].
     ///
-    /// Idempotent-replay legs return no events (existing semantics). A retry
+    /// Durable idempotent-replay legs return no events (existing semantics). A retry
     /// that replays only some legs produces a partial, incoherent batch that
     /// [`atomicity::validate_cross_tenant_trade`] rejects (a missing settle or
     /// value leg fails closed), so the whole transaction aborts and rolls back:
@@ -1406,6 +1416,8 @@ impl Executor {
     /// than two distinct tenants, when any leg fails, or when the cross-tenant
     /// groups do not satisfy the declared manifest, and
     /// [`ExecutorError::Store`] when the transaction manager itself fails.
+    /// The pure/planning route does not claim intents; use
+    /// [`Self::execute_cross_tenant_trade_durable`] for durable idempotency.
     pub async fn execute_cross_tenant_trade(
         &self,
         intents: &[ValidatedIntent],
@@ -1453,7 +1465,7 @@ impl Executor {
         // atomically (a failed validation must not short-circuit past the
         // rollback via `?`).
         let result = match self
-            .run_cross_tenant_legs(&by_name, true, sink.is_none())
+            .run_cross_tenant_legs(&by_name, true, sink.is_some())
             .await
         {
             Ok(groups) => {

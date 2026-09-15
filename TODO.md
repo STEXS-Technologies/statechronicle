@@ -174,6 +174,11 @@ and product policy remain intentionally outside this library scope.
   duplicate event IDs and cross-event version/state continuity mismatches are
   rejected as well, including across resumable chunks. Tampered-event
   regressions and strict Clippy pass in the index crate.
+- Pure/planning batch, settlement, and cross-tenant executor APIs no longer
+  mutate the independent intent store; only durable sink routes may claim
+  intents. This closes partial-claim leakage when a later leg fails. Executor
+  pipeline and cross-tenant regressions (38 + 4 integration tests) and strict
+  Clippy pass.
 
 ## P0 — Correctness and security
 

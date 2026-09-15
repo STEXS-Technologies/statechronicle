@@ -441,6 +441,21 @@ async fn execute_batch_rolls_back_on_failure() {
         harness.transactions.log(),
         vec!["begin:acme.game.alpha", "rollback"]
     );
+
+    // The symbolic transaction cannot roll back the independent intent store;
+    // pure/planning batches must therefore leave no partial claim behind.
+    assert!(
+        harness
+            .intent_store
+            .get_intent(
+                &tenant(),
+                &statechronicle_domain::ids::IntentId::new(String::from("int_transfer_001"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap()
+            .is_none()
+    );
 }
 
 // ---------------------------------------------------------------------------
