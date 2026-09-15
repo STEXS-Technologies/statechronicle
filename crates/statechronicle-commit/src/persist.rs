@@ -28,7 +28,7 @@ use statechronicle_core::limits::{
     MAX_COMMIT_BYTES, MAX_EVENT_BATCH_BYTES, MAX_EVENTS_PER_COMMIT, MAX_ID_LENGTH,
     MAX_OUTBOX_PAYLOAD_BYTES, MAX_QUOTA_KEY_BYTES, check_size,
 };
-use statechronicle_domain::commit::{COMMIT_SCHEMA, Commit, ScopeKind};
+use statechronicle_domain::commit::{COMMIT_SCHEMA, Commit, ProfileId, ScopeKind};
 use statechronicle_domain::event::{EVENT_SCHEMA, Event};
 use statechronicle_domain::ids::{CommitId, EventId, IntentId};
 use statechronicle_domain::signed::Signed;
@@ -645,6 +645,20 @@ fn commit_tenant(body: &Commit) -> Result<&TenantId, CommitError> {
     }
     CommitId::new(body.commit_id.0.clone())
         .map_err(|error| CommitError::Store(format!("invalid commit id: {error}")))?;
+    if let Some(parent) = &body.parent_commit_id {
+        CommitId::new(parent.0.clone())
+            .map_err(|error| CommitError::Store(format!("invalid parent commit id: {error}")))?;
+    }
+    ProfileId::new(body.profile.0.clone())
+        .map_err(|error| CommitError::Store(format!("invalid commit profile: {error}")))?;
+    if body.executor.0.is_empty()
+        || body.executor.0.chars().count() > MAX_ID_LENGTH
+        || body.executor.0.chars().any(char::is_control)
+    {
+        return Err(CommitError::Store(String::from(
+            "commit executor has an invalid subject identifier",
+        )));
+    }
     if body.scope.kind != ScopeKind::Tenant {
         return Err(CommitError::Store(String::from(
             "commit persistence requires a tenant-scoped commit; global checkpoint commits contain tenant roots, not direct events",
@@ -778,6 +792,15 @@ mod tests {
         assert!(commit_tenant(&body).is_err());
 
         body.commit_id = CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap();
+        body.parent_commit_id = Some(CommitId(String::from("invalid")));
+        assert!(commit_tenant(&body).is_err());
+        body.parent_commit_id = None;
+        body.profile = ProfileId(String::from("bad\nprofile"));
+        assert!(commit_tenant(&body).is_err());
+        body.profile = ProfileId::new(String::from("statechronicle.profile.resource.v0")).unwrap();
+        body.executor = SubjectId(String::from("bad\nexecutor"));
+        assert!(commit_tenant(&body).is_err());
+        body.executor = SubjectId(String::from("service:ledger"));
         body.schema = String::from("statechronicle.commit.v99");
         assert!(commit_tenant(&body).is_err());
     }

@@ -100,6 +100,10 @@ and product policy remain intentionally outside this library scope.
   six scenarios: inventory 612/s, currency 560/s, marketplace 609/s,
   bundle 615/s, value 892/s, and cross-tenant 890/s. These are in-memory
   protocol examples and do not represent durable service capacity.
+- Commit persistence now revalidates optional parent commit IDs, profile IDs,
+  and executor subjects at the adapter boundary, preventing manually
+  constructed/deserialized malformed commit metadata from reaching stores;
+  regression coverage and strict Clippy pass.
 - The durable commit boundary now rejects caller-supplied projections that do
   not exactly derive from the committed entries, and validates outbox delivery
   keys, payload digests, and payload-size limits before opening a transaction;
