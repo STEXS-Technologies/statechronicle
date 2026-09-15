@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use async_trait::async_trait;
 use statechronicle_core::canonicalize::canonicalize_and_digest;
+use statechronicle_core::digest::ContentDigest;
 use statechronicle_domain::event::EVENT_SCHEMA;
 use statechronicle_domain::event::Event;
 use statechronicle_domain::ids::CommitId;
@@ -103,16 +104,9 @@ pub async fn rebuild_projections(
     events: &[(Event, CommitId)],
     sink: &dyn ProjectionSink,
 ) -> Result<u64, RebuildError> {
+    validate_rebuild_stream(events)?;
     let mut latest: BTreeMap<(String, String), StateProjection> = BTreeMap::new();
-    let mut event_ids = BTreeSet::new();
     for (event, commit_id) in events {
-        validate_event_for_rebuild(event, commit_id)?;
-        if !event_ids.insert(event.event_id.clone()) {
-            return Err(RebuildError::Invariant(format!(
-                "duplicate event id `{}` in rebuild stream",
-                event.event_id
-            )));
-        }
         if event.tenant_id.0.is_empty() || event.resource_id.0.is_empty() {
             return Err(RebuildError::Invariant(String::from(
                 "event tenant/resource scope must not be empty",
@@ -155,6 +149,41 @@ pub async fn rebuild_projections(
             .map_err(RebuildError::Sink)?;
     }
     u64::try_from(latest.len()).map_err(|error| RebuildError::Invariant(error.to_string()))
+}
+
+/// Validates the complete source stream before any projection is written.
+/// Continuity is keyed by tenant/resource because canonical commits may
+/// interleave independent resources. This check is intentionally separate
+/// from chunk execution so a duplicate or fork split across chunks cannot be
+/// hidden by resumable processing.
+fn validate_rebuild_stream(events: &[(Event, CommitId)]) -> Result<(), RebuildError> {
+    let mut event_ids = BTreeSet::new();
+    let mut previous: BTreeMap<(String, String), (u64, ContentDigest)> = BTreeMap::new();
+    for (event, commit_id) in events {
+        validate_event_for_rebuild(event, commit_id)?;
+        if event.tenant_id.0.is_empty() || event.resource_id.0.is_empty() {
+            return Err(RebuildError::Invariant(String::from(
+                "event tenant/resource scope must not be empty",
+            )));
+        }
+        if !event_ids.insert(event.event_id.clone()) {
+            return Err(RebuildError::Invariant(format!(
+                "duplicate event id `{}` in rebuild stream",
+                event.event_id
+            )));
+        }
+        let key = (event.tenant_id.0.clone(), event.resource_id.0.clone());
+        if let Some((version, state_hash)) = previous.get(&key)
+            && (event.before.version != *version || event.before.state_hash != *state_hash)
+        {
+            return Err(RebuildError::Invariant(format!(
+                "event continuity mismatch for resource `{}`",
+                event.resource_id.0
+            )));
+        }
+        previous.insert(key, (event.after.version, event.after.state_hash.clone()));
+    }
+    Ok(())
 }
 
 /// Validates the integrity fields that a rebuild must not trust from a
@@ -256,6 +285,7 @@ pub async fn rebuild_projections_resumable(
             "rebuild key and chunk size must be non-empty",
         )));
     }
+    validate_rebuild_stream(events)?;
     let mut offset = checkpoints
         .load(key)
         .await
