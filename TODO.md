@@ -135,6 +135,9 @@ and product policy remain intentionally outside this library scope.
   checks and rejects events whose tenant differs from the commit scope, closing
   a cross-tenant append bypass; commit integration and property tests remain
   green.
+- Commit tenant scopes are now rejected when empty, oversized, or control
+  containing before any legacy or durable store operation; malformed-scope
+  regression coverage passes with the strict commit checks.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.

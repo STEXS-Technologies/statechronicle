@@ -25,8 +25,8 @@ use std::collections::BTreeSet;
 use statechronicle_core::canonicalize::canonicalize_and_digest;
 use statechronicle_core::digest::hash_bytes;
 use statechronicle_core::limits::{
-    MAX_COMMIT_BYTES, MAX_EVENT_BATCH_BYTES, MAX_EVENTS_PER_COMMIT, MAX_OUTBOX_PAYLOAD_BYTES,
-    MAX_QUOTA_KEY_BYTES, check_size,
+    MAX_COMMIT_BYTES, MAX_EVENT_BATCH_BYTES, MAX_EVENTS_PER_COMMIT, MAX_ID_LENGTH,
+    MAX_OUTBOX_PAYLOAD_BYTES, MAX_QUOTA_KEY_BYTES, check_size,
 };
 use statechronicle_domain::commit::{Commit, ScopeKind};
 use statechronicle_domain::event::{EVENT_SCHEMA, Event};
@@ -643,11 +643,20 @@ fn commit_tenant(body: &Commit) -> Result<&TenantId, CommitError> {
             "commit persistence requires a tenant-scoped commit; global checkpoint commits contain tenant roots, not direct events",
         )));
     }
-    body.scope.tenant_id.as_ref().ok_or_else(|| {
+    let tenant = body.scope.tenant_id.as_ref().ok_or_else(|| {
         CommitError::Store(String::from(
             "tenant-scoped commit is missing its tenant id",
         ))
-    })
+    })?;
+    if tenant.0.is_empty()
+        || tenant.0.chars().count() > MAX_ID_LENGTH
+        || tenant.0.chars().any(char::is_control)
+    {
+        return Err(CommitError::Store(String::from(
+            "tenant-scoped commit has an invalid tenant identifier",
+        )));
+    }
+    Ok(tenant)
 }
 
 #[cfg(test)]
@@ -655,6 +664,8 @@ fn commit_tenant(body: &Commit) -> Result<&TenantId, CommitError> {
 mod tests {
     use super::*;
     use chrono::{DateTime, Utc};
+    use statechronicle_core::digest::hash_bytes;
+    use statechronicle_domain::commit::{CommitScope, ProfileId};
     use statechronicle_domain::event::StateCommitment;
     use statechronicle_domain::ids::IntentId;
     use statechronicle_domain::intent::{Intent, Nonce, Operation};
@@ -731,6 +742,29 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn commit_tenant_rejects_malformed_scope_identifiers() {
+        let mut body = Commit::new(
+            CommitScope::tenant(TenantId(String::from("game"))),
+            CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
+            None,
+            1,
+            0,
+            hash_bytes(b"events"),
+            hash_bytes(b"previous"),
+            hash_bytes(b"next"),
+            DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            SubjectId(String::from("service:ledger")),
+            ProfileId::new(String::from("statechronicle.profile.resource.v0")).unwrap(),
+        );
+        body.scope.tenant_id = Some(TenantId(String::from("bad\nissuer")));
+        assert!(commit_tenant(&body).is_err());
+        body.scope.tenant_id = Some(TenantId(String::new()));
+        assert!(commit_tenant(&body).is_err());
     }
 
     #[test]
