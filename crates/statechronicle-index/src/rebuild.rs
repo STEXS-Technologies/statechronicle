@@ -3,6 +3,8 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
+use statechronicle_core::canonicalize::canonicalize_and_digest;
+use statechronicle_domain::event::EVENT_SCHEMA;
 use statechronicle_domain::event::Event;
 use statechronicle_domain::ids::CommitId;
 use statechronicle_domain::state::StateProjection;
@@ -103,6 +105,7 @@ pub async fn rebuild_projections(
 ) -> Result<u64, RebuildError> {
     let mut latest: BTreeMap<(String, String), StateProjection> = BTreeMap::new();
     for (event, commit_id) in events {
+        validate_event_for_rebuild(event, commit_id)?;
         if event.tenant_id.0.is_empty() || event.resource_id.0.is_empty() {
             return Err(RebuildError::Invariant(String::from(
                 "event tenant/resource scope must not be empty",
@@ -145,6 +148,52 @@ pub async fn rebuild_projections(
             .map_err(RebuildError::Sink)?;
     }
     u64::try_from(latest.len()).map_err(|error| RebuildError::Invariant(error.to_string()))
+}
+
+/// Validates the integrity fields that a rebuild must not trust from a
+/// deserialized or externally supplied event stream. Durable adapters should
+/// additionally verify the enclosing commit signature and canonical chain;
+/// this local check prevents a malformed event from poisoning a projection
+/// even when a caller accidentally skips that higher-level validation.
+fn validate_event_for_rebuild(event: &Event, commit_id: &CommitId) -> Result<(), RebuildError> {
+    if event.schema != EVENT_SCHEMA {
+        return Err(RebuildError::Invariant(String::from(
+            "event schema is not the supported v0 schema",
+        )));
+    }
+    if commit_id.0.is_empty() {
+        return Err(RebuildError::Invariant(String::from(
+            "projection commit id must not be empty",
+        )));
+    }
+    let expected_after = event.before.version.checked_add(1).ok_or_else(|| {
+        RebuildError::Invariant(String::from("event before-state version overflows"))
+    })?;
+    if event.after.version != expected_after {
+        return Err(RebuildError::Invariant(String::from(
+            "event versions must advance by exactly one",
+        )));
+    }
+    let before_digest = canonicalize_and_digest(&event.before.state)
+        .map_err(|error| RebuildError::Invariant(error.to_string()))?;
+    if before_digest != event.before.state_hash {
+        return Err(RebuildError::Invariant(String::from(
+            "event before-state digest does not match state",
+        )));
+    }
+    let after_digest = canonicalize_and_digest(&event.after.state)
+        .map_err(|error| RebuildError::Invariant(error.to_string()))?;
+    if after_digest != event.after.state_hash {
+        return Err(RebuildError::Invariant(String::from(
+            "event after-state digest does not match state",
+        )));
+    }
+    if event.before.state.state_type() != event.after.state.state_type() {
+        return Err(RebuildError::Invariant(String::from(
+            "event before/after state types must match",
+        )));
+    }
+    Ok(())
 }
 
 /// Replays one bounded event chunk and returns a checkpoint for resumption.
@@ -281,9 +330,14 @@ mod tests {
             trade_id: None,
         });
         let digest = canonicalize_and_digest(&state).unwrap();
-        let commitment = StateCommitment {
-            version,
+        let before = StateCommitment {
+            version: version.saturating_sub(1),
             state_hash: digest,
+            state: state.clone(),
+        };
+        let after = StateCommitment {
+            version,
+            state_hash: canonicalize_and_digest(&state).unwrap(),
             state,
         };
         let event = Event::new(
@@ -293,8 +347,8 @@ mod tests {
             Operation::from_static("asset.transfer"),
             ResourceId(String::from("asset:sword")),
             SubjectId(String::from(owner)),
-            commitment.clone(),
-            commitment,
+            before,
+            after,
             None,
             SubjectId(String::from("service:ledger")),
             DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
@@ -353,5 +407,23 @@ mod tests {
         let projections = sink.0.lock().unwrap();
         assert_eq!(projections.last().unwrap().version, 2);
         assert_eq!(projections.last().unwrap().state.owner().unwrap().0, "bob");
+    }
+
+    #[tokio::test]
+    async fn rebuild_rejects_tampered_event_integrity_fields() {
+        let (mut tampered_event, commit_id) = event(1, "alice", "evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4");
+        tampered_event.after.state_hash = statechronicle_core::digest::hash_bytes(b"tampered");
+        assert!(matches!(
+            rebuild_projections(&[(tampered_event, commit_id)], &NoopSink).await,
+            Err(RebuildError::Invariant(message))
+                if message.contains("after-state digest")
+        ));
+
+        let (mut schema_event, schema_commit) = event(1, "alice", "evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4");
+        schema_event.schema = String::from("statechronicle.event.v99");
+        assert!(matches!(
+            rebuild_projections(&[(schema_event, schema_commit)], &NoopSink).await,
+            Err(RebuildError::Invariant(message)) if message.contains("schema")
+        ));
     }
 }

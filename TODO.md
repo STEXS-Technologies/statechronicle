@@ -161,6 +161,10 @@ and product policy remain intentionally outside this library scope.
 - The release gate now also runs workspace rustdoc with warnings treated as
   errors. After repairing all unresolved/private intra-doc links across the
   workspace, the strengthened complete gate passed with exit status 0.
+- Projection rebuild now independently validates the event schema, commit
+  identity, before/after state digests, state-type agreement, and checked
+  single-step version progression before writing any derived projection;
+  tampered-event regressions and strict Clippy pass in the index crate.
 
 ## P0 — Correctness and security
 
