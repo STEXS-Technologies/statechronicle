@@ -96,6 +96,10 @@ and product policy remain intentionally outside this library scope.
   concurrent integration tests, restarted it, reapplied the schema, verified
   integrity, and replayed the full seven-test integration suite successfully
   each time; both forced-restart campaigns exited cleanly after recovery.
+- A fresh 25-iteration release economy run passed the 400 runs/s floor for all
+  six scenarios: inventory 612/s, currency 560/s, marketplace 609/s,
+  bundle 615/s, value 892/s, and cross-tenant 890/s. These are in-memory
+  protocol examples and do not represent durable service capacity.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.
