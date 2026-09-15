@@ -87,6 +87,11 @@ and product policy remain intentionally outside this library scope.
 - Repeated SQLite adapter reliability run passed 10 rounds of bounded
   multi-tenant claims, 32-way idempotency races, pre-commit crash recovery,
   and dropped-transaction atomicity (40 test invocations total).
+- A fresh three-iteration live contention drill passed all four SQLite
+  reliability tests and all seven PostgreSQL integration races per iteration
+  (30 test invocations total), including concurrent schema installation,
+  canonical-head races, idempotency races, lease takeover, and atomic
+  projection/outbox persistence.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.
