@@ -125,6 +125,13 @@ and product policy remain intentionally outside this library scope.
   digest one million times. Five independent rounds measured 4.46–4.87M
   operations/s (4.5M/s minimum); this is a library hot-path ceiling, not a
   durable adapter or signed-commit capacity claim.
+- A fresh optimized parallel probe (32 workers, 1,024,000 independent signed
+  executor/index operations) completed in 66.3s at 15,442 operations/s; a
+  four-worker 8,000-operation probe measured 15,669 operations/s. This
+  materially lower host-local result supersedes any assumption that adding
+  workers alone scales the signed pipeline; profile-guided optimization and
+  adapter/CPU-topology benchmarks remain required before a millions-per-second
+  target can be considered credible.
 - A single-process executor probe (`examples/e2e_throughput.rs`) ran 5 x 10,000
   signed intents through authentication, validation, transition, event
   creation, and in-memory indexing at 15.9–16.4k operations/s. Enabling signed
