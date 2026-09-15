@@ -21,8 +21,10 @@
 #![allow(clippy::let_underscore_must_use)]
 
 use statechronicle_core::canonicalize::canonicalize_and_digest;
+use statechronicle_core::digest::hash_bytes;
 use statechronicle_core::limits::{
-    MAX_COMMIT_BYTES, MAX_EVENT_BATCH_BYTES, MAX_EVENTS_PER_COMMIT, check_size,
+    MAX_COMMIT_BYTES, MAX_EVENT_BATCH_BYTES, MAX_EVENTS_PER_COMMIT, MAX_OUTBOX_PAYLOAD_BYTES,
+    check_size,
 };
 use statechronicle_domain::commit::{Commit, ScopeKind};
 use statechronicle_domain::event::Event;
@@ -183,6 +185,11 @@ pub(crate) async fn persist_durable(
             )));
         }
     }
+    validate_projection_bindings(
+        &request.commit.body.commit_id,
+        request.entries,
+        request.projections,
+    )?;
     for projection in request.projections {
         if projection.tenant_id != *tenant
             || projection.last_commit_id != request.commit.body.commit_id
@@ -198,6 +205,7 @@ pub(crate) async fn persist_durable(
                 "durable outbox record is not bound to the commit scope",
             )));
         }
+        validate_outbox_record(outbox)?;
     }
     let event_count = u64::try_from(events.len())
         .map_err(|error| CommitError::InvalidEvent(format!("event count overflow: {error}")))?;
@@ -283,6 +291,41 @@ pub(crate) async fn persist_durable(
     Ok(DurablePersistResult::Committed {
         commit_id: request.commit.body.commit_id.clone(),
     })
+}
+
+/// Validates caller-supplied projections against the committed entries. An
+/// empty slice is allowed for adapters that derive projections internally;
+/// any supplied slice must be the exact deterministic projection set.
+fn validate_projection_bindings(
+    commit_id: &CommitId,
+    entries: &[CommittedEvent<'_>],
+    projections: &[StateProjection],
+) -> Result<(), CommitError> {
+    if projections.is_empty() {
+        return Ok(());
+    }
+    let expected = projections_for(commit_id, entries);
+    if projections != expected.as_slice() {
+        return Err(CommitError::Store(String::from(
+            "durable projections do not match committed event entries",
+        )));
+    }
+    Ok(())
+}
+
+/// Validates an outbox record before any transaction or adapter call.
+fn validate_outbox_record(record: &OutboxRecord) -> Result<(), CommitError> {
+    if record.delivery_key.is_empty() || hash_bytes(&record.payload) != record.payload_digest {
+        return Err(CommitError::Store(String::from(
+            "durable outbox payload or delivery key is invalid",
+        )));
+    }
+    check_size(
+        "outbox_payload",
+        MAX_OUTBOX_PAYLOAD_BYTES,
+        record.payload.len(),
+    )
+    .map_err(|error| CommitError::InvalidEvent(error.to_string()))
 }
 
 fn validate_durable_scope(
@@ -492,10 +535,13 @@ fn commit_tenant(body: &Commit) -> Result<&TenantId, CommitError> {
 mod tests {
     use super::*;
     use chrono::{DateTime, Utc};
+    use statechronicle_domain::event::StateCommitment;
     use statechronicle_domain::ids::IntentId;
     use statechronicle_domain::intent::{Intent, Nonce, Operation};
     use statechronicle_domain::resource::ResourceId;
+    use statechronicle_domain::resource_state::{ResourceState, UniqueAssetState};
     use statechronicle_domain::state_type::StateType;
+    use statechronicle_domain::status::Status;
     use statechronicle_domain::subject::SubjectId;
 
     fn intent(tenant: &str, actor: &str) -> Intent {
@@ -522,6 +568,19 @@ mod tests {
             subject: SubjectId(String::from(actor)),
             credential_id: String::from("session-scope-test"),
             tenant: TenantId(String::from(tenant)),
+        }
+    }
+
+    fn commitment(version: u64) -> StateCommitment {
+        let state = ResourceState::UniqueAsset(UniqueAssetState {
+            owner: SubjectId(String::from("account:alice")),
+            status: Status::from_static("active"),
+            trade_id: None,
+        });
+        StateCommitment {
+            version,
+            state_hash: canonicalize_and_digest(&state).unwrap(),
+            state,
         }
     }
 
@@ -552,5 +611,48 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn projection_bindings_reject_forged_payloads() {
+        let event = Event::new(
+            TenantId(String::from("game")),
+            statechronicle_domain::ids::EventId::new(String::from(
+                "evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4",
+            ))
+            .unwrap(),
+            statechronicle_domain::ids::IntentId::new(String::from("int_scope_test")).unwrap(),
+            Operation::from_static("asset.transfer"),
+            ResourceId(String::from("asset:sword")),
+            SubjectId(String::from("account:alice")),
+            commitment(0),
+            commitment(1),
+            None,
+            SubjectId(String::from("service:ledger")),
+            DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+        );
+        let commit_id = CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap();
+        let entry = CommittedEvent {
+            event: &event,
+            state_type: StateType::UniqueAsset,
+        };
+        let mut forged = projections_for(&commit_id, std::slice::from_ref(&entry));
+        let forged_projection = forged.first_mut().unwrap();
+        forged_projection.version = forged_projection.version.saturating_add(1);
+        assert!(validate_projection_bindings(&commit_id, &[entry], &forged).is_err());
+    }
+
+    #[test]
+    fn outbox_validation_rejects_digest_and_empty_key() {
+        let record = OutboxRecord {
+            delivery_key: String::new(),
+            tenant: TenantId(String::from("game")),
+            commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
+            payload_digest: hash_bytes(b"other"),
+            payload: b"payload".to_vec(),
+        };
+        assert!(validate_outbox_record(&record).is_err());
     }
 }

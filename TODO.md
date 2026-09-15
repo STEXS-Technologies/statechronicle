@@ -100,6 +100,11 @@ and product policy remain intentionally outside this library scope.
   six scenarios: inventory 612/s, currency 560/s, marketplace 609/s,
   bundle 615/s, value 892/s, and cross-tenant 890/s. These are in-memory
   protocol examples and do not represent durable service capacity.
+- The durable commit boundary now rejects caller-supplied projections that do
+  not exactly derive from the committed entries, and validates outbox delivery
+  keys, payload digests, and payload-size limits before opening a transaction;
+  focused commit tests (71 unit + 5 integration + 4 ordering + 5 property)
+  and strict Clippy pass.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.
