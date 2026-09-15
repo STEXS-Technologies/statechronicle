@@ -301,6 +301,14 @@ fn validate_projection_bindings(
     entries: &[CommittedEvent<'_>],
     projections: &[StateProjection],
 ) -> Result<(), CommitError> {
+    if entries
+        .iter()
+        .any(|entry| entry.state_type != entry.event.after.state.state_type())
+    {
+        return Err(CommitError::Store(String::from(
+            "committed event state type does not match its typed after-state",
+        )));
+    }
     if projections.is_empty() {
         return Ok(());
     }
@@ -646,6 +654,12 @@ mod tests {
         let forged_projection = forged.first_mut().unwrap();
         forged_projection.version = forged_projection.version.saturating_add(1);
         assert!(validate_projection_bindings(&commit_id, &[entry], &forged).is_err());
+
+        let mismatched_entry = CommittedEvent {
+            event: &event,
+            state_type: StateType::FungibleBalance,
+        };
+        assert!(validate_projection_bindings(&commit_id, &[mismatched_entry], &[]).is_err());
     }
 
     #[test]

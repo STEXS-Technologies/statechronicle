@@ -108,6 +108,10 @@ and product policy remain intentionally outside this library scope.
 - Durable outbox delivery keys are now bounded to the shared 512-byte quota
   limit and reject control characters before adapter calls; digest, key, and
   size regressions pass in the commit crate.
+- Durable projection derivation now rejects a `CommittedEvent` whose supplied
+  profile state type disagrees with the typed after-state discriminator,
+  preventing profile confusion in custom adapters; focused commit tests and
+  strict Clippy pass.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.
