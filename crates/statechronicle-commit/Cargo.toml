@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 statechronicle-core = { workspace = true }
 statechronicle-domain = { workspace = true }
+statechronicle-intent = { workspace = true }
 statechronicle-accumulator = { workspace = true }
 statechronicle-ports = { workspace = true }
 thiserror = { workspace = true }

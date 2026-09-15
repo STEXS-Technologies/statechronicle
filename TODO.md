@@ -112,6 +112,10 @@ and product policy remain intentionally outside this library scope.
   profile state type disagrees with the typed after-state discriminator,
   preventing profile confusion in custom adapters; focused commit tests and
   strict Clippy pass.
+- `persist_durable_verified` now revalidates the raw `Intent` through the
+  intent crate before authorization or idempotency claiming, closing direct
+  constructor/deserialization bypasses for schema, identifier, depth, expiry,
+  and size checks. Locked commit tests and strict Clippy pass.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.

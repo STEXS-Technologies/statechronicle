@@ -33,6 +33,7 @@ use statechronicle_domain::signed::Signed;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::tenant::TenantId;
+use statechronicle_intent::validated::ValidatedIntent;
 
 use statechronicle_ports::authorization::{
     AuthenticatedPrincipal, AuthorizationContext, AuthorizationError, Authorizer,
@@ -129,6 +130,7 @@ pub(crate) async fn persist_durable(
     authorizer: &dyn Authorizer,
     request: DurableCommitRequest<'_>,
 ) -> Result<DurablePersistResult, CommitError> {
+    validate_durable_intent(request.intent)?;
     let tenant = commit_tenant(&request.commit.body)?;
     let canonical_digest = canonicalize_and_digest(request.intent).map_err(CommitError::Core)?;
     if canonical_digest != *request.payload_digest {
@@ -291,6 +293,17 @@ pub(crate) async fn persist_durable(
     Ok(DurablePersistResult::Committed {
         commit_id: request.commit.body.commit_id.clone(),
     })
+}
+
+/// Re-runs the canonical intent boundary because this API accepts the domain
+/// body for compatibility. Callers should prefer passing an intent produced by
+/// `statechronicle-intent`; no durable claim is allowed for an unchecked body.
+fn validate_durable_intent(
+    intent: &statechronicle_domain::intent::Intent,
+) -> Result<(), CommitError> {
+    ValidatedIntent::try_from_intent(intent.clone(), None)
+        .map(|_| ())
+        .map_err(|error| CommitError::Store(format!("invalid durable intent: {error}")))
 }
 
 /// Validates caller-supplied projections against the committed entries. An
@@ -623,6 +636,13 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn durable_intent_validation_rejects_unchecked_schema() {
+        let mut invalid = intent("game", "account:alice");
+        invalid.schema = String::from("statechronicle.intent.v99");
+        assert!(validate_durable_intent(&invalid).is_err());
     }
 
     #[test]

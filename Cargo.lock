@@ -1216,6 +1216,7 @@ dependencies = [
  "statechronicle-accumulator",
  "statechronicle-core",
  "statechronicle-domain",
+ "statechronicle-intent",
  "statechronicle-ports",
  "thiserror",
  "tokio",
