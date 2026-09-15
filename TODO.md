@@ -131,6 +131,10 @@ and product policy remain intentionally outside this library scope.
   request before any adapter call, preventing ambiguous duplicate delivery
   identities in custom ledger implementations; focused commit tests and
   strict Clippy pass.
+- The legacy `persist` compatibility path now applies the same event-integrity
+  checks and rejects events whose tenant differs from the commit scope, closing
+  a cross-tenant append bypass; commit integration and property tests remain
+  green.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.

@@ -160,14 +160,9 @@ fn commit_id(sequence: u64) -> Result<CommitId, CommitError> {
 fn entries_for(events: &[Event]) -> Vec<CommittedEvent<'_>> {
     events
         .iter()
-        .enumerate()
-        .map(|(index, event)| CommittedEvent {
+        .map(|event| CommittedEvent {
             event,
-            state_type: if index % 2 == 0 {
-                StateType::UniqueAsset
-            } else {
-                StateType::FungibleBalance
-            },
+            state_type: event.after.state.state_type(),
         })
         .collect()
 }

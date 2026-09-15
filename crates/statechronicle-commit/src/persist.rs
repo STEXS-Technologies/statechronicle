@@ -566,6 +566,14 @@ pub async fn persist(
     if event_count != commit.body.event_count {
         return Err(CommitError::EventRootMismatch);
     }
+    validate_committed_events(entries)?;
+    for event in &events {
+        if event.tenant_id != *tenant {
+            return Err(CommitError::Store(String::from(
+                "event tenant does not match commit tenant scope",
+            )));
+        }
+    }
     let computed_root = event_root(&events)?;
     if computed_root != commit.body.event_merkle_root {
         return Err(CommitError::EventRootMismatch);
