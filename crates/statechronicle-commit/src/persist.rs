@@ -20,6 +20,8 @@
 
 #![allow(clippy::let_underscore_must_use)]
 
+use std::collections::BTreeSet;
+
 use statechronicle_core::canonicalize::canonicalize_and_digest;
 use statechronicle_core::digest::hash_bytes;
 use statechronicle_core::limits::{
@@ -176,9 +178,7 @@ pub(crate) async fn persist_durable(
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
     check_size("commit", MAX_COMMIT_BYTES, commit_bytes.len())
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
-    for entry in request.entries {
-        validate_committed_event(entry)?;
-    }
+    validate_committed_events(request.entries)?;
     for event in &events {
         if event.tenant_id != *tenant
             || event.intent_id != request.intent.intent_id
@@ -296,6 +296,21 @@ pub(crate) async fn persist_durable(
     Ok(DurablePersistResult::Committed {
         commit_id: request.commit.body.commit_id.clone(),
     })
+}
+
+/// Validates every event and rejects duplicate identities before persistence.
+fn validate_committed_events(entries: &[CommittedEvent<'_>]) -> Result<(), CommitError> {
+    let mut event_ids = BTreeSet::new();
+    for entry in entries {
+        validate_committed_event(entry)?;
+        if !event_ids.insert(entry.event.event_id.clone()) {
+            return Err(CommitError::InvalidEvent(format!(
+                "duplicate event id `{}` in durable commit",
+                entry.event.event_id
+            )));
+        }
+    }
+    Ok(())
 }
 
 /// Validates the event-local integrity fields that are not covered by a
@@ -729,6 +744,12 @@ mod tests {
             state_type: StateType::UniqueAsset,
         };
         assert!(validate_committed_event(&malformed_entry).is_err());
+
+        let duplicate_entry = CommittedEvent {
+            event: &event,
+            state_type: StateType::UniqueAsset,
+        };
+        assert!(validate_committed_events(&[entry, duplicate_entry]).is_err());
     }
 
     #[test]

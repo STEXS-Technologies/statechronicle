@@ -120,6 +120,9 @@ and product policy remain intentionally outside this library scope.
   checked single-step version transition, typed state-type agreement, and
   before/after canonical state digests before reserving idempotency; malformed
   event regression coverage passes in the commit crate.
+- Durable commits now reject duplicate event IDs before reserving idempotency,
+  preventing a validly hashed but replayed/forked event list from being
+  appended twice; focused commit tests and strict Clippy pass.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.
