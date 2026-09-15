@@ -141,6 +141,9 @@ and product policy remain intentionally outside this library scope.
 - Commit IDs are now revalidated at the persistence root as well, preventing
   malformed direct-constructor/deserialized commit identities from reaching
   legacy or durable stores; focused commit tests and strict Clippy pass.
+- Commit schema discriminators are now checked alongside scope and identity,
+  rejecting unknown commit versions before legacy or durable writes; schema
+  regression coverage passes in the commit crate.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.

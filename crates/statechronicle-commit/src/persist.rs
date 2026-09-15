@@ -28,7 +28,7 @@ use statechronicle_core::limits::{
     MAX_COMMIT_BYTES, MAX_EVENT_BATCH_BYTES, MAX_EVENTS_PER_COMMIT, MAX_ID_LENGTH,
     MAX_OUTBOX_PAYLOAD_BYTES, MAX_QUOTA_KEY_BYTES, check_size,
 };
-use statechronicle_domain::commit::{Commit, ScopeKind};
+use statechronicle_domain::commit::{COMMIT_SCHEMA, Commit, ScopeKind};
 use statechronicle_domain::event::{EVENT_SCHEMA, Event};
 use statechronicle_domain::ids::{CommitId, EventId, IntentId};
 use statechronicle_domain::signed::Signed;
@@ -638,6 +638,11 @@ pub fn projections_for<'event>(
 /// Returns [`CommitError::Store`] when the commit is not tenant-scoped or its
 /// tenant id is missing.
 fn commit_tenant(body: &Commit) -> Result<&TenantId, CommitError> {
+    if body.schema != COMMIT_SCHEMA {
+        return Err(CommitError::Store(String::from(
+            "commit schema is not the supported v0 schema",
+        )));
+    }
     CommitId::new(body.commit_id.0.clone())
         .map_err(|error| CommitError::Store(format!("invalid commit id: {error}")))?;
     if body.scope.kind != ScopeKind::Tenant {
@@ -770,6 +775,10 @@ mod tests {
 
         body.scope.tenant_id = Some(TenantId(String::from("game")));
         body.commit_id = CommitId(String::from("invalid"));
+        assert!(commit_tenant(&body).is_err());
+
+        body.commit_id = CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap();
+        body.schema = String::from("statechronicle.commit.v99");
         assert!(commit_tenant(&body).is_err());
     }
 
