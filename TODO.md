@@ -116,6 +116,10 @@ and product policy remain intentionally outside this library scope.
   intent crate before authorization or idempotency claiming, closing direct
   constructor/deserialization bypasses for schema, identifier, depth, expiry,
   and size checks. Locked commit tests and strict Clippy pass.
+- Durable commit persistence now validates every committed event's v0 schema,
+  checked single-step version transition, typed state-type agreement, and
+  before/after canonical state digests before reserving idempotency; malformed
+  event regression coverage passes in the commit crate.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.

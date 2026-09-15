@@ -27,7 +27,7 @@ use statechronicle_core::limits::{
     MAX_QUOTA_KEY_BYTES, check_size,
 };
 use statechronicle_domain::commit::{Commit, ScopeKind};
-use statechronicle_domain::event::Event;
+use statechronicle_domain::event::{EVENT_SCHEMA, Event};
 use statechronicle_domain::ids::CommitId;
 use statechronicle_domain::signed::Signed;
 use statechronicle_domain::state::StateProjection;
@@ -176,6 +176,9 @@ pub(crate) async fn persist_durable(
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
     check_size("commit", MAX_COMMIT_BYTES, commit_bytes.len())
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+    for entry in request.entries {
+        validate_committed_event(entry)?;
+    }
     for event in &events {
         if event.tenant_id != *tenant
             || event.intent_id != request.intent.intent_id
@@ -293,6 +296,44 @@ pub(crate) async fn persist_durable(
     Ok(DurablePersistResult::Committed {
         commit_id: request.commit.body.commit_id.clone(),
     })
+}
+
+/// Validates the event-local integrity fields that are not covered by a
+/// commit's scope metadata. The enclosing commit root/signature binds the
+/// event bytes, but a valid signature must never make an internally malformed
+/// event acceptable to a durable adapter.
+fn validate_committed_event(entry: &CommittedEvent<'_>) -> Result<(), CommitError> {
+    let event = entry.event;
+    if event.schema != EVENT_SCHEMA {
+        return Err(CommitError::InvalidEvent(String::from(
+            "event schema is not the supported v0 schema",
+        )));
+    }
+    let expected_after = event.before.version.checked_add(1).ok_or_else(|| {
+        CommitError::InvalidEvent(String::from("event before-state version overflows"))
+    })?;
+    if event.after.version != expected_after {
+        return Err(CommitError::InvalidEvent(String::from(
+            "event versions must advance by exactly one",
+        )));
+    }
+    if entry.state_type != event.before.state.state_type()
+        || entry.state_type != event.after.state.state_type()
+    {
+        return Err(CommitError::InvalidEvent(String::from(
+            "event state type does not match committed entry",
+        )));
+    }
+    if canonicalize_and_digest(&event.before.state).map_err(CommitError::Core)?
+        != event.before.state_hash
+        || canonicalize_and_digest(&event.after.state).map_err(CommitError::Core)?
+            != event.after.state_hash
+    {
+        return Err(CommitError::InvalidEvent(String::from(
+            "event state digest does not match state",
+        )));
+    }
+    Ok(())
 }
 
 /// Re-runs the canonical intent boundary because this API accepts the domain
@@ -680,6 +721,14 @@ mod tests {
             state_type: StateType::FungibleBalance,
         };
         assert!(validate_projection_bindings(&commit_id, &[mismatched_entry], &[]).is_err());
+
+        let mut malformed_event = event.clone();
+        malformed_event.after.state_hash = hash_bytes(b"tampered");
+        let malformed_entry = CommittedEvent {
+            event: &malformed_event,
+            state_type: StateType::UniqueAsset,
+        };
+        assert!(validate_committed_event(&malformed_entry).is_err());
     }
 
     #[test]
