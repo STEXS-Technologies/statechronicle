@@ -1,6 +1,6 @@
 //! Deterministic current-state projection rebuild from canonical events.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use async_trait::async_trait;
 use statechronicle_core::canonicalize::canonicalize_and_digest;
@@ -104,8 +104,15 @@ pub async fn rebuild_projections(
     sink: &dyn ProjectionSink,
 ) -> Result<u64, RebuildError> {
     let mut latest: BTreeMap<(String, String), StateProjection> = BTreeMap::new();
+    let mut event_ids = BTreeSet::new();
     for (event, commit_id) in events {
         validate_event_for_rebuild(event, commit_id)?;
+        if !event_ids.insert(event.event_id.clone()) {
+            return Err(RebuildError::Invariant(format!(
+                "duplicate event id `{}` in rebuild stream",
+                event.event_id
+            )));
+        }
         if event.tenant_id.0.is_empty() || event.resource_id.0.is_empty() {
             return Err(RebuildError::Invariant(String::from(
                 "event tenant/resource scope must not be empty",
@@ -429,6 +436,19 @@ mod tests {
         assert!(matches!(
             rebuild_projections(&[(valid_event, invalid_commit)], &NoopSink).await,
             Err(RebuildError::Invariant(message)) if message.contains("commit id")
+        ));
+
+        let (first_event, first_commit) = event(1, "alice", "evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4");
+        let (mut duplicate_event, duplicate_commit) =
+            event(2, "bob", "evt_01JZ8X5HN3C4PXG5A9FGEWQF5W");
+        duplicate_event.event_id = first_event.event_id.clone();
+        assert!(matches!(
+            rebuild_projections(
+                &[(first_event, first_commit), (duplicate_event, duplicate_commit)],
+                &NoopSink
+            )
+            .await,
+            Err(RebuildError::Invariant(message)) if message.contains("duplicate event id")
         ));
     }
 }
