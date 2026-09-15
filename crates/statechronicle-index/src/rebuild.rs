@@ -161,11 +161,9 @@ fn validate_event_for_rebuild(event: &Event, commit_id: &CommitId) -> Result<(),
             "event schema is not the supported v0 schema",
         )));
     }
-    if commit_id.0.is_empty() {
-        return Err(RebuildError::Invariant(String::from(
-            "projection commit id must not be empty",
-        )));
-    }
+    CommitId::new(commit_id.0.clone()).map_err(|error| {
+        RebuildError::Invariant(format!("invalid projection commit id: {error}"))
+    })?;
     let expected_after = event.before.version.checked_add(1).ok_or_else(|| {
         RebuildError::Invariant(String::from("event before-state version overflows"))
     })?;
@@ -424,6 +422,13 @@ mod tests {
         assert!(matches!(
             rebuild_projections(&[(schema_event, schema_commit)], &NoopSink).await,
             Err(RebuildError::Invariant(message)) if message.contains("schema")
+        ));
+
+        let (valid_event, _) = event(1, "alice", "evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4");
+        let invalid_commit = CommitId(String::from("not-a-commit-id"));
+        assert!(matches!(
+            rebuild_projections(&[(valid_event, invalid_commit)], &NoopSink).await,
+            Err(RebuildError::Invariant(message)) if message.contains("commit id")
         ));
     }
 }
