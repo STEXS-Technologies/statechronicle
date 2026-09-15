@@ -30,7 +30,7 @@ use statechronicle_core::limits::{
 };
 use statechronicle_domain::commit::{Commit, ScopeKind};
 use statechronicle_domain::event::{EVENT_SCHEMA, Event};
-use statechronicle_domain::ids::CommitId;
+use statechronicle_domain::ids::{CommitId, EventId, IntentId};
 use statechronicle_domain::signed::Signed;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
@@ -180,15 +180,7 @@ pub(crate) async fn persist_durable(
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
     validate_committed_events(request.entries)?;
     for event in &events {
-        if event.tenant_id != *tenant
-            || event.intent_id != request.intent.intent_id
-            || event.actor != request.intent.actor
-            || event.operation != request.intent.operation
-        {
-            return Err(CommitError::Store(String::from(
-                "durable event is not bound to the authenticated intent scope or operation",
-            )));
-        }
+        validate_event_binding(event, request.intent, tenant)?;
     }
     validate_projection_bindings(
         &request.commit.body.commit_id,
@@ -313,6 +305,25 @@ fn validate_committed_events(entries: &[CommittedEvent<'_>]) -> Result<(), Commi
     Ok(())
 }
 
+/// Binds every event dimension to the authenticated intent and commit scope.
+fn validate_event_binding(
+    event: &Event,
+    intent: &statechronicle_domain::intent::Intent,
+    tenant: &TenantId,
+) -> Result<(), CommitError> {
+    if event.tenant_id != *tenant
+        || event.intent_id != intent.intent_id
+        || event.actor != intent.actor
+        || event.operation != intent.operation
+        || event.resource_id != intent.resource_id
+    {
+        return Err(CommitError::Store(String::from(
+            "durable event is not bound to the authenticated intent scope or operation",
+        )));
+    }
+    Ok(())
+}
+
 /// Validates the event-local integrity fields that are not covered by a
 /// commit's scope metadata. The enclosing commit root/signature binds the
 /// event bytes, but a valid signature must never make an internally malformed
@@ -324,6 +335,10 @@ fn validate_committed_event(entry: &CommittedEvent<'_>) -> Result<(), CommitErro
             "event schema is not the supported v0 schema",
         )));
     }
+    EventId::new(event.event_id.0.clone())
+        .map_err(|error| CommitError::InvalidEvent(format!("invalid event id: {error}")))?;
+    IntentId::new(event.intent_id.0.clone())
+        .map_err(|error| CommitError::InvalidEvent(format!("invalid intent id: {error}")))?;
     let expected_after = event.before.version.checked_add(1).ok_or_else(|| {
         CommitError::InvalidEvent(String::from("event before-state version overflows"))
     })?;
@@ -750,6 +765,17 @@ mod tests {
             state_type: StateType::UniqueAsset,
         };
         assert!(validate_committed_events(&[entry, duplicate_entry]).is_err());
+
+        let mut wrong_resource = event.clone();
+        wrong_resource.resource_id = ResourceId(String::from("asset:other"));
+        assert!(
+            validate_event_binding(
+                &wrong_resource,
+                &intent("game", "account:alice"),
+                &TenantId(String::from("game")),
+            )
+            .is_err()
+        );
     }
 
     #[test]

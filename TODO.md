@@ -123,6 +123,10 @@ and product policy remain intentionally outside this library scope.
 - Durable commits now reject duplicate event IDs before reserving idempotency,
   preventing a validly hashed but replayed/forked event list from being
   appended twice; focused commit tests and strict Clippy pass.
+- Durable event binding now includes the intent's resource identity (in
+  addition to tenant, actor, operation, and intent ID), and event/intent ID
+  newtypes are revalidated before persistence; scope-mismatch and malformed-ID
+  regressions pass in the commit crate.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.
