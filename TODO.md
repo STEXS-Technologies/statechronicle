@@ -105,6 +105,9 @@ and product policy remain intentionally outside this library scope.
   keys, payload digests, and payload-size limits before opening a transaction;
   focused commit tests (71 unit + 5 integration + 4 ordering + 5 property)
   and strict Clippy pass.
+- Durable outbox delivery keys are now bounded to the shared 512-byte quota
+  limit and reject control characters before adapter calls; digest, key, and
+  size regressions pass in the commit crate.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.

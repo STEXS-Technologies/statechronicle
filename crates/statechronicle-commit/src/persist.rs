@@ -24,7 +24,7 @@ use statechronicle_core::canonicalize::canonicalize_and_digest;
 use statechronicle_core::digest::hash_bytes;
 use statechronicle_core::limits::{
     MAX_COMMIT_BYTES, MAX_EVENT_BATCH_BYTES, MAX_EVENTS_PER_COMMIT, MAX_OUTBOX_PAYLOAD_BYTES,
-    check_size,
+    MAX_QUOTA_KEY_BYTES, check_size,
 };
 use statechronicle_domain::commit::{Commit, ScopeKind};
 use statechronicle_domain::event::Event;
@@ -315,7 +315,11 @@ fn validate_projection_bindings(
 
 /// Validates an outbox record before any transaction or adapter call.
 fn validate_outbox_record(record: &OutboxRecord) -> Result<(), CommitError> {
-    if record.delivery_key.is_empty() || hash_bytes(&record.payload) != record.payload_digest {
+    if record.delivery_key.is_empty()
+        || record.delivery_key.len() > MAX_QUOTA_KEY_BYTES
+        || record.delivery_key.chars().any(char::is_control)
+        || hash_bytes(&record.payload) != record.payload_digest
+    {
         return Err(CommitError::Store(String::from(
             "durable outbox payload or delivery key is invalid",
         )));
@@ -654,5 +658,18 @@ mod tests {
             payload: b"payload".to_vec(),
         };
         assert!(validate_outbox_record(&record).is_err());
+
+        let oversized = OutboxRecord {
+            delivery_key: "x".repeat(MAX_QUOTA_KEY_BYTES + 1),
+            tenant: TenantId(String::from("game")),
+            commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
+            payload_digest: hash_bytes(b"payload"),
+            payload: b"payload".to_vec(),
+        };
+        assert!(validate_outbox_record(&oversized).is_err());
+
+        let mut control = oversized;
+        control.delivery_key = String::from("delivery\nkey");
+        assert!(validate_outbox_record(&control).is_err());
     }
 }
