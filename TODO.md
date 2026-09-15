@@ -127,6 +127,10 @@ and product policy remain intentionally outside this library scope.
   addition to tenant, actor, operation, and intent ID), and event/intent ID
   newtypes are revalidated before persistence; scope-mismatch and malformed-ID
   regressions pass in the commit crate.
+- Durable outbox validation now rejects duplicate delivery keys within one
+  request before any adapter call, preventing ambiguous duplicate delivery
+  identities in custom ledger implementations; focused commit tests and
+  strict Clippy pass.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.

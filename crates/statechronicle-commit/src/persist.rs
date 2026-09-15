@@ -196,6 +196,7 @@ pub(crate) async fn persist_durable(
             )));
         }
     }
+    validate_outbox_records(request.outbox)?;
     for outbox in request.outbox {
         if outbox.tenant != *tenant || outbox.commit_id != request.commit.body.commit_id {
             return Err(CommitError::Store(String::from(
@@ -422,6 +423,21 @@ fn validate_outbox_record(record: &OutboxRecord) -> Result<(), CommitError> {
         record.payload.len(),
     )
     .map_err(|error| CommitError::InvalidEvent(error.to_string()))
+}
+
+/// Validates all outbox rows and rejects duplicate delivery identities before
+/// the adapter can observe a partially ambiguous batch.
+fn validate_outbox_records(records: &[OutboxRecord]) -> Result<(), CommitError> {
+    let mut delivery_keys = BTreeSet::new();
+    for record in records {
+        validate_outbox_record(record)?;
+        if !delivery_keys.insert(record.delivery_key.as_str()) {
+            return Err(CommitError::Store(String::from(
+                "durable outbox contains duplicate delivery keys",
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn validate_durable_scope(
@@ -801,5 +817,15 @@ mod tests {
         let mut control = oversized;
         control.delivery_key = String::from("delivery\nkey");
         assert!(validate_outbox_record(&control).is_err());
+
+        let first = OutboxRecord {
+            delivery_key: String::from("delivery-1"),
+            tenant: TenantId(String::from("game")),
+            commit_id: CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
+            payload_digest: hash_bytes(b"payload"),
+            payload: b"payload".to_vec(),
+        };
+        let second = first.clone();
+        assert!(validate_outbox_records(&[first, second]).is_err());
     }
 }
