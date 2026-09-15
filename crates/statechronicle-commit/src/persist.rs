@@ -638,6 +638,8 @@ pub fn projections_for<'event>(
 /// Returns [`CommitError::Store`] when the commit is not tenant-scoped or its
 /// tenant id is missing.
 fn commit_tenant(body: &Commit) -> Result<&TenantId, CommitError> {
+    CommitId::new(body.commit_id.0.clone())
+        .map_err(|error| CommitError::Store(format!("invalid commit id: {error}")))?;
     if body.scope.kind != ScopeKind::Tenant {
         return Err(CommitError::Store(String::from(
             "commit persistence requires a tenant-scoped commit; global checkpoint commits contain tenant roots, not direct events",
@@ -764,6 +766,10 @@ mod tests {
         body.scope.tenant_id = Some(TenantId(String::from("bad\nissuer")));
         assert!(commit_tenant(&body).is_err());
         body.scope.tenant_id = Some(TenantId(String::new()));
+        assert!(commit_tenant(&body).is_err());
+
+        body.scope.tenant_id = Some(TenantId(String::from("game")));
+        body.commit_id = CommitId(String::from("invalid"));
         assert!(commit_tenant(&body).is_err());
     }
 

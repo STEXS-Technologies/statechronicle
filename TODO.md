@@ -138,6 +138,9 @@ and product policy remain intentionally outside this library scope.
 - Commit tenant scopes are now rejected when empty, oversized, or control
   containing before any legacy or durable store operation; malformed-scope
   regression coverage passes with the strict commit checks.
+- Commit IDs are now revalidated at the persistence root as well, preventing
+  malformed direct-constructor/deserialized commit identities from reaching
+  legacy or durable stores; focused commit tests and strict Clippy pass.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.
