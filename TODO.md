@@ -92,6 +92,10 @@ and product policy remain intentionally outside this library scope.
   (30 test invocations total), including concurrent schema installation,
   canonical-head races, idempotency races, lease takeover, and atomic
   projection/outbox persistence.
+- A two-iteration PostgreSQL chaos drill killed the database container during
+  concurrent integration tests, restarted it, reapplied the schema, verified
+  integrity, and replayed the full seven-test integration suite successfully
+  each time; both forced-restart campaigns exited cleanly after recovery.
 - Three complete SQLite adapter suites passed (81 tests total), including
   integrity scans, projection rebuilds, lease lifecycle, idempotency, and
   atomic transaction regressions.
