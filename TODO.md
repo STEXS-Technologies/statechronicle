@@ -104,6 +104,15 @@ and product policy remain intentionally outside this library scope.
   and executor subjects at the adapter boundary, preventing manually
   constructed/deserialized malformed commit metadata from reaching stores;
   regression coverage and strict Clippy pass.
+- A fresh two-iteration chaos campaign recovered PostgreSQL integrity after
+  forced SIGKILL. One replay run exposed a transient PostgreSQL deadlock when
+  tests applied DDL concurrently with live queries; this is an external
+  migration-versus-traffic deployment concern, not a StateChronicle library
+  invariant. Production migrations must complete under an operational gate
+  before admitting traffic (and should use bounded retry/observability).
+- A fresh 25-iteration economy benchmark passed the 400 runs/s floor for all
+  six scenarios (inventory 628/s, currency 586/s, marketplace 615/s,
+  bundle 626/s, value 914/s, cross-tenant 896/s).
 - The durable commit boundary now rejects caller-supplied projections that do
   not exactly derive from the committed entries, and validates outbox delivery
   keys, payload digests, and payload-size limits before opening a transaction;
