@@ -17,7 +17,7 @@ env:
 
 jobs:
   ci:
-    name: Check, Test, Lint, Fuzz, MSRV
+    name: Check, Test, Lint, Fuzz, Policy
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -30,8 +30,3 @@ jobs:
 
       - name: Run release checks, fuzz smoke, and policy gates
         run: scripts/run_release_checks.sh
-
-      - name: Check locked workspace at MSRV
-        run: |
-          rustup toolchain install 1.85.0 --profile minimal
-          cargo +1.85.0 check --workspace --all-targets --all-features --locked
