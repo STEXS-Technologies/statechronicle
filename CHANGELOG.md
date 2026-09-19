@@ -4,17 +4,17 @@ All notable changes to StateChronicle are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.1.0] - 2026-09-19
+## [0.1.0] - 2026-09-20
 
-First production release of StateChronicle, a verifiable state and transaction foundation for multiplayer game backends. This release completes the protocol, durable adapter, proof, fuzzing, coverage, and release hardening needed for concurrent player-facing mutations.
+First production release of StateChronicle, a verifiable state and transaction foundation for multiplayer game backends. This release makes the protocol, proof, fuzzing, coverage, and release gates ready for concurrent player-facing mutations while leaving durable storage ownership with the integrating application.
 
 ### Added
 
 - Added typed resource states, canonical BCS serialization, SHA-256 content digests, Ed25519 signatures, deterministic state roots, sparse Merkle proofs, non-membership proofs, and trade proofs.
-- Added durable SQLite and PostgreSQL ledger adapters with idempotency claims, canonical heads, transactional projections, outbox delivery, lease takeover, integrity scans, rebuild checkpoints, backups, and crash recovery coverage.
-- Added authenticated player and batch ingress, key-registry rotation and revocation, authorization boundaries, quota ports, retry classification, bounded metrics, and fail-closed durable write APIs.
+- Added backend-agnostic storage, transaction, projection, outbox, authorization, quota, key-registry, and observability ports so integrating applications can provide their own durable implementations.
+- Added authenticated player and batch ingress, key-registry rotation and revocation, authorization boundaries, quota ports, retry classification, bounded metrics, and fail-closed mutation APIs.
 - Added profile rules for unique assets, paid assets, balances, stacks, entitlements, meters, listings, and escrow with lifecycle, property, concurrency, and rollback coverage.
-- Added 21 adversarial fuzz targets, in-process protocol throughput benchmarks, adapter load drills, PostgreSQL chaos drills, and a production release workflow with coverage and package evidence.
+- Added 21 adversarial fuzz targets, property tests, concurrency regressions, in-process protocol throughput benchmarks, and a production release workflow with coverage, fuzzing, policy, and package evidence.
 
 ### Changed
 
@@ -36,8 +36,8 @@ First production release of StateChronicle, a verifiable state and transaction f
 
 ### Reliability
 
-- The release passed the locked workspace suite, strict Clippy, rustdoc warnings, dependency policy, live PostgreSQL integration, SQLite recovery and load drills, bounded instrumented fuzzing, and economy correctness benchmarks.
-- Measured protocol-surface LLVM line coverage is ratcheted at a 92.4% minimum, with separate live PostgreSQL and SQLite reliability gates protecting adapter behavior.
-- The release workflow validates the tag, package graph, coverage evidence, load evidence, package contents, release notes, and published crate availability before completing publication.
+- The release passed the locked workspace suite, strict Clippy, rustdoc warnings, dependency policy, bounded instrumented fuzzing, and economy correctness benchmarks.
+- Measured protocol-surface LLVM line coverage is ratcheted at a 92.4% minimum, with property, concurrency, and replay tests protecting protocol behavior.
+- The release workflow validates the tag, package graph, coverage evidence, benchmark evidence, package contents, release notes, and published crate availability before completing publication.
 
 [0.1.0]: https://github.com/STEXS-Technologies/statechronicle/releases/tag/v0.1.0
