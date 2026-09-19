@@ -9,7 +9,7 @@ cargo test --workspace --exclude statechronicle-fuzz --all-targets --all-feature
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo check --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps --all-features --locked
-cargo audit --no-fetch
+cargo audit
 cargo deny check advisories licenses bans sources
 
 for target in $(find fuzz/fuzz_targets -maxdepth 1 -name '*.rs' -printf '%f\n' | sed 's/\.rs$//' | sort); do
