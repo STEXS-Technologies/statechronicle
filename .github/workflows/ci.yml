@@ -70,7 +70,10 @@ jobs:
         with:
           tool: cargo-fuzz
       - name: Run bounded fuzz smoke
-        run: cargo +nightly fuzz run ${{ matrix.target }} -- -runs=100
+        run: |
+          fuzz_host_target="$(rustc +nightly -vV | sed -n 's/^host: //p')"
+          test -n "${fuzz_host_target}"
+          cargo +nightly fuzz run "${{ matrix.target }}" --target "${fuzz_host_target}" -- -runs=100
 
   msrv:
     name: MSRV compatibility

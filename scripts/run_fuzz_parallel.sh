@@ -9,9 +9,10 @@ if ! [[ "${duration}" =~ ^[1-9][0-9]*$ ]]; then
   exit 2
 fi
 
-cargo +nightly fuzz build
-log_root="$(mktemp -d /tmp/statechronicle-fuzz-parallel.XXXXXX)"
 host_target="$(rustc +nightly -vV | sed -n 's/^host: //p')"
+test -n "${host_target}"
+cargo +nightly fuzz build --target "${host_target}"
+log_root="$(mktemp -d /tmp/statechronicle-fuzz-parallel.XXXXXX)"
 pids=()
 targets=()
 for target in $(find fuzz/fuzz_targets -maxdepth 1 -name '*.rs' -printf '%f\n' | sed 's/\.rs$//' | sort); do
