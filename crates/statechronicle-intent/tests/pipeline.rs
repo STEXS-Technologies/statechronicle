@@ -284,7 +284,11 @@ fn validated_intent_reflects_expiry_window() {
 fn validated_intent_json_view_roundtrips() {
     let validated = validate(&parse_payload(&sample_payload())).unwrap();
     let json = serde_json::to_string(&validated).unwrap();
-    assert!(json.contains("\"schema\":\"statechronicle.intent.v0\""));
+    let view: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        view["intent"]["schema"],
+        statechronicle_domain::intent::INTENT_SCHEMA
+    );
 
     let decoded: statechronicle_intent::validated::ValidatedIntent =
         serde_json::from_str(&json).unwrap();

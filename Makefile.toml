@@ -125,6 +125,35 @@ install_crate = "cargo-deny"
 command = "cargo"
 args = ["deny", "check"]
 
+[tasks.coverage-json]
+description = "Write the protocol-surface LLVM coverage report"
+workspace = false
+command = "bash"
+args = ["scripts/run_coverage_json.sh", "${@}"]
+
+[tasks.coverage-check]
+description = "Generate coverage and enforce the 92 percent line-coverage ratchet"
+workspace = false
+dependencies = ["coverage-json"]
+command = "bash"
+args = ["scripts/check_coverage_ratchet.sh", "${@}"]
+
+[tasks.coverage]
+description = "Print the protocol-surface LLVM coverage summary"
+workspace = false
+install_crate = "cargo-llvm-cov"
+install_crate_args = ["--locked"]
+command = "cargo"
+args = [
+    "llvm-cov",
+    "--workspace",
+    "--all-features",
+    "--exclude",
+    "statechronicle-fuzz",
+    "--summary-only",
+    "${@}",
+]
+
 [tasks.sqlx]
 description = "Run raw SQLx CLI commands; pass explicit --source and per-slice --database-url"
 workspace = false

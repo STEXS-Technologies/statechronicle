@@ -1,0 +1,82 @@
+name: Reliability soak
+
+on:
+  workflow_call:
+    inputs:
+      duration_seconds:
+        description: Bounded fuzz campaign duration
+        required: false
+        default: "600"
+        type: string
+  workflow_dispatch:
+    inputs:
+      duration_seconds:
+        description: Bounded fuzz campaign duration
+        required: false
+        default: "1800"
+        type: string
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - ".github/workflows/reliability-soak.yml"
+      - "scripts/**"
+      - "fuzz/**"
+  schedule:
+    - cron: "31 1 * * 0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reliability-soak-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  fuzz-and-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Setup Rust CI toolchain and tools
+        uses: ./.github/actions/rust-ci-setup
+        with:
+          cargo-tools: cargo-llvm-cov
+
+      - name: Install nightly fuzz toolchain
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+
+      - name: Run coverage-guided fuzz campaign
+        env:
+          STATECHRONICLE_FUZZ_SECONDS: ${{ inputs.duration_seconds || (github.event_name == 'pull_request' && '600') || '1800' }}
+        run: scripts/run_fuzz_parallel.sh
+
+      - name: Run economy benchmark evidence
+        env:
+          STATECHRONICLE_BENCH_ITERATIONS: "100"
+          STATECHRONICLE_BENCH_MIN_RUNS_PER_SEC: "400"
+        run: scripts/run_economy_bench.sh
+
+      - name: Publish campaign metadata
+        if: always()
+        run: |
+          {
+            echo "commit=${GITHUB_SHA}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "finished_epoch=$(date +%s)"
+          } > reliability-soak-metadata.txt
+
+      - name: Upload reliability evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: statechronicle-reliability-${{ github.sha }}
+          path: reliability-soak-metadata.txt
+          if-no-files-found: error
+          retention-days: 90

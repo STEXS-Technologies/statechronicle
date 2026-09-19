@@ -1090,6 +1090,114 @@ mod tests {
         );
     }
 
+    #[test]
+    fn malformed_trade_inputs_fail_closed() {
+        let mut state = BTreeMap::new();
+
+        let missing_trade_id = batch(
+            vec![lock_event(
+                "missing",
+                "acme.game.alpha",
+                "asset:sword",
+                "",
+                "alice",
+            )],
+            Vec::new(),
+            "acme.game.alpha",
+            "cmt_00000000000000000001",
+        );
+        assert!(matches!(
+            apply(&mut state, &missing_trade_id),
+            Err(IndexError::MissingTradeId(_))
+        ));
+
+        let missing_owner = batch(
+            vec![settle_event(
+                "owner",
+                "acme.game.alpha",
+                "asset:sword",
+                "trade_001",
+                "alice",
+                "",
+            )],
+            Vec::new(),
+            "acme.game.alpha",
+            "cmt_00000000000000000002",
+        );
+        assert!(matches!(
+            apply(&mut state, &missing_owner),
+            Err(IndexError::MalformedValue(_))
+        ));
+    }
+
+    #[test]
+    fn malformed_value_declarations_and_pairs_fail_closed() {
+        let mut state = BTreeMap::new();
+        let intent = value_settle_intent("trade_001", "wallet:gold", "100", "alice");
+
+        let singleton_pair = batch(
+            vec![value_pair_event(
+                "singleton",
+                "acme.game.beta",
+                "alice",
+                "0",
+                "100",
+                "vleg",
+            )],
+            vec![intent.clone()],
+            "acme.game.beta",
+            "cmt_00000000000000000003",
+        );
+        assert!(matches!(
+            apply(&mut state, &singleton_pair),
+            Err(IndexError::MalformedValue(_))
+        ));
+
+        let mut malformed = intent;
+        malformed.inputs.insert(
+            String::from(keys::VALUE_AMOUNT),
+            serde_json::json!("not-an-amount"),
+        );
+        let malformed_declaration = batch(
+            Vec::new(),
+            vec![malformed],
+            "acme.game.beta",
+            "cmt_00000000000000000004",
+        );
+        assert!(matches!(
+            apply(&mut state, &malformed_declaration),
+            Err(IndexError::MalformedValue(_))
+        ));
+    }
+
+    #[test]
+    fn non_tenant_commit_is_rejected() {
+        let mut signed = signed_commit("acme.game.alpha", "cmt_00000000000000000005");
+        signed.body.scope = CommitScope::global_checkpoint();
+        let batch = IngestBatch {
+            events: Vec::new(),
+            settle_intents: Vec::new(),
+            commit: signed,
+        };
+        assert!(matches!(
+            apply(&mut BTreeMap::new(), &batch),
+            Err(IndexError::NonTenantCommit(_))
+        ));
+
+        let mut missing_tenant = signed_commit("acme.game.alpha", "cmt_00000000000000000006");
+        missing_tenant.body.scope.kind = ScopeKind::Tenant;
+        missing_tenant.body.scope.tenant_id = None;
+        let batch = IngestBatch {
+            events: Vec::new(),
+            settle_intents: Vec::new(),
+            commit: missing_tenant,
+        };
+        assert!(matches!(
+            apply(&mut BTreeMap::new(), &batch),
+            Err(IndexError::NonTenantCommit(_))
+        ));
+    }
+
     /// Derives a deterministic batch from a byte slice using fixed event
     /// templates, so the builder is exercised over arbitrary shapes.
     #[allow(clippy::manual_is_multiple_of)]

@@ -354,4 +354,56 @@ mod tests {
         let err = verify_trade_proof(&p, &BTreeMap::new()).unwrap_err();
         assert!(!matches!(err, ProofError::TradeProofTruncated { .. }));
     }
+
+    #[test]
+    fn trade_proof_rejects_orphan_groups_and_omits_empty_groups() {
+        let record = TradeRecord {
+            trade_id: String::from("trade_001"),
+            status: TradeStatus::Settled,
+            sides: vec![side("acme.game.alpha", &["asset:sword"])],
+            events: Vec::new(),
+            value_legs: Vec::new(),
+        };
+
+        let orphan = build_trade_proof(
+            &record,
+            vec![(TenantId(String::from("acme.game.beta")), Vec::new())],
+        );
+        assert!(matches!(
+            orphan,
+            Err(ProofError::TradeMissingSide(tenant)) if tenant == "acme.game.beta"
+        ));
+
+        let empty = build_trade_proof(
+            &record,
+            vec![(TenantId(String::from("acme.game.alpha")), Vec::new())],
+        )
+        .unwrap();
+        assert!(empty.legs.is_empty());
+        assert_eq!(empty.summary.trade_id, empty.trade_id);
+    }
+
+    #[test]
+    fn trade_proof_rejects_schema_and_identity_mismatches_before_crypto() {
+        let side = side("acme.game.alpha", &["asset:sword"]);
+        let leg = TradeProofLeg {
+            tenant: TenantId(String::from("acme.game.alpha")),
+            commit: commit_ref(),
+            state_proofs: vec![state_proof("acme.game.alpha", "asset:sword")],
+        };
+
+        let mut wrong_schema = proof(vec![side.clone()], vec![leg.clone()]);
+        wrong_schema.schema = String::from("statechronicle.trade.invalid");
+        assert!(matches!(
+            verify_trade_proof(&wrong_schema, &BTreeMap::new()),
+            Err(ProofError::UnsupportedSchema(_))
+        ));
+
+        let mut wrong_id = proof(vec![side], vec![leg]);
+        wrong_id.trade_id = String::from("trade_other");
+        assert!(matches!(
+            verify_trade_proof(&wrong_id, &BTreeMap::new()),
+            Err(ProofError::TradeIdMismatch { .. })
+        ));
+    }
 }

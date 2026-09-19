@@ -143,7 +143,11 @@ fn signed_intent_serde_json_view() {
     let envelope = Signed::new(intent.clone(), sign_body(&intent, &key));
 
     let json = serde_json::to_string(&envelope).unwrap();
-    assert!(json.contains("\"schema\":\"statechronicle.intent.v0\""));
+    let view: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        view["body"]["schema"],
+        statechronicle_domain::intent::INTENT_SCHEMA
+    );
     let decoded: Signed<Intent> = serde_json::from_str(&json).unwrap();
     assert_eq!(decoded, envelope);
 }
@@ -183,7 +187,11 @@ fn signed_commit_serde_json_view() {
     let envelope = Signed::new(commit.clone(), sign_body(&commit, &key));
 
     let json = serde_json::to_string(&envelope).unwrap();
-    assert!(json.contains("\"schema\":\"statechronicle.commit.v0\""));
+    let view: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        view["body"]["schema"],
+        statechronicle_domain::commit::COMMIT_SCHEMA
+    );
     let decoded: Signed<Commit> = serde_json::from_str(&json).unwrap();
     assert_eq!(decoded, envelope);
 }

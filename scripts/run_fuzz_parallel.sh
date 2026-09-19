@@ -9,13 +9,14 @@ if ! [[ "${duration}" =~ ^[1-9][0-9]*$ ]]; then
   exit 2
 fi
 
-cargo build -p statechronicle-fuzz --bins --locked
+cargo +nightly fuzz build
 log_root="$(mktemp -d /tmp/statechronicle-fuzz-parallel.XXXXXX)"
+host_target="$(rustc +nightly -vV | sed -n 's/^host: //p')"
 pids=()
 targets=()
 for target in $(find fuzz/fuzz_targets -maxdepth 1 -name '*.rs' -printf '%f\n' | sed 's/\.rs$//' | sort); do
   targets+=("${target}")
-  "target/debug/${target}" -max_total_time="${duration}" \
+  "target/${host_target}/release/${target}" -max_total_time="${duration}" \
     -artifact_prefix="${log_root}/${target}-" >"${log_root}/${target}.log" 2>&1 &
   pids+=("$!")
 done

@@ -49,17 +49,17 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 tokio-postgres = "0.7"
 
 # internal crates
-statechronicle-core = { path = "crates/statechronicle-core" }
-statechronicle-domain = { path = "crates/statechronicle-domain" }
-statechronicle-intent = { path = "crates/statechronicle-intent" }
-statechronicle-executor = { path = "crates/statechronicle-executor" }
-statechronicle-commit = { path = "crates/statechronicle-commit" }
-statechronicle-accumulator = { path = "crates/statechronicle-accumulator" }
-statechronicle-proof = { path = "crates/statechronicle-proof" }
-statechronicle-profiles = { path = "crates/statechronicle-profiles" }
-statechronicle-ports = { path = "crates/statechronicle-ports" }
-statechronicle-index = { path = "crates/statechronicle-index" }
-statechronicle = { path = "crates/statechronicle" }
+statechronicle-core = { path = "crates/statechronicle-core", version = "0.1.0" }
+statechronicle-domain = { path = "crates/statechronicle-domain", version = "0.1.0" }
+statechronicle-intent = { path = "crates/statechronicle-intent", version = "0.1.0" }
+statechronicle-executor = { path = "crates/statechronicle-executor", version = "0.1.0" }
+statechronicle-commit = { path = "crates/statechronicle-commit", version = "0.1.0" }
+statechronicle-accumulator = { path = "crates/statechronicle-accumulator", version = "0.1.0" }
+statechronicle-proof = { path = "crates/statechronicle-proof", version = "0.1.0" }
+statechronicle-profiles = { path = "crates/statechronicle-profiles", version = "0.1.0" }
+statechronicle-ports = { path = "crates/statechronicle-ports", version = "0.1.0" }
+statechronicle-index = { path = "crates/statechronicle-index", version = "0.1.0" }
+statechronicle = { path = "crates/statechronicle", version = "0.1.0" }
 
 [profile.release]
 opt-level = 3

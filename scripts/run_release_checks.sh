@@ -13,7 +13,10 @@ cargo audit --no-fetch
 cargo deny check advisories licenses bans sources
 
 for target in $(find fuzz/fuzz_targets -maxdepth 1 -name '*.rs' -printf '%f\n' | sed 's/\.rs$//' | sort); do
-  cargo run -q -p statechronicle-fuzz --bin "${target}" -- -runs=100
+  # `cargo run` builds a normal binary without sanitizer-coverage. Use the
+  # cargo-fuzz toolchain so this gate actually exercises coverage-guided,
+  # ASan-instrumented fuzz targets.
+  cargo +nightly fuzz run "${target}" -- -runs=100
 done
 
 git diff --check

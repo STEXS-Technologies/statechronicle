@@ -125,7 +125,15 @@ mod tests {
             evaluated_at: evaluated_at(),
         };
         let json = serde_json::to_string(&proof).unwrap();
-        assert!(json.contains("evaluated_at"));
+        let view: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let encoded_time = view
+            .get("evaluated_at")
+            .and_then(serde_json::Value::as_str)
+            .unwrap();
+        let decoded_time = DateTime::parse_from_rfc3339(encoded_time)
+            .unwrap()
+            .with_timezone(&Utc);
+        assert_eq!(decoded_time, proof.evaluated_at);
         let decoded: AuthorityProof = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, proof);
     }

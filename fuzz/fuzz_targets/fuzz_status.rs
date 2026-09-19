@@ -62,7 +62,7 @@ fuzz_target!(|data: &[u8]| {
     };
 
     // Oversized status names (exceeding the id length bound) fail closed.
-    if text.len() > MAX_ID_LENGTH {
+    if text.chars().count() > MAX_ID_LENGTH {
         assert!(Status::try_from_str(text).is_err());
         return;
     }

@@ -1,9 +1,16 @@
 name: CI
 
 on:
+  pull_request:
   push:
     branches: [main, master]
-  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,49 +19,22 @@ jobs:
   check-test:
     name: Check, Test, Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust CI toolchain and tools
+        uses: ./.github/actions/rust-ci-setup
         with:
-          components: rustfmt, clippy
+          cargo-tools: cargo-nextest,cargo-llvm-cov,cargo-fuzz
 
-      - name: Cache cargo
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-
-      - name: Check workspace (incl. fuzz targets)
-        run: cargo check --workspace --all-targets --all-features --locked
-
-      - name: Test finite workspace targets
-        # libFuzzer binaries are intentionally excluded: `cargo test` would
-        # launch them as unbounded fuzz jobs and never terminate.
-        run: cargo test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked
-
-      - name: Clippy (deny warnings)
-        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-
-      - name: Format check
-        run: cargo fmt --all -- --check
-
-      - name: Dependency audit
-        uses: actions-rust-lang/audit@v1
-
-      - name: Dependency policy
-        uses: EmbarkStudios/cargo-deny-action@v2
-        with:
-          command: check advisories bans licenses sources
+      - name: Run release checks
+        run: scripts/run_release_checks.sh
 
   fuzz-smoke:
     name: Bounded fuzz smoke tests
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: check-test
     strategy:
       fail-fast: false
@@ -82,17 +62,21 @@ jobs:
           - fuzz_trade_index_build
           - fuzz_trade_proof_verify
     steps:
-      - uses: actions/checkout@v7
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install nightly fuzz toolchain
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
       - name: Run bounded fuzz smoke
-        run: cargo run -p statechronicle-fuzz --bin ${{ matrix.target }} -- -runs=100
+        run: cargo +nightly fuzz run ${{ matrix.target }} -- -runs=100
 
   msrv:
     name: MSRV compatibility
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Install MSRV toolchain
         uses: dtolnay/rust-toolchain@1.85.0
       - name: Check locked workspace at MSRV
@@ -115,7 +99,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Run live PostgreSQL adapter test
