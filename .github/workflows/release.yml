@@ -84,6 +84,19 @@ jobs:
       - name: Package publishable crates
         run: cargo package --workspace --exclude statechronicle-fuzz --locked
 
+      - name: Prepare GitHub release notes
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.publish == 'true')
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          awk -v version="${version}" '
+            index($0, "## [" version "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          test -s release-notes.md
+
       - name: Upload release evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -93,6 +106,14 @@ jobs:
             target/package/*.crate
           if-no-files-found: error
           retention-days: 90
+
+      - name: Publish GitHub release
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.publish == 'true')
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        with:
+          name: StateChronicle ${{ github.ref_name }}
+          body_path: release-notes.md
+          generate_release_notes: false
 
       - name: Publish crates.io packages
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.publish == 'true')

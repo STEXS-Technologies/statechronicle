@@ -7,38 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
+No unreleased changes.
 
-- Added a production release workflow with tag validation, reliability gates,
-  coverage evidence, benchmark evidence, package verification, and optional
-  crates.io publishing.
-- Added a 92% protocol-surface LLVM line-coverage ratchet with retained JSON
-  evidence and live PostgreSQL coverage execution.
-- Added Shardline-style reusable Rust CI setup, coverage, and reliability-soak
-  workflows with bounded artifact retention.
+## [0.1.0] - 2026-09-19
 
-### Changed
-
-- Release checks now use real nightly `cargo fuzz` instrumentation instead of
-  running non-instrumented fuzz binaries.
-- Parallel fuzz campaigns now run sanitizer-instrumented release targets and
-  fail if any target exits abnormally.
-- JSON serialization tests inspect decoded structures instead of matching
-  serialized substrings.
-
-### Reliability
-
-- Fuzz status validation now measures Unicode character length consistently with
-  the production identifier limit; a Unicode input previously exposed an
-  incorrect harness assertion.
-- Release verification retains separate live PostgreSQL and SQLite adapter
-  gates alongside protocol-surface coverage.
-
-## [0.1.0-rc.1] - 2026-09-19
-
-This release candidate completes the library-owned durability, authorization,
-canonicalization, proof, adapter, fuzzing, and performance hardening required
-before broad multiplayer-backend adoption.
+This release makes StateChronicle ready for production multiplayer backend
+integration. It completes the protocol, durable adapter, proof, fuzzing, and
+release hardening needed for verifiable resource state under concurrent load.
 
 ### Added
 
@@ -55,6 +30,13 @@ before broad multiplayer-backend adoption.
   entitlements, meters, listings, and escrow with property and lifecycle tests.
 - Added 21 adversarial fuzz targets, property tests, concurrency regressions,
   adapter load drills, chaos drills, and economy-shaped release benchmarks.
+- Added a production release workflow with tag validation, reliability gates,
+  coverage evidence, benchmark evidence, package verification, and optional
+  crates.io publishing.
+- Added a 92.4% protocol-surface LLVM line-coverage ratchet with retained JSON
+  evidence and live PostgreSQL coverage execution.
+- Added Shardline-style reusable Rust CI setup, coverage, and reliability-soak
+  workflows with bounded artifact retention.
 
 ### Changed
 
@@ -67,6 +49,12 @@ before broad multiplayer-backend adoption.
   resumable from verified canonical history.
 - Public APIs distinguish pure planning from durable mutation and require an
   explicit verified persistence boundary for production writes.
+- Release checks now use real nightly `cargo fuzz` instrumentation instead of
+  running non-instrumented fuzz binaries.
+- Parallel fuzz campaigns now run sanitizer-instrumented release targets and
+  fail if any target exits abnormally.
+- JSON serialization tests inspect decoded structures instead of matching
+  serialized substrings.
 
 ### Fixed
 
@@ -87,11 +75,16 @@ before broad multiplayer-backend adoption.
 
 ### Reliability
 
-- The release candidate passed the locked workspace suite, strict Clippy,
+- The release passed the locked workspace suite, strict Clippy,
   rustdoc warnings, dependency policy, live PostgreSQL integration, SQLite
   recovery/load drills, bounded instrumented fuzzing, and economy benchmarks.
-- Measured protocol-surface coverage is ratcheted at 92% minimum; adapter
+- Fuzz status validation now measures Unicode character length consistently with
+  the production identifier limit; a Unicode input previously exposed an
+  incorrect harness assertion.
+- Release verification retains separate live PostgreSQL and SQLite adapter
+  gates alongside protocol-surface coverage.
+- Measured protocol-surface coverage is ratcheted at 92.4% minimum; adapter
   behavior remains protected by dedicated live reliability suites.
 
-[Unreleased]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.1.0-rc.1...HEAD
-[0.1.0-rc.1]: https://github.com/STEXS-Technologies/statechronicle/releases/tag/v0.1.0-rc.1
+[Unreleased]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/STEXS-Technologies/statechronicle/releases/tag/v0.1.0
