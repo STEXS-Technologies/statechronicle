@@ -18,10 +18,10 @@ env:
 jobs:
   check-test:
     name: Check, Test, Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Setup Rust CI toolchain and tools
         uses: ./.github/actions/rust-ci-setup
@@ -33,7 +33,7 @@ jobs:
 
   fuzz-smoke:
     name: Bounded fuzz smoke tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     needs: check-test
     strategy:
@@ -62,7 +62,7 @@ jobs:
           - fuzz_trade_index_build
           - fuzz_trade_proof_verify
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Install nightly fuzz toolchain
         uses: dtolnay/rust-toolchain@nightly
       - name: Install cargo-fuzz
@@ -77,9 +77,9 @@ jobs:
 
   msrv:
     name: MSRV compatibility
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Install MSRV toolchain
         uses: dtolnay/rust-toolchain@1.85.0
       - name: Check locked workspace at MSRV
@@ -87,7 +87,7 @@ jobs:
 
   postgres-integration:
     name: PostgreSQL durable adapter integration
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -102,7 +102,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Run live PostgreSQL adapter test
