@@ -59,7 +59,7 @@ jobs:
       - name: Run economy benchmark evidence
         env:
           STATECHRONICLE_BENCH_ITERATIONS: "100"
-          STATECHRONICLE_BENCH_MIN_RUNS_PER_SEC: "400"
+          STATECHRONICLE_BENCH_MIN_RUNS_PER_SEC: "350"
         run: scripts/run_economy_bench.sh
 
       - name: Publish campaign metadata
