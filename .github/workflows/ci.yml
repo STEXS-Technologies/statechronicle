@@ -108,4 +108,4 @@ jobs:
       - name: Run live PostgreSQL adapter test
         env:
           STATECHRONICLE_POSTGRES_URL: host=localhost user=postgres password=postgres dbname=statechronicle
-        run: cargo test -p statechronicle-postgres --test integration --all-features --locked
+        run: cargo test -p statechronicle-postgres --test integration --all-features --locked -- --test-threads=1
