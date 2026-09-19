@@ -295,10 +295,10 @@ impl KeyedRateLimiter {
             };
         }
         for key in &unique {
-            if let Some(bucket) = buckets.get(*key)
-                && let Ok(mut state) = bucket.state.lock()
-            {
-                state.0 = state.0.saturating_sub(tokens);
+            if let Some(bucket) = buckets.get(*key) {
+                if let Ok(mut state) = bucket.state.lock() {
+                    state.0 = state.0.saturating_sub(tokens);
+                }
             }
         }
         RateLimitDecision {
