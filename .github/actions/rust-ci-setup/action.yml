@@ -9,7 +9,7 @@ inputs:
   cargo-tools:
     description: Comma-separated cargo tools to install.
     required: false
-    default: cargo-make,cargo-nextest,cargo-llvm-cov
+    default: cargo-make,cargo-nextest,cargo-llvm-cov,cargo-audit,cargo-deny
 
 runs:
   using: composite

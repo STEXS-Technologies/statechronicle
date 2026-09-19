@@ -26,7 +26,7 @@ jobs:
       - name: Setup Rust CI toolchain and tools
         uses: ./.github/actions/rust-ci-setup
         with:
-          cargo-tools: cargo-nextest,cargo-llvm-cov,cargo-fuzz
+          cargo-tools: cargo-nextest,cargo-llvm-cov,cargo-fuzz,cargo-audit,cargo-deny
 
       - name: Run release checks
         run: scripts/run_release_checks.sh
