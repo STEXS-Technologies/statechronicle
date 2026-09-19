@@ -21,9 +21,7 @@ edition = "2024"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/STEXS-Technologies/statechronicle"
-homepage = "https://github.com/STEXS-Technologies/statechronicle"
 documentation = "https://docs.rs/statechronicle"
-description = "A verifiable resource state protocol for append-only, replayable, authority-checked state transitions."
 keywords = ["state", "ledger", "verifiable", "resources", "ownership"]
 categories = ["cryptography", "data-structures", "rust-patterns"]
 
