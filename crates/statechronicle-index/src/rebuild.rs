@@ -173,13 +173,13 @@ fn validate_rebuild_stream(events: &[(Event, CommitId)]) -> Result<(), RebuildEr
             )));
         }
         let key = (event.tenant_id.0.clone(), event.resource_id.0.clone());
-        if let Some((version, state_hash)) = previous.get(&key) {
-            if event.before.version != *version || event.before.state_hash != *state_hash {
-                return Err(RebuildError::Invariant(format!(
-                    "event continuity mismatch for resource `{}`",
-                    event.resource_id.0
-                )));
-            }
+        if let Some((version, state_hash)) = previous.get(&key)
+            && (event.before.version != *version || event.before.state_hash != *state_hash)
+        {
+            return Err(RebuildError::Invariant(format!(
+                "event continuity mismatch for resource `{}`",
+                event.resource_id.0
+            )));
         }
         previous.insert(key, (event.after.version, event.after.state_hash.clone()));
     }
