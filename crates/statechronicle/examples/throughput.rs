@@ -44,9 +44,7 @@ fn main() {
         elapsed.as_millis()
     );
     if rate < minimum_rate {
-        eprintln!(
-            "throughput {rate} operations/s is below required {minimum_rate} operations/s"
-        );
+        eprintln!("throughput {rate} operations/s is below required {minimum_rate} operations/s");
         std::process::exit(1);
     }
 }
