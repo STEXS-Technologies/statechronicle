@@ -7,6 +7,20 @@ edition = "2024"
 [package.metadata]
 cargo-fuzz = true
 
+[lints]
+# Fuzz targets intentionally use unchecked inputs and panic-oriented helpers
+# to exercise the protocol boundary. Keep the workspace lint policy explicit
+# while allowing those harness-only patterns.
+[lints.clippy]
+unwrap_used = "allow"
+expect_used = "allow"
+panic = "allow"
+indexing_slicing = "allow"
+arithmetic_side_effects = "allow"
+let_underscore_must_use = "allow"
+wildcard_enum_match_arm = "allow"
+redundant_clone = "allow"
+
 [dependencies]
 libfuzzer-sys = "0.4"
 hex = { workspace = true }

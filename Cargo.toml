@@ -59,7 +59,6 @@ statechronicle-proof = { path = "crates/statechronicle-proof", version = "0.1.0"
 statechronicle-profiles = { path = "crates/statechronicle-profiles", version = "0.1.0" }
 statechronicle-ports = { path = "crates/statechronicle-ports", version = "0.1.0" }
 statechronicle-index = { path = "crates/statechronicle-index", version = "0.1.0" }
-statechronicle = { path = "crates/statechronicle", version = "0.1.0" }
 
 [profile.release]
 opt-level = 3

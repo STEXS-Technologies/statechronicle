@@ -94,7 +94,7 @@ jobs:
         run: cargo build --workspace --release --all-features --locked
 
       - name: Package publishable crates
-        run: cargo package --workspace --exclude statechronicle-fuzz --locked
+        run: cargo package --workspace --exclude statechronicle-fuzz --exclude statechronicle-postgres --exclude statechronicle-sqlite --locked
 
       - name: Derive publish order from cargo metadata
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.publish == 'true')

@@ -1,9 +1,15 @@
 [package]
 name = "statechronicle-postgres"
+publish = false
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "PostgreSQL durable ledger adapter for StateChronicle"
 
 [dependencies]
