@@ -28,4 +28,4 @@ done
 pg_isready -h 127.0.0.1 -p "${port}" -U postgres -d statechronicle >/dev/null
 
 STATECHRONICLE_POSTGRES_URL="${url}" \
-  cargo test -p statechronicle-postgres --test integration --all-features --locked
+  cargo test -p statechronicle-postgres --test integration --all-features --locked -- --test-threads=1
