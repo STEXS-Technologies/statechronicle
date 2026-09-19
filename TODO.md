@@ -56,9 +56,9 @@ and product policy remain intentionally outside this library scope.
 - `MemoryKeyRegistry` now permits tenant-scoped commit keys with no actor
   operation list while still requiring non-empty operation scopes for actor
   keys; focused tests and strict Clippy pass.
-- `run_economy_bench.sh` now accepts an optional
-  `STATECHRONICLE_BENCH_MIN_RUNS_PER_SEC` floor and fails on regressions; a
-  ten-iteration run with a floor of `1` passed all six protocol scenarios.
+- `run_economy_bench.sh` now measures the optimized hot path in-process and
+  keeps the six protocol examples as correctness smoke tests; it fails below
+  the explicit `STATECHRONICLE_BENCH_MIN_OPS_PER_SEC` floor.
 - Domain identifier, operation, key, status, and profile validators now apply
   the documented `MAX_ID_LENGTH` in Unicode characters (not UTF-8 bytes),
   with boundary regressions covering multibyte identifiers; 79 domain tests

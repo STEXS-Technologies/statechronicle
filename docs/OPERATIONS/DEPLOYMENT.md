@@ -57,8 +57,10 @@ and trade scenarios:
 STATECHRONICLE_BENCH_ITERATIONS=10 ./scripts/run_economy_bench.sh
 ```
 
-This measures the pure protocol/example path only; database, network, signer,
-quota, and broker latency must be measured again in the deployed service.
+This runs the examples as correctness smoke tests and measures one million
+in-process pure-protocol operations on the optimized hot path. Database,
+network, signer, quota, and broker latency must be measured again in the
+deployed service.
 
 For forced database-failure chaos testing, run:
 

@@ -19,6 +19,10 @@ fn main() {
         .ok()
         .and_then(|value| value.parse::<u64>().ok())
         .unwrap_or(1_000_000);
+    let minimum_rate = std::env::var("STATECHRONICLE_THROUGHPUT_MIN_OPS_PER_SEC")
+        .ok()
+        .and_then(|value| value.parse::<u128>().ok())
+        .unwrap_or(0);
 
     let operation = Operation::from_static("asset.mint");
     let mut inputs = BTreeMap::new();
@@ -39,4 +43,10 @@ fn main() {
         "iterations={iterations} elapsed_ms={} operations_per_sec={rate} checksum={checksum}",
         elapsed.as_millis()
     );
+    if rate < minimum_rate {
+        eprintln!(
+            "throughput {rate} operations/s is below required {minimum_rate} operations/s"
+        );
+        std::process::exit(1);
+    }
 }
