@@ -17,6 +17,8 @@ on:
 
 permissions:
   contents: write
+  packages: write
+  attestations: write
   id-token: write
 
 concurrency:
@@ -34,15 +36,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - name: Checkout release history
+      - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
 
       - name: Setup Rust CI toolchain and tools
         uses: ./.github/actions/rust-ci-setup
-        with:
-          rust-components: rustfmt,clippy,llvm-tools-preview
 
       - name: Verify tagged commit is on main
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
@@ -50,11 +50,20 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
-          git merge-base --is-ancestor "${GITHUB_SHA}" FETCH_HEAD
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" "FETCH_HEAD"; then
+            echo "Tag ${GITHUB_REF_NAME} points to commit ${GITHUB_SHA} which is not on origin/main"
+            exit 1
+          fi
 
       - name: Validate publish ref
         if: github.event_name == 'workflow_dispatch' && inputs.publish == 'true'
-        run: test "${GITHUB_REF_TYPE}" = tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" != "tag" ]]; then
+            echo "Manual publish must be run from a release tag, not ${GITHUB_REF_TYPE} ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
 
       - name: Validate release version
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.publish == 'true')
@@ -63,7 +72,10 @@ jobs:
           set -euo pipefail
           tag_version="${GITHUB_REF_NAME#v}"
           package_version="$(cargo pkgid -p statechronicle | sed -E 's/.*#([^#]+)$/\1/')"
-          test "${tag_version}" = "${package_version}"
+          if [[ "${tag_version}" != "${package_version}" ]]; then
+            echo "Release tag ${GITHUB_REF_NAME} does not match Cargo package version ${package_version}" >&2
+            exit 1
+          fi
 
       - name: Run complete release gate
         run: scripts/run_release_checks.sh
@@ -83,6 +95,13 @@ jobs:
 
       - name: Package publishable crates
         run: cargo package --workspace --exclude statechronicle-fuzz --locked
+
+      - name: Derive publish order from cargo metadata
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.publish == 'true')
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "CRATE_PACKAGES=$(python3 scripts/publish-order.py --emit | tr '\n' ' ')" >> "${GITHUB_ENV}"
 
       - name: Prepare GitHub release notes
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.publish == 'true')
@@ -121,8 +140,54 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           set -euo pipefail
-          test -n "${CARGO_REGISTRY_TOKEN:-}"
-          for crate in statechronicle-core statechronicle-domain statechronicle-intent statechronicle-profiles statechronicle-ports statechronicle-accumulator statechronicle-executor statechronicle-commit statechronicle-proof statechronicle-index statechronicle statechronicle-sqlite statechronicle-postgres; do
-            cargo publish --locked -p "${crate}"
+          if [[ -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
+            echo "CARGO_REGISTRY_TOKEN secret is required to publish crates" >&2
+            exit 1
+          fi
+
+          crate_version() {
+            cargo pkgid -p "$1" | sed -E 's/.*#//; s/.*@//'
+          }
+
+          crate_version_published() {
+            local crate="$1"
+            local version="$2"
+            curl --fail --silent --show-error --retry 3 --retry-delay 3 \
+              -H "User-Agent: statechronicle-release-ci (curl)" \
+              "https://crates.io/api/v1/crates/${crate}/${version}" \
+              >/dev/null 2>&1
+          }
+
+          for crate in ${CRATE_PACKAGES}; do
+            version="$(crate_version "${crate}")"
+            if crate_version_published "${crate}" "${version}"; then
+              echo "${crate} ${version} already exists on crates.io; skipping"
+              continue
+            fi
+            if ! cargo publish --locked -p "${crate}"; then
+              if crate_version_published "${crate}" "${version}"; then
+                echo "${crate} ${version} was published concurrently; continuing"
+                continue
+              fi
+              echo "Failed to publish ${crate} ${version}" >&2
+              exit 1
+            fi
+            echo "${crate} ${version} published successfully"
             sleep 15
+          done
+
+      - name: Verify published crates.io packages
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.publish == 'true')
+        shell: bash
+        run: |
+          set -euo pipefail
+          crate_version() {
+            cargo pkgid -p "$1" | sed -E 's/.*#//; s/.*@//'
+          }
+          for crate in ${CRATE_PACKAGES}; do
+            version="$(crate_version "${crate}")"
+            curl --fail --silent --show-error --retry 5 --retry-delay 5 \
+              -H "User-Agent: statechronicle-release-ci (curl)" \
+              "https://crates.io/api/v1/crates/${crate}/${version}" >/dev/null
+            sleep 2
           done
