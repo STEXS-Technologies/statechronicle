@@ -18,7 +18,7 @@ ADR convention used by its sibling workspaces.
 
 ## Proposed / Pending
 
-- Storage contract / backend selection (PostgreSQL baseline): protocol §27/§35. (The
+- Storage contract / backend selection: protocol §27/§35. (The
   logical stores are resolved as `statechronicle-ports` traits; concrete backend choice
   is the consumer's, so this row remains informational.)
 

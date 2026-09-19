@@ -198,7 +198,7 @@ properties (verify∘prove = identity; root is a function of the key→value set
 **Mitigations:**
 
 - Conformance vectors for node/leaf encoding + proptest roundtrip properties.
-- In-memory per-epoch node cache; persistence lives in `StateIndex` (Postgres, §27),
+- In-memory per-epoch node cache; persistence lives in the application-owned `StateIndex`,
   re-hydrated from snapshots (§15).
 
 ## Explicit Deferrals (safe for v0)

@@ -3,7 +3,7 @@
 ## Scope
 
 This plan covers only work owned by the StateChronicle library repository:
-Rust code, public traits and APIs, reference adapters shipped in the workspace,
+Rust code, public traits and APIs,
 deterministic tests, fuzz targets, benchmarks, dependency hygiene, and library
 documentation. Application deployment, cloud/KMS provisioning, database
 operations, brokers, dashboards, on-call procedures, and product sign-off are
@@ -27,11 +27,11 @@ and product policy remain intentionally outside this library scope.
 
 | Item | Status | Evidence |
 |---|---|---|
-| P0-1 durable commit invariant | Complete | Atomic ledger adapters, integrity/rollback/race tests, and release gate. |
+| P0-1 durable commit invariant | Complete | Atomic ledger ports, integrity/rollback/race tests, and release gate. |
 | P0-2 authenticated idempotent ingress | Complete | Verified durable writer plus key-scoped player single/batch ingress tests. |
 | P1-1 canonical chains and proofs | Complete | Deterministic roots, fork, proof, and replay property/integration coverage. |
 | P1-2 replay-safe projections and outbox | Complete | Rebuild, delivery deduplication, checkpoint, and corruption regressions. |
-| P1-3 adapter concurrency and faults | Complete | Repeated SQLite/PostgreSQL adapter races and crash/fault regressions. |
+| P1-3 storage boundary and faults | Complete | Application-owned storage ports, failure classification, and release gate. |
 | P1-4 adversarial and performance coverage | Complete | 21-target fuzz campaigns and economy/throughput baselines. |
 | P2-1 resource and dependency limits | Complete | Bounded public inputs plus locked audit/deny gates. |
 | P2-2 explicit cryptographic trust policy | Complete | Scoped key registry, rotation/revocation, and verified commit boundary. |
@@ -42,8 +42,6 @@ and product policy remain intentionally outside this library scope.
 
 - Typed state migration, workspace tests, Clippy, formatting, audit, deny, and
   locked builds pass locally.
-- SQLite and PostgreSQL reference adapters pass live transactional tests,
-  including idempotency races, canonical-head checks, and outbox deduplication.
 - Core-only fuzzing completed one hour per target for all 21 targets in
   parallel; every target exited `0` with no crash artifact.
 - Economy-shaped protocol benchmarks passed 100 iterations per scenario;
@@ -84,18 +82,6 @@ and product policy remain intentionally outside this library scope.
 - Five independent 100-iteration economy benchmark rounds passed the 400/s
   floor for every scenario; observed scenario minima ranged from 567/s to
   630/s (value/cross-tenant peaks exceeded 900/s).
-- Repeated SQLite adapter reliability run passed 10 rounds of bounded
-  multi-tenant claims, 32-way idempotency races, pre-commit crash recovery,
-  and dropped-transaction atomicity (40 test invocations total).
-- A fresh three-iteration live contention drill passed all four SQLite
-  reliability tests and all seven PostgreSQL integration races per iteration
-  (30 test invocations total), including concurrent schema installation,
-  canonical-head races, idempotency races, lease takeover, and atomic
-  projection/outbox persistence.
-- A two-iteration PostgreSQL chaos drill killed the database container during
-  concurrent integration tests, restarted it, reapplied the schema, verified
-  integrity, and replayed the full seven-test integration suite successfully
-  each time; both forced-restart campaigns exited cleanly after recovery.
 - A fresh 25-iteration release economy run passed the 400 runs/s floor for all
   six scenarios: inventory 612/s, currency 560/s, marketplace 609/s,
   bundle 615/s, value 892/s, and cross-tenant 890/s. These are in-memory
@@ -104,12 +90,6 @@ and product policy remain intentionally outside this library scope.
   and executor subjects at the adapter boundary, preventing manually
   constructed/deserialized malformed commit metadata from reaching stores;
   regression coverage and strict Clippy pass.
-- A fresh two-iteration chaos campaign recovered PostgreSQL integrity after
-  forced SIGKILL. One replay run exposed a transient PostgreSQL deadlock when
-  tests applied DDL concurrently with live queries; this is an external
-  migration-versus-traffic deployment concern, not a StateChronicle library
-  invariant. Production migrations must complete under an operational gate
-  before admitting traffic (and should use bounded retry/observability).
 - A fresh 25-iteration economy benchmark passed the 400 runs/s floor for all
   six scenarios (inventory 628/s, currency 586/s, marketplace 615/s,
   bundle 626/s, value 914/s, cross-tenant 896/s).
@@ -157,11 +137,6 @@ and product policy remain intentionally outside this library scope.
 - Commit schema discriminators are now checked alongside scope and identity,
   rejecting unknown commit versions before legacy or durable writes; schema
   regression coverage passes in the commit crate.
-- Three complete SQLite adapter suites passed (81 tests total), including
-  integrity scans, projection rebuilds, lease lifecycle, idempotency, and
-  atomic transaction regressions.
-- Three PostgreSQL adapter library-test rounds passed (6 tests total); this
-  check intentionally excludes external database/container integration.
 - Prefixed protocol IDs now reject control characters at the shared domain
   boundary; 71 domain unit tests, 6 integration tests, and strict Clippy pass.
 - Operation, key, status, and profile validators now reject control characters
@@ -260,11 +235,11 @@ events, signed commit, canonical head, projection changes, and outbox rows.
 **Why:** Splitting these writes permits duplicate assets, partial trades, lost
 events, or a retry that observes a false failure.
 
-**How:** Keep the invariant in `statechronicle-ports`; require adapters to use
+**How:** Keep the invariant in `statechronicle-ports`; require consumers to use
 one transaction and reject unsupported multi-tenant atomicity. Validate staged
 event count, Merkle root, tenant scope, operation, identifiers, and commit
-identity at the final boundary. Keep SQLite and PostgreSQL implementations in
-lockstep and add regression tests for every rejected mismatch.
+identity at the final boundary. Keep application-owned implementations aligned
+with the ports and add regression tests for every rejected mismatch.
 
 **Acceptance:** A committed mutation has exactly one canonical durable result;
 zero-event, cross-tenant, wrong-root, wrong-operation, and partial-write cases
@@ -321,7 +296,7 @@ closed.
 
 ### P1-3: Exercise adapter concurrency and faults
 
-**What:** Continuously test real SQLite/PostgreSQL transaction boundaries,
+**What:** Continuously test application-owned transaction boundaries,
 leases, races, and injected failures as library behavior.
 
 **Why:** Unit tests cannot prove uniqueness, isolation, lock ordering, or crash

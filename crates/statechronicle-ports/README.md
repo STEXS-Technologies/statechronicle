@@ -4,8 +4,7 @@
 
 Backend-agnostic port traits consumers implement to wire storage, authority,
 transactions, and transport backends. The crate declares contracts only;
-`statechronicle-sqlite` provides a reference single-file adapter and
-`statechronicle-postgres` provides a server-database adapter.
+storage implementations remain application-owned.
 
 ## Protocol sections owned
 

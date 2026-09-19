@@ -20,7 +20,7 @@ StateChronicle must enable:
 3. **Portable proofs**: verification must work without direct database access (protocol
    §16).
 4. **Clean boundaries**: domain logic isolated from axum/sqlx/redis.
-5. **Evolutionary architecture**: swap storage (Postgres vs FoundationDB vs SQLite) or
+5. **Evolutionary architecture**: swap storage providers without changing the domain or
    transport without touching domain logic (protocol §27).
 
 Without explicit boundaries, domain logic mixes with infrastructure:
@@ -58,7 +58,7 @@ Application Layer (Orchestration)
 
 Infrastructure Layer (Outer)
 ├── Port implementations (adapters)
-├── Database repositories (postgres/)
+├── Database repositories (consumer-owned)
 ├── External service clients (trustgrant adapter, wired at the consumer's composition root)
 ├── HTTP handlers (driving/rest/)
 └── Framework-specific code
@@ -83,11 +83,11 @@ pub trait EventStore {
 ### Adapter Implementation (Driven)
 
 ```rust
-// consumer-owned adapter, e.g. <consumer>/crates/slices/ledger/adapters/driven/postgres/event_store.rs
+// consumer-owned adapter, e.g. <consumer>/crates/slices/ledger/adapters/driven/durable/event_store.rs
 
-pub struct PostgresEventStore { pool: PgPool }
+pub struct DurableEventStore { backend: Backend }
 
-impl EventStore for PostgresEventStore {
+impl EventStore for DurableEventStore {
     async fn append(&self, events: &[Event]) -> Result<Vec<u64>> {
         // sqlx transaction; insert rows; return sequence numbers
     }
@@ -114,10 +114,10 @@ impl EventStore for InMemoryEventStore {
 pub fn build_inventory_slice(pool: PgPool, evaluator: TrustGrantEvaluator) -> InventoryApi {
     InventoryApi {
         transfer: TransferAssetCommandHandlerV1 {
-            assets: Arc::new(PostgresAssetRepository::new(pool)),
-            events: Arc::new(PostgresEventPublisher::new(pool)),
+            assets: Arc::new(DurableAssetRepository::new(backend.clone())),
+            events: Arc::new(DurableEventPublisher::new(backend.clone())),
             authority: Arc::new(AuthorityEvaluatorAdapter::new(evaluator)),
-            tx: Arc::new(PostgresTransactionManager::new(pool)),
+            tx: Arc::new(DurableTransactionManager::new(backend)),
         },
         // ...
     }
@@ -155,7 +155,7 @@ fn build_test_inventory_slice() -> InventoryApi { /* in-memory fakes */ }
 **Positive:**
 
 - Domain logic is pure and deterministic: directly testable.
-- Infrastructure swappable (Postgres ↔ SQLite ↔ FoundationDB) without touching domain.
+- Infrastructure swappable without touching the domain.
 - Portable proof verification without database access.
 - Aligns with trustgrant-ports convention (ports crate with no impls).
 - Framework-independent core.
@@ -197,8 +197,8 @@ trait TradeIndex {}      // trade read-side records (see ADR-007)
 ### Adapter Naming
 
 ```rust
-struct PostgresEventStore {}
-struct PostgresStateIndex {}
+struct DurableEventStore {}
+struct DurableStateIndex {}
 struct InMemoryEventStore {}
 struct RedisStateCache {}
 struct AuthorityEvaluatorAdapter {}

@@ -267,7 +267,8 @@ The backend may vary; the canonical objects and verification results must not.
 - **Ports:** output `<Noun>Repository`, `<Noun>Gateway`, `<Noun>Cache`,
   `EventPublisher`, `Outbox`, `TransactionManager`, and the dedicated port traits in
   `statechronicle-ports`. Async via `trait_variant::make(Send)`.
-- **Adapters:** prefixed by impl tech: `Postgres*`, `Redis*`, `InMemory*`, `Ed25519*`,
+- **Adapters:** prefixed by implementation role, for example `Durable*`, `Redis*`,
+  `InMemory*`, and `Ed25519*`,
   `Hmac*` (consumer-owned).
 - **Domain types:** validated newtypes (macro-generated), prefixed IDs
   (`stc_…`, `evt_…`, `cmt_…`, `int_…`), never loose strings.

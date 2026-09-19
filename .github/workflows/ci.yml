@@ -16,10 +16,10 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check-test:
-    name: Check, Test, Lint
+  ci:
+    name: Check, Test, Lint, Fuzz, MSRV
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
@@ -28,84 +28,10 @@ jobs:
         with:
           cargo-tools: cargo-nextest,cargo-llvm-cov,cargo-fuzz,cargo-audit,cargo-deny
 
-      - name: Run release checks
+      - name: Run release checks, fuzz smoke, and policy gates
         run: scripts/run_release_checks.sh
 
-  fuzz-smoke:
-    name: Bounded fuzz smoke tests
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    needs: check-test
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - fuzz_accumulator
-          - fuzz_amount_parse
-          - fuzz_authority_aggregate
-          - fuzz_canonicalize
-          - fuzz_commit_extras
-          - fuzz_commit_roots
-          - fuzz_cross_tenant_consistency
-          - fuzz_cross_tenant_trade
-          - fuzz_digest
-          - fuzz_domain_roundtrip
-          - fuzz_executor_transition
-          - fuzz_intent_parse
-          - fuzz_non_membership
-          - fuzz_operation_name
-          - fuzz_profile_rules
-          - fuzz_proof_verify
-          - fuzz_settle_batch
-          - fuzz_signature_verify
-          - fuzz_status
-          - fuzz_trade_index_build
-          - fuzz_trade_proof_verify
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Install nightly fuzz toolchain
-        uses: dtolnay/rust-toolchain@nightly
-      - name: Install cargo-fuzz
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-fuzz
-      - name: Run bounded fuzz smoke
-        run: |
-          fuzz_host_target="$(rustc +nightly -vV | sed -n 's/^host: //p')"
-          test -n "${fuzz_host_target}"
-          cargo +nightly fuzz run "${{ matrix.target }}" --target "${fuzz_host_target}" -- -runs=100
-
-  msrv:
-    name: MSRV compatibility
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Install MSRV toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
       - name: Check locked workspace at MSRV
-        run: cargo check --workspace --all-targets --all-features --locked
-
-  postgres-integration:
-    name: PostgreSQL durable adapter integration
-    runs-on: ubuntu-24.04
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: statechronicle
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d statechronicle"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
-      - name: Run live PostgreSQL adapter test
-        env:
-          STATECHRONICLE_POSTGRES_URL: host=localhost user=postgres password=postgres dbname=statechronicle
-        run: cargo test -p statechronicle-postgres --test integration --all-features --locked -- --test-threads=1
+        run: |
+          rustup toolchain install 1.85.0 --profile minimal
+          cargo +1.85.0 check --workspace --all-targets --all-features --locked

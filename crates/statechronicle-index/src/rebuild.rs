@@ -232,7 +232,7 @@ fn validate_event_for_rebuild(event: &Event, commit_id: &CommitId) -> Result<(),
 
 /// Replays one bounded event chunk and returns a checkpoint for resumption.
 ///
-/// The sink must provide monotonic upserts (as the SQLite adapter does). A
+/// The sink must provide monotonic upserts. A
 /// caller may persist the returned checkpoint after each successful chunk and
 /// resume after a process restart without reprocessing the prefix.
 ///

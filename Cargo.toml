@@ -12,8 +12,6 @@ members = [
     "crates/statechronicle-ports",
     "crates/statechronicle-index",
     "crates/statechronicle",
-    "crates/statechronicle-sqlite",
-    "crates/statechronicle-postgres",
     "fuzz",
 ]
 
@@ -45,9 +43,6 @@ tokio = "1.48.0"
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 trait-variant = "0.1"
 uuid = { version = "1.18.1", default-features = false, features = ["v4"] }
-rusqlite = { version = "0.32", features = ["bundled"] }
-tokio-postgres = "0.7"
-
 # internal crates
 statechronicle-core = { path = "crates/statechronicle-core", version = "0.1.0" }
 statechronicle-domain = { path = "crates/statechronicle-domain", version = "0.1.0" }
