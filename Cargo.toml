@@ -27,9 +27,9 @@ categories = ["cryptography", "data-structures", "rust-patterns"]
 
 [workspace.dependencies]
 async-trait = "0.1"
-base64 = "0.22"
+base64 = "0.23"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
-ed25519-dalek = { version = "2", features = ["pem", "pkcs8"] }
+ed25519-dalek = { version = "3", features = ["pem", "pkcs8"] }
 hex = "0.4"
 proptest = "1"
 serde = { version = "1.0", default-features = false, features = ["derive", "std"] }
