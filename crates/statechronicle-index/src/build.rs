@@ -299,7 +299,8 @@ fn state_str_opt(state: &ResourceState, key: &str) -> Option<String> {
             | ResourceState::Entitlement(_)
             | ResourceState::MeteredResource(_)
             | ResourceState::Listing(_)
-            | ResourceState::Escrow(_) => None,
+            | ResourceState::Escrow(_)
+            | ResourceState::Custom(_) => None,
         },
         _ => None,
     }?;

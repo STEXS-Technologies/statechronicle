@@ -46,3 +46,6 @@ pub mod error;
 
 /// Async proof service over the proof lane ports.
 pub mod service;
+
+/// Domain-aware verification for consumer-defined state.
+pub mod custom;

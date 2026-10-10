@@ -12,13 +12,21 @@ fi
 host_target="$(rustc +nightly -vV | sed -n 's/^host: //p')"
 test -n "${host_target}"
 cargo +nightly fuzz build --target "${host_target}"
-log_root="$(mktemp -d /tmp/statechronicle-fuzz-parallel.XXXXXX)"
+log_root="${STATECHRONICLE_FUZZ_LOGS:-$(mktemp -d /tmp/statechronicle-fuzz-parallel.XXXXXX)}"
+mkdir -p "${log_root}"
+corpus_root="${STATECHRONICLE_FUZZ_CORPUS:-${root_dir}/fuzz/corpus}"
+mkdir -p "${corpus_root}"
 pids=()
-targets=()
-for target in $(find fuzz/fuzz_targets -maxdepth 1 -name '*.rs' -printf '%f\n' | sed 's/\.rs$//' | sort); do
-  targets+=("${target}")
+mapfile -t targets < <(cargo +nightly fuzz list)
+if [[ "${#targets[@]}" -eq 0 ]]; then
+  echo "no manifest fuzz targets found" >&2
+  exit 2
+fi
+for target in "${targets[@]}"; do
+  mkdir -p "${corpus_root}/${target}"
   "target/${host_target}/release/${target}" -max_total_time="${duration}" \
-    -artifact_prefix="${log_root}/${target}-" >"${log_root}/${target}.log" 2>&1 &
+    -artifact_prefix="${log_root}/${target}-" "${corpus_root}/${target}" \
+    >"${log_root}/${target}.log" 2>&1 &
   pids+=("$!")
 done
 echo "started ${#pids[@]} targets for ${duration}s; logs: ${log_root}"
@@ -33,5 +41,5 @@ for i in "${!pids[@]}"; do
   fi
   printf '%s %s\n' "${rc}" "${targets[$i]}" >>"${log_root}/status"
 done
-cat "${log_root}/status"
+sed -n '1,200p' "${log_root}/status"
 exit "${status}"

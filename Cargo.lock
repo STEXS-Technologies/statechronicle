@@ -707,11 +707,14 @@ dependencies = [
 
 [[package]]
 name = "statechronicle"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
+ "bcs",
  "chrono",
  "ed25519-dalek",
+ "proptest",
+ "serde",
  "serde_json",
  "statechronicle-accumulator",
  "statechronicle-commit",
@@ -720,7 +723,9 @@ dependencies = [
  "statechronicle-executor",
  "statechronicle-index",
  "statechronicle-intent",
+ "statechronicle-portable",
  "statechronicle-ports",
+ "statechronicle-profile",
  "statechronicle-profiles",
  "statechronicle-proof",
  "tokio",
@@ -728,7 +733,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-accumulator"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hex",
  "proptest",
@@ -740,7 +745,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-commit"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "bcs",
@@ -763,7 +768,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64",
  "bcs",
@@ -779,7 +784,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-domain"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64",
  "bcs",
@@ -796,7 +801,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-executor"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -825,6 +830,7 @@ dependencies = [
  "libfuzzer-sys",
  "serde",
  "serde_json",
+ "statechronicle",
  "statechronicle-accumulator",
  "statechronicle-commit",
  "statechronicle-core",
@@ -832,13 +838,14 @@ dependencies = [
  "statechronicle-executor",
  "statechronicle-index",
  "statechronicle-intent",
+ "statechronicle-portable",
  "statechronicle-profiles",
  "statechronicle-proof",
 ]
 
 [[package]]
 name = "statechronicle-index"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "bcs",
@@ -859,7 +866,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-intent"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bcs",
  "chrono",
@@ -875,8 +882,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "statechronicle-portable"
+version = "0.2.0"
+dependencies = [
+ "bcs",
+ "ed25519-dalek",
+ "proptest",
+ "sha2",
+ "statechronicle-accumulator",
+ "statechronicle-core",
+ "statechronicle-domain",
+ "statechronicle-profile",
+]
+
+[[package]]
 name = "statechronicle-ports"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -889,19 +910,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "statechronicle-profile"
+version = "0.2.0"
+
+[[package]]
 name = "statechronicle-profiles"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
+ "bcs",
+ "chrono",
  "proptest",
+ "serde",
  "serde_json",
+ "statechronicle-accumulator",
  "statechronicle-core",
  "statechronicle-domain",
+ "statechronicle-profile",
  "thiserror",
 ]
 
 [[package]]
 name = "statechronicle-proof"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "bcs",
@@ -916,6 +946,7 @@ dependencies = [
  "statechronicle-core",
  "statechronicle-domain",
  "statechronicle-ports",
+ "statechronicle-profiles",
  "thiserror",
  "tokio",
 ]

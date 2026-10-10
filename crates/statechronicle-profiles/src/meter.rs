@@ -18,9 +18,11 @@ use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 
 use crate::error::ProfileError;
+use crate::execution::ExecutionPolicy;
 use crate::registry::{
     ProfileRules, input_amount, input_str, require_current, require_unborn, state_amount,
 };
+use crate::resource;
 
 /// Typed operation constants accepted by the meter profile.
 pub mod op {
@@ -61,6 +63,9 @@ pub mod op {
 pub struct MeterRules;
 
 impl ProfileRules for MeterRules {
+    fn execution_policy(&self) -> &'static dyn ExecutionPolicy {
+        resource::policy(self.state_type())
+    }
     fn state_type(&self) -> StateType {
         StateType::MeteredResource
     }

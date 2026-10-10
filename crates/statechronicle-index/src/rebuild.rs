@@ -1,5 +1,10 @@
 //! Deterministic current-state projection rebuild from canonical events.
 
+#![allow(
+    clippy::double_must_use,
+    reason = "async_trait emits redundant must_use attributes"
+)]
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use async_trait::async_trait;

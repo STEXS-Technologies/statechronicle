@@ -14,8 +14,8 @@
 //! identical to the previous string encoding while the in-memory state holds a
 //! typed value — no string re-parsing on every read.
 //!
-//! The set is closed to match the closed v0 [`StateType`](crate::state_type::StateType) set; profile-defined
-//! custom state types land in the profiles crate as additional variants.
+//! Consumer-defined domains use the Custom variant with a domain identity,
+//! schema version and canonical BCS payload; baseline variant indices are stable.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -23,11 +23,12 @@ use std::fmt;
 
 use statechronicle_core::amount::Amount;
 
+use crate::custom::CustomState;
 use crate::state_type::StateType;
 use crate::status::Status;
 use crate::subject::SubjectId;
 
-/// The typed, closed set of profile state payloads (protocol §10).
+/// Typed baseline payloads and domain-separated custom payloads.
 ///
 /// [`StateType`] discriminates the shape of each variant; the payload carries
 /// the profile-defined fields as native structs. Deriving `Serialize` lets
@@ -51,6 +52,8 @@ pub enum ResourceState {
     Listing(ListingState),
     /// [`StateType::Escrow`]: a buyer, a seller, and an escrow status.
     Escrow(EscrowState),
+    /// Canonical consumer-defined state, bound to its domain and schema.
+    Custom(CustomState),
 }
 
 impl ResourceState {
@@ -58,6 +61,7 @@ impl ResourceState {
     /// New code should use typed accessors instead.
     pub fn to_legacy_json(&self) -> Value {
         match self {
+            Self::Custom(v) => serde_json::json!(v),
             Self::UniqueAsset(v) => {
                 let mut value = serde_json::json!({"owner": v.owner, "status": v.status});
                 if let (Some(trade_id), Some(object)) = (v.trade_id.as_ref(), value.as_object_mut())
@@ -111,6 +115,7 @@ impl ResourceState {
             StateType::MeteredResource => "MeteredResource",
             StateType::Listing => "Listing",
             StateType::Escrow => "Escrow",
+            StateType::Custom => "Custom",
         };
         serde_json::from_value(serde_json::json!({ tag: value }))
     }
@@ -124,6 +129,7 @@ impl ResourceState {
             Self::MeteredResource(_) => StateType::MeteredResource,
             Self::Listing(_) => StateType::Listing,
             Self::Escrow(_) => StateType::Escrow,
+            Self::Custom(_) => StateType::Custom,
         }
     }
 
@@ -134,7 +140,7 @@ impl ResourceState {
             Self::FungibleBalance(v) => Some(&v.subject),
             Self::Entitlement(v) => Some(&v.subject),
             Self::MeteredResource(v) => Some(&v.subject),
-            Self::UniqueAsset(_) | Self::Listing(_) | Self::Escrow(_) => None,
+            Self::UniqueAsset(_) | Self::Listing(_) | Self::Escrow(_) | Self::Custom(_) => None,
         }
     }
 
@@ -147,7 +153,8 @@ impl ResourceState {
             | Self::Entitlement(_)
             | Self::MeteredResource(_)
             | Self::Listing(_)
-            | Self::Escrow(_) => None,
+            | Self::Escrow(_)
+            | Self::Custom(_) => None,
         }
     }
 
@@ -158,7 +165,10 @@ impl ResourceState {
             Self::Entitlement(v) => Some(&v.status),
             Self::Listing(v) => Some(&v.status),
             Self::Escrow(v) => Some(&v.status),
-            Self::ConsumableStack(_) | Self::FungibleBalance(_) | Self::MeteredResource(_) => None,
+            Self::ConsumableStack(_)
+            | Self::FungibleBalance(_)
+            | Self::MeteredResource(_)
+            | Self::Custom(_) => None,
         }
     }
 
@@ -175,7 +185,8 @@ impl ResourceState {
             | Self::Entitlement(_)
             | Self::MeteredResource(_)
             | Self::Listing(_)
-            | Self::Escrow(_) => None,
+            | Self::Escrow(_)
+            | Self::Custom(_) => None,
         }
     }
 }
@@ -271,7 +282,8 @@ impl PartialEq<Value> for ResourceState {
                 Self::Entitlement(_)
                 | Self::MeteredResource(_)
                 | Self::Listing(_)
-                | Self::Escrow(_) => false,
+                | Self::Escrow(_)
+                | Self::Custom(_) => false,
             };
             if empty {
                 return true;

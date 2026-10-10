@@ -15,6 +15,21 @@ use statechronicle_core::amount::Amount;
 /// panicking.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ProfileError {
+    /// A loaded resource's holder differs from the explicit source owner.
+    #[error("actor mismatch: expected `{expected}`, got `{actual}`")]
+    ActorMismatch { expected: String, actual: String },
+    /// Baseline resource lifecycle blocks this operation.
+    #[error("resource `{resource}` is locked, burned, revoked, or escrowed")]
+    ResourceLocked { resource: String },
+    /// A profile-owned atomic event group is internally inconsistent.
+    #[error("atomicity violation: {0}")]
+    AtomicityViolation(String),
+    /// An economic transfer pair fails conservation or binding checks.
+    #[error("transfer mismatch: {0}")]
+    TransferMismatch(String),
+    /// A baseline settlement with value legs requires its coordinating entry point.
+    #[error("settlement `{intent_id}` requires coordinated value legs")]
+    ValueLegSettleRouting { intent_id: String },
     /// The operation is not registered for this profile.
     ///
     /// Raised when the operation name does not appear in the profile's

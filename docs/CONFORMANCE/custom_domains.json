@@ -1,0 +1,27 @@
+{
+  "format": "statechronicle.custom-domain.v1",
+  "vectors": [
+    {
+      "domain": "example.configuration",
+      "schema_version": 1,
+      "tenant": "acme.game.alpha",
+      "resource": "config:main",
+      "payload_hex": "0100000001",
+      "state_bcs_hex": "07156578616d706c652e636f6e66696775726174696f6e01000000050100000001",
+      "state_digest": "sha256:d95db4aa6284d0a60fb790b5e11728413eb1e5381868371521c1dfacceed320a",
+      "state_key_hex": "ad64b44e7b63b6683c4692d0a9376d0c86a51f0a7437f5568db82c7dcf624361",
+      "single_leaf_root_hex": "5ae159b759d21090a39893c8d92e52462885c4b169fb5ddbaa3900e63a7ae17a"
+    },
+    {
+      "domain": "example.equipment",
+      "schema_version": 1,
+      "tenant": "acme.game.alpha",
+      "resource": "machine:pump",
+      "payload_hex": "0000000000",
+      "state_bcs_hex": "07116578616d706c652e65717569706d656e7401000000050000000000",
+      "state_digest": "sha256:a03a0dc5ecbfb37ea30db4c72c689e97181e6f7def73e36e71c4ec7d214cd81b",
+      "state_key_hex": "2f22c66615ec43c91cc622c7b0bcab181eee7bd4aa0de65256b348c89ee4ad62",
+      "single_leaf_root_hex": "6eb96123a5bf99a13f097c24768c577bab5c848677dd8220c118d35a18e90468"
+    }
+  ]
+}

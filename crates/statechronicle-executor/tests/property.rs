@@ -69,6 +69,7 @@ fn projection(state_type: StateType, state: serde_json::Value) -> StateProjectio
                 StateType::Entitlement => serde_json::json!({ "subject": "alice", "status": "active", "transferable": true }),
                 StateType::MeteredResource => serde_json::json!({ "subject": "alice", "remaining": "0", "maximum": "0" }),
                 StateType::Listing => serde_json::json!({ "seller": "alice", "status": "listed" }),
+                StateType::Custom => serde_json::json!({ "domain": "example.custom", "schema_version": 1, "payload": [] }),
                 StateType::Escrow => serde_json::json!({ "buyer": "alice", "seller": "bob", "status": "held" }),
             };
             statechronicle_domain::resource_state::ResourceState::from_legacy_json(state_type, fallback).unwrap()

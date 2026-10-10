@@ -9,6 +9,8 @@ members = [
     "crates/statechronicle-accumulator",
     "crates/statechronicle-proof",
     "crates/statechronicle-profiles",
+    "crates/statechronicle-profile",
+    "crates/statechronicle-portable",
     "crates/statechronicle-ports",
     "crates/statechronicle-index",
     "crates/statechronicle",
@@ -16,7 +18,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
@@ -42,16 +44,18 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 trait-variant = "0.1"
 uuid = { version = "1.18.1", default-features = false, features = ["v4"] }
 # internal crates
-statechronicle-core = { path = "crates/statechronicle-core", version = "0.1.0" }
-statechronicle-domain = { path = "crates/statechronicle-domain", version = "0.1.0" }
-statechronicle-intent = { path = "crates/statechronicle-intent", version = "0.1.0" }
-statechronicle-executor = { path = "crates/statechronicle-executor", version = "0.1.0" }
-statechronicle-commit = { path = "crates/statechronicle-commit", version = "0.1.0" }
-statechronicle-accumulator = { path = "crates/statechronicle-accumulator", version = "0.1.0" }
-statechronicle-proof = { path = "crates/statechronicle-proof", version = "0.1.0" }
-statechronicle-profiles = { path = "crates/statechronicle-profiles", version = "0.1.0" }
-statechronicle-ports = { path = "crates/statechronicle-ports", version = "0.1.0" }
-statechronicle-index = { path = "crates/statechronicle-index", version = "0.1.0" }
+statechronicle-profile = { path = "crates/statechronicle-profile", version = "0.2.0" }
+statechronicle-portable = { path = "crates/statechronicle-portable", version = "0.2.0" }
+statechronicle-core = { path = "crates/statechronicle-core", version = "0.2.0" }
+statechronicle-domain = { path = "crates/statechronicle-domain", version = "0.2.0" }
+statechronicle-intent = { path = "crates/statechronicle-intent", version = "0.2.0" }
+statechronicle-executor = { path = "crates/statechronicle-executor", version = "0.2.0" }
+statechronicle-commit = { path = "crates/statechronicle-commit", version = "0.2.0" }
+statechronicle-accumulator = { path = "crates/statechronicle-accumulator", version = "0.2.0" }
+statechronicle-proof = { path = "crates/statechronicle-proof", version = "0.2.0" }
+statechronicle-profiles = { path = "crates/statechronicle-profiles", version = "0.2.0" }
+statechronicle-ports = { path = "crates/statechronicle-ports", version = "0.2.0" }
+statechronicle-index = { path = "crates/statechronicle-index", version = "0.2.0" }
 
 [profile.release]
 opt-level = 3

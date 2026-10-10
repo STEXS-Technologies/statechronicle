@@ -2,23 +2,42 @@
 
 ## What is this?
 
-StateChronicle is a library for recording **who owns what, who changed it, and
-why you can trust the record**. It is the kind of ledger you build game
-inventory, marketplaces, in-game currency, licenses, and escrow flows on top
-of: every change is appended (never overwritten), batched into a signed
-commit, and given a cryptographic state root, so anyone can replay the whole
-history and verify that the current state is exactly what the recorded events
-produce.
+StateChronicle is a domain-extensible Rust library for **controlled state changes,
+signed history, deterministic replay, and verifiable state**. Define your own
+configuration, equipment, or application state and legal commands, or use the
+built-in inventory, currency, access, marketplace, and escrow profiles. Accepted
+changes become append-only events and signed commits with cryptographic roots.
+Consumers can reconstruct state from history and verify committed claims under
+their chosen signer and authority policies.
 
 It is a *pure-logic* engine: it ships no database, no HTTP server, and no
-authorization system. Those are the consumer's job, supplied behind eleven small
+authorization system. Those are the consumer's job, supplied through
 trait interfaces (`statechronicle-ports`) and wired together at the consumer's
 composition root. What you get instead is a deterministic, fully testable core;
 durability and atomicity guarantees apply only when the consumer supplies an
 adapter satisfying the durable `LedgerStore` contract.
 
+## Consumer-defined domains
+
+Version 0.2.0 lets consumers define native state models, legal commands, validation
+and authority requirements through `StateProfile` and `TypedProfile`. Custom
+configuration and equipment lifecycles reuse the existing execution, persistence,
+commit, replay and proof APIs without economic fields.
+
+See the [domain extension and migration guide](docs/DESIGN/DOMAIN_EXTENSIONS.md)
+and run `cargo run -p statechronicle --example custom_domains`. The portable
+`statechronicle-profile` contract is allocation-free and `no_std`.
+`statechronicle-portable` adds bounded transitions, caller-owned canonical
+encoding buffers and compatible integrity verification. The standard adapter
+and complete runtime currently require `std`.
+
 ## Use cases
 
+- **Configuration lifecycles**: define revisioned configuration, permitted
+  updates and authority requirements, with replayable changes and typed proofs.
+- **Equipment-state tracking**: define operational modes, legal transitions and
+  counters without ownership or financial fields. Recorded observations remain
+  the consumer's responsibility.
 - **Game inventory**: mint, transfer, lock, and burn unique assets (swords,
   skins, collectibles) with a provable ownership history that survives
   database restores, because state is recomputed from events, not stored.
@@ -33,16 +52,20 @@ adapter satisfying the durable `LedgerStore` contract.
   from silent deletion or creator overreach; loss of utility (quarantine,
   legal hold) is distinct from loss of ownership.
 - **Audits and proofs**: produce a compact proof that a player currently owns
-  an item, or that an item never existed, verifiable against the signed commit
+  an item, or that a key is absent at a committed root, verifiable against the signed commit
   chain without replaying all history.
 
 ## What you get (capabilities)
 
+- **Native custom domains**: consumer-owned state, command and error types;
+  static profile registration; domain/schema isolation; canonical command binding;
+  loaded/output state validation; and domain-aware replay and proof verification.
 - **Append-only, signed history**: events are never edited or deleted; commits
   are Ed25519-signed, so the record is tamper-evident.
-- **Deterministic replay**: the state root after any commit is a pure function
-  of the events in that commit, so replay from genesis always reproduces the
-  same state. There is no hidden mutable state.
+- **Deterministic replay**: applying committed events to the preceding state
+  reconstructs projections and roots. Custom transition verification recomputes
+  domain reduction; consumer reducers and serializers must obey the deterministic
+  contract.
 - **Exact money math**: amounts are fixed-point integers (u128 mantissa with an
   explicit scale), and floating-point values are structurally impossible in
   the wire format. No rounding drift, no float bugs.
@@ -80,13 +103,14 @@ adapter satisfying the durable `LedgerStore` contract.
 
 ## Run the examples
 
-The repository ships eleven runnable examples in
-`crates/statechronicle/examples/`. Each runs the real cross-crate pipeline
-(submit → execute → commit → proof → verify) over in-memory port fakes, prints
-a short narrative, asserts its outcome, and exits 0 only on success. Runs are
-deterministic: every example uses a fixed clock, a fixed Ed25519 key, and a
-counter-based event-id generator, so the same example produces the same output
-every time.
+The repository ships fifteen runnable examples: twelve behavioral demonstrations
+and three performance probes. The lifecycle and settlement examples exercise
+real library APIs over in-memory adapters with fixed keys, clocks and event-ID
+generators. Their symbolic transactions demonstrate planning; production
+durability requires a consumer-owned durable sink. `custom_domains` demonstrates
+registration and direct reduction, while `tests/custom_domains.rs` exercises the
+full signed execution, durable persistence, replay and proof paths for both
+configuration and equipment domains. Performance timings depend on the machine.
 
 | Example | Run it with | Capability demonstrated |
 |---|---|---|
@@ -101,6 +125,10 @@ every time.
 | `trade_value` | `cargo run -p statechronicle --example trade_value` | In-memory asset-for-gold settlement planning via `execute_settle` (use `execute_settle_durable` in production) |
 | `trade_cross_tenant` | `cargo run -p statechronicle --example trade_cross_tenant` | In-memory cross-tenant trade planning via `execute_cross_tenant_trade` (use the durable variant in production) |
 | `trade_bundle` | `cargo run -p statechronicle --example trade_bundle` | In-memory multi-asset bundle planning (persist through a durable batch sink in production) |
+| `custom_domains` | `cargo run -p statechronicle --example custom_domains` | Register configuration/equipment profiles, create a configuration state and decode it through the typed adapter |
+| `throughput` | `cargo run --release -p statechronicle --example throughput` | Direct reduction and canonical hashing; excludes authentication and storage |
+| `e2e_throughput` | `cargo run --release -p statechronicle --example e2e_throughput` | Signed intent execution and in-memory indexing; optional commit formation/verification and batching |
+| `parallel_throughput` | `cargo run --release -p statechronicle --example parallel_throughput` | Independent workers with separate executors/adapters; measures partitionable workload scaling |
 
 The examples construct validated intents both ways: the typed path
 (`Intent::new` → `ValidatedIntent::from_intent`) is the workhorse across most
@@ -121,7 +149,10 @@ the intent section below.
    or more events.
 4. **Commit** (`statechronicle-commit`): events are batched, event and state
    Merkle roots are computed, and the commit is signed.
-5. **Prove** (`statechronicle-proof`): state, ownership, and non-membership
+5. **Persist** (consumer adapter): verified durable APIs commit events, the signed
+   commit, projections, idempotency and outbox records atomically. Commit formation
+   or plain execution alone does not establish durability.
+6. **Prove** (`statechronicle-proof`): state, ownership, and non-membership
    proofs are served from committed state and verified against the signed
    commit chain (a balance is proven as a state proof over a balance
    projection).
@@ -198,7 +229,9 @@ durable adapter/recovery controls described in `TODO.md`.
 | `statechronicle-commit` | Commit formation, ordering, roots, and signing |
 | `statechronicle-accumulator` | Sparse-Merkle state accumulator and state roots |
 | `statechronicle-proof` | Proof serving and verification (incl. non-membership) |
-| `statechronicle-profiles` | Baseline resource profiles and their rule sets |
+| `statechronicle-profile` | Portable, allocation-free consumer transition contracts |
+| `statechronicle-portable` | Bounded no_std transitions, canonical codecs, hashes, signatures and proof verification |
+| `statechronicle-profiles` | Baseline reducers, typed custom adapters, and static profile composition |
 | `statechronicle-ports` | Backend-agnostic storage, transaction, authorization, and delivery port traits |
 
 Each crate carries a README with a "Protocol sections owned" table, so the
@@ -319,8 +352,11 @@ dependency, and bounded fuzz gates in one reproducible command.
 
 ## Where to go next
 
-- `crates/statechronicle/examples/`: the eleven runnable examples (start with
-  `inventory`, then `currency` and `cross_tenant`).
+- `crates/statechronicle/examples/`: fifteen runnable examples (start with
+  `custom_domains` for native models or `inventory` for built-in resource profiles).
+- `docs/DESIGN/DOMAIN_EXTENSIONS.md`: custom profiles, authority, replay, proofs,
+  schema migration and the existing portable-core boundary.
+- `docs/DESIGN/0.2.0_ACCEPTANCE.md`: release gates and verified audit evidence.
 - `crates/statechronicle/tests/e2e.rs`: the end-to-end lifecycle test with
   tamper and non-membership proof variants.
 - `crates/statechronicle/README.md`: the umbrella crate and the full surface.

@@ -100,7 +100,7 @@ pub fn state_key_for(event: &Event, state_type: StateType) -> Result<StateKey, C
                 subject,
             ))
         }
-        StateType::UniqueAsset | StateType::Listing | StateType::Escrow => Ok(
+        StateType::UniqueAsset | StateType::Listing | StateType::Escrow | StateType::Custom => Ok(
             StateKey::for_resource(&event.tenant_id.0, &event.resource_id.0),
         ),
     }

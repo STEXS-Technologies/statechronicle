@@ -55,3 +55,6 @@ pub mod trade;
 
 /// Domain error type.
 pub mod error;
+
+/// Domain-separated custom state payloads.
+pub mod custom;

@@ -2,12 +2,11 @@
 //!
 //! Discriminates the profile-backed state model: unique, stack, fungible,
 //! entitlement, meter, listing, and escrow (protocol §10.1–§10.6). The set is
-//! closed for the v0 baseline; profile-defined custom state types land in the
-//! profiles crate (protocol §10).
+//! extended by Custom for consumer-defined domain models.
 
 use serde::{Deserialize, Serialize};
 
-/// The closed set of baseline state types for the v0 protocol.
+/// Baseline state types plus consumer-defined domain state.
 ///
 /// Each variant shapes a projection's rules in its profile (protocol §10):
 /// `UniqueAsset` has an `owner`; balances, stacks, entitlements, and meters
@@ -33,6 +32,8 @@ pub enum StateType {
     Listing,
     /// A temporary control constraint around a settlement workflow (§10.6).
     Escrow,
+    /// Consumer-defined domain with identity and schema in its payload.
+    Custom,
 }
 
 impl StateType {
@@ -46,6 +47,7 @@ impl StateType {
             Self::MeteredResource => "metered_resource",
             Self::Listing => "listing",
             Self::Escrow => "escrow",
+            Self::Custom => "custom",
         }
     }
 }

@@ -34,6 +34,11 @@ types are what every other crate serializes, signs, executes, and verifies.
 - `authority::{AuthorityProof, TrustGrantOutcome, EvaluationResult, AggregationPolicy}`.
 - `signed::Signed`: the ADR-004 body + detached signature envelope.
 - `state::StateProjection`, `ids::*` (prefixed newtype IDs).
+- `custom::CustomState`: domain identity, numeric schema version and canonical
+  native payload, represented by `ResourceState::Custom` and `StateType::Custom`.
+  Custom variants are appended after the seven baseline BCS variants, preserving
+  their existing encodings. Consumers check domain/schema before interpreting
+  payloads; exhaustive Rust enum matches need a custom arm.
 
 ## How it's used
 

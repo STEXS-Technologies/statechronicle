@@ -9,6 +9,24 @@ use statechronicle_domain::error::DomainError;
 use statechronicle_intent::error::IntentError;
 use statechronicle_profiles::error::ProfileError;
 
+impl From<ProfileError> for ExecutorError {
+    #[allow(clippy::wildcard_enum_match_arm)]
+    fn from(error: ProfileError) -> Self {
+        match error {
+            ProfileError::ActorMismatch { expected, actual } => {
+                Self::ActorMismatch { expected, actual }
+            }
+            ProfileError::ResourceLocked { resource } => Self::ResourceLocked { resource },
+            ProfileError::AtomicityViolation(message) => Self::AtomicityViolation(message),
+            ProfileError::TransferMismatch(message) => Self::TransferMismatch(message),
+            ProfileError::ValueLegSettleRouting { intent_id } => {
+                Self::ValueLegSettleRouting { intent_id }
+            }
+            other => Self::Profile(other),
+        }
+    }
+}
+
 /// The crate's root error type.
 ///
 /// Every fallible public function in `statechronicle-executor` returns this
@@ -34,7 +52,7 @@ pub enum ExecutorError {
     /// operation (unknown operation, invalid transition, malformed input,
     /// insufficient quantity, ownership mismatch).
     #[error(transparent)]
-    Profile(#[from] ProfileError),
+    Profile(ProfileError),
 
     /// A protocol object exceeded a size bound (protocol §30).
     ///
