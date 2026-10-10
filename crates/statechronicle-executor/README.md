@@ -6,8 +6,9 @@ The protocol's "brain": the ordered execution pipeline (protocol §18.1) that
 runs a validated intent through conflict gates, expected-version checks,
 delegated-authority evaluation, and profile rules, producing a deterministic
 after-state and the emitted event. The pipeline drives pure transition and
-conflict logic through injected port traits; events are returned, never
-persisted here.
+conflict logic through injected port traits. Plain execution returns events;
+durable entry points invoke consumer-owned sinks and return success only after
+the sink completes its write contract.
 
 ## Protocol sections owned
 
@@ -25,9 +26,9 @@ persisted here.
 - `pipeline::Ports`: the bundle of port trait objects the executor drives.
 - `pipeline::TrustGrantPort`: the dyn-compatible delegated-authority adapter
   (see ADR-003).
-- `transition`: deterministic after-state rules per state type.
+- `transition`: compatibility wrappers around baseline profile reducers.
 - `conflict`: fail-closed conflict checks.
-- `atomicity`: multi-resource atomic transactions.
+- `atomicity`: compatibility wrappers around baseline batch invariants.
 - `error::ExecutorError`.
 
 ## How it's used
@@ -50,6 +51,13 @@ let events = executor.execute(&validated_intent).await?; // planning/trusted wor
 
 ## See it run
 
+Pass `ProfileRegistry::with_custom` to `Executor::builder().profiles(...)` to
+execute native consumer domains. The generic pipeline delegates addressing,
+access, routing and reduction to profile-owned policies. Custom commands mutate
+one resource per intent and retain the same tenant, version, authority and
+durable-persistence contracts. See the
+[extension guide](../../docs/DESIGN/DOMAIN_EXTENSIONS.md).
+
 `crates/statechronicle/examples/marketplace.rs` shows `execute_batch`
 (all-or-nothing settlement), `cross_tenant.rs` shows `execute_cross_tenant`
 (per-tenant atomic groups), and `access.rs` shows fail-closed rejections.
@@ -69,5 +77,6 @@ and atomicity.
 ## Where it fits
 
 The second stage of the canonical pipeline, between `statechronicle-intent`
-and `statechronicle-commit`. It is the only crate that consumes port traits at
-runtime. The umbrella crate re-exports `Executor` and `Ports`.
+and `statechronicle-commit`. It consumes execution ports; commit persistence and
+read-side services consume their own ports as well. The umbrella crate
+re-exports `Executor` and `Ports`.

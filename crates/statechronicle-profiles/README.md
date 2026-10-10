@@ -2,7 +2,7 @@
 
 ## What it is
 
-The baseline resource profiles and their rule sets: unique assets, paid unique
+Native consumer-profile adapters and baseline resource rule sets: unique assets, paid unique
 assets, consumable stacks, fungible balances, entitlements, meters, and
 marketplace listings/escrow. `ProfileRules` is the single gate every state
 transition passes through.
@@ -12,7 +12,7 @@ transition passes through.
 | § | Title | Normative summary |
 |---|---|---|
 | §20 | Profiles | Profile-based specialization of transition rules |
-| §20.1 | Baseline Resource Profile | Shared rule baseline for all state types |
+| §20.1 | Baseline Resource Profile | Shared rule baseline for built-in resource types |
 | §20.2 | Unique Asset Profile | Singleton resources with ownership rules |
 | §20.3 | Paid Unique Asset Profile | Durable paid ownership, no-hard-delete invariants |
 | §20.4 | Consumable Stack Profile | Stacked quantities consumed by use |
@@ -29,6 +29,12 @@ transition passes through.
 - `paid_unique_asset` (overlay over unique asset).
 - `consumable_stack`, `fungible_balance`, `entitlement`, `meter`, `marketplace`.
 - `error`: profile rule error type.
+- `StateProfile`, `custom::TypedProfile`: native state/command contracts and
+  canonical BCS adaptation, with command binding and state validation.
+- `execution::ExecutionPolicy`: profile-owned addressing, access, routing,
+  unborn commitments, companion transitions and event-group validation.
+- `transition`, `resource`, `atomicity`: baseline reducers and resource/economic
+  policies reused by executor compatibility facilities.
 
 ## How it's used
 
@@ -51,8 +57,9 @@ Each profile has a runnable example (in `crates/statechronicle/examples/`):
 
 ## Dependencies
 
-`statechronicle-core`, `statechronicle-domain`, `serde_json`. Dev-only:
-`proptest`.
+`statechronicle-profile`, `statechronicle-core`, `statechronicle-domain`,
+`statechronicle-accumulator`, `serde`, `serde_json`, `bcs`, `thiserror`.
+Dev-only: `chrono`, `proptest`.
 
 ## Tests
 

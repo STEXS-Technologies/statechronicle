@@ -25,6 +25,10 @@ itself is pure library code.
 - `service::{ProofService, ProofPorts}`: the async composition layer over the
   proof/state/commit/snapshot ports.
 - `inclusion`, `state`, `ownership`, `error`.
+- `custom::verify_custom_bundle`: verifies signed inclusion and resource/key
+  binding, then checks the expected profile/schema, canonical payload and native
+  state invariants through `TypedProfile`. Signer trust and root freshness remain
+  consumer policies.
 
 ## How it's used
 
@@ -43,6 +47,9 @@ assert!(verify_bundle(&proof, &signed, &verifying_key, &key).is_ok());
 `crates/statechronicle/examples/proofs.rs` builds and verifies state, ownership,
 and non-membership proof bundles and shows a genuine proof fail closed against a
 tampered commit.
+`crates/statechronicle/tests/custom_domains.rs` verifies configuration/equipment
+proofs and rejects domain/schema substitutions. See the
+[extension guide](../../docs/DESIGN/DOMAIN_EXTENSIONS.md).
 
 ## Dependencies
 

@@ -1,7 +1,7 @@
 # StateChronicle: Architecture
 
-**Status:** Draft v0.1
-**Last Updated:** 2026-08-08
+**Status:** Implementation overview for 0.2.0
+**Last Updated:** 2026-10-10
 **Related:** [ADR-001](DESIGN/ADR/ADR-001-VERTICAL_SLICE_ARCHITECTURE.md),
 [ADR-002](DESIGN/ADR/ADR-002-HEXAGONAL_ARCHITECTURE.md),
 [ADR-003](DESIGN/ADR/ADR-003-TRUSTGRANT_PORTS_ONLY.md)
@@ -18,8 +18,9 @@ TrustGrant      proves who may act                    (authority truth)
 StateChronicle  proves what happened and what state   (state truth)
 ```
 
-StateChronicle is an infrastructure-agnostic protocol for recording, verifying, and
-replaying resource state transitions. It is **not** a blockchain: no mining, no global
+StateChronicle is an infrastructure-agnostic library and protocol for recording,
+verifying, and replaying consumer-defined and built-in resource state transitions.
+It is **not** a blockchain: no mining, no global
 consensus, no token. It is a Git-inspired, append-only, content-addressed history model
 with strict transaction semantics.
 
@@ -28,8 +29,8 @@ mirrors sibling workspace conventions (`shardline`, `trustgrant`):
 
 - **Hexagonal architecture** (ports & adapters) so domain logic is pure and testable.
 - **Vertical slices** (one crate per bounded context) so each feature is owned end-to-end.
-- **Crate-boundary layering** where ports are traits and adapters are impls, following the
-  `trustgrant` convention of a dedicated ports crate with no implementations inside.
+- **Crate-boundary layering** where a dedicated ports crate defines contracts
+  and consumers supply backend adapters.
 - **Stage-separated protocol documents** (`Raw → Validated → Verified`) following the
   trustgrant cold-path/hot-path split.
 - **A composition root** that owns all cross-slice wiring and dependency injection,
@@ -59,10 +60,12 @@ resolution/verification happens in another consumer system.
 | Replayability | Append-only EventStore port; state is a projection |
 | Conflict safety | Fail-closed conflict checks in the execution pipeline |
 | Portable proof bundles | Proof assembly/verification is transport-agnostic |
-| Profile-based specialization | `statechronicle-profiles` crate + per-profile rule sets |
+| Domain extensibility | Native `StateProfile` contracts, typed BCS adapters and static domain/schema registration |
+| Profile-based specialization | Profile-owned validation, reduction, addressing, access and event-group policies |
 | Tenant isolation | `TenantStore`/scope resolution port; hard/logical isolation modes |
-| Multiple state models | Profile types (unique, stack, fungible, entitlement, meter, escrow) |
-| Durable paid ownership | Paid-unique invariants in the profile + no-hard-delete rule in executor |
+| Multiple state models | Built-in resource types plus native custom state/command types |
+| Durable paid ownership | Paid-unique ownership and no-hard-delete invariants in the profile |
+| Bounded portable core | Existing allocation-free profile/transition/codec/integrity crates; full standard engine requires `std` |
 
 ---
 
@@ -75,7 +78,8 @@ resolution/verification happens in another consumer system.
 - **cargo-deny** (`deny.toml`) for dependency/license policy
 - Strict deny-by-default clippy lints at workspace level: no `unwrap`, no `expect`, no
   `panic`, no indexing in non-test code (same discipline as shardline/trustgrant)
-- **Async:** tokio; async ports via `trait_variant::make(Send)` (sibling convention)
+- **Async:** host runtime supplied by consumers; standard adapters/ports use
+  Send-capable async interfaces, with tokio used in examples and tests
 - **Storage/HTTP:** none in this workspace. Consumers provide these through the ports
   at their own composition root.
 
@@ -99,18 +103,22 @@ statechronicle/
     │                                #   StateType, Intent, Event, Commit, Proof, state projections
     ├── statechronicle-intent/       # intent parsing + validation (Raw → ValidatedIntent)
     ├── statechronicle-executor/     # execution pipeline §18: validate → transition → event;
-    │                                #   deterministic transition rules per state type
+    │                                #   profile dispatch and durable sink entry points
     ├── statechronicle-commit/       # commit batching, ordering, signing, checkpoint commits,
     │                                #   fork/failure semantics
     ├── statechronicle-accumulator/  # state-root accumulator (sparse Merkle tree baseline)
     ├── statechronicle-proof/        # proof bundles, inclusion/state/ownership proofs,
     │                                #   verification algorithm §29
-    ├── statechronicle-profiles/     # baseline profile registry: unique_asset,
+    ├── statechronicle-profile/      # allocation-free no_std native domain contract
+    ├── statechronicle-portable/     # bounded transitions, codecs, compatible hashes,
+    │                                #   signature and sparse-Merkle verification
+    ├── statechronicle-profiles/     # typed custom adapters, static registry, baseline reducers:
+    │                                #   unique_asset,
     │                                #   paid_unique_asset, consumable_stack, fungible_balance,
     │                                #   entitlement, meter, listing/escrow (protocol §20)
     ├── statechronicle-index/        # ★ trade read-side vertical slice: deterministic index
     │                                #   builder, history reconstruction, proof serving
-    ├── statechronicle-ports/        # ★ backend-agnostic port traits ONLY (no impls):
+    ├── statechronicle-ports/        # ★ backend-agnostic contracts and policy types:
     │                                #   IntentStore, EventStore, CommitStore, StateIndex,
     │                                #   ProofIndex, TradeIndex, SnapshotStore, TenantStore,
     │                                #   TrustGrantEvaluator,
@@ -131,18 +139,18 @@ There is no `statechronicle-http`, `statechronicle-shared`, `statechronicle-shar
 These crates contain **no transport, no persistence, no framework**:
 
 - `statechronicle-core`, `-domain`, `-intent`, `-executor`, `-commit`,
-  `-accumulator`, `-proof`, `-profiles`, `-index`
+  `-accumulator`, `-proof`, `-profiles`, `-index`, `-profile`, `-portable`
 
-They implement the protocol deterministically. They consume ports from
-`statechronicle-ports` only as traits passed into functions (trustgrant pattern: the core
-"works with already-assembled domain types directly" and never calls port traits itself).
-They are unit-tested inline and integration-tested against in-memory fake ports.
+Pure reductions and integrity calculations operate on supplied data. Execution,
+durable commit persistence and read-side services call injected ports; their
+storage/authority implementations belong to the consumer. They are unit-tested
+and integration-tested against in-memory adapters and injected faults.
 
 ### 5.2 The ports crate (`statechronicle-ports`)
 
-Following trustgrant-ports: a single crate holding all backend-agnostic port traits,
-**with no implementations inside**. Adapters are the consumer's job and are wired at the
-composition root. This is what keeps core free of persistence/transport.
+A single crate holds backend-agnostic contracts and supporting policy types.
+Backend adapters are the consumer's job and are wired at the composition root;
+the crate does not supply a database or transport implementation.
 
 ### 5.3 The umbrella crate (`statechronicle`)
 
@@ -162,16 +170,27 @@ submit_intent
   → statechronicle-executor    §18.1 pipeline: auth, tenant scope, expected_version,
                                delegated-authority evaluation (via port), profile rules,
                                deterministic after-state, conflict fail-closed checks (§18.2)
-  → emit Event(s)              append to EventStore (port)
+  → emit Event(s)              form transition commitments; planning returns events
   → statechronicle-commit      batch, order deterministically, compute event Merkle root +
-                               state roots, sign commit (Ed25519), persist CommitStore (port)
+                               state roots, sign commit (Ed25519)
+  → consumer durable sink     verified persistence through LedgerStore: events, commit,
+                               projections, idempotency and outbox in one transaction
   → statechronicle-accumulator update state root (sparse Merkle tree)
   → statechronicle-proof      assemble proof bundles; verify (§29)
 ```
 
-Atomicity (§18.3): a transaction commits all affected state transitions or none.
-Multi-resource transactions are validated against every affected state record's
-`expected_version`.
+Durable atomicity requires an adapter satisfying the transaction contract.
+Plain batch/cross-tenant methods perform all-or-nothing planning; durable sink
+variants wait for persistence. Multi-resource work validates affected versions;
+cross-tenant writes require one supported transaction across all legs.
+
+For 0.2.0 custom domains, consumers define native state and command types,
+deterministic reduction, invariants, operation binding and schema versions.
+`TypedProfile` connects these models to the standard execution/history/proof
+facilities; baseline resource semantics are supplied by profile policies.
+See [domain extensions and migration](DESIGN/DOMAIN_EXTENSIONS.md) and the
+[acceptance audit](DESIGN/0.2.0_ACCEPTANCE.md). Custom requests currently mutate
+one resource per intent; schema changes use explicit consumer migrations.
 
 ---
 
