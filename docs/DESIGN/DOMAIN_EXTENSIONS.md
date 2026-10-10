@@ -154,6 +154,27 @@ The consumer supplies authentication, trust and durable transaction facilities
 as appropriate to its environment. The complete standard runtime is not
 advertised as allocation-free or no_std.
 
+## Consumer responsibilities and remaining boundaries
+
+| Area | Boundary |
+| --- | --- |
+| Compatibility | Existing baseline history bytes remain compatible. Exhaustive Rust enum matches require a `Custom` arm, and older readers cannot consume custom histories. |
+| Transactions | The native custom adapter changes one resource per intent. Custom reducers do not create a general multi-resource atomic transaction facility. |
+| Schema migration | Consumers define migration policy, validate source data and retain historical profiles. Creating a new versioned resource does not by itself establish a safe migration or prevent future writes to the old resource. |
+| Trusted implementations | Reducers, serializers and bounded codecs remain consumer implementations with determinism, correctness and resource-bound obligations. |
+| Portability | The portable components are `no_std`; the hosted engine requires `std`. These libraries do not supply a complete execution runtime or enforce CPU budgets and memory isolation. |
+| Durability | Planning examples and in-memory fault tests do not demonstrate persistence across process termination or power loss. Real adapters must satisfy the atomic ledger, integrity, concurrency and idempotency contracts. |
+| External observations | Commitments establish recorded-state integrity under the stated trust assumptions; they do not establish physical truth or correctness of external side effects. |
+
+`tests/support/versioned_recovery.rs` combines two schemas of a custom domain,
+an explicit consumer migration to a new resource, lost commit acknowledgement,
+idempotent retry, reconstruction of a fresh executor's projections, stale-version
+rejection and continued execution. It replays both histories with their original
+schemas and checks their cumulative root. The migration fixture retains the source
+revision; validation of migration authority, source freshness and retirement of
+the old resource remain consumer policy. The shared in-memory transaction fixture
+tests these library contracts, not a genuinely durable storage backend.
+
 ## Validation
 
 Profile-owned execution policies supply access gates, state addressing, unborn
