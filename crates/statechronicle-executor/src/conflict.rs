@@ -5,76 +5,14 @@
 //! [`ExecutorError`](crate::error::ExecutorError) variant, never a panic. Each gate mirrors one line of
 //! protocol §18.2's "must fail closed" list.
 
-use std::collections::BTreeMap;
-use std::sync::OnceLock;
-
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-
 use statechronicle_domain::intent::{Intent, Operation};
 use statechronicle_domain::state::StateProjection;
-use statechronicle_domain::status::Status;
-use statechronicle_profiles::entitlement::op as entitlement_op;
-use statechronicle_profiles::entitlement::status as entitlement_status;
-use statechronicle_profiles::marketplace::escrow_status;
-use statechronicle_profiles::marketplace::listing_status;
-use statechronicle_profiles::marketplace::op as marketplace_op;
-use statechronicle_profiles::paid_unique_asset::exceptional_status;
-use statechronicle_profiles::unique_asset::op as asset_op;
-use statechronicle_profiles::unique_asset::status as asset_status;
+use statechronicle_profiles::resource;
+use std::collections::BTreeMap;
 
 use crate::error::ExecutorError;
-
-/// Builds a lazily-initialized `&'static [Operation]` slice from accessors.
-macro_rules! op_vec {
-    ($( $op:expr ),* $(,)?) => {{
-        static ALL: OnceLock<Vec<Operation>> = OnceLock::new();
-        ALL.get_or_init(|| vec![ $( $op.to_owned(), )* ])
-    }};
-}
-
-/// Builds a lazily-initialized `&'static [Status]` slice from accessors.
-macro_rules! status_vec {
-    ($( $st:expr ),* $(,)?) => {{
-        static ALL: OnceLock<Vec<Status>> = OnceLock::new();
-        ALL.get_or_init(|| vec![ $( $st.to_owned(), )* ])
-    }};
-}
-
-/// Returns the always-available (free) statuses: no operation is blocked from
-/// them.
-fn free_statuses() -> &'static [Status] {
-    status_vec![asset_status::active(), entitlement_status::granted()]
-}
-
-/// Returns the terminal statuses: no operation may ever leave them
-/// (protocol §20.1).
-fn terminal_statuses() -> &'static [Status] {
-    status_vec![
-        asset_status::burned(),
-        listing_status::expired(),
-        asset_status::tombstoned(),
-        entitlement_status::revoked(),
-        asset_status::redeemed(),
-        listing_status::sold(),
-        listing_status::cancelled(),
-        escrow_status::released(),
-        escrow_status::refunded(),
-    ]
-}
-
-/// Returns the exceptional statuses a paid unique asset may be restricted
-/// into; only `asset.restore` escapes.
-fn exceptional_statuses() -> &'static [Status] {
-    status_vec![
-        asset_status::restricted(),
-        asset_status::quarantined(),
-        asset_status::unsupported(),
-        exceptional_status::legal_hold(),
-        exceptional_status::fraud_lock(),
-        exceptional_status::policy_restricted(),
-    ]
-}
 
 /// Checks the intent's `expected_version` against the current projection
 /// (protocol §18.2 "expected_version does not match current version").
@@ -141,31 +79,11 @@ pub fn check_tenant_scope(intent: &Intent) -> Result<(), ExecutorError> {
 /// Returns [`ExecutorError::ActorMismatch`] when `from_owner` is present and
 /// differs from the current owner or holder.
 pub fn check_owner(
-    _intent: &Intent,
+    intent: &Intent,
     current: Option<&StateProjection>,
     inputs: &BTreeMap<String, Value>,
 ) -> Result<(), ExecutorError> {
-    let Some(projection) = current else {
-        return Ok(());
-    };
-    let Some(actual) = inputs.get("from_owner").and_then(Value::as_str) else {
-        return Ok(());
-    };
-    let Some(expected) = projection
-        .state
-        .owner()
-        .or_else(|| projection.state.subject())
-        .map(|subject| subject.0.as_str())
-    else {
-        return Ok(());
-    };
-    if actual != expected {
-        return Err(ExecutorError::ActorMismatch {
-            expected: String::from(expected),
-            actual: String::from(actual),
-        });
-    }
-    Ok(())
+    resource::check_owner(intent, current, inputs).map_err(ExecutorError::from)
 }
 
 /// Checks that the resource's status does not block the operation
@@ -187,28 +105,7 @@ pub fn check_resource_availability(
     current: &StateProjection,
     operation: &Operation,
 ) -> Result<(), ExecutorError> {
-    let Some(status_str) = current.state.status().map(Status::as_str) else {
-        return Ok(());
-    };
-    // An unrecognized status string fails closed: it is treated as locked so
-    // no operation proceeds against an unknown state.
-    let Ok(status) = Status::try_from_str(status_str) else {
-        return Err(blocked(current));
-    };
-    if free_statuses().contains(&status) {
-        return Ok(());
-    }
-    if terminal_statuses().contains(&status) {
-        return Err(blocked(current));
-    }
-    if exceptional_statuses().contains(&status) && operation == asset_op::asset_restore() {
-        return Ok(());
-    }
-    let escapes = status_escapes(&status);
-    if escapes.contains(operation) {
-        return Ok(());
-    }
-    Err(blocked(current))
+    resource::check_resource_availability(current, operation).map_err(ExecutorError::from)
 }
 
 /// Checks whether the intent expired before acceptance (protocol §18.2
@@ -250,65 +147,6 @@ pub fn check_idempotency_existing(
     Err(ExecutorError::DuplicateIntent {
         intent_id: incoming.intent_id.0.clone(),
     })
-}
-
-/// Returns the escape operations permitted from a non-terminal blocking status.
-///
-/// The `listed` and `locked` statuses are shared between unique assets and
-/// marketplace resources (a listing is `listed`, an escrow is `locked`), so
-/// each shared status also admits the marketplace escape operations. This is
-/// safe because the profile layer is state-type-scoped: a unique asset in
-/// `listed` status can never execute `listing.buy` (unknown operation for the
-/// unique-asset profile), and a listing can never execute `asset.delist`.
-fn status_escapes(status: &Status) -> &'static [Operation] {
-    if *status == *asset_status::locked() {
-        op_vec![
-            asset_op::asset_unlock(),
-            asset_op::asset_restrict(),
-            marketplace_op::escrow_release(),
-            marketplace_op::escrow_refund(),
-        ]
-    } else if *status == *asset_status::escrowed() {
-        op_vec![asset_op::asset_release(), asset_op::asset_restrict()]
-    } else if *status == *asset_status::trade_held() {
-        op_vec![
-            asset_op::trade_unlock(),
-            asset_op::trade_settle(),
-            asset_op::asset_restrict(),
-        ]
-    } else if *status == *asset_status::listed() {
-        op_vec![
-            asset_op::asset_delist(),
-            asset_op::asset_redeem(),
-            asset_op::asset_restrict(),
-            marketplace_op::listing_buy(),
-            marketplace_op::listing_cancel(),
-            marketplace_op::listing_expire(),
-        ]
-    } else if *status == *entitlement_status::suspended() {
-        op_vec![
-            entitlement_op::entitlement_restore(),
-            entitlement_op::entitlement_expire(),
-        ]
-    } else if *status == *entitlement_status::granted() {
-        op_vec![
-            entitlement_op::entitlement_activate(),
-            entitlement_op::entitlement_expire(),
-            entitlement_op::entitlement_revoke(),
-            entitlement_op::entitlement_transfer(),
-        ]
-    } else {
-        // Unreachable for terminal/exceptional/free statuses; fail closed by
-        // returning no escapes so any operation is blocked.
-        &[]
-    }
-}
-
-/// Builds a fail-closed `ResourceLocked` error for a blocked operation.
-fn blocked(current: &StateProjection) -> ExecutorError {
-    ExecutorError::ResourceLocked {
-        resource: current.resource_id.0.clone(),
-    }
 }
 
 #[cfg(test)]
@@ -556,8 +394,18 @@ mod tests {
 
     #[test]
     fn resource_availability_terminal_blocks_everything() {
-        for status in terminal_statuses() {
-            let current = asset(status.as_str(), "alice");
+        for status in [
+            "burned",
+            "expired",
+            "tombstoned",
+            "revoked",
+            "redeemed",
+            "sold",
+            "cancelled",
+            "released",
+            "refunded",
+        ] {
+            let current = asset(status, "alice");
             assert!(
                 check_resource_availability(&current, &op("asset.restore")).is_err(),
                 "restore must be blocked from terminal `{status}`"

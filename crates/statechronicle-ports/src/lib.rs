@@ -6,6 +6,11 @@
 
 #![deny(unsafe_code)]
 #![allow(clippy::must_use_candidate)]
+// Rust 1.99 diagnoses async_trait's generated must_use on boxed futures.
+#![allow(
+    clippy::double_must_use,
+    reason = "async_trait emits redundant must_use attributes"
+)]
 
 /// Port trait for the intent store (deduplication and idempotency).
 pub mod intent_store;

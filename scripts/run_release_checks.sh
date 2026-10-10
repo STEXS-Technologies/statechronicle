@@ -8,6 +8,7 @@ cargo fmt --all -- --check
 cargo test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo check --workspace --all-targets --all-features --locked
+bash scripts/check_embedded.sh
 RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps --all-features --locked
 cargo audit
 cargo deny check advisories licenses bans sources

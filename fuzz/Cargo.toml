@@ -22,6 +22,7 @@ wildcard_enum_match_arm = "allow"
 redundant_clone = "allow"
 
 [dependencies]
+statechronicle-portable.workspace = true
 libfuzzer-sys = "0.4"
 hex = { workspace = true }
 serde = { workspace = true }
@@ -32,6 +33,9 @@ chrono = { workspace = true }
 
 [dependencies.statechronicle-core]
 path = "../crates/statechronicle-core"
+
+[dependencies.statechronicle]
+path = "../crates/statechronicle"
 
 [dependencies.statechronicle-domain]
 path = "../crates/statechronicle-domain"
@@ -180,5 +184,29 @@ doc = false
 [[bin]]
 name = "fuzz_cross_tenant_trade"
 path = "fuzz_targets/fuzz_cross_tenant_trade.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_custom_state"
+path = "fuzz_targets/fuzz_custom_state.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_portable"
+path = "fuzz_targets/fuzz_portable.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_custom_transition"
+path = "fuzz_targets/fuzz_custom_transition.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_profile_id"
+path = "fuzz_targets/fuzz_profile_id.rs"
 test = false
 doc = false

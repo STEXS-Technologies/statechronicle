@@ -17,6 +17,20 @@ composition root. What you get instead is a deterministic, fully testable core;
 durability and atomicity guarantees apply only when the consumer supplies an
 adapter satisfying the durable `LedgerStore` contract.
 
+## Consumer-defined domains
+
+Version 0.2.0 lets consumers define native state models, legal commands, validation
+and authority requirements through `StateProfile` and `TypedProfile`. Custom
+configuration and equipment lifecycles reuse the existing execution, persistence,
+commit, replay and proof APIs without economic fields.
+
+See the [domain extension and migration guide](docs/DESIGN/DOMAIN_EXTENSIONS.md)
+and run `cargo run -p statechronicle --example custom_domains`. The portable
+`statechronicle-profile` contract is allocation-free and `no_std`.
+`statechronicle-portable` adds bounded transitions, caller-owned canonical
+encoding buffers and compatible integrity verification. The standard adapter
+and complete runtime currently require `std`.
+
 ## Use cases
 
 - **Game inventory**: mint, transfer, lock, and burn unique assets (swords,
@@ -198,7 +212,9 @@ durable adapter/recovery controls described in `TODO.md`.
 | `statechronicle-commit` | Commit formation, ordering, roots, and signing |
 | `statechronicle-accumulator` | Sparse-Merkle state accumulator and state roots |
 | `statechronicle-proof` | Proof serving and verification (incl. non-membership) |
-| `statechronicle-profiles` | Baseline resource profiles and their rule sets |
+| `statechronicle-profile` | Portable, allocation-free consumer transition contracts |
+| `statechronicle-portable` | Bounded no_std transitions, canonical codecs, hashes, signatures and proof verification |
+| `statechronicle-profiles` | Baseline reducers, typed custom adapters, and static profile composition |
 | `statechronicle-ports` | Backend-agnostic storage, transaction, authorization, and delivery port traits |
 
 Each crate carries a README with a "Protocol sections owned" table, so the

@@ -1,8 +1,8 @@
-//! StateChronicle: a pure-logic, verifiable resource-state ledger protocol
+//! StateChronicle: a pure-logic, domain-extensible verifiable state protocol
 //! engine.
 //!
 //! This is the **umbrella crate**: the single dependency consumers add to use
-//! the whole protocol surface. It re-exports the ten underlying protocol
+//! the whole protocol surface. It re-exports the underlying protocol
 //! crates under collision-safe namespaces and surfaces the most-used types
 //! directly at the top level.
 //!
@@ -39,6 +39,8 @@ pub use statechronicle_executor as executor;
 pub use statechronicle_index as index;
 /// Intent parsing and validation into `ValidatedIntent`.
 pub use statechronicle_intent as intent;
+/// Allocation-free codecs and integrity verification for bounded consumers.
+pub use statechronicle_portable as portable;
 /// The eleven backend-agnostic port traits consumers implement.
 pub use statechronicle_ports as ports;
 /// Baseline resource profiles and their rule sets.
@@ -154,3 +156,12 @@ pub use statechronicle_proof::service::ProofService;
 pub use statechronicle_proof::trade::build_trade_proof;
 /// Trade proof verification. See [`proof::trade::verify_trade_proof`].
 pub use statechronicle_proof::trade::verify_trade_proof;
+
+/// Domain-separated canonical custom state.
+pub use statechronicle_domain::custom::CustomState;
+/// Portable consumer-defined domain transition contracts.
+pub use statechronicle_profile as profile;
+/// Consumer-defined deterministic transition contract.
+pub use statechronicle_profile::StateProfile;
+/// Typed adapter for domain registration.
+pub use statechronicle_profiles::custom::TypedProfile;

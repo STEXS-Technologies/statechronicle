@@ -21,11 +21,15 @@ use statechronicle_domain::subject::SubjectId;
 use crate::consumable_stack::ConsumableStackRules;
 use crate::entitlement::EntitlementRules;
 use crate::error::ProfileError;
+use crate::execution::ExecutionPolicy;
 use crate::fungible_balance::FungibleBalanceRules;
 use crate::marketplace::{EscrowRules, ListingRules};
 use crate::meter::MeterRules;
 use crate::paid_unique_asset::PaidUniqueAssetRules;
+use crate::resource;
+use crate::transition;
 use crate::unique_asset::UniqueAssetRules;
+use statechronicle_domain::commit::ProfileId;
 
 /// A rule set governing one profile over a resource state type.
 ///
@@ -35,6 +39,10 @@ use crate::unique_asset::UniqueAssetRules;
 /// context, and returns an error for any unknown operation, invalid
 /// transition, or malformed input instead of panicking.
 pub trait ProfileRules: Sync {
+    /// Profile-owned addressing, access and atomic transition semantics.
+    fn execution_policy(&self) -> &'static dyn ExecutionPolicy {
+        resource::policy(self.state_type())
+    }
     /// The state type this profile governs.
     fn state_type(&self) -> StateType;
 
@@ -64,6 +72,30 @@ pub trait ProfileRules: Sync {
         current: Option<&StateProjection>,
         inputs: &BTreeMap<String, serde_json::Value>,
     ) -> Result<(), ProfileError>;
+
+    /// Computes the profile's deterministic after-state.
+    /// # Errors
+    /// Returns a profile error for invalid commands or state.
+    fn apply(
+        &self,
+        current: Option<&StateProjection>,
+        operation: &Operation,
+        inputs: &BTreeMap<String, serde_json::Value>,
+    ) -> Result<ResourceState, ProfileError> {
+        transition::apply(current, operation, inputs)
+    }
+
+    /// Schema version for consumer-defined profiles; baseline profiles use zero.
+    fn schema_version(&self) -> u32 {
+        0
+    }
+
+    /// Validates implementation-specific registration limits.
+    /// # Errors
+    /// Returns a profile error for an invalid profile configuration.
+    fn validate_registration(&self) -> Result<(), ProfileError> {
+        Ok(())
+    }
 
     /// Whether the operation MUST carry an authority binding
     /// (protocol §11.2, ADR-006 §36 Q5 / deferral item 4).
@@ -96,6 +128,7 @@ pub trait ProfileRules: Sync {
 /// the plain unique asset rules.
 #[derive(Clone, Copy)]
 pub struct ProfileRegistry {
+    custom: &'static [&'static dyn ProfileRules],
     unique_asset: &'static dyn ProfileRules,
     consumable_stack: &'static dyn ProfileRules,
     fungible_balance: &'static dyn ProfileRules,
@@ -170,6 +203,7 @@ pub(crate) fn state_str<'projection>(
             "status" => v.status.as_str(),
             _ => return Err(no_field(key)),
         },
+        ResourceState::Custom(_) => return Err(no_field(key)),
         ResourceState::Escrow(v) => match key {
             "buyer" => subject(&v.buyer),
             "seller" => subject(&v.seller),
@@ -354,6 +388,7 @@ impl ProfileRegistry {
     /// Constructs the baseline registry covering all seven state types.
     pub fn baseline() -> Self {
         Self {
+            custom: &[],
             unique_asset: &UniqueAssetRules,
             consumable_stack: &ConsumableStackRules,
             fungible_balance: &FungibleBalanceRules,
@@ -368,9 +403,8 @@ impl ProfileRegistry {
     /// Returns the rule set registered for a state type.
     ///
     /// Every baseline [`StateType`] is registered, so this returns `Some` for
-    /// all seven protocol state types. The `Option` return is part of the
-    /// public registry contract so future custom state types can resolve to
-    /// no registered rule set.
+    /// all seven baseline types. Custom domains use `resolve` with their
+    /// explicit identity and schema; `get(Custom)` returns `None`.
     #[allow(clippy::unnecessary_wraps)]
     pub fn get(&self, state_type: StateType) -> Option<&'static dyn ProfileRules> {
         match state_type {
@@ -381,7 +415,94 @@ impl ProfileRegistry {
             StateType::MeteredResource => Some(self.metered_resource),
             StateType::Listing => Some(self.listing),
             StateType::Escrow => Some(self.escrow),
+            StateType::Custom => None,
         }
+    }
+
+    /// Composes a bounded static slice of consumer-defined profiles.
+    /// Registry storage is borrowed; resolution validates request metadata.
+    /// # Errors
+    /// Rejects invalid identities, zero schemas, baseline operation prefixes,
+    /// empty operation sets, conflicting operation namespaces, invalid adapter
+    /// limits, and duplicate domain/schema registrations.
+    pub fn with_custom(custom: &'static [&'static dyn ProfileRules]) -> Result<Self, ProfileError> {
+        for (index, rules) in custom.iter().enumerate() {
+            rules.validate_registration()?;
+            let id = ProfileId::new(String::from(rules.profile_id()))
+                .map_err(|error| ProfileError::InvalidInput(error.to_string()))?;
+            if rules.state_type() != StateType::Custom
+                || rules.schema_version() == 0
+                || rules.allowed_operations().is_empty()
+            {
+                return Err(ProfileError::InvalidInput(String::from(
+                    "invalid custom profile",
+                )));
+            }
+            for operation in rules.allowed_operations() {
+                Operation::new(operation.0.clone())
+                    .map_err(|error| ProfileError::InvalidInput(error.to_string()))?;
+                if operation.state_type_hint().is_some() {
+                    return Err(ProfileError::InvalidInput(String::from(
+                        "reserved operation prefix",
+                    )));
+                }
+            }
+            for other in custom.iter().take(index) {
+                let other_id = ProfileId::new(String::from(other.profile_id()))
+                    .map_err(|error| ProfileError::InvalidInput(error.to_string()))?;
+                if other_id == id && other.schema_version() == rules.schema_version() {
+                    return Err(ProfileError::InvalidInput(String::from(
+                        "duplicate domain/schema",
+                    )));
+                }
+                if other_id != id
+                    && other
+                        .allowed_operations()
+                        .iter()
+                        .any(|operation| rules.allowed_operations().contains(operation))
+                {
+                    return Err(ProfileError::InvalidInput(String::from(
+                        "operation shared by different domains",
+                    )));
+                }
+            }
+        }
+        Ok(Self {
+            custom,
+            ..Self::baseline()
+        })
+    }
+
+    /// Resolves a custom domain using the signed intent's profile and schema inputs.
+    /// # Errors
+    /// Rejects missing, malformed, or unregistered identities and schemas.
+    pub fn resolve(
+        &self,
+        state_type: StateType,
+        inputs: &BTreeMap<String, serde_json::Value>,
+    ) -> Result<&'static dyn ProfileRules, ProfileError> {
+        if state_type != StateType::Custom {
+            return self
+                .get(state_type)
+                .ok_or_else(|| ProfileError::InvalidInput(String::from("unknown state type")));
+        }
+        let id = ProfileId::new(String::from(input_str(inputs, "profile")?))
+            .map_err(|error| ProfileError::InvalidInput(error.to_string()))?;
+        let schema = inputs
+            .get("schema_version")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|value| u32::try_from(value).ok())
+            .ok_or_else(|| ProfileError::InvalidInput(String::from("invalid schema_version")))?;
+        for rules in self.custom.iter().copied() {
+            let registered_id = ProfileId::new(String::from(rules.profile_id()))
+                .map_err(|error| ProfileError::InvalidInput(error.to_string()))?;
+            if registered_id == id && rules.schema_version() == schema {
+                return Ok(rules);
+            }
+        }
+        Err(ProfileError::InvalidInput(String::from(
+            "unregistered domain/schema",
+        )))
     }
 
     /// Returns the paid unique asset rule set (protocol §20.3).

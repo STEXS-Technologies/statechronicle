@@ -11,13 +11,17 @@
 //! and signing belong to the `statechronicle-commit` crate (§18.1 steps 13–15).
 //! The executor never touches the event store.
 
-use std::collections::BTreeMap;
+#![allow(
+    clippy::double_must_use,
+    reason = "async_trait emits redundant must_use attributes"
+)]
+
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 
 use async_trait::async_trait;
-use serde_json::Value;
 use statechronicle_core::canonicalize::{canonicalize, canonicalize_and_digest};
 use statechronicle_core::digest::ContentDigest;
 use statechronicle_core::limits::{MAX_INTENT_BYTES, check_size};
@@ -25,17 +29,17 @@ use statechronicle_domain::authority::{
     AggregationPolicy, AuthorityProof, EvaluationResult, TRUSTGRANT_EVALUATION_KIND,
     TrustGrantOutcome, aggregate_evaluation_digest,
 };
+use statechronicle_domain::commit::ProfileId;
 use statechronicle_domain::event::{Event, StateCommitment};
 use statechronicle_domain::ids::EventId;
-use statechronicle_domain::intent::{Intent, Operation, SignatureBlock};
+use statechronicle_domain::intent::SignatureBlock;
+#[cfg(test)]
+use statechronicle_domain::intent::{Intent, Operation};
 use statechronicle_domain::resource::ResourceId;
-use statechronicle_domain::resource_state::{
-    ConsumableStackState, EntitlementState, EscrowState, FungibleBalanceState, ListingState,
-    MeterState, ResourceState, UniqueAssetState,
-};
+use statechronicle_domain::resource_state::ResourceState;
+#[cfg(test)]
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
-use statechronicle_domain::status::Status;
 use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_intent::validated::ValidatedIntent;
@@ -48,15 +52,17 @@ use statechronicle_ports::state_index::StateIndex;
 use statechronicle_ports::tenant_store::TenantStore;
 use statechronicle_ports::transaction_manager::{TransactionManager, TransactionManagerError};
 use statechronicle_ports::trustgrant_evaluator::TrustGrantError;
-use statechronicle_profiles::consumable_stack::op as stack_op;
-use statechronicle_profiles::fungible_balance::op as balance_op;
 use statechronicle_profiles::registry::ProfileRegistry;
-use statechronicle_profiles::unique_asset::op as asset_op;
 
 use crate::atomicity;
 use crate::conflict;
 use crate::error::{ExecutorBuildError, ExecutorError, PortsBuildError};
-use crate::transition;
+#[cfg(test)]
+use statechronicle_profiles::resource::{
+    destination_holder, holder_for, is_transfer_operation, subject_for,
+};
+#[path = "settlement.rs"]
+mod settlement;
 
 /// The injected intent-signature verifier.
 ///
@@ -346,13 +352,12 @@ impl Executor {
     ///    (`check_revocation_freshness` → [`ExecutorError::AuthorityStale`]).
     /// 4. **Tenant scope**: `check_tenant_scope` then
     ///    `tenant_store.tenant_exists` → [`ExecutorError::TenantNotFound`].
-    /// 5. **Load current state**: via `state_index.get_subject_state` for
-    ///    subject-held types or `state_index.get_state` for owner-based types,
-    ///    per [`transition::state_key_for`]'s keying rules. The intent's
+    /// 5. **Load current state**: the profile's execution policy selects the
+    ///    resource or subject index address. The intent's
     ///    `state_type` must be present ([`ExecutorError::StateTypeRequired`]).
     /// 6. **Expected version**: [`conflict::check_expected_version`].
-    /// 7. **Conflict gates**: [`conflict::check_owner`] and
-    ///    [`conflict::check_resource_availability`] (§18.2). Expiry
+    /// 7. **Profile access gates**: the execution policy checks whether the
+    ///    loaded state may accept this command. Expiry
     ///    ([`conflict::check_expiry`]) is enforced before the intent is even
     ///    claimed in step 2.
     /// 8. **TrustGrant authority**: the active profile's rule set is resolved
@@ -372,23 +377,18 @@ impl Executor {
     ///    proceeds without a binding (profile-owned fallback).
     /// 9. **Profile rules**: `rules.check` must pass (→
     ///    [`ExecutorError::Profile`]).
-    /// 10. **After-state**: [`transition::apply`] computes the deterministic
+    /// 10. **After-state**: the profile's reducer computes the deterministic
     ///     new projection payload.
     /// 11. **Emit event**: before/after [`StateCommitment`]s carry
     ///     `current.version` / `current.version + 1` and canonical state
     ///     digests (`canonicalize_and_digest`), the evaluated authority is
     ///     bound when present, and `executor`/`created_at` come from the
     ///     injected identity and clock.
-    /// 12. **Transfer pair**: for `stack.transfer` / `balance.transfer` a
-    ///     second event credits the destination (holder = `to_subject`, the
-    ///     destination's current state or a create-on-credit at version 0),
-    ///     making the transfer an atomic debit + credit pair sharing one
-    ///     intent id (§20.5, §18.3). Both event ids come from the injected
-    ///     generator, source first, then destination.
-    /// 13. **Atomicity**: multi-resource transactions are assembled by the
-    ///     commit crate batching multiple executions via [`Self::execute_batch`]
-    ///     (§18.3); [`atomicity::validate_batch_consistency`] admits a transfer
-    ///     pair as the one multi-event unit sharing an intent id.
+    /// 12. **Additional mutation**: the profile's execution policy may declare
+    ///     a companion address and reducer. Both events share one intent id.
+    ///     Baseline resource profiles use this for atomic debit/credit pairs.
+    /// 13. **Atomicity**: batch identity and tenant checks are generic; each
+    ///     event group is validated by its owning profile's execution policy.
     ///
     /// # Errors
     ///
@@ -651,42 +651,20 @@ impl Executor {
         self.execute_batch_durable(&intents, sink).await
     }
 
-    /// The shared execution core, parameterized over whether value-leg
-    /// `trade.settle` intents are admitted.
-    ///
-    /// `allow_value_legs == false` for the single-tenant [`Self::execute`] and
-    /// [`Self::execute_batch`]: a `trade.settle` that declares a value leg must
-    /// be settled via [`Self::execute_settle`]. `allow_value_legs == true` for
-    /// the cross-tenant legs (through the single-tenant batch pipeline), where value legs
-    /// are declared in the trade manifest and validated by the cross-tenant
-    /// validator, not the settle intent.
+    /// Shared execution core. A profile may require a coordinated batch route;
+    /// ordinary single-intent and batch calls reject those requests before
+    /// claiming them. A coordinator validates the required group semantics.
     #[allow(clippy::collapsible_if)]
     async fn execute_inner(
         &self,
         validated: &ValidatedIntent,
-        allow_value_legs: bool,
+        allow_coordinated: bool,
         persist_intent: bool,
     ) -> Result<Vec<Event>, ExecutorError> {
         let intent = &validated.intent;
         let tenant = &intent.tenant_id;
         let resource = &intent.resource_id;
         let operation = &intent.operation;
-
-        // Phase 2 routing gate: a `trade.settle` that declares a value leg
-        // (value_resource / value_amount / value_to_subject) must be settled via
-        // [`Self::execute_settle`], which validates the value pairs. This path
-        // cannot move value, so a value-leg settle is rejected up front — before
-        // any claim is recorded — rather than silently settling the asset with
-        // no value moved and no error. The cross-tenant path admits value-leg
-        // settles because their value legs are declared in the manifest.
-        if !allow_value_legs
-            && operation == asset_op::trade_settle()
-            && atomicity::declares_value_leg(intent)
-        {
-            return Err(ExecutorError::ValueLegSettleRouting {
-                intent_id: intent.intent_id.0.clone(),
-            });
-        }
 
         // §18.1 steps 1–2: schema/size are enforced upstream by the intent
         // crate; re-check the canonical size here as a defense-in-depth gate.
@@ -745,11 +723,12 @@ impl Executor {
             });
         }
 
-        // §18.1 step 6: load current state. The state type must resolve before
-        // loading because subject-held vs owner-based keying determines which
-        // index call to make (per `transition::state_key_for`).
+        // Resolve profile-owned storage addressing before loading the state.
         let state_type = intent.state_type.ok_or(ExecutorError::StateTypeRequired)?;
-        let mut current = match subject_for(intent, state_type) {
+        let rules = self.profiles.resolve(state_type, &intent.inputs)?;
+        let execution_policy = rules.execution_policy();
+        execution_policy.validate_route(intent, allow_coordinated)?;
+        let mut current = match execution_policy.primary_subject(intent) {
             Some(subject) => self
                 .ports
                 .state_index
@@ -764,15 +743,11 @@ impl Executor {
                 .map_err(|err| ExecutorError::Store(err.to_string()))?,
         };
 
-        // §18.1 step 6a (Gap 3): for subject-held types the projection's own
-        // `subject` field is the source of truth once a resource exists
-        // (protocol §9/§10); the acting actor is only the creator default. If
-        // the actor-keyed lookup surfaced a projection whose holder differs
-        // from the acting actor, re-load under the authoritative holder so
-        // subsequent keying matches the state's holder, never the acting actor.
-        if let Some(holder) = holder_for(current.as_ref(), intent, state_type) {
-            let queried = subject_for(intent, state_type).map(|subject| subject.0.as_str());
-            if queried.is_some() && Some(holder.0.as_str()) != queried {
+        // A profile may make the existing state's address authoritative over
+        // the initial lookup's creation default.
+        if let Some(holder) = execution_policy.current_subject(intent, current.as_ref()) {
+            let queried = execution_policy.primary_subject(intent);
+            if queried.is_some() && Some(&holder) != queried {
                 current = self
                     .ports
                     .state_index
@@ -782,21 +757,42 @@ impl Executor {
             }
         }
 
+        if let Some(projection) = &current {
+            if projection.state_type != state_type || projection.state.state_type() != state_type {
+                return Err(ExecutorError::TransitionInvalid(String::from(
+                    "state type mismatch",
+                )));
+            }
+        }
+
         // §18.1 step 7 + §18.2 conflict gates.
         conflict::check_expected_version(intent, current.as_ref())?;
-        if let Some(projection) = &current {
-            conflict::check_owner(intent, Some(projection), &intent.inputs)?;
-            conflict::check_resource_availability(projection, operation)?;
-        }
+        execution_policy.check_access(intent, current.as_ref())?;
 
         // §18.1 step 8: TrustGrant authority. The active profile's rule set is
         // resolved here (before the gate) so `requires_authority` and
         // `authority_policy` can drive the mandatory-binding rule and the
         // aggregation policy; `rules.check` still runs at step 9.
-        let rules = self
-            .profiles
-            .get(state_type)
-            .ok_or_else(|| ExecutorError::TransitionInvalid(String::from("unknown state type")))?;
+        if state_type == StateType::Custom {
+            let identity = ProfileId::new(String::from(rules.profile_id()))?;
+            if !rules.allowed_operations().contains(operation) {
+                return Err(ExecutorError::TransitionInvalid(String::from(
+                    "unregistered operation",
+                )));
+            }
+            if let Some(projection) = &current {
+                let ResourceState::Custom(custom) = &projection.state else {
+                    return Err(ExecutorError::TransitionInvalid(String::from(
+                        "custom state required",
+                    )));
+                };
+                if custom.domain != identity || custom.schema_version != rules.schema_version() {
+                    return Err(ExecutorError::TransitionInvalid(String::from(
+                        "domain/schema mismatch",
+                    )));
+                }
+            }
+        }
         let required = rules.requires_authority(operation);
         let policy = rules.authority_policy(operation);
 
@@ -888,7 +884,23 @@ impl Executor {
         rules.check(operation, current.as_ref(), &intent.inputs)?;
 
         // §18.1 step 10: deterministic after-state.
-        let after_state = transition::apply(current.as_ref(), operation, &intent.inputs)?;
+        let after_state = rules
+            .apply(current.as_ref(), operation, &intent.inputs)
+            .map_err(|error| ExecutorError::TransitionInvalid(error.to_string()))?;
+        if after_state.state_type() != state_type {
+            return Err(ExecutorError::TransitionInvalid(String::from(
+                "reducer state type mismatch",
+            )));
+        }
+
+        if let ResourceState::Custom(custom) = &after_state {
+            let identity = ProfileId::new(String::from(rules.profile_id()))?;
+            if custom.domain != identity || custom.schema_version != rules.schema_version() {
+                return Err(ExecutorError::TransitionInvalid(String::from(
+                    "reducer domain/schema mismatch",
+                )));
+            }
+        }
 
         // §18.1 step 11: emit the event.
         let version = current.as_ref().map(|c| c.version).unwrap_or(0);
@@ -897,8 +909,8 @@ impl Executor {
             .ok_or_else(|| ExecutorError::TransitionInvalid(String::from("version overflow")))?;
         let before_state = current
             .as_ref()
-            .map(|c| c.state.clone())
-            .unwrap_or_else(|| empty_state_for(state_type));
+            .map(|c| Ok(c.state.clone()))
+            .unwrap_or_else(|| execution_policy.unborn_state(&after_state))?;
         let before_hash = match current.as_ref() {
             Some(projection) => projection.state_hash.clone(),
             None => canonicalize_and_digest(&before_state)?,
@@ -928,31 +940,32 @@ impl Executor {
 
         tracing::debug!(event_id = %event.event_id.as_str(), "emitted event");
 
-        // §18.1 step 12: transfer pair. For a subject-held transfer the source
-        // event above is the debit; emit a second event crediting the
-        // destination (holder = `to_subject`). Both events share this intent id
-        // and form the atomic multi-resource unit (§20.5, §18.3). The
-        // destination is loaded by its holder and, when absent, created at
-        // version 0 (create-on-credit).
-        if is_transfer_operation(operation) {
-            let destination_holder = destination_holder(&intent.inputs)?;
-            let destination_current = self
-                .ports
-                .state_index
-                .get_subject_state(tenant, &destination_holder, resource)
-                .await
-                .map_err(|err| ExecutorError::Store(err.to_string()))?;
+        // Construct a profile-declared companion mutation, then claim the
+        // intent only after every event has been validated and constructed.
+        if let Some(target) = execution_policy.companion_target(intent)? {
+            let destination_current = match &target.subject {
+                Some(subject) => {
+                    self.ports
+                        .state_index
+                        .get_subject_state(tenant, subject, &target.resource)
+                        .await
+                }
+                None => {
+                    self.ports
+                        .state_index
+                        .get_state(tenant, &target.resource)
+                        .await
+                }
+            }
+            .map_err(|err| ExecutorError::Store(err.to_string()))?;
             let source = current.as_ref().ok_or_else(|| {
                 ExecutorError::TransitionInvalid(String::from(
-                    "transfer requires an existing source resource",
+                    "companion transition requires an existing primary state",
                 ))
             })?;
-            let destination_after_state = transition::transfer_after_state(
-                source,
-                destination_current.as_ref(),
-                operation,
-                &intent.inputs,
-            )?;
+            let destination_after_state = execution_policy
+                .apply_companion(intent, source, destination_current.as_ref())
+                .map_err(|error| ExecutorError::TransitionInvalid(error.to_string()))?;
 
             let destination_version = destination_current.as_ref().map(|c| c.version).unwrap_or(0);
             let destination_next_version = destination_version.checked_add(1).ok_or_else(|| {
@@ -960,8 +973,8 @@ impl Executor {
             })?;
             let destination_before_state = destination_current
                 .as_ref()
-                .map(|c| c.state.clone())
-                .unwrap_or_else(|| empty_state_for(state_type));
+                .map(|c| Ok(c.state.clone()))
+                .unwrap_or_else(|| execution_policy.unborn_state(&destination_after_state))?;
             let destination_before_hash = match destination_current.as_ref() {
                 Some(projection) => projection.state_hash.clone(),
                 None => canonicalize_and_digest(&destination_before_state)?,
@@ -973,7 +986,7 @@ impl Executor {
                 (self.event_id_fn)(),
                 intent.intent_id.clone(),
                 operation.clone(),
-                resource.clone(),
+                target.resource.clone(),
                 intent.actor.clone(),
                 StateCommitment {
                     version: destination_version,
@@ -992,9 +1005,9 @@ impl Executor {
 
             tracing::debug!(
                 event_id = %destination_event.event_id.as_str(),
-                "emitted destination credit event"
+                "emitted companion event"
             );
-            // Claim only after both transfer legs have been fully validated and
+            // Claim only after both profile mutations have been fully validated and
             // constructed. Durable implementations must make this claim
             // atomic with persistence of both events and their commit.
             if persist_intent {
@@ -1082,7 +1095,9 @@ impl Executor {
         // intent store. Only a durable sink owns an atomic claim boundary;
         // pure/planning batches must never leave partial claims behind.
         let result = match self.run_batch_fail_closed(intents, sink.is_some()).await {
-            Ok(events) => atomicity::validate_batch_consistency(&events).map(|()| events),
+            Ok(events) => self
+                .validate_profile_batch(intents, &events)
+                .map(|()| events),
             Err(error) => Err(error),
         };
         match result {
@@ -1136,426 +1151,59 @@ impl Executor {
         self.execute_batch_inner(intents, Some(sink)).await
     }
 
-    /// Runs a value-leg settlement batch atomically (protocol §18.3, Phase 2).
-    ///
-    /// A settlement may settle an asset in exchange for a fungible value leg
-    /// (asset-for-gold): the batch grows from `[trade.settle]` to
-    /// `[trade.settle, balance.transfer x2]` — one settle intent plus one
-    /// `balance.transfer` intent (the value leg), all in one atomic
-    /// transaction. The intents run through the same transaction wrapper as
-    /// [`Self::execute_batch`]; the emitted batch is validated by
-    /// [`atomicity::validate_batch_consistency`] first (untouched), then by the
-    /// value-leg shape check [`atomicity::validate_settle_batch`]. All-or-
-    /// nothing: any failure rolls back and surfaces as
-    /// [`ExecutorError::AtomicityViolation`].
-    ///
-    /// The settle intents passed to the shape check are those whose operation
-    /// is `trade.settle`; the value-leg `balance.transfer` intents are the rest.
-    /// The pure/planning route does not claim intents; use
-    /// [`Self::execute_settle_durable`] for durable idempotency.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ExecutorError::AtomicityViolation`] when the batch is empty,
-    /// when any intent fails, or when the emitted batch is not a coherent
-    /// value-leg settlement, and [`ExecutorError::Store`] when the transaction
-    /// manager itself fails.
-    pub async fn execute_settle(
+    fn validate_profile_batch(
         &self,
         intents: &[ValidatedIntent],
-    ) -> Result<Vec<Event>, ExecutorError> {
-        self.execute_settle_inner(intents, None).await
-    }
-
-    async fn execute_settle_inner(
-        &self,
-        intents: &[ValidatedIntent],
-        sink: Option<&dyn DurableBatchSink>,
-    ) -> Result<Vec<Event>, ExecutorError> {
-        let Some(first) = intents.first() else {
-            return Err(ExecutorError::AtomicityViolation(String::from(
-                "empty settle batch",
-            )));
-        };
-        let tenant = &first.intent.tenant_id;
-        let handle = if sink.is_none() {
-            Some(
-                self.ports
-                    .transaction_manager
-                    .begin(tenant)
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?,
-            )
-        } else {
-            None
-        };
-
-        // Both a leg failure and a validation failure are rolled back atomically.
-        // `allow_value_legs` is `true`: the settle batch's value legs are
-        // validated by [`atomicity::validate_settle_batch`] below.
-        let result = match self.run_batch(intents, true, sink.is_some()).await {
-            Ok(events) => {
-                let settle_intents: Vec<statechronicle_domain::intent::Intent> = intents
-                    .iter()
-                    .filter(|validated| &validated.intent.operation == asset_op::trade_settle())
-                    .map(|validated| validated.intent.clone())
-                    .collect();
-                atomicity::validate_batch_consistency(&events)
-                    .and_then(|()| atomicity::validate_settle_batch(&events, &settle_intents))
-                    .map(|()| events)
+        events: &[Event],
+    ) -> Result<(), ExecutorError> {
+        let mut identities = BTreeSet::new();
+        let mut groups = BTreeMap::new();
+        let mut tenant = None;
+        for event in events {
+            if !identities.insert(&event.event_id) {
+                return Err(ExecutorError::AtomicityViolation(String::from(
+                    "duplicate event id in batch",
+                )));
             }
-            Err(error) => Err(error),
-        };
-        match result {
-            Ok(events) => {
-                if let Some(sink) = sink.filter(|_| !events.is_empty())
-                    && let Err(error) = sink.persist_batch(intents, &events).await
-                {
-                    if let Some(handle) = handle
-                        && let Err(rollback_error) = handle.rollback().await
-                    {
-                        tracing::warn!(%rollback_error, "durable settle rollback failed");
-                    }
-                    return Err(ExecutorError::Store(error));
-                }
-                if let Some(handle) = handle {
-                    handle
-                        .commit()
-                        .await
-                        .map_err(|err| map_transaction_manager_error(&err))?;
-                }
-                Ok(events)
+            if tenant.is_some_and(|first| first != &event.tenant_id) {
+                return Err(ExecutorError::AtomicityViolation(String::from(
+                    "mixed tenant scopes in batch",
+                )));
             }
-            Err(error) => {
-                let message = error.to_string();
-                if let Some(handle) = handle
-                    && let Err(rollback_error) = handle.rollback().await
-                {
-                    tracing::warn!(rollback = %rollback_error, "settle rollback failed");
-                }
-                Err(ExecutorError::AtomicityViolation(message))
-            }
+            tenant = Some(&event.tenant_id);
+            groups
+                .entry(&event.intent_id)
+                .or_insert_with(Vec::new)
+                .push(event);
         }
-    }
-
-    /// Executes a value-leg settlement and persists it through the required
-    /// durable batch boundary before returning success.
-    ///
-    /// # Errors
-    ///
-    /// Returns the settlement validation/atomicity errors or
-    /// [`ExecutorError::Store`] when the sink rejects the durable write.
-    pub async fn execute_settle_durable(
-        &self,
-        intents: &[ValidatedIntent],
-        sink: &dyn DurableBatchSink,
-    ) -> Result<Vec<Event>, ExecutorError> {
-        self.execute_settle_inner(intents, Some(sink)).await
-    }
-
-    /// Runs a cross-tenant batch atomically (protocol §8.2, §18.3).
-    ///
-    /// A cross-tenant transaction spans two or more distinct tenants. The
-    /// affected-tenant set is derived by partitioning the intents by
-    /// `tenant_id` (preserving input order within each tenant); the sorted
-    /// tenant keys are passed to `transaction_manager.begin_multi`, then each
-    /// tenant's leg runs through the single-tenant batch pipeline.
-    /// The per-tenant groups are validated with
-    /// [`atomicity::validate_cross_tenant_consistency`], then committed
-    /// atomically: success commits and returns one
-    /// [`atomicity::TenantEventGroup`] per affected tenant; any error rolls back
-    /// and surfaces as [`ExecutorError::AtomicityViolation`].
-    ///
-    /// Idempotent-replay legs return no events (existing semantics). A leg
-    /// whose intents all replay produces an empty group; because such a group
-    /// carries no intent id that links at least two distinct tenant groups,
-    /// `validate_cross_tenant_consistency` fails and the whole transaction
-    /// aborts with [`ExecutorError::AtomicityViolation`] and rolls back. A
-    /// cross-tenant retry is therefore fail-closed and deterministic.
-    /// The pure/planning route does not claim intents because its symbolic
-    /// transaction handle cannot roll back an independent intent store; use
-    /// [`Self::execute_cross_tenant_durable`] for durable idempotency.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ExecutorError::AtomicityViolation`] when the batch has fewer
-    /// than two distinct tenants, when any leg fails, or when the cross-tenant
-    /// groups are not consistent, and [`ExecutorError::Store`] when the
-    /// transaction manager itself fails.
-    pub async fn execute_cross_tenant(
-        &self,
-        intents: &[ValidatedIntent],
-    ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
-        self.execute_cross_tenant_inner(intents, None).await
-    }
-
-    async fn execute_cross_tenant_inner(
-        &self,
-        intents: &[ValidatedIntent],
-        sink: Option<&dyn DurableBatchSink>,
-    ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
-        // Partition by tenant id, preserving input order within each tenant.
-        // Keyed by the tenant id string: `TenantId` is not `Ord`, so sorting by
-        // the id string yields the same deterministic sorted-tenant scope.
-        let mut by_name: BTreeMap<String, Vec<ValidatedIntent>> = BTreeMap::new();
-        for validated in intents {
-            by_name
-                .entry(validated.intent.tenant_id.0.clone())
-                .or_default()
-                .push(validated.clone());
+        for (identity, group) in groups {
+            let validated = intents
+                .iter()
+                .find(|entry| &entry.intent.intent_id == identity)
+                .ok_or_else(|| {
+                    ExecutorError::AtomicityViolation(String::from("event has no accepted intent"))
+                })?;
+            let intent = &validated.intent;
+            let state_type = intent.state_type.ok_or(ExecutorError::StateTypeRequired)?;
+            self.profiles
+                .resolve(state_type, &intent.inputs)?
+                .execution_policy()
+                .validate_events(&group)?;
         }
-        let sorted_tenants: Vec<TenantId> =
-            by_name.keys().map(|name| TenantId(name.clone())).collect();
-        if sorted_tenants.len() < 2 {
-            return Err(ExecutorError::AtomicityViolation(String::from(
-                "cross-tenant batch requires at least two distinct tenants",
-            )));
-        }
-
-        let handle = if sink.is_none() {
-            Some(
-                self.ports
-                    .transaction_manager
-                    .begin_multi(&sorted_tenants)
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?,
-            )
-        } else {
-            None
-        };
-
-        // Both a leg failure and an inconsistent-group validation failure are
-        // rolled back atomically (a failed validation must not short-circuit
-        // past the rollback via `?`). `allow_value_legs` is `false`: a value-leg
-        // `trade.settle` has no declared manifest here, so it must fail the
-        // value-leg routing gate (see [`Self::execute_inner`]).
-        let result = match self
-            .run_cross_tenant_legs(&by_name, false, sink.is_some())
-            .await
-        {
-            Ok(groups) => atomicity::validate_cross_tenant_consistency(&groups).map(|()| groups),
-            Err(error) => Err(error),
-        };
-        match result {
-            Ok(groups) => {
-                let events: Vec<Event> = groups
-                    .iter()
-                    .flat_map(|group| group.events.iter().cloned())
-                    .collect();
-                if let Some(sink) = sink.filter(|_| !events.is_empty())
-                    && let Err(error) = sink.persist_batch(intents, &events).await
-                {
-                    if let Some(handle) = handle
-                        && let Err(rollback_error) = handle.rollback().await
-                    {
-                        tracing::warn!(%rollback_error, "durable cross-tenant rollback failed");
-                    }
-                    return Err(ExecutorError::Store(error));
-                }
-                if let Some(handle) = handle {
-                    handle
-                        .commit()
-                        .await
-                        .map_err(|err| map_transaction_manager_error(&err))?;
-                }
-                Ok(groups)
-            }
-            Err(error) => {
-                let message = error.to_string();
-                if let Some(handle) = handle
-                    && let Err(rollback_error) = handle.rollback().await
-                {
-                    tracing::warn!(rollback = %rollback_error, "cross-tenant rollback failed");
-                }
-                Err(ExecutorError::AtomicityViolation(message))
-            }
-        }
+        Ok(())
     }
 
-    /// Executes a validated cross-tenant batch through the required durable
-    /// sink. The sink must persist every tenant leg in one supported database
-    /// transaction; independent databases cannot provide atomic settlement.
-    ///
-    /// # Errors
-    ///
-    /// Returns cross-tenant validation/atomicity errors or
-    /// [`ExecutorError::Store`] when durable persistence fails.
-    pub async fn execute_cross_tenant_durable(
-        &self,
-        intents: &[ValidatedIntent],
-        sink: &dyn DurableBatchSink,
-    ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
-        self.execute_cross_tenant_inner(intents, Some(sink)).await
-    }
-
-    /// Runs a cross-tenant trade settlement atomically (protocol §8.2, §18.3,
-    /// Phase 3).
-    ///
-    /// This is the declared-linkage entry point for cross-tenant trades. A
-    /// trade spans two or more tenants with a distinct intent id per leg (the
-    /// asset leg in one tenant, the value leg in another), so the legs are tied
-    /// together by the caller-declared [`atomicity::TradeManifest`] rather than
-    /// by a shared intent id. It mirrors [`Self::execute_cross_tenant`]'s
-    /// transaction wrapper: the affected-tenant set is derived by partitioning
-    /// the intents by `tenant_id`, the sorted tenant keys are passed to
-    /// `transaction_manager.begin_multi`, each tenant's leg runs through the
-    /// single-tenant batch pipeline, and the per-tenant groups are
-    /// validated with [`atomicity::validate_cross_tenant_trade`] before an
-    /// atomic commit. Any error rolls back and surfaces as
-    /// [`ExecutorError::AtomicityViolation`].
-    ///
-    /// Durable idempotent-replay legs return no events (existing semantics). A retry
-    /// that replays only some legs produces a partial, incoherent batch that
-    /// [`atomicity::validate_cross_tenant_trade`] rejects (a missing settle or
-    /// value leg fails closed), so the whole transaction aborts and rolls back:
-    /// partial-replay semantics stay fail-closed and deterministic.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ExecutorError::AtomicityViolation`] when the batch has fewer
-    /// than two distinct tenants, when any leg fails, or when the cross-tenant
-    /// groups do not satisfy the declared manifest, and
-    /// [`ExecutorError::Store`] when the transaction manager itself fails.
-    /// The pure/planning route does not claim intents; use
-    /// [`Self::execute_cross_tenant_trade_durable`] for durable idempotency.
-    pub async fn execute_cross_tenant_trade(
-        &self,
-        intents: &[ValidatedIntent],
-        manifest: &atomicity::TradeManifest,
-    ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
-        self.execute_cross_tenant_trade_inner(intents, manifest, None)
-            .await
-    }
-
-    async fn execute_cross_tenant_trade_inner(
-        &self,
-        intents: &[ValidatedIntent],
-        manifest: &atomicity::TradeManifest,
-        sink: Option<&dyn DurableBatchSink>,
-    ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
-        // Partition by tenant id, preserving input order within each tenant.
-        let mut by_name: BTreeMap<String, Vec<ValidatedIntent>> = BTreeMap::new();
-        for validated in intents {
-            by_name
-                .entry(validated.intent.tenant_id.0.clone())
-                .or_default()
-                .push(validated.clone());
-        }
-        let sorted_tenants: Vec<TenantId> =
-            by_name.keys().map(|name| TenantId(name.clone())).collect();
-        if sorted_tenants.len() < 2 {
-            return Err(ExecutorError::AtomicityViolation(String::from(
-                "cross-tenant trade requires at least two distinct tenants",
-            )));
-        }
-
-        let handle = if sink.is_none() {
-            Some(
-                self.ports
-                    .transaction_manager
-                    .begin_multi(&sorted_tenants)
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?,
-            )
-        } else {
-            None
-        };
-
-        // Both a leg failure and a manifest-validation failure are rolled back
-        // atomically (a failed validation must not short-circuit past the
-        // rollback via `?`).
-        let result = match self
-            .run_cross_tenant_legs(&by_name, true, sink.is_some())
-            .await
-        {
-            Ok(groups) => {
-                let settle_intents: Vec<statechronicle_domain::intent::Intent> = intents
-                    .iter()
-                    .filter(|validated| &validated.intent.operation == asset_op::trade_settle())
-                    .map(|validated| validated.intent.clone())
-                    .collect();
-                atomicity::validate_cross_tenant_trade(&groups, manifest, &settle_intents)
-                    .map(|()| groups)
-            }
-            Err(error) => Err(error),
-        };
-        match result {
-            Ok(groups) => {
-                let events: Vec<Event> = groups
-                    .iter()
-                    .flat_map(|group| group.events.iter().cloned())
-                    .collect();
-                if let Some(sink) = sink.filter(|_| !events.is_empty())
-                    && let Err(error) = sink.persist_batch(intents, &events).await
-                {
-                    if let Some(handle) = handle
-                        && let Err(rollback_error) = handle.rollback().await
-                    {
-                        tracing::warn!(%rollback_error, "durable cross-tenant rollback failed");
-                    }
-                    return Err(ExecutorError::Store(error));
-                }
-                if let Some(handle) = handle {
-                    handle
-                        .commit()
-                        .await
-                        .map_err(|err| map_transaction_manager_error(&err))?;
-                }
-                Ok(groups)
-            }
-            Err(error) => {
-                let message = error.to_string();
-                if let Some(handle) = handle
-                    && let Err(rollback_error) = handle.rollback().await
-                {
-                    tracing::warn!(
-                        rollback = %rollback_error,
-                        "cross-tenant trade rollback failed"
-                    );
-                }
-                Err(ExecutorError::AtomicityViolation(message))
-            }
-        }
-    }
-
-    /// Executes a manifest-validated cross-tenant trade and persists every
-    /// tenant leg through the required durable batch sink before success.
-    ///
-    /// The sink must use one supported atomic database transaction and retain
-    /// the manifest linkage in its own audit metadata; independent databases
-    /// are not made atomic by this helper.
-    ///
-    /// # Errors
-    ///
-    /// Returns cross-tenant validation/atomicity errors or
-    /// [`ExecutorError::Store`] when durable persistence fails.
-    pub async fn execute_cross_tenant_trade_durable(
-        &self,
-        intents: &[ValidatedIntent],
-        manifest: &atomicity::TradeManifest,
-        sink: &dyn DurableBatchSink,
-    ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
-        self.execute_cross_tenant_trade_inner(intents, manifest, Some(sink))
-            .await
-    }
-
-    /// Executes every intent in order, short-circuiting on the first failure.
-    ///
-    /// Used by the cross-tenant legs. `allow_value_legs` mirrors the value-leg
-    /// routing gate of [`Self::execute_inner`]: the trade path admits value-leg
-    /// `trade.settle` intents (their value legs are declared in the trade
-    /// manifest and validated by the cross-tenant validator), while the plain
-    /// cross-tenant path rejects them for lack of a declared manifest.
+    /// Executes intents in order under the caller's coordination policy.
     async fn run_batch(
         &self,
         intents: &[ValidatedIntent],
-        allow_value_legs: bool,
+        allow_coordinated: bool,
         persist_intent: bool,
     ) -> Result<Vec<Event>, ExecutorError> {
         let mut events = Vec::new();
         for validated in intents {
             events.extend(
-                self.execute_inner(validated, allow_value_legs, persist_intent)
+                self.execute_inner(validated, allow_coordinated, persist_intent)
                     .await?,
             );
         }
@@ -1571,7 +1219,7 @@ impl Executor {
     /// return a partial batch with the earlier transition silently lost. Here an
     /// intent whose execution emits no events is treated as an idempotent replay
     /// and rejects the whole batch, so no partial batch can silently escape.
-    /// Value-leg `trade.settle` intents are rejected (single-tenant batch).
+    /// Requests requiring a coordinator are rejected by this ordinary batch path.
     ///
     /// # Errors
     ///
@@ -1600,21 +1248,17 @@ impl Executor {
     /// Runs each tenant's leg in sorted tenant order, collecting the emitted
     /// events into tenant-scoped groups.
     ///
-    /// `allow_value_legs` is threaded into each tenant's batch execution:
-    /// the cross-tenant trade path admits value-leg settles (declared in the
-    /// trade manifest), while the plain cross-tenant path rejects them so a
-    /// value-declaring `trade.settle` cannot silently settle an asset for a
-    /// mismatched value pair.
+    /// Propagates the coordinator's routing policy into each scoped batch.
     async fn run_cross_tenant_legs(
         &self,
         by_name: &BTreeMap<String, Vec<ValidatedIntent>>,
-        allow_value_legs: bool,
+        allow_coordinated: bool,
         persist_intent: bool,
     ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
         let mut groups = Vec::new();
         for (name, sub_intents) in by_name {
             let events = self
-                .run_batch(sub_intents, allow_value_legs, persist_intent)
+                .run_batch(sub_intents, allow_coordinated, persist_intent)
                 .await?;
             groups.push(atomicity::TenantEventGroup {
                 tenant: TenantId(name.clone()),
@@ -1721,120 +1365,6 @@ impl ExecutorBuilder {
             intent_verifier,
         })
     }
-}
-
-/// Returns the subject used for the initial state-index lookup of a
-/// subject-held resource.
-///
-/// The acting actor is the creator default (Gap 3): it is the key used to
-/// *query* the index. Once a resource exists, the projection's own `subject`
-/// field is the authoritative holder (see [`holder_for`]), and step 6a
-/// re-resolves under it when it differs. Owner-based types
-/// ([`StateType::UniqueAsset`], [`StateType::Listing`], [`StateType::Escrow`])
-/// carry no subject in their key.
-const fn subject_for(intent: &Intent, state_type: StateType) -> Option<&SubjectId> {
-    match state_type {
-        StateType::ConsumableStack
-        | StateType::FungibleBalance
-        | StateType::Entitlement
-        | StateType::MeteredResource => Some(&intent.actor),
-        StateType::UniqueAsset | StateType::Listing | StateType::Escrow => None,
-    }
-}
-
-fn empty_state_for(state_type: StateType) -> ResourceState {
-    let subject = SubjectId(String::new());
-    let status = Status::from_static("active");
-    match state_type {
-        StateType::UniqueAsset => ResourceState::UniqueAsset(UniqueAssetState {
-            owner: subject,
-            status,
-            trade_id: None,
-        }),
-        StateType::ConsumableStack => ResourceState::ConsumableStack(ConsumableStackState {
-            subject,
-            quantity: statechronicle_core::amount::Amount::ZERO,
-            unit: String::new(),
-        }),
-        StateType::FungibleBalance => ResourceState::FungibleBalance(FungibleBalanceState {
-            subject,
-            balance: statechronicle_core::amount::Amount::ZERO,
-            unit: String::new(),
-        }),
-        StateType::Entitlement => ResourceState::Entitlement(EntitlementState {
-            subject,
-            status,
-            transferable: false,
-        }),
-        StateType::MeteredResource => ResourceState::MeteredResource(MeterState {
-            subject,
-            remaining: statechronicle_core::amount::Amount::ZERO,
-            maximum: statechronicle_core::amount::Amount::ZERO,
-        }),
-        StateType::Listing => ResourceState::Listing(ListingState {
-            seller: subject,
-            status,
-        }),
-        StateType::Escrow => ResourceState::Escrow(EscrowState {
-            buyer: subject.clone(),
-            seller: subject,
-            status,
-        }),
-    }
-}
-
-/// Resolves the authoritative holder of a subject-held resource
-/// (protocol §9/§10).
-///
-/// The rule: a projection's `subject` field is the source of truth once a
-/// resource exists; the acting actor is only the creator default used when no
-/// projection exists yet (the create path). Returns `None` for owner-based
-/// state types, which key by resource alone.
-#[allow(clippy::collapsible_if)]
-fn holder_for(
-    current: Option<&StateProjection>,
-    intent: &Intent,
-    state_type: StateType,
-) -> Option<SubjectId> {
-    match state_type {
-        StateType::ConsumableStack
-        | StateType::FungibleBalance
-        | StateType::Entitlement
-        | StateType::MeteredResource => {
-            if let Some(projection) = current {
-                if let Some(subject) = projection.state.subject().map(|s| s.0.as_str()) {
-                    if !subject.is_empty() {
-                        return Some(SubjectId(String::from(subject)));
-                    }
-                }
-            }
-            Some(intent.actor.clone())
-        }
-        StateType::UniqueAsset | StateType::Listing | StateType::Escrow => None,
-    }
-}
-
-/// Returns whether the operation is a subject-held atomic transfer
-/// (stack.transfer / balance.transfer) that requires a destination credit.
-fn is_transfer_operation(operation: &Operation) -> bool {
-    operation == stack_op::stack_transfer() || operation == balance_op::balance_transfer()
-}
-
-/// Reads the destination holder (`to_subject`) from a transfer's inputs.
-///
-/// # Errors
-///
-/// Returns [`ExecutorError::TransitionInvalid`] when `to_subject` is missing
-/// or empty.
-fn destination_holder(inputs: &BTreeMap<String, Value>) -> Result<SubjectId, ExecutorError> {
-    let subject = inputs
-        .get("to_subject")
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| {
-            ExecutorError::TransitionInvalid(String::from("missing input `to_subject`"))
-        })?;
-    Ok(SubjectId(String::from(subject)))
 }
 
 /// Maps an intent-store port failure onto an executor error, distinguishing a

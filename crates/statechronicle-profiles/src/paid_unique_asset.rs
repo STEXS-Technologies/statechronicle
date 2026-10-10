@@ -15,7 +15,9 @@ use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::status::Status;
 
 use crate::error::ProfileError;
+use crate::execution::ExecutionPolicy;
 use crate::registry::{ProfileRules, input_str, require_current, require_from, state_str};
+use crate::resource;
 use crate::unique_asset::{UniqueAssetRules, status};
 
 /// Typed exceptional statuses introduced by the paid overlay.
@@ -129,6 +131,9 @@ fn exceptional_statuses() -> &'static [Status] {
 pub struct PaidUniqueAssetRules;
 
 impl ProfileRules for PaidUniqueAssetRules {
+    fn execution_policy(&self) -> &'static dyn ExecutionPolicy {
+        resource::policy(self.state_type())
+    }
     fn state_type(&self) -> StateType {
         StateType::UniqueAsset
     }

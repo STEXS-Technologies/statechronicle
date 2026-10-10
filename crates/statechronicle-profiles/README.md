@@ -63,3 +63,10 @@ profile's transition table and fail-closed invariants.
 
 A pure rules layer consumed by `statechronicle-executor` at runtime. The
 umbrella crate re-exports `ProfileRegistry` and `ProfileRules`.
+
+## Custom domains
+
+Implement `StateProfile`, adapt it with `custom::TypedProfile`, and register a
+static slice through `ProfileRegistry::with_custom`. The executor invokes both
+validation and reduction through the shared `ProfileRules` contract.
+See the [extension guide](../../docs/DESIGN/DOMAIN_EXTENSIONS.md).

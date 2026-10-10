@@ -5,6 +5,12 @@
 use statechronicle_core::error::StateChronicleError;
 use statechronicle_domain::error::DomainError;
 
+impl From<serde_json::Error> for IntentError {
+    fn from(source: serde_json::Error) -> Self {
+        Self::InvalidJson { source }
+    }
+}
+
 /// The crate's root error type.
 ///
 /// Every fallible public function in `statechronicle-intent` returns this
@@ -35,7 +41,6 @@ pub enum IntentError {
     #[error("intent payload is not valid JSON: {source}")]
     InvalidJson {
         /// The underlying JSON parsing error.
-        #[from]
         source: serde_json::Error,
     },
 

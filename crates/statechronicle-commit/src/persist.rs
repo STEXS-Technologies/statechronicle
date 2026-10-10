@@ -31,6 +31,7 @@ use statechronicle_core::limits::{
 use statechronicle_domain::commit::{COMMIT_SCHEMA, Commit, ProfileId, ScopeKind};
 use statechronicle_domain::event::{EVENT_SCHEMA, Event};
 use statechronicle_domain::ids::{CommitId, EventId, IntentId};
+use statechronicle_domain::resource_state::ResourceState;
 use statechronicle_domain::signed::Signed;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
@@ -217,10 +218,16 @@ pub(crate) async fn persist_durable(
         .begin(tenant)
         .await
         .map_err(|error| CommitError::Store(error.to_string()))?;
-    let claim = transaction
+    let claim = match transaction
         .claim_idempotency(tenant, request.intent, request.payload_digest)
         .await
-        .map_err(|error| CommitError::Store(error.to_string()))?;
+    {
+        Ok(claim) => claim,
+        Err(error) => {
+            let _ = transaction.rollback().await;
+            return Err(CommitError::Store(error.to_string()));
+        }
+    };
     let attempt_id = match claim {
         IdempotencyClaim::Committed { commit_id } => {
             transaction
@@ -317,10 +324,31 @@ fn validate_event_binding(
         || event.actor != intent.actor
         || event.operation != intent.operation
         || event.resource_id != intent.resource_id
+        || intent.state_type != Some(event.after.state.state_type())
     {
         return Err(CommitError::Store(String::from(
             "durable event is not bound to the authenticated intent scope or operation",
         )));
+    }
+    if let ResourceState::Custom(custom) = &event.after.state {
+        let domain = intent
+            .inputs
+            .get("profile")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| CommitError::InvalidEvent(String::from("missing custom domain")))?;
+        let domain = ProfileId::new(String::from(domain))?;
+        if intent.state_type != Some(StateType::Custom)
+            || custom.domain != domain
+            || intent
+                .inputs
+                .get("schema_version")
+                .and_then(serde_json::Value::as_u64)
+                != Some(u64::from(custom.schema_version))
+        {
+            return Err(CommitError::InvalidEvent(String::from(
+                "custom event domain/schema does not match intent",
+            )));
+        }
     }
     Ok(())
 }
@@ -354,6 +382,22 @@ fn validate_committed_event(entry: &CommittedEvent<'_>) -> Result<(), CommitErro
         return Err(CommitError::InvalidEvent(String::from(
             "event state type does not match committed entry",
         )));
+    }
+    if let ResourceState::Custom(after) = &event.after.state {
+        let ResourceState::Custom(before) = &event.before.state else {
+            return Err(CommitError::InvalidEvent(String::from(
+                "custom before-state required",
+            )));
+        };
+        ProfileId::new(after.domain.0.clone())?;
+        if after.schema_version == 0
+            || before.domain != after.domain
+            || before.schema_version != after.schema_version
+        {
+            return Err(CommitError::InvalidEvent(String::from(
+                "custom transition changes domain/schema",
+            )));
+        }
     }
     if canonicalize_and_digest(&event.before.state).map_err(CommitError::Core)?
         != event.before.state_hash
@@ -863,6 +907,11 @@ mod tests {
         assert!(validate_committed_events(&[entry, duplicate_entry]).is_err());
 
         let mut wrong_resource = event.clone();
+        let mut substituted_intent = intent("game", "account:alice");
+        substituted_intent.state_type = Some(StateType::Custom);
+        assert!(validate_event_binding(&event, &substituted_intent, &event.tenant_id).is_err());
+        substituted_intent.state_type = Some(StateType::FungibleBalance);
+        assert!(validate_event_binding(&event, &substituted_intent, &event.tenant_id).is_err());
         wrong_resource.resource_id = ResourceId(String::from("asset:other"));
         assert!(
             validate_event_binding(

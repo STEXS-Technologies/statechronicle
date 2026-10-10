@@ -4,6 +4,38 @@ All notable changes to StateChronicle are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - Unreleased
+
+### Added
+
+- Consumer-defined native state and command models through an allocation-free,
+  dependency-free `no_std` `StateProfile` contract and a typed BCS adapter.
+- Static custom profile composition with domain identity, schema versioning,
+  command/operation binding, validation, authority requirements and payload bounds.
+- Domain-aware signed proof verification and deterministic transition replay.
+- Independent configuration and equipment examples, compatibility vectors,
+  custom-domain property/fuzz coverage, and transactional persistence regressions.
+- Allocation-free portable transitions, bounded BCS codecs, compatible hashes,
+  strict Ed25519 and sparse-Merkle verification, with stable-toolchain bare-metal checks.
+- Transaction-boundary fault injection, cancellation and ambiguous-commit recovery
+  tests, seeded reordered/concurrent outage schedules, and retained fuzz campaign evidence.
+
+### Changed
+
+- Execution dispatches reduction through `ProfileRules::apply`; baseline reducers
+  live in the profiles crate with executor compatibility wrappers.
+- Profile-owned execution policies define addressing, access gates, routing,
+  unborn commitments and event groups; economic coordinators are isolated from
+  the generic execution path.
+- Appended custom variants to state enums while preserving baseline BCS indices,
+  commit/proof envelopes, signing, root and key formats. Exhaustive Rust matches
+  require a new custom arm. See [migration details](docs/DESIGN/DOMAIN_EXTENSIONS.md).
+- Durable persistence rejects custom domain/schema substitutions before writes.
+- Failed idempotency claims explicitly roll back the opened ledger transaction.
+- Durable events must match their authenticated intent's state type in both
+  directions. Custom replay rejects unsupported event schemas and stored
+  version-zero projections; domain-id parsing has dedicated fuzz coverage.
+
 ## [0.1.0] - 2026-09-20
 
 First production release of StateChronicle, a verifiable state and transaction foundation for multiplayer game backends. This release makes the protocol, proof, fuzzing, coverage, and release gates ready for concurrent player-facing mutations while leaving durable storage ownership with the integrating application.
