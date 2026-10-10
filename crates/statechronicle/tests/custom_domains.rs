@@ -10,6 +10,8 @@ mod common;
 mod domains;
 #[path = "support/durable.rs"]
 mod durable;
+#[path = "support/versioned_recovery.rs"]
+mod versioned_recovery;
 use common::{Harness, fixed_key};
 use domains::{
     CONFIGURATION, Configuration, ConfigurationCommand, EQUIPMENT, Equipment, EquipmentCommand,
