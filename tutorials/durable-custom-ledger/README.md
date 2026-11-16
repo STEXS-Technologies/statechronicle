@@ -64,7 +64,10 @@ journal. Subject-held state and multi-tenant transactions refuse. Batch persiste
 is unsupported. JSON format version 1 is application storage, not protocol wire.
 No automatic schema reinterpretation or migration is performed.
 
-A single shared owner holds an exclusive `writer.lock`. Transactions stage effects
+A single shared owner holds an OS-managed exclusive lock on `writer.lock`. The
+lock file stays in place; the OS releases its lock when the last owner closes or
+the process exits. Removing the file while a writer is alive would defeat this
+exclusion and is forbidden. Transactions stage effects
 in memory; commit validates head/version and complete effects under one mutex,
 writes a new full journal, syncs the file, renames it and syncs the directory.
 Only then does the in-memory head advance. Injected response loss occurs after
@@ -73,10 +76,12 @@ reopen; reads cannot turn uncertain state into false absence. Pending claims are
 owner-lifetime reservations, with no lease expiry or takeover.
 
 This uses blocking filesystem calls inside bounded async methods. It assumes a
-trusted directory and local filesystem supporting atomic rename and directory
+trusted directory and local filesystem supporting hard links, atomic rename and directory
 sync. It is not a throughput-oriented database adapter or a generic power-loss
-guarantee. Tests exercise logical failures and graceful reopen, not process kills,
-filesystem corruption recovery or hardware crashes. Signed history and independent
+guarantee. On Unix, tests kill an actual subprocess with SIGKILL at six synchronized file
+boundaries, then reopen under independent old/pending tip pins. These tests cover
+process termination on the test filesystem, not filesystem corruption recovery,
+power loss or hardware crashes. Signed history and independent
 tip pins protect commit/event consistency; unsigned application metadata still
 requires authoritative storage integrity. Do not treat JSON as fully authenticated.
 
@@ -93,17 +98,28 @@ requires authoritative storage integrity. Do not treat JSON as fully authenticat
 5. On file uncertainty, release every handle before reopening. Allow only
    independently retained old/pending tips; never trust a tip read from the
    journal merely because it verifies under a key.
-6. An abrupt process death leaves `writer.lock`; reopen intentionally refuses.
-   An operator must establish that no writer remains, preserve the directory,
-   verify a backup/history against independent pins and reconcile the write
-   before removing a stale lock or scratch `journal.next`. Do not automate that
-   deletion or discard evidence to force a successful reopen. Missing/corrupt or
-   unpinned history requires stop/repair or restoration from a verified backup.
+6. After process death, acquire the OS lock and verify authoritative
+   `journal.json` before touching an interrupted `journal.next`. The adapter never
+   promotes scratch bytes. It preserves them in `journal.interrupted` with a
+   non-overwriting hard link before removing the scratch name and syncing the
+   directory. A non-file scratch path or occupied evidence slot refuses reopen.
+   Archive retained evidence before another interrupted-write recovery; a crash
+   during quarantine can require this same operator reconciliation. Missing,
+   corrupt or unpinned authoritative history requires stop/repair or restoration
+   from a verified backup. Never remove the persistent lock inode.
+
 
 Tests independently inspect disk records and cover replay without changed bytes,
 rollback before commit, sticky uncertainty, key revocation after preparation,
 contenders, exclusive scope, native transition replay, original-effect retention,
-and malformed/missing/reordered/unpinned history. These are tutorial tests, not
+malformed/missing/reordered/unpinned history, and process termination before
+write, during a partial write, after write, after file sync, after rename and
+after directory sync. Each termination case starts with prior committed history,
+checks exclusion while the child is paused, confirms SIGKILL, verifies exact
+recovery/retry and retained effects, rejects payload conflicts, and verifies
+current/historical proofs. Readiness and cleanup are bounded; sleeps are not the
+correctness oracle. A separate test checks evidence preservation and refusal
+under incorrect pins or an occupied quarantine slot. These are tutorial tests, not
 qualification of an arbitrary consumer backend. Use the separate adapter contract
 and backend-specific crash/concurrency campaigns before production use.
 

@@ -146,11 +146,6 @@ struct Owner {
     state: Mutex<State>,
     _lock: File,
 }
-impl Drop for Owner {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(self.path.join("writer.lock"));
-    }
-}
 #[derive(Clone)]
 pub struct FileLedger {
     owner: Arc<Owner>,
@@ -169,10 +164,13 @@ impl FileLedger {
         fs::create_dir_all(path).map_err(unavailable)?;
         let lock = OpenOptions::new()
             .write(true)
-            .create_new(true)
+            .create(true)
+            .truncate(false)
             .open(path.join("writer.lock"))
             .map_err(unavailable)?;
-        // Own cleanup even if loading/validation fails. No second writer can open.
+        lock.try_lock().map_err(unavailable)?;
+        // Keep the inode: unlinking a locked file would permit a second writer.
+        // The OS releases ownership after the final handle closes or the process dies.
         let mut owner = Owner {
             path: path.to_owned(),
             tenant: tenant.clone(),
@@ -249,6 +247,22 @@ impl FileLedger {
             }
         } else if !allowed_heads.iter().any(Option::is_none) {
             return Err(invariant("unexpected empty history"));
+        }
+        // Only after verifying the authoritative journal against retained pins may
+        // an interrupted temporary write be quarantined. Never promote its bytes.
+        // A single retained slot bounds recovery; an occupied slot refuses safely.
+        let scratch = path.join("journal.next");
+        match fs::symlink_metadata(&scratch) {
+            Ok(metadata) if metadata.file_type().is_file() => {
+                fs::hard_link(&scratch, path.join("journal.interrupted")).map_err(unavailable)?;
+                fs::remove_file(&scratch).map_err(unavailable)?;
+                File::open(path)
+                    .and_then(|directory| directory.sync_all())
+                    .map_err(unavailable)?;
+            }
+            Ok(_) => return Err(invariant("interrupted journal is not a regular file")),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(unavailable(error)),
         }
         owner.state.get_mut().map_err(unavailable)?.journal = journal;
         Ok(Self {
@@ -664,18 +678,35 @@ impl LedgerTransaction for Transaction {
         state.uncertain = true;
         let path = &self.ledger.owner.path;
         let temporary = path.join("journal.next");
+        #[cfg(test)]
+        crate::tests::crash_boundary(path, "before_write");
         let mut output = OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&temporary)
             .map_err(unavailable)?;
+        #[cfg(test)]
+        if crate::tests::crash_selected(path, "partial_write") {
+            output
+                .write_all(&bytes[..bytes.len() / 2])
+                .map_err(unavailable)?;
+            crate::tests::crash_boundary(path, "partial_write");
+        }
         output.write_all(&bytes).map_err(unavailable)?;
+        #[cfg(test)]
+        crate::tests::crash_boundary(path, "after_write");
         output.sync_all().map_err(unavailable)?;
+        #[cfg(test)]
+        crate::tests::crash_boundary(path, "after_file_sync");
         drop(output);
         fs::rename(&temporary, path.join("journal.json")).map_err(unavailable)?;
+        #[cfg(test)]
+        crate::tests::crash_boundary(path, "after_rename");
         File::open(path)
             .and_then(|directory| directory.sync_all())
             .map_err(unavailable)?;
+        #[cfg(test)]
+        crate::tests::crash_boundary(path, "after_directory_sync");
         state.journal = next;
         state.uncertain = false;
         drop(state);
