@@ -212,3 +212,10 @@ campaigns: rotation and reversal canceled lane alternation. Their raw results
 are retained with an [observed-order audit](evidence/maintenance/builtin-profiles/order-audit.json);
 separate explicit-order repeat campaigns do alternate. The full final matched
 performance gate remains open and must verify actual command order.
+
+The index now uses the existing profile owner for the presence-only value-leg
+predicate (source `a315713`). Original/control/candidate contract checks cover
+512 input combinations; a compiled AND-for-OR negative control fails. This
+removes 37 production tokens without changing public concepts. Index pair
+attribution and profile net-zero validation remain separate owners with different
+contracts. [Evidence](evidence/maintenance/index-value-declaration/README.md).

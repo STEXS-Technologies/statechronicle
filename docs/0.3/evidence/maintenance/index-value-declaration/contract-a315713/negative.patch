@@ -1,0 +1,9 @@
+pub fn declares_value_leg(intent: &Intent) -> bool {
+    intent.inputs.contains_key(keys::VALUE_RESOURCE)
+        || intent.inputs.contains_key(keys::VALUE_AMOUNT)
+        || intent.inputs.contains_key(keys::VALUE_TO_SUBJECT)
+REPLACED WITH
+pub fn declares_value_leg(intent: &Intent) -> bool {
+    intent.inputs.contains_key(keys::VALUE_RESOURCE)
+        && intent.inputs.contains_key(keys::VALUE_AMOUNT)
+        && intent.inputs.contains_key(keys::VALUE_TO_SUBJECT)

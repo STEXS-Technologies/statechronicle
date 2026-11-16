@@ -1018,3 +1018,11 @@ Review also caught an incorrect alternation description in two earlier built-in
 paired campaigns. Their actual fixed orders are now documented alongside the
 unchanged raw results; explicit-order repeat campaigns do alternate. Neither
 those corrections nor this bounded extraction closes full F6/F8 qualification.
+
+The trade index duplicated the profile's presence-only value-leg declaration
+predicate. Both index call sites now use the existing profile owner. All 512
+absence/value-shape combinations agree on original, control, and candidate;
+requiring all three fields is a detected runtime regression. Pair attribution
+and atomicity validation remain distinct. This removes a duplicate owner and
+37 production tokens; no runtime improvement or broad gate completion is claimed.
+[Evidence](evidence/maintenance/index-value-declaration/README.md).

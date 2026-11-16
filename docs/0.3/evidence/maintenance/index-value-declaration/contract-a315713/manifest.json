@@ -1,0 +1,93 @@
+{
+  "candidate": "a3157135199f7c86f74f8eb79cb7bad7b483d11c",
+  "fixture_sha256": "33d3115e636bb59602ce9292ead4ce924041fd8e6c65201adec67d8e452bf44d",
+  "cases_per_test": 512,
+  "checks": [
+    {
+      "label": "original",
+      "revision": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+      "archive_sha256": "1e4b4002e6067fed67f1559ec8073d862d6f82358eaa3973af097af6aba2ebea",
+      "lock_sha256": "76837efdc48c4b33fb007b5ed9fe38ac1c903d389a2adfefc7643977732c7b82",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "statechronicle-index",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "artifact": "original.log.gz",
+      "sha256": "f3a39ce26c91669ba00d793a95a0169dd01e7e4b07be394047ea298836c9c4b3",
+      "seconds": 6.584106444002828
+    },
+    {
+      "label": "control",
+      "revision": "c9a4605e460531d1d2b56a5b1adb4fe93ddfe55b",
+      "archive_sha256": "71acd1bd63d1694cfc11adb55a8f581b426cd49d3733b6ffdb474983fa883752",
+      "lock_sha256": "1c29d77c0fb938410982493c256abc2f3b5805b5adfb6ab49cbd1e2b55d4f46c",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "statechronicle-index",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "artifact": "control.log.gz",
+      "sha256": "c7e0944bd9dfe040da717dcb39dab6b863db78870ce90e7d6d1754a28b14f727",
+      "seconds": 6.049896573997103
+    },
+    {
+      "label": "candidate",
+      "revision": "a3157135199f7c86f74f8eb79cb7bad7b483d11c",
+      "archive_sha256": "01d7f714670dd43f8521ee800db480669ccb434842f8ffe631b2d2926bb548b5",
+      "lock_sha256": "1c29d77c0fb938410982493c256abc2f3b5805b5adfb6ab49cbd1e2b55d4f46c",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "statechronicle-index",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "artifact": "candidate.log.gz",
+      "sha256": "78af19e9772c88e9589ab1801b7bb1a116b9c08ca5c40c77b430d5ae4fed0e46",
+      "seconds": 0.4363441449968377
+    },
+    {
+      "label": "negative-all-three-required",
+      "revision": "a3157135199f7c86f74f8eb79cb7bad7b483d11c",
+      "archive_sha256": "01d7f714670dd43f8521ee800db480669ccb434842f8ffe631b2d2926bb548b5",
+      "lock_sha256": "1c29d77c0fb938410982493c256abc2f3b5805b5adfb6ab49cbd1e2b55d4f46c",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "statechronicle-index",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "value_leg_declaration_presence_contract"
+      ],
+      "exit_code": 101,
+      "expected_exit_code": 101,
+      "artifact": "negative-all-three-required.log.gz",
+      "sha256": "a8a000d0db285794c123aa362860b942165f670f209d06c8e5080f10e5b4eef1",
+      "seconds": 1.4680962260026718
+    }
+  ],
+  "status": "passed"
+}
