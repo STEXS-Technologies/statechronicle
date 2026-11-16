@@ -1105,3 +1105,6 @@ where
     }
     Ok(())
 }
+
+/// Mixed single/batch histories over shared canonical heads and identities.
+pub mod history;

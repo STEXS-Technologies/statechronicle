@@ -77,6 +77,8 @@ enum Mode {
     PruneAfterFourthHead,
     LatestReceiptAfterFourthHead,
     RollbackForgetsHistory,
+    LoseSinglesOnBatch,
+    LoseBatchesOnSingle,
 }
 #[derive(Default)]
 struct Database {
@@ -698,6 +700,14 @@ impl LedgerTransaction for Transaction {
         }
         if self.connection.0.mode == Mode::PruneAfterFourthHead && commit.body.sequence >= 4 {
             db.records.retain(|(tenant, _), _| tenant != &self.tenant.0);
+        }
+        // Deliberately wrong backends that pass homogeneous histories: a write
+        // through one API discards receipt authority owned by the other API.
+        if self.connection.0.mode == Mode::LoseSinglesOnBatch && self.batch.is_some() {
+            db.records.clear();
+        }
+        if self.connection.0.mode == Mode::LoseBatchesOnSingle && self.batch.is_none() {
+            db.batches.clear();
         }
         if self.connection.0.mode == Mode::PruneOriginal {
             db.records.clear();
@@ -2056,5 +2066,242 @@ async fn history_rejects_invalid_setup_before_destructive_reset() {
         assert!(
             matches!(store.lookup_mutation(&mutations[0].intent.tenant_id, &mutations[0].intent.intent_id).await.unwrap(), LedgerLookup::Committed(record) if *record == mutations[0])
         );
+    }
+}
+
+fn alternating_single_batch_history() -> (
+    Vec<statechronicle_conformance::batch::history::HistoryEntry>,
+    Vec<Snapshot>,
+) {
+    use statechronicle_conformance::batch::history::HistoryEntry;
+    // Reuse valid domain transitions, but independently reseal the transaction
+    // grouping and rebuild raw expectations before any adapter is opened.
+    let (source, _) = mixed_history();
+    let tenants = ["acme.game.alpha", "acme.game.beta"];
+    let mut offsets = [0usize; 2];
+    let mut sealed: [Vec<LedgerMutation>; 2] = Default::default();
+    let mut entries = Vec::new();
+    let mut snapshots = Vec::new();
+    let mut view = Snapshot::default();
+    for turn in 0..11 {
+        for (tenant_index, tenant) in tenants.iter().enumerate() {
+            let count = if turn % 2 == 0 { 1 } else { 2 };
+            let legs: Vec<_> = source
+                .iter()
+                .filter(|m| m.intent.tenant_id.0 == *tenant)
+                .skip(offsets[tenant_index])
+                .take(count)
+                .cloned()
+                .collect();
+            assert_eq!(legs.len(), count);
+            offsets[tenant_index] += count;
+            let mut merged = legs[0].clone();
+            merged.events = legs.iter().flat_map(|leg| leg.events.clone()).collect();
+            let history: Vec<_> = sealed[tenant_index].iter().collect();
+            seal_after_history(&mut merged, &history);
+            let mut outbox: Vec<_> = legs.iter().flat_map(|leg| leg.outbox.clone()).collect();
+            for row in &mut outbox {
+                row.commit_id = merged.commit.body.commit_id.clone();
+            }
+            merged.outbox = outbox;
+            let intents: Vec<_> = legs.iter().map(|leg| leg.intent.clone()).collect();
+            view.events.extend(merged.events.clone());
+            view.commits.push(merged.commit.clone());
+            for next in &merged.projections {
+                // Independent expected address, including subject but excluding owner.
+                view.projections.retain(|old| {
+                    !(old.tenant_id == next.tenant_id
+                        && old.resource_id == next.resource_id
+                        && old.state.subject() == next.state.subject())
+                });
+                view.projections.push(next.clone());
+            }
+            view.outbox.extend(merged.outbox.clone());
+            for intent in &intents {
+                view.finalized.push((
+                    intent.tenant_id.clone(),
+                    intent.intent_id.clone(),
+                    canonicalize_and_digest(intent).unwrap(),
+                    merged.commit.body.commit_id.clone(),
+                ));
+            }
+            view.heads
+                .retain(|(scope, ..)| scope != &merged.intent.tenant_id);
+            view.heads.push((
+                merged.intent.tenant_id.clone(),
+                merged.commit.body.commit_id.clone(),
+                merged.commit.body.next_state_root.clone(),
+                merged.commit.body.sequence,
+            ));
+            entries.push(if count == 1 {
+                HistoryEntry::Single(Box::new(merged.clone()))
+            } else {
+                HistoryEntry::Batch(Box::new(LedgerBatch {
+                    intents,
+                    commit: merged.commit.clone(),
+                    events: merged.events.clone(),
+                    projections: merged.projections.clone(),
+                    outbox: merged.outbox.clone(),
+                }))
+            });
+            sealed[tenant_index].push(merged);
+            snapshots.push(view.clone());
+        }
+    }
+    use statechronicle::index::rebuild::verified::{HistoryPin, HistoryWitness, verify_history};
+    for chain in &sealed {
+        let witnesses: Vec<_> = chain
+            .iter()
+            .map(|m| HistoryWitness {
+                commit: &m.commit,
+                events: &m.events,
+            })
+            .collect();
+        verify_history(
+            &witnesses,
+            &HistoryPin {
+                tenant: chain[0].intent.tenant_id.clone(),
+                tip_digest: canonicalize_and_digest(&chain.last().unwrap().commit.body).unwrap(),
+            },
+            &FixtureVerifier,
+        )
+        .unwrap();
+    }
+    assert_eq!(offsets, [16, 16]);
+    let mut prefixes = 0;
+    let mut retained_identities = 0;
+    let mut cumulative = 0;
+    for entry in &entries {
+        let (members, projections, outbox, single) = match entry {
+            HistoryEntry::Single(m) => (1, m.projections.len(), m.outbox.len(), true),
+            HistoryEntry::Batch(b) => (b.intents.len(), b.projections.len(), b.outbox.len(), false),
+        };
+        prefixes += if single {
+            4 + projections + outbox
+        } else {
+            4 + 2 * members + projections + outbox
+        };
+        cumulative += members;
+        retained_identities += cumulative;
+    }
+    assert_eq!(prefixes, 224);
+    assert_eq!(retained_identities, 368);
+    assert_eq!(view.outbox.len(), 64);
+    assert_eq!(view.commits.len(), 22);
+    assert_eq!(view.events.len(), 32);
+    assert_eq!(view.projections.len(), 8);
+    assert_eq!(view.finalized.len(), 32);
+    assert_eq!(view.heads.len(), 2);
+    (entries, snapshots)
+}
+
+#[tokio::test]
+async fn mixed_single_batch_history_shares_heads_and_preserves_all_original_authority() {
+    let (entries, snapshots) = alternating_single_batch_history();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        statechronicle_conformance::batch::history::check(
+            &Backend::new(Mode::Correct),
+            &entries,
+            &snapshots,
+        ),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+}
+
+#[tokio::test]
+async fn mixed_history_detects_cross_kind_loss_that_homogeneous_histories_miss() {
+    use statechronicle_conformance::batch::{self, history};
+    let (singles, single_snapshots) = mixed_history();
+    let (entries, snapshots) = alternating_single_batch_history();
+    for (mode, check) in [
+        (Mode::LoseSinglesOnBatch, "lookup.original"),
+        (Mode::LoseBatchesOnSingle, "mixed.membership"),
+    ] {
+        let backend = Backend::new(mode);
+        tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            // Existing homogeneous vectors pass these particular broken adapters.
+            statechronicle_conformance::check_history(&backend, &singles, &single_snapshots)
+                .await
+                .unwrap();
+            batch::check_atomic_visibility(&backend, &batch_fixture(1600))
+                .await
+                .unwrap();
+            batch::check_replay(&backend, &batch_fixture(1600))
+                .await
+                .unwrap();
+            let error = history::check(&backend, &entries, &snapshots)
+                .await
+                .unwrap_err();
+            println!("mixed-single-batch {mode:?}: {error}");
+            assert_eq!(error.check, check);
+        })
+        .await
+        .unwrap();
+    }
+}
+
+#[tokio::test]
+async fn mixed_history_setup_refuses_before_resetting_existing_data() {
+    use statechronicle_conformance::batch::history::{self, HistoryEntry};
+    let (entries, snapshots) = alternating_single_batch_history();
+    let backend = Backend::new(Mode::Correct);
+    let anchor = fixture("acme.game.anchor", 1900);
+    statechronicle_conformance::write(&backend.connect().await.unwrap(), &anchor)
+        .await
+        .unwrap();
+    let mut bad_chain = entries.clone();
+    let HistoryEntry::Batch(group) = &mut bad_chain[2] else {
+        panic!("expected batch");
+    };
+    group.commit.body.sequence += 1;
+    let mut duplicate = entries.clone();
+    let HistoryEntry::Single(first) = &entries[0] else {
+        panic!("expected single");
+    };
+    let HistoryEntry::Batch(group) = &mut duplicate[2] else {
+        panic!("expected batch");
+    };
+    group.intents[1].intent_id = first.intent.intent_id.clone();
+    let mut empty_group = entries.clone();
+    let HistoryEntry::Batch(group) = &mut empty_group[2] else {
+        panic!("expected batch");
+    };
+    group.intents.clear();
+    let mut foreign_member = entries.clone();
+    let HistoryEntry::Batch(group) = &mut foreign_member[2] else {
+        panic!("expected batch");
+    };
+    group.intents[1].tenant_id = TenantId("foreign.tenant".into());
+    let only_singles: Vec<_> = entries
+        .iter()
+        .filter(|entry| matches!(entry, HistoryEntry::Single(_)))
+        .cloned()
+        .collect();
+    for (input, expected, check) in [
+        (entries.clone(), snapshots[..21].to_vec(), "setup.mixed"),
+        (
+            only_singles.clone(),
+            snapshots[..only_singles.len()].to_vec(),
+            "setup.mixed",
+        ),
+        (bad_chain, snapshots.clone(), "setup.mixed_chain"),
+        (duplicate, snapshots.clone(), "setup.mixed_chain"),
+        (empty_group, snapshots.clone(), "setup.mixed_chain"),
+        (foreign_member, snapshots.clone(), "setup.mixed_chain"),
+    ] {
+        assert_eq!(
+            history::check(&backend, &input, &expected)
+                .await
+                .unwrap_err()
+                .check,
+            check
+        );
+        assert_eq!(backend.inspect().await.unwrap().events, anchor.events);
+        assert!(matches!(backend.connect().await.unwrap().lookup_mutation(
+            &anchor.intent.tenant_id, &anchor.intent.intent_id).await.unwrap(),
+            LedgerLookup::Committed(record) if *record == anchor));
     }
 }

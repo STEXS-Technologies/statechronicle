@@ -311,3 +311,34 @@ This is a bounded single-mutation history schedule. It does not qualify mixed
 single/batch histories, randomized interleavings, cross-tenant transactions,
 real database reopen, physical crash/power loss or production signer policy.
 Keep the existing race, batch, lease, lost-ACK and delivery checks as well.
+
+## Alternating single and batch histories
+
+`batch::history::check` accepts owned `HistoryEntry::Single(Box<LedgerMutation>)`
+and `HistoryEntry::Batch(Box<LedgerBatch>)` values plus an independently built
+`Snapshot` for every committed prefix. Implement the existing
+`LedgerBatchTestBackend` and `LedgerBatchRecovery` capabilities; no runtime
+production dependency or new storage port is needed. Supply valid signed
+fixtures with distinct scoped identities and one consecutive per-tenant chain
+across both transaction kinds. Shape/chain errors refuse before destructive reset.
+Use a dedicated isolated database and wrap the call in a backend timeout.
+
+The harness rolls back every staged prefix while retaining earlier transactions,
+compares independent raw effects and complete batch membership, then commits and
+checks all previous exact original lookups, payload conflicts, original commit
+IDs and single/batch namespace refusal through fresh connections. It never
+manufactures a standalone receipt from a group member.
+
+The reference schedule has 22 transactions (12 singles and 10 two-member batches)
+with 32 intents/events, two interleaved tenants, coincident cross-tenant textual
+IDs, 8 final resource/subject projection keys and 64 outbox rows. Each tenant
+alternates singles and batches over one head chain; signed history verification
+runs before adapter use. It exercises 224 rollback prefixes and 368 retained
+original identity checks across the growing committed prefixes. Two incorrect
+adapters pass the existing single-only history and genesis batch checks but lose
+single receipts on a batch commit or batch membership on a single commit; the
+mixed harness rejects both. Setup-negative cases preserve pre-existing data.
+
+These are deterministic logical histories. They do not replace randomized
+concurrency, independent database process restart, projection rebuild/proof
+serving, physical crash or power-loss qualification.

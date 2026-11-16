@@ -285,3 +285,24 @@ production dependencies or change ledger authority. Mixed single/batch history,
 randomized concurrent histories, process/database reopen, proof serving and
 physical crash/power-loss qualification remain separate requirements. See the
 [conformance instructions](../../ci/conformance/README.md#ordered-mixed-histories).
+
+## Alternating single/batch histories
+
+For adapters supporting both APIs over shared storage, use
+`batch::history::check` with owned `HistoryEntry` values and independently
+constructed raw snapshots. Each tenant has one consecutive head chain across
+single and complete batch transactions. Scoped member/commit identities must be
+distinct, including across kinds. Every rollback prefix preserves earlier raw
+effects and membership; every committed prefix rechecks every original receipt,
+exact/conflicting claim and namespace through fresh connections. Invalid input
+shape or chain refuses before destructive reset. Fixtures must already be valid
+and signed; this dev harness is not an authentication or signer-policy layer.
+
+The reference supplies 22 transactions (12 singles, 10 two-member batches), 32
+intents/events, two tenants with coincident textual IDs, 8 current projection
+keys and 64 outbox rows. It checks 224 rollback prefixes and 368 cumulative
+original identities. Two new cross-kind receipt-loss backends pass the existing
+single history and genesis batch visibility/replay checks, then fail this mixed
+schedule. Both signed per-tenant fixture histories verify before backend use.
+See [consumer setup](../../ci/conformance/README.md#alternating-single-and-batch-histories).
+Randomized concurrency, database crash recovery and full F5/F8 remain open.
