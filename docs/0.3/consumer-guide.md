@@ -11,12 +11,14 @@ additive APIs exist in the released registry package.
 | Register hosted domain/schema and encode commands | `TypedProfile`, static `ProfileRegistry`, `command_operations!` | Canonical hosted adaptation and command-operation binding |
 | Authenticate and prepare one request | `mutation::Preparer::prepare_player` | Private-field `PreparedMutation`; uncommitted |
 | Prepare a single-tenant group | `Preparer::prepare_player_batch` | Complete `PreparedBatch`; no successful subset |
+| Prepare coordinated single-tenant settlement | `Preparer::prepare_player_settlement` | Complete `PreparedBatch` with declared payment/bundle checks; no durable effects |
 | Sign and commit one plan | `mutation::SignedMutation::sign`, then `commit` | `DurableOutcome::Committed` or `Replay` with checked original receipt |
 | Resolve uncertain single write | `mutation::recover` | Original record checked; `NotFound` and `InProgress` are not receipts |
 | Sign/commit/recover a group | `mutation::SignedBatch` | Complete retained group; requires optional batch-capable ledger/recovery |
 | Verify supplied present/absent evidence | `proof::claim::ClaimVerifier` | Independent `ExpectedClaim`, trusted key; private-field `VerifiedClaim` |
 | Assert current state | `ClaimVerifier::verify_current` | Complete authoritative head tuple at final linearizable read |
 | Assert state at a chosen commit | `ClaimVerifier::verify_historical` | Independent commit pin; no current-head freshness |
+| Verify requested historical settlement facts | `proof::settlement::verify_settlement_history` | Independently pinned signed asset/payment events; no current ownership or global atomicity claim |
 | Rebuild from signed provider history | `index::rebuild::verified::verify_history` | Independent `HistoryPin` and historical signer policy before resumable rebuild |
 | Publish committed effects | `ports::outbox::dispatch_once` and delivery adapter | Leased post-commit delivery; consumers deduplicate, no exactly-once promise |
 
@@ -78,7 +80,9 @@ Start with [native preparation](../../tutorials/minimal-native-domain/README.md)
 then [durable file ledger](../../tutorials/durable-custom-ledger/README.md).
 The latter covers both models, reopen, unknown ACK, unchanged exact replay,
 native history recomputation and temporal proof expectations. It uses a bounded
-single-writer file contract, not production key management or crash qualification.
+single-writer file contract. [Selected process-termination tests](evidence/conformance/file-process-restart/README.md)
+exercise reopen at six SIGKILL boundaries; they do not establish database/power-loss
+durability or production key management.
 
 For specialized single-tenant batches see [protected batches](durable-batches.md).
 Cross-tenant trade/settlement paths remain advanced explicit composition: retain

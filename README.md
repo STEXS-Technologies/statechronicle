@@ -126,8 +126,12 @@ The hosted adapter and full engine require `std`.
 The repository ships fifteen runnable examples: twelve behavioral demonstrations
 and three performance probes. The lifecycle and settlement examples exercise
 real library APIs over in-memory adapters with fixed keys, clocks and event-ID
-generators. Their symbolic transactions demonstrate planning; production
-durability requires a consumer-owned durable sink. `custom_domains` demonstrates
+generators. Their symbolic transactions demonstrate planning. Authenticated
+durable applications should use `Preparer` and `SignedMutation`/`SignedBatch`
+with one qualified `LedgerStore`, as shown in the standalone tutorials. Legacy
+durable sinks require consumer-enforced atomicity and original-identity recovery;
+their event-vector results do not establish the protected receipt contract.
+`custom_domains` demonstrates
 registration and direct reduction, while `tests/custom_domains.rs` exercises the
 full signed execution, durable persistence, replay and proof paths for both
 configuration and equipment domains. Performance timings depend on the machine.
@@ -135,16 +139,16 @@ configuration and equipment domains. Performance timings depend on the machine.
 | Example | Run it with | Capability demonstrated |
 |---|---|---|
 | `inventory` | `cargo run -p statechronicle --example inventory` | Unique asset lifecycle (mint → transfer → lock → unlock → restrict → restore → burn) with fail-closed rejections |
-| `currency` | `cargo run -p statechronicle --example currency` | Fungible balance lifecycle with an atomic debit + credit transfer and exact amount math |
+| `currency` | `cargo run -p statechronicle --example currency` | Fungible balance lifecycle with coordinated debit/credit planning and exact amount math |
 | `stack` | `cargo run -p statechronicle --example stack` | Consumable stack lifecycle |
 | `access` | `cargo run -p statechronicle --example access` | Entitlement and meter lifecycles |
-| `marketplace` | `cargo run -p statechronicle --example marketplace` | In-memory purchase-settlement planning via `execute_batch` (player ingress uses the authenticated durable batch route in production) |
-| `cross_tenant` | `cargo run -p statechronicle --example cross_tenant` | In-memory cross-tenant validation via `execute_cross_tenant` (use `execute_cross_tenant_durable` in production) |
+| `marketplace` | `cargo run -p statechronicle --example marketplace` | In-memory purchase planning via `execute_batch`; see [protected groups](docs/0.3/durable-batches.md) for durable composition |
+| `cross_tenant` | `cargo run -p statechronicle --example cross_tenant` | Advanced cross-tenant planning; persistence requires consumer-qualified multi-tenant atomic coordination |
 | `proofs` | `cargo run -p statechronicle --example proofs` | State, ownership, and non-membership proofs |
 | `paid_asset` | `cargo run -p statechronicle --example paid_asset` | Paid unique asset overlay: owner consent and hard delete |
-| `trade_value` | `cargo run -p statechronicle --example trade_value` | In-memory asset-for-gold settlement planning via `execute_settle` (use `execute_settle_durable` in production) |
-| `trade_cross_tenant` | `cargo run -p statechronicle --example trade_cross_tenant` | In-memory cross-tenant trade planning via `execute_cross_tenant_trade` (use the durable variant in production) |
-| `trade_bundle` | `cargo run -p statechronicle --example trade_bundle` | In-memory multi-asset bundle planning (persist through a durable batch sink in production) |
+| `trade_value` | `cargo run -p statechronicle --example trade_value` | In-memory asset-for-gold planning; see [protected single-tenant settlement](docs/0.3/batch-preparation.md#protected-settlement-preparation) |
+| `trade_cross_tenant` | `cargo run -p statechronicle --example trade_cross_tenant` | Advanced cross-tenant trade planning; persistence requires consumer-qualified multi-tenant atomic coordination |
+| `trade_bundle` | `cargo run -p statechronicle --example trade_bundle` | In-memory bundle planning; [protected settlement](docs/0.3/batch-preparation.md#protected-settlement-preparation) validates the complete single-tenant group |
 | `custom_domains` | `cargo run -p statechronicle --example custom_domains` | Register configuration/equipment profiles, create a configuration state and decode it through the typed adapter |
 | `throughput` | `cargo run --release -p statechronicle --example throughput` | Direct reduction and canonical hashing; excludes authentication and storage |
 | `e2e_throughput` | `cargo run --release -p statechronicle --example e2e_throughput` | Signed intent execution and in-memory indexing; optional commit formation/verification and batching |

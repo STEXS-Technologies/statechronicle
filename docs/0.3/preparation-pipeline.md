@@ -47,8 +47,10 @@ separate boundaries.
 
 The shared preparation stages and native decode-once execution have since been
 implemented. The broader multi-fault legacy matrix below extends the original
-ingress and emission fixtures. Protected batch/settlement composition and full
-F2/release qualification remain separate open work.
+ingress and emission fixtures. Protected batch and coordinated settlement now
+share that core; see [batch preparation](batch-preparation.md). The compatibility
+fixtures below retain their original narrower scope and do not establish the
+full protected durable or final release gates.
 
 
 ## Shared player ingress decisions

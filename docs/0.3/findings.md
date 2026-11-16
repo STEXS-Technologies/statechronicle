@@ -1,13 +1,19 @@
 # Baseline trust-boundary findings
 
-Status: reproduced on original production source. The trade tenant/cache fix
-is implemented, and independent current/historical claims are implemented.
-Protected single-intent durability, bounded single-tenant batch composition and
-structural trade coverage are implemented. Reusable single/batch adapter checks
-now have independent negative controls. Broader batch qualification and
-independent expected trade/history claims remain open.
-These are release-blocking inputs to F1. No deployed consumer or real database was tested.
-The probes use deterministic local fixtures and consumer-owned in-memory ports.
+This is a chronological evidence log. The opening probes reproduce hazards on
+original release source; later sections record their fixes and subsequent
+qualification. Statements about open work inside an earlier checkpoint describe
+that checkpoint, not the current branch. No deployed consumer or production
+database engine has been qualified by these tests.
+
+The current recommended path is read-only protected preparation, signed
+single/batch commit and original-identity recovery, followed by independently
+expected current or historical verification. Separate historical settlement
+facts and verified-source rebuild have their own explicit contracts. Start with
+[the current consumer map](consumer-guide.md); consult [adapter scope](adapter-contract.md),
+[settlement facts](settlement-history.md) and [coverage evidence](coverage.md).
+Full exact-candidate performance, fuzz/property, packaging and public API review
+remain release gates; these checkpoint results do not declare the roadmap done.
 
 ## H1: absence verification confirms the supplied key, without current freshness
 
@@ -1048,3 +1054,20 @@ static checks. Source maintenance falls 2,129 tokens; generated implementations
 remain and the matched consumer grows 720 binary/16 text bytes. Macro syntax
 counts must not be presented as fewer runtime branches or exported API items.
 [Evidence](evidence/maintenance/string-traits/README.md).
+
+## Current coverage and canonical documentation recommendations
+
+The immutable `8faaa14` archive passes hosted coverage collection and the
+unchanged historical ratchet: 92.8701% full and 94.4119% filtered, with 897 finite
+tests and four parser tests. A separate 95% baseline correctly refuses. The
+shared string-trait source has 21/21 measured lines; macro attribution is not
+per-instantiation branch coverage. [Exact evidence](evidence/coverage/hosted-8faaa14/README.md).
+
+README example recommendations now distinguish protected receipt-based
+single-tenant composition from advanced legacy sinks and consumer-qualified
+cross-tenant coordination. The consumer map includes protected settlement and
+independent historical settlement facts, and names the selected file-process
+termination campaign without implying power-loss durability. Earlier checkpoint
+notes in this log remain historical; the 0.2 architecture overview links to the
+current ownership map. No runtime, dependency, protocol or workflow files change
+in this documentation/evidence checkpoint. Full final qualification remains open.

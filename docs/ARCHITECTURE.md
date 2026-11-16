@@ -2,6 +2,12 @@
 
 **Status:** Implementation overview for 0.2.0
 **Last Updated:** 2026-10-10
+
+This is the historical 0.2 implementation overview. For the refactoring branch's
+recommended prepare/commit/recover/verify flow and authority boundaries, use the
+[current consumer and ownership map](0.3/consumer-guide.md). Existing ADRs remain
+historical design records; the [migration guide](0.3/migration.md) identifies
+intentional compatibility changes.
 **Related:** [ADR-001](DESIGN/ADR/ADR-001-VERTICAL_SLICE_ARCHITECTURE.md),
 [ADR-002](DESIGN/ADR/ADR-002-HEXAGONAL_ARCHITECTURE.md),
 [ADR-003](DESIGN/ADR/ADR-003-TRUSTGRANT_PORTS_ONLY.md)
