@@ -175,24 +175,24 @@ fn trace(case: &Case, rules: &dyn ProfileRules) -> Value {
         "apply": state(rules.apply(case.current.as_ref(), &case.operation, &case.inputs)),
         "direct": state(transition::apply(case.current.as_ref(), &case.operation, &case.inputs)),
     });
-    if let Some(source) = &case.current {
-        if matches!(
+    if let Some(source) = &case.current
+        && matches!(
             case.operation.as_str(),
             "stack.transfer" | "balance.transfer"
-        ) {
-            row["transfer_unborn"] = state(transition::transfer_after_state(
-                source,
-                None,
-                &case.operation,
-                &case.inputs,
-            ));
-            row["transfer_existing"] = state(transition::transfer_after_state(
-                source,
-                Some(source),
-                &case.operation,
-                &case.inputs,
-            ));
-        }
+        )
+    {
+        row["transfer_unborn"] = state(transition::transfer_after_state(
+            source,
+            None,
+            &case.operation,
+            &case.inputs,
+        ));
+        row["transfer_existing"] = state(transition::transfer_after_state(
+            source,
+            Some(source),
+            &case.operation,
+            &case.inputs,
+        ));
     }
     row
 }

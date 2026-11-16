@@ -120,6 +120,8 @@ def main():
             dependencies=tomllib.loads((source/'Cargo.toml').read_text())['workspace']['dependencies']
             ed=dependencies['ed25519-dalek']['version']
             (consumer/'Cargo.toml').write_text('[package]\nname="proof-service-characterization"\nversion="0.0.0"\nedition="2024"\n[workspace]\n[dependencies]\nstatechronicle={path="../source/crates/statechronicle"}\ntracing={version="0.1",default-features=false,features=["std"]}\nchrono="0.4"\nserde={version="1",features=["derive"]}\nasync-trait="0.1"\nserde_json="1"\ntokio={version="1",features=["rt"]}\ned25519-dalek="'+ed+'"\n')
+            if args.fixture == 'profiles':
+                (consumer/'Cargo.toml').write_text('[package]\nname="proof-service-characterization"\nversion="0.0.0"\nedition="2024"\n[workspace]\n[dependencies]\nstatechronicle={path="../source/crates/statechronicle"}\nserde_json="1"\n')
             (consumer/'Cargo.lock').write_bytes((source/'Cargo.lock').read_bytes())
             check(f'{index}-resolve',['cargo','metadata','--offline','--format-version','1'],consumer)
             assert not packages(consumer/'Cargo.lock')-packages(source/'Cargo.lock'), 'third-party dependency drift'
