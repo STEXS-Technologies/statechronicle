@@ -1,0 +1,11 @@
+--- original/authorized_migration.rs
++++ control/authorized_migration.rs
+@@ -107,7 +107,7 @@
+ #[async_trait]
+ impl Authorizer for MigrationPolicy {
+     async fn authorize(&self, context: AuthorizationContext<'_>) -> Result<(), AuthorizationError> {
+-        if self.allowed
++        if true
+             && context.principal.subject.0 == MIGRATOR
+             && context.principal.credential_id == "migration-session"
+             && context.tenant == &common::tenant()

@@ -1,0 +1,10 @@
+--- original/authorized_migration.rs
++++ control/authorized_migration.rs
+@@ -114,7 +114,6 @@
+             && context.resource.0 == "config:version2"
+             && context.intent.operation.as_str() == "configuration.migrate"
+             && context.intent.expected_version == 0
+-            && context.intent.inputs == self.expected
+         {
+             Ok(())
+         } else {

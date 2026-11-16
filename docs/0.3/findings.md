@@ -983,3 +983,21 @@ runtime assertions. The [893-test immutable-source campaign and scope limits](ev
 advance Scenario D; schema migration, generic randomized adapters and final
 release qualification remain open. No new production changes occur in that
 second checkpoint.
+
+## Independently authorized schema migration
+
+Test source `7489a5f` consumes a new four-commit configuration corpus produced by
+the actual original release with unchanged source and lock. Candidate BCS,
+signatures, old-schema transitions and an independently fixed historical tip
+verify before restore or migration. A separate host policy binds the protected
+migration request to that source, target, native command and service grant.
+Eight request refusals, current grant revocation, lost ACK/original recovery,
+schema isolation and historical-source substitutions are covered.
+
+Original and migrated histories pass 44 checkpoint interruption schedules and
+produce the exact signed roots after fresh-handle resumption. Five deliberate
+authorization/source/rebuild/identity bypasses fail runtime assertions. The
+[896-test qualification, provenance and limitations](evidence/f3/authorized-migration-7489a5f/README.md)
+advance Scenario E. The grant is for a pinned historical snapshot; current-source
+freshness and physical storage remain additional contracts. No production API,
+dependency or lock changes occur, and full release qualification remains open.

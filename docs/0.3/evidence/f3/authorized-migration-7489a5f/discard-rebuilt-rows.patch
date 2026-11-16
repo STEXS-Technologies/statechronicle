@@ -1,0 +1,11 @@
+--- original/authorized_migration.rs
++++ control/authorized_migration.rs
+@@ -501,7 +501,7 @@
+                 return Err("conflicting equal version".into());
+             }
+         }
+-        data.rows.insert(row.resource_id.clone(), row.clone());
++        // Deliberately discard rebuilt projections.
+         Ok(())
+     }
+ }

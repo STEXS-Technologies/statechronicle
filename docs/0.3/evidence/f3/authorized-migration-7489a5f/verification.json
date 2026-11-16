@@ -1,0 +1,37 @@
+{
+  "status": "passed",
+  "checks": [
+    "all real exits match declared expectations",
+    "all retained log hashes verified",
+    "896 finite tests and 16 doctests",
+    "original corpus matches producer hash"
+  ],
+  "artifacts_sha256": {
+    "authorized-migration-7489a5f/runner.py": "9690ffc8f587565b699f792c4247c091d216b7e98755dd713b65a9091142c7a6",
+    "authorized-migration-7489a5f/manifest.json": "7816b8ae7a16a7432e2a0c60d2a6c86bca534a000723c50cf05cf6c36ce5d6bb",
+    "authorized-migration-7489a5f/positive.log.gz": "3f9240a48a9df0f3499b55165dddfa9da93ae84d9488f386cd27466f8dee1deb",
+    "authorized-migration-7489a5f/ignore-migration-grant.log.gz": "90ca2589f07a9ffcde6838425dc36cd30955a8f7708d9824346e8eda1c7840e8",
+    "authorized-migration-7489a5f/ignore-migration-grant.patch": "71b8cdc95870129c5e2b5083367e3eccf72c1196a2acbe21dee4ad5a7e7bfc7e",
+    "authorized-migration-7489a5f/ignore-source-binding.log.gz": "0d205f4edf9c0d675656bdd06e288eee113d1c2bf80d0a26b3541a4c97199459",
+    "authorized-migration-7489a5f/ignore-source-binding.patch": "e4e0780e69237bbd27ca7cf8bc837f1f18032b5496eec726a1c7d8be2e876d3d",
+    "authorized-migration-7489a5f/discard-rebuilt-rows.log.gz": "21457ee30a3bb60f3b70ae980ae10a29f5551e83db962eb05b1e3bd6d9cb9ea1",
+    "authorized-migration-7489a5f/discard-rebuilt-rows.patch": "e37b848d76597a9bab0d8f9dc5d666c86e4188168212863b84a2a6de56130436",
+    "authorized-migration-7489a5f/reuse-source-checkpoint.log.gz": "cd5380edb8069a2ac3efec58397de27cf14b412826936931064675a93386524c",
+    "authorized-migration-7489a5f/reuse-source-checkpoint.patch": "02c95b85991d9dba80590cffa2ed7aa0ede79755f4f7d3b3bd865ae2627c2891",
+    "authorized-migration-7489a5f/reuse-historical-event-id.log.gz": "fb793aaac92c1bfd85cc3de165d1584deeb2facafbe9a130ae5601c9f8528f38",
+    "authorized-migration-7489a5f/reuse-historical-event-id.patch": "30753921300fa31acecc4c70ffcededa2176a196eb75db384627719eda1c34ea",
+    "authorized-migration-7489a5f/README.md": "6c4b4e41987df94b685735f857e4a406e44dccb777f119cb01577987a0264548",
+    "qualification-7489a5f/runner.py": "bad0dc4f4bdd92ae52ab406a85904a6167bef6ab133c15e3ad6fa837c19f506b",
+    "qualification-7489a5f/manifest.json": "6f1eb94dfa3c9dfd0a8491b9e7c8f9627a4b56b0c6f1c5b553bbf88a33d995fa",
+    "qualification-7489a5f/fmt.log.gz": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "qualification-7489a5f/finite-tests.log.gz": "edcbd0bc322f4f05fe16d95af00ac72acd74ff8e3c07ed1270e8009fb12d568f",
+    "qualification-7489a5f/doctests.log.gz": "8f8ec3356a9be40398a745a05aedb79fff6ab896d1850caffdea9ca39dab49fe",
+    "qualification-7489a5f/strict-clippy.log.gz": "3edd51fe3776825ca3c01a0c7efce0fa668f7d3947b633239ea34277392deb2b",
+    "qualification-7489a5f/strict-rustdoc.log.gz": "2039604c575335fbd85e7325757a7793c2a808b5a38d01e847919e2d791975a8",
+    "migration-original-producer/runner.py": "d5233d3f66c4af8b111161a49e43541f8b4fce6dbcb143f2d168721474d41c0b",
+    "migration-original-producer/migration_history.rs": "60e46a9bd8b3b2861ccda3ff8cac67694b3651089f113e563be06c531cf62ad1",
+    "migration-original-producer/manifest.json": "0132c913c8fa92b9bb8474b51f78a97fbb24c3f3e1a538e0f7d0c4df4ad593d0",
+    "migration-original-producer/producer.log.gz": "ed24f6b71a42053443bc332ba6df81070cb63a68864d1013656f1f6ad560215c",
+    "migration-original-producer/README.md": "92dfb2a3faa557a4993575d91d1524c796f506495a524111cfc5ac2009fed779"
+  }
+}

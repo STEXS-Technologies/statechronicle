@@ -322,3 +322,15 @@ subject-held addressing covers the tested balance transfers; it does not model
 subject relocation, physical durability or independent database connections.
 The reusable generic conformance interface and backend-specific crash campaigns
 remain separate from this protected end-to-end scenario.
+
+## Migration replay checkpoint
+
+The [authorized configuration migration fixture](evidence/f3/authorized-migration-7489a5f/README.md)
+uses actual original-release signed BCS history, an independently fixed historical
+tip/key, and a separate host migration grant through protected preparation.
+It retains both schema resources and exercises 44 before-save/after-save-ACK
+checkpoint interruptions across original and extended histories. Exact final
+roots, monotonic replay and source-specific checkpoint namespaces are checked.
+Five deliberate bypasses fail runtime oracles. This extends the bounded
+historical scenario without qualifying physical database restarts, global event
+identity enforcement, live source read dependencies or arbitrary native domains.

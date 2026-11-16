@@ -103,3 +103,23 @@ an incomplete bundle without checking its declared cardinality. Use legacy
 canonical composition. Ordinary value-leg routing retains its existing refusal
 precedence. This is an intentional validation tightening; wire encodings and
 native custom-domain execution policies are unchanged.
+
+## Authorizing a schema migration
+
+A verified historical source establishes signed integrity under an independently
+selected historical signer policy and tip pin. It does not grant permission to
+migrate. A host migration policy must separately bind the authenticated service,
+operation, target and native command to the expected source resource/state and
+verified-history identity. Include those references in the signed intent;
+construct the authorization expectation from trusted source evidence before
+considering client input. Retain the old decoder and migrate into a new versioned
+resource when an in-place schema change would reinterpret old bytes.
+
+The [authorized migration checkpoint](evidence/f3/authorized-migration-7489a5f/README.md)
+provides an executable public-API example using original-release BCS history,
+read-only `Preparer`, `SignedMutation`, current authorization on commit/recovery,
+and source-bound interrupted rebuild. Its grant authorizes a pinned historical
+snapshot; live source freshness would require an additional atomically enforced
+read dependency. Fixed fixture keys, session strings and in-memory stores are
+not deployment authentication or durability policies. Applications must inject
+unique event identities after restoring old history.
