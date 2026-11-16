@@ -15,6 +15,11 @@ import tomllib
 from refactor_compat import packages
 
 
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
 def main():
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument('--revision', action='append', required=True)
@@ -50,11 +55,11 @@ def main():
     support = git('show', 'c418e98b91720188158c531cd5c2c4b8ab71cbcf:crates/statechronicle/examples/common/domains.rs') if args.fixture == 'executor' else None
     if support is not None:
         provenance=json.loads((root/'ci/compat-0.2/provenance.json').read_text())
-        assert sha(support)==provenance['files']['crates/consumer/examples/common/domains.rs']['sha256']
+        require(sha(support)==provenance['files']['crates/consumer/examples/common/domains.rs']['sha256'], 'original domain fixture provenance mismatch')
     wire = root/'ci/wire-0.2/history.json'
     manifest = {'revisions': revisions, 'fixture_sha256':sha(fixture.read_bytes()), 'negative_control_share_amount_errors':args.negative_control_share_amount_errors, 'negative_control_remove_expiry':args.negative_control_remove_expiry, 'negative_control_commit_on_refusal':args.negative_control_commit_on_refusal, 'wire_sha256':sha(wire.read_bytes()),
                 'rustc':subprocess.check_output(['rustc','-vV'],cwd=root,text=True), 'checks':[], 'lanes':[], 'status':'running',
-                'environment':{k:env[k] for k in ['RUSTC_WRAPPER','CARGO_BUILD_JOBS','CARGO_TARGET_DIR']},
+                'python_optimization':__import__('sys').flags.optimize, 'environment':{k:env[k] for k in ['RUSTC_WRAPPER','CARGO_BUILD_JOBS','CARGO_TARGET_DIR']},
                 'limitations':['Four compatibility state-proof methods; new expected-claim and absence/trade verification are separate.',
                                'Deterministic matrix over frozen original wire; not exhaustive input/property/concurrency qualification.',
                                'A dependency-patched original comparator must be identified separately from unmodified release execution.']}
@@ -100,14 +105,14 @@ def main():
                 owner=source/'crates/statechronicle-executor/src/evaluation.rs'
                 original=owner.read_text()
                 needle='conflict::check_expiry(intent, (self.now)())?;'
-                assert original.count(needle)==1
+                require(original.count(needle)==1, 'negative-control owner changed')
                 owner.write_text(original.replace(needle,'let _ = (self.now)(); /* test-only negative control: expiry refusal removed */'))
                 (evidence/'negative-control.json').write_text(json.dumps({'revision':revision,'path':str(owner.relative_to(source)),'original_sha256':sha(original.encode()),'mutated_sha256':sha(owner.read_bytes()),'removed':needle},indent=2)+'\n')
             if args.negative_control_commit_on_refusal and index == len(revisions)-1:
                 owner=source/'crates/statechronicle-executor/src/batch_completion.rs'
                 original=owner.read_text()
                 needle='handle.rollback().await'
-                assert original.count(needle)==1
+                require(original.count(needle)==1, 'negative-control owner changed')
                 owner.write_text(original.replace(needle,'handle.commit().await'))
                 (evidence/'negative-control.json').write_text(json.dumps({'revision':revision,'path':str(owner.relative_to(source)),'original_sha256':sha(original.encode()),'mutated_sha256':sha(owner.read_bytes()),'removed':needle,'replacement':'handle.commit().await'},indent=2)+'\n')
             hashes={str(p.relative_to(source)):sha(p.read_bytes()) for p in sorted(source.rglob('*')) if p.is_file()}
@@ -124,7 +129,7 @@ def main():
                 (consumer/'Cargo.toml').write_text('[package]\nname="proof-service-characterization"\nversion="0.0.0"\nedition="2024"\n[workspace]\n[dependencies]\nstatechronicle={path="../source/crates/statechronicle"}\nserde_json="1"\n')
             (consumer/'Cargo.lock').write_bytes((source/'Cargo.lock').read_bytes())
             check(f'{index}-resolve',['cargo','metadata','--offline','--format-version','1'],consumer)
-            assert not packages(consumer/'Cargo.lock')-packages(source/'Cargo.lock'), 'third-party dependency drift'
+            require(not packages(consumer/'Cargo.lock')-packages(source/'Cargo.lock'), 'third-party dependency drift')
             lock=(consumer/'Cargo.lock').read_bytes();(evidence/f'{index}.lock').write_bytes(lock)
             build=['cargo','build','--locked','--offline']
             if args.fixture != 'proof_service':
@@ -135,15 +140,15 @@ def main():
             raw=check(f'{index}-trace',[str(binary),str(wire)],consumer)
             trace=json.loads(raw)
             if args.fixture == 'profiles':
-                if len(trace) < 14364 or len({row['case'] for row in trace}) != len(trace):
+                if len(trace) != 296604 or len({row['case'] for row in trace}) != len(trace):
                     raise RuntimeError('incomplete or duplicate profile corpus')
                 if traces and len(trace) != len(traces[0]): raise RuntimeError('profile corpus row count changed')
             else:
-                assert len(trace)=={'executor':23544,'settlement':10128,'proof_service':2352}[args.fixture]
+                require(len(trace)=={'executor':23544,'settlement':10128,'proof_service':2352}[args.fixture], 'incomplete corpus')
             traces.append(trace)
             manifest['lanes'].append({'revision':revision,'archive_sha256':sha(data),'source_sha256':hashes,'consumer_lock_sha256':sha(lock),'trace_sha256':sha(raw),'rows':len(trace),'binary_sha256':sha(binary.read_bytes())})
-            assert (consumer/'Cargo.lock').read_bytes()==lock
-            assert all(sha((source/name).read_bytes())==value for name,value in hashes.items())
+            require((consumer/'Cargo.lock').read_bytes()==lock, 'consumer lock drift')
+            require(all(sha((source/name).read_bytes())==value for name,value in hashes.items()), 'archived source drift')
             save()
         differences=[{'lane':index,'case':actual.get('case',actual.get('name')),'expected':expected,'actual':actual}
                      for index,trace in enumerate(traces[1:],1) for expected,actual in zip(traces[0],trace) if actual!=expected]
@@ -151,7 +156,7 @@ def main():
             data=gzip.compress(json.dumps(differences,separators=(',',':')).encode(),mtime=0)
             (evidence/'differences.json.gz').write_bytes(data)
         manifest['different_rows']=len(differences)
-        assert not differences, 'error or port-order trace mismatch'
+        require(not differences, 'error or port-order trace mismatch')
         manifest['status']='passed'
     except BaseException as error:
         manifest['status']='failed_or_interrupted';manifest['failure']=repr(error);raise
