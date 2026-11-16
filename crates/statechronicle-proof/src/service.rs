@@ -312,8 +312,12 @@ impl ProofService {
         verifying_key: &VerifyingKey,
     ) -> Result<(), ProofError> {
         let key = derive_state_key(proof)?;
-        self.verify_with_key_canonical(proof, verifying_key, &key)
-            .await
+        let signed = Self::require_commit(
+            self.load_commit(&proof.tenant_id, &proof.commit.commit_id)
+                .await,
+        )?;
+        self.ensure_canonical(&proof.tenant_id, &signed).await?;
+        verify_bundle(proof, &signed, verifying_key, &key)
     }
 
     /// Variant of [`Self::verify_canonical`] with an explicit state key.
