@@ -47,6 +47,7 @@ use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 
 use crate::error::ProfileError;
+use crate::registry::{input_str, state_amount, state_bool};
 
 /// Computes the deterministic after-state payload for a transition.
 ///
@@ -834,28 +835,6 @@ fn require_current<'projection>(
     })
 }
 
-/// Reads a required non-empty string input.
-///
-/// # Errors
-///
-/// Returns [`ProfileError::InvalidInput`] when the input is missing, is
-/// not a string, or is empty.
-fn input_str<'inputs>(
-    inputs: &'inputs BTreeMap<String, Value>,
-    key: &str,
-) -> Result<&'inputs str, ProfileError> {
-    let value = inputs
-        .get(key)
-        .ok_or_else(|| invalid_input(format!("missing input `{key}`")))?;
-    let text = value
-        .as_str()
-        .ok_or_else(|| invalid_input(format!("input `{key}` must be a string")))?;
-    if text.is_empty() {
-        return Err(invalid_input(format!("input `{key}` must not be empty")));
-    }
-    Ok(text)
-}
-
 /// Reads a required non-negative integer-string input.
 ///
 /// # Errors
@@ -921,36 +900,6 @@ fn state_str<'projection>(
         return Err(invalid_input(format!("`{key}` must not be empty")));
     }
     Ok(text)
-}
-
-/// Reads an exact fixed-point amount field from a projection's typed state.
-///
-/// # Errors
-///
-/// Returns [`ProfileError::InvalidInput`] when the payload has no `key`
-/// amount field.
-fn state_amount(projection: &StateProjection, key: &str) -> Result<Amount, ProfileError> {
-    let amount = match &projection.state {
-        ResourceState::ConsumableStack(v) if key == "quantity" => v.quantity,
-        ResourceState::FungibleBalance(v) if key == "balance" => v.balance,
-        ResourceState::MeteredResource(v) if key == "remaining" => v.remaining,
-        ResourceState::MeteredResource(v) if key == "maximum" => v.maximum,
-        _ => return Err(no_field(key)),
-    };
-    Ok(amount)
-}
-
-/// Reads a boolean field from a projection's typed state payload.
-///
-/// # Errors
-///
-/// Returns [`ProfileError::InvalidInput`] when the payload has no `key`
-/// boolean field.
-fn state_bool(projection: &StateProjection, key: &str) -> Result<bool, ProfileError> {
-    match &projection.state {
-        ResourceState::Entitlement(v) if key == "transferable" => Ok(v.transferable),
-        _ => Err(no_field(key)),
-    }
 }
 
 /// Builds a missing-state-field error.

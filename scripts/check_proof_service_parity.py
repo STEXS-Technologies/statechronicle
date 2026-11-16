@@ -18,10 +18,13 @@ from refactor_compat import packages
 def main():
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument('--revision', action='append', required=True)
-    cli.add_argument('--fixture', choices=['proof_service', 'executor', 'settlement'], default='proof_service')
+    cli.add_argument('--fixture', choices=['proof_service', 'executor', 'settlement', 'profiles'], default='proof_service')
+    cli.add_argument('--negative-control-share-amount-errors', action='store_true')
     cli.add_argument('--negative-control-remove-expiry', action='store_true')
     cli.add_argument('--negative-control-commit-on-refusal', action='store_true')
     args = cli.parse_args()
+    if args.negative_control_share_amount_errors and args.fixture != 'profiles':
+        cli.error('amount-error control requires profiles fixture')
     if args.negative_control_commit_on_refusal and args.fixture != 'settlement':
         cli.error('completion control requires settlement fixture')
     if args.negative_control_remove_expiry and args.fixture != 'executor':
@@ -37,6 +40,8 @@ def main():
     stamp = time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()) + f'-{os.getpid()}'
     run = root / f'target/{args.fixture}-parity' / stamp
     evidence = root / ('docs/0.3/evidence/f2/executor-order' if args.fixture != 'proof_service' else 'docs/0.3/evidence/maintenance/proof-service') / stamp
+    if args.fixture == 'profiles':
+        evidence = root / 'docs/0.3/evidence/maintenance/builtin-profiles' / stamp
     evidence.mkdir(parents=True)
     env = dict(os.environ, RUSTC_WRAPPER='', CARGO_BUILD_JOBS='8', CARGO_TARGET_DIR=str(root/'target/proof-service-parity/build'))
     for key in ['RUSTFLAGS', 'CARGO_ENCODED_RUSTFLAGS']:
@@ -47,7 +52,7 @@ def main():
         provenance=json.loads((root/'ci/compat-0.2/provenance.json').read_text())
         assert sha(support)==provenance['files']['crates/consumer/examples/common/domains.rs']['sha256']
     wire = root/'ci/wire-0.2/history.json'
-    manifest = {'revisions': revisions, 'fixture_sha256':sha(fixture.read_bytes()), 'negative_control_remove_expiry':args.negative_control_remove_expiry, 'negative_control_commit_on_refusal':args.negative_control_commit_on_refusal, 'wire_sha256':sha(wire.read_bytes()),
+    manifest = {'revisions': revisions, 'fixture_sha256':sha(fixture.read_bytes()), 'negative_control_share_amount_errors':args.negative_control_share_amount_errors, 'negative_control_remove_expiry':args.negative_control_remove_expiry, 'negative_control_commit_on_refusal':args.negative_control_commit_on_refusal, 'wire_sha256':sha(wire.read_bytes()),
                 'rustc':subprocess.check_output(['rustc','-vV'],cwd=root,text=True), 'checks':[], 'lanes':[], 'status':'running',
                 'environment':{k:env[k] for k in ['RUSTC_WRAPPER','CARGO_BUILD_JOBS','CARGO_TARGET_DIR']},
                 'limitations':['Four compatibility state-proof methods; new expected-claim and absence/trade verification are separate.',
@@ -59,6 +64,11 @@ def main():
         (evidence/'domains.rs').write_bytes(support)
     if args.fixture == 'settlement':
         manifest['limitations'] = ['Eight legacy coordinator routes; six structures; zero, single and pairwise injected faults.', 'Fixed sentinel host, snapshots and compatibility sinks; no real durable storage or canonical settlement qualification.']
+    if args.fixture == 'profiles':
+        profile_support = (root/'ci/characterization/profile_guards.rs').read_bytes()
+        manifest['profile_guard_sha256'] = sha(profile_support)
+        manifest['limitations'] = ['Deterministic public built-in check/reduction and transfer corpus, including malformed inputs and mismatched payloads.', 'No native custom-domain reduction, full executor authority/side effects, concurrency or performance qualification.']
+        (evidence/'profile_guards.rs').write_bytes(profile_support)
     (evidence/f'{args.fixture}.rs').write_bytes(fixture.read_bytes())
     (evidence/'runner.py').write_bytes(Path(__file__).read_bytes())
     def save():
@@ -79,6 +89,13 @@ def main():
             source=run/str(index)/'source';source.mkdir(parents=True)
             data=git('archive',revision,'--','Cargo.toml','Cargo.lock','rust-toolchain.toml','clippy.toml','crates','fuzz')
             with tarfile.open(fileobj=io.BytesIO(data)) as archive: archive.extractall(source,filter='data')
+            if args.negative_control_share_amount_errors and index == len(revisions)-1:
+                owner=source/'crates/statechronicle-profiles/src/transition.rs'
+                original=owner.read_text()
+                needle='return Err(invalid_input(format!(\n            "`{key}` must be an integer string (floats are forbidden)"\n        )));'
+                if original.count(needle) != 1: raise RuntimeError('amount-error control owner changed')
+                owner.write_text(original.replace(needle,'return Err(ProfileError::FloatForbidden);'))
+                (evidence/'negative-control.json').write_text(json.dumps({'revision':revision,'path':str(owner.relative_to(source)),'original_sha256':sha(original.encode()),'mutated_sha256':sha(owner.read_bytes()),'removed':needle,'replacement':'return Err(ProfileError::FloatForbidden);'},indent=2)+'\n')
             if args.negative_control_remove_expiry and index == len(revisions)-1:
                 owner=source/'crates/statechronicle-executor/src/evaluation.rs'
                 original=owner.read_text()
@@ -96,6 +113,8 @@ def main():
             hashes={str(p.relative_to(source)):sha(p.read_bytes()) for p in sorted(source.rglob('*')) if p.is_file()}
             consumer=source.parent/'consumer';(consumer/'src').mkdir(parents=True)
             (consumer/'src/main.rs').write_bytes(fixture.read_bytes())
+            if args.fixture == 'profiles':
+                (consumer/'src/profile_guards.rs').write_bytes(profile_support)
             if support is not None:
                 (consumer/'src/domains.rs').write_bytes(support)
             dependencies=tomllib.loads((source/'Cargo.toml').read_text())['workspace']['dependencies']
@@ -112,7 +131,13 @@ def main():
             check(f'{index}-clippy',['cargo','clippy','--locked','--offline','--','-D','warnings'],consumer)
             binary=Path(env['CARGO_TARGET_DIR'])/('release' if args.fixture != 'proof_service' else 'debug')/'proof-service-characterization'
             raw=check(f'{index}-trace',[str(binary),str(wire)],consumer)
-            trace=json.loads(raw);assert len(trace)=={'executor':23544,'settlement':10128,'proof_service':2352}[args.fixture]
+            trace=json.loads(raw)
+            if args.fixture == 'profiles':
+                if len(trace) < 14364 or len({row['case'] for row in trace}) != len(trace):
+                    raise RuntimeError('incomplete or duplicate profile corpus')
+                if traces and len(trace) != len(traces[0]): raise RuntimeError('profile corpus row count changed')
+            else:
+                assert len(trace)=={'executor':23544,'settlement':10128,'proof_service':2352}[args.fixture]
             traces.append(trace)
             manifest['lanes'].append({'revision':revision,'archive_sha256':sha(data),'source_sha256':hashes,'consumer_lock_sha256':sha(lock),'trace_sha256':sha(raw),'rows':len(trace),'binary_sha256':sha(binary.read_bytes())})
             assert (consumer/'Cargo.lock').read_bytes()==lock
