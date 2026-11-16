@@ -678,3 +678,231 @@ async fn policy_unavailability_retains_its_typed_cause_without_touching_the_ledg
     ));
     assert!(ledger.calls.lock().unwrap().is_empty());
 }
+
+#[derive(Default)]
+struct CountingSigner(std::sync::atomic::AtomicUsize);
+impl statechronicle::commit::sign::CommitSigner for CountingSigner {
+    fn sign_bytes(
+        &self,
+        key_id: &statechronicle::KeyId,
+        canonical: &[u8],
+    ) -> Result<statechronicle::Signature, statechronicle::commit::error::CommitError> {
+        if key_id != &common::key_id() {
+            return Err(statechronicle::commit::error::CommitError::Store(
+                "unexpected signing key".into(),
+            ));
+        }
+        self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Ok(statechronicle::core::signature::sign(
+            canonical,
+            &common::fixed_key(),
+        ))
+    }
+}
+
+#[tokio::test]
+async fn protected_signed_plan_commits_replays_and_recovers_without_replacement_events() {
+    use statechronicle::mutation::SignedMutation;
+    let fixture = Fixture::new().await;
+    let signer = CountingSigner::default();
+    let original = fixture.commit.clone();
+    let plan = SignedMutation::sign(
+        fixture.prepared,
+        &fixture.commit.body,
+        common::key_id(),
+        &signer,
+        fixture.outbox,
+    )
+    .unwrap();
+    assert_eq!(plan.signed_commit(), &original);
+    assert_eq!(signer.0.load(std::sync::atomic::Ordering::SeqCst), 1);
+    let ledger = MemoryLedger::default();
+    assert!(matches!(
+        plan.commit(&ledger, &Allow, &Verify).await.unwrap(),
+        DurableOutcome::Committed(_)
+    ));
+    assert!(matches!(
+        plan.commit(&ledger, &Allow, &Verify).await.unwrap(),
+        DurableOutcome::Replay(_)
+    ));
+    assert!(matches!(
+        statechronicle::mutation::recover(
+            &ledger,
+            &Allow,
+            &Verify,
+            plan.prepared().principal(),
+            &plan.prepared().validated().intent
+        )
+        .await
+        .unwrap(),
+        RecoveryOutcome::Committed(_)
+    ));
+    let stored = ledger.data.lock().unwrap();
+    assert_eq!(stored.events, plan.prepared().events());
+    assert_eq!(stored.projections, fixture.projections);
+    assert_eq!(stored.commits.len(), 1);
+    assert_eq!(stored.outbox.len(), 1);
+}
+
+#[tokio::test]
+async fn signed_plan_refuses_event_substitution_and_scope_mismatch_before_signer() {
+    use statechronicle::mutation::SignedMutation;
+    for corruption in 0..5 {
+        let fixture = Fixture::new().await;
+        let signer = CountingSigner::default();
+        let mut body = fixture.commit.body;
+        match corruption {
+            0 => {
+                // A replacement event can have internally correct hashes and
+                // a genuine signable commit root, but is not this prepared plan.
+                let mut replacement = fixture.prepared.events()[0].clone();
+                replacement.after.state =
+                    statechronicle::domain::resource_state::ResourceState::from_legacy_json(
+                        StateType::UniqueAsset,
+                        serde_json::json!({"owner":"account:mallory","status":"active"}),
+                    )
+                    .unwrap();
+                replacement.after.state_hash =
+                    statechronicle::core::canonicalize::canonicalize_and_digest(
+                        &replacement.after.state,
+                    )
+                    .unwrap();
+                body.event_merkle_root =
+                    statechronicle::commit::roots::event_root(&[replacement]).unwrap();
+            }
+            1 => body.event_count = 0,
+            2 => body.scope.tenant_id = Some(statechronicle::TenantId(String::from("other"))),
+            3 => body.scope.kind = statechronicle::ScopeKind::GlobalCheckpoint,
+            4 => body.schema = String::from("unsupported.commit"),
+            _ => panic!("unexpected corruption index"),
+        }
+        assert!(
+            SignedMutation::sign(
+                fixture.prepared,
+                &body,
+                common::key_id(),
+                &signer,
+                fixture.outbox
+            )
+            .is_err(),
+            "corruption {corruption}"
+        );
+        assert_eq!(signer.0.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+}
+
+#[tokio::test]
+async fn signed_plan_preserves_distinct_event_producer_and_commit_signer_roles() {
+    let fixture = Fixture::new().await;
+    let mut body = fixture.commit.body;
+    body.executor = SubjectId(String::from("service:authorized-commit-writer"));
+    let plan = statechronicle::mutation::SignedMutation::sign(
+        fixture.prepared,
+        &body,
+        common::key_id(),
+        &CountingSigner::default(),
+        fixture.outbox,
+    )
+    .unwrap();
+    assert_ne!(
+        plan.signed_commit().body.executor,
+        plan.prepared().events()[0].executor
+    );
+    let ledger = MemoryLedger::default();
+    assert!(matches!(
+        plan.commit(&ledger, &Allow, &Verify).await.unwrap(),
+        DurableOutcome::Committed(_)
+    ));
+}
+
+#[tokio::test]
+async fn protected_signed_plan_retains_exact_identity_across_unknown_ack_and_replay() {
+    let fixture = Fixture::new().await;
+    let signer = CountingSigner::default();
+    let plan = statechronicle::mutation::SignedMutation::sign(
+        fixture.prepared,
+        &fixture.commit.body,
+        common::key_id(),
+        &signer,
+        fixture.outbox,
+    )
+    .unwrap();
+    let ledger = MemoryLedger {
+        lose_commit_response: true,
+        ..MemoryLedger::default()
+    };
+    let Err(DurableError::Unknown { identity, .. }) = plan.commit(&ledger, &Allow, &Verify).await
+    else {
+        panic!("lost ACK must be unknown");
+    };
+    assert_eq!(
+        identity.intent_id(),
+        &plan.prepared().validated().intent.intent_id
+    );
+    assert_eq!(identity.payload_digest(), plan.prepared().payload_digest());
+    let reopened = MemoryLedger {
+        lose_commit_response: false,
+        ..ledger
+    };
+    let RecoveryOutcome::Committed(receipt) = statechronicle::mutation::recover(
+        &reopened,
+        &Allow,
+        &Verify,
+        plan.prepared().principal(),
+        &plan.prepared().validated().intent,
+    )
+    .await
+    .unwrap() else {
+        panic!("recovery must verify the original receipt");
+    };
+    assert_eq!(receipt.commit(), plan.signed_commit());
+    assert!(matches!(
+        plan.commit(&reopened, &Allow, &Verify).await.unwrap(),
+        DurableOutcome::Replay(_)
+    ));
+    assert_eq!(signer.0.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(reopened.data.lock().unwrap().commits.len(), 1);
+    assert_eq!(reopened.data.lock().unwrap().outbox.len(), 1);
+}
+
+#[tokio::test]
+async fn protected_signed_plan_rechecks_policy_signer_and_outbox_before_ledger() {
+    use statechronicle::ports::authorization::{AuthorizationError, DenyAllAuthorizer};
+    let fixture = Fixture::new().await;
+    let plan = statechronicle::mutation::SignedMutation::sign(
+        fixture.prepared,
+        &fixture.commit.body,
+        common::key_id(),
+        &CountingSigner::default(),
+        fixture.outbox,
+    )
+    .unwrap();
+    let ledger = MemoryLedger::default();
+    assert!(matches!(
+        plan.commit(&ledger, &DenyAllAuthorizer, &Verify).await,
+        Err(DurableError::Authorization(AuthorizationError::Denied))
+    ));
+    assert!(matches!(
+        plan.commit(&ledger, &Allow, &RefuseSigner).await,
+        Err(DurableError::Rejected(_))
+    ));
+    assert!(ledger.calls.lock().unwrap().is_empty());
+
+    let outbox_fixture = Fixture::new().await;
+    let mut outbox = outbox_fixture.outbox;
+    outbox[0].commit_id =
+        statechronicle::CommitId::new(String::from("cmt_wrong_notification")).unwrap();
+    let outbox_plan = statechronicle::mutation::SignedMutation::sign(
+        outbox_fixture.prepared,
+        &outbox_fixture.commit.body,
+        common::key_id(),
+        &CountingSigner::default(),
+        outbox,
+    )
+    .unwrap();
+    assert!(matches!(
+        outbox_plan.commit(&ledger, &Allow, &Verify).await,
+        Err(DurableError::Rejected(_))
+    ));
+    assert!(ledger.calls.lock().unwrap().is_empty());
+}

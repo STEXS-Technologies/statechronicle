@@ -326,3 +326,33 @@ no public syntax changes relative to `ea988b6`. The branch count increase
 reflects explicit nested `if` syntax replacing short-circuited let chains, not
 additional sink calls, retry decisions or domain checks. This compiler repair
 makes no speedup or final-candidate qualification claim.
+
+
+## Protected preparation to signed mutation
+
+The F1 single-intent composition now owns `PreparedMutation` through
+`statechronicle::mutation::SignedMutation`. It rejects substituted events,
+wrong tenant, unsupported schema/scope and event count/root mismatch before
+calling the injected signer. Derived projections and protected principal/digest
+cannot be independently replaced at commit. Event producer and commit signer
+remain distinct authorized roles. Persistence and recovery reuse the existing
+advanced verified ledger path rather than introducing another transaction owner.
+
+Five added public-API scenarios cover commit/replay/recovery, binding rejection,
+separate producer/signer roles, retained exact identity after lost ACK, and
+policy/signer/outbox rejection before ledger operations. The API takes a borrowed
+commit body and stores its signed owned copy. Private construction has a new
+compile-fail doctest. See [signed mutation](signed-mutation.md).
+
+This closes an arbitrary-event substitution gap between protected preparation
+and the advanced caller-assembled persistence request. It does not complete
+protected batch composition, the shared F2 pipeline, the F4 facade or F5 adapter
+conformance; host context and backend atomicity remain explicit responsibilities.
+No source-shrink or equivalent-workload speedup is claimed for this safety addition.
+
+Rust 1.85 passes 827 workspace tests in 63 binaries and five doctests across
+13 crates for this checkpoint. Rust 1.100 strict workspace Clippy and rustdoc,
+formatting and whitespace checks pass. Development failures and source hashes
+are retained in `evidence/f1/signed-mutation/`; final documentation links were
+qualified separately after test execution. Exact committed external and source
+metric evidence follows separately.

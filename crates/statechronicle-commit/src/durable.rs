@@ -20,8 +20,8 @@ use statechronicle_ports::ledger_store::{
 use crate::error::CommitError;
 use crate::persist::{
     CommittedEvent, DurableCommitRequest, RequestFailure, SignedCommitVerifier,
-    TransactionDecision, TransactionFailure, TransactionPhase, authorize_intent, commit_tenant,
-    projections_for, validate_durable_intent, validate_effects, validate_request,
+    TransactionDecision, TransactionFailure, TransactionPhase, authorize_intent, projections_for,
+    validate_durable_intent, validate_effects, validate_request, validate_tenant_commit,
     write_transaction,
 };
 
@@ -201,8 +201,8 @@ fn verify_record(
             "lookup record does not match requested identity and payload",
         )));
     }
-    let tenant =
-        commit_tenant(&record.commit.body).map_err(|e| DurableError::Corrupt(e.to_string()))?;
+    let tenant = validate_tenant_commit(&record.commit.body)
+        .map_err(|e| DurableError::Corrupt(e.to_string()))?;
     if tenant != &identity.tenant
         || expected_commit.is_some_and(|id| *id != record.commit.body.commit_id)
     {

@@ -187,7 +187,7 @@ pub(crate) async fn validate_request(
     request: &DurableCommitRequest<'_>,
 ) -> Result<(TenantId, Vec<Event>), RequestFailure> {
     validate_durable_intent(request.intent)?;
-    let tenant = commit_tenant(&request.commit.body)?;
+    let tenant = validate_tenant_commit(&request.commit.body)?;
     let canonical_digest = canonicalize_and_digest(request.intent).map_err(CommitError::Core)?;
     if canonical_digest != *request.payload_digest {
         return Err(CommitError::PayloadDigestMismatch.into());
@@ -651,7 +651,7 @@ pub async fn persist_durable_verified_with_metrics(
     metrics: &dyn MetricsSink,
     request: DurableCommitRequest<'_>,
 ) -> Result<DurablePersistResult, CommitError> {
-    let tenant = commit_tenant(&request.commit.body)?.clone();
+    let tenant = validate_tenant_commit(&request.commit.body)?.clone();
     let operation = request.intent.operation.clone();
     let started = std::time::Instant::now();
     let result = persist_durable_verified(ledger, authorizer, verifier, request).await;
@@ -714,7 +714,7 @@ pub async fn persist(
     commit: &Signed<Commit>,
     entries: &[CommittedEvent<'_>],
 ) -> Result<(), CommitError> {
-    let tenant = commit_tenant(&commit.body)?;
+    let tenant = validate_tenant_commit(&commit.body)?;
     let events: Vec<Event> = entries.iter().map(|entry| entry.event.clone()).collect();
     let event_count = u64::try_from(events.len()).map_err(|err| {
         CommitError::InvalidEvent(format!("event count does not fit in u64: {err}"))
@@ -787,13 +787,17 @@ pub fn projections_for<'event>(
         .collect()
 }
 
-/// Resolves the tenant scope of a commit for persistence.
+/// Validates a tenant commit's schema and structural identifiers and returns
+/// its tenant scope. Shared by persistence and protected-plan signing.
+///
+/// This does not verify a signature, signer trust, event/state roots, parent
+/// history, current head or authorization. It grants no commit authority.
 ///
 /// # Errors
 ///
 /// Returns [`CommitError::Store`] when the commit is not tenant-scoped or its
 /// tenant id is missing.
-pub(crate) fn commit_tenant(body: &Commit) -> Result<&TenantId, CommitError> {
+pub fn validate_tenant_commit(body: &Commit) -> Result<&TenantId, CommitError> {
     if body.schema != COMMIT_SCHEMA {
         return Err(CommitError::Store(String::from(
             "commit schema is not the supported v0 schema",
@@ -939,26 +943,26 @@ mod tests {
             ProfileId::new(String::from("statechronicle.profile.resource.v0")).unwrap(),
         );
         body.scope.tenant_id = Some(TenantId(String::from("bad\nissuer")));
-        assert!(commit_tenant(&body).is_err());
+        assert!(validate_tenant_commit(&body).is_err());
         body.scope.tenant_id = Some(TenantId(String::new()));
-        assert!(commit_tenant(&body).is_err());
+        assert!(validate_tenant_commit(&body).is_err());
 
         body.scope.tenant_id = Some(TenantId(String::from("game")));
         body.commit_id = CommitId(String::from("invalid"));
-        assert!(commit_tenant(&body).is_err());
+        assert!(validate_tenant_commit(&body).is_err());
 
         body.commit_id = CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap();
         body.parent_commit_id = Some(CommitId(String::from("invalid")));
-        assert!(commit_tenant(&body).is_err());
+        assert!(validate_tenant_commit(&body).is_err());
         body.parent_commit_id = None;
         body.profile = ProfileId(String::from("bad\nprofile"));
-        assert!(commit_tenant(&body).is_err());
+        assert!(validate_tenant_commit(&body).is_err());
         body.profile = ProfileId::new(String::from("statechronicle.profile.resource.v0")).unwrap();
         body.executor = SubjectId(String::from("bad\nexecutor"));
-        assert!(commit_tenant(&body).is_err());
+        assert!(validate_tenant_commit(&body).is_err());
         body.executor = SubjectId(String::from("service:ledger"));
         body.schema = String::from("statechronicle.commit.v99");
-        assert!(commit_tenant(&body).is_err());
+        assert!(validate_tenant_commit(&body).is_err());
     }
 
     #[test]

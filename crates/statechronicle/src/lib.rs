@@ -48,6 +48,9 @@ pub use statechronicle_profiles as profiles;
 /// Proof serving and verification (state, ownership, inclusion, non-membership).
 pub use statechronicle_proof as proof;
 
+/// Protected prepared plans, signing, atomic commit outcomes and recovery.
+pub mod mutation;
+
 // ---- Curated top-level facade ----
 //
 // The most-used protocol types, re-exported directly. Everything here resolves
