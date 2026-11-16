@@ -95,3 +95,18 @@ This closes the tenant/cache finding only. Unsigned operation/summary provenance
 distinct side/resource coverage and independent expected trade claims still
 need their F1 audit. These APIs do not prove current canonicality, settlement
 history authenticity, or durable cross-tenant atomicity from signed asset state.
+
+Exact candidate `260bb1e` passed the five-check external hosted/portable lane in
+`evidence/compat/20261116T024726Z-3615854/`, including original wire verification,
+legacy exhaustive matches and bare-metal compilation. Parser-derived production
+metrics in `evidence/f1/trade-scope-metrics.json` report +27 syntax-bearing lines,
++240 lexical tokens, +2 branch nodes and +1 public syntax item over the original
+production source. The shared private verification implementation avoids copying
+the legacy trade pipeline for the new scoped entry point. This is a measured
+safety-related increase; later simplification targets remain unchanged.
+
+The post-fix twenty-two-workload run passed all ten checks in
+`evidence/compat/20261116T025005Z-3704572/`; portable allocation deltas remain
+zero. See the performance baseline for its limits. F1 remains open for explicit
+expected claims/current-vs-historical APIs, authoritative durability/recovery
+receipts, and the remaining trade metadata/coverage audit.

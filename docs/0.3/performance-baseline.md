@@ -117,3 +117,14 @@ For tiny native/control timings, report absolute nanosecond differences beside
 percentages. Safety-related additional work needs its own measured disposition.
 This policy records uncertainty rather than inventing an automatic threshold
 from three samples.
+
+## First F1 trade-scope checkpoint
+
+Candidate `260bb1e` passed all ten workload/allocation checks in
+`evidence/compat/20261116T025005Z-3704572/`. Its three trade state-proof process
+medians were 43145.40, 42666.50, 42723.60 ns/op. All 22 workload
+assertions passed, and portable transitions still added zero allocations or
+bytes relative to setup. The trade workload invokes the legacy pure entry point
+and measures its added tenant-binding check; it does not measure the new scoped
+service cache with coincident identifiers. These sequential samples are an
+initial checkpoint, not the final alternated performance disposition.
