@@ -1,0 +1,17 @@
+{
+  "source": "46a6950cf64752b7dd854356bceeafe582d8492a",
+  "command": [
+    "python3",
+    "scripts/test_release_driver.py"
+  ],
+  "exit_code": 0,
+  "seconds": 11.400359473002027,
+  "log_sha256": "a50a00ace7c8f08b8c7ae9167163a8e4e8a93aa5bd1a1ba49c50f5fd24663712",
+  "external_boundary_count": 30,
+  "file_sha256": {
+    "scripts/test_release_driver.py": "87f42b9f0966963b0525522a6c8375ed76be809857981162f873391a64167d0c",
+    "scripts/run_release_checks.sh": "abd9f78f5add0cf95af86173d5b8d7b6c7c6477cdb330b191dd0a5c1bab1bae6",
+    "scripts/check_native_contracts.py": "77fe45bfd82279e5365a821968ce1556658ba7791e93915b268d41ac0786b17d"
+  },
+  "scope": "Three orchestration tests with fake external tools; requires native probe invocation and fails each external boundary independently. Real native compiler probes are separately qualified."
+}

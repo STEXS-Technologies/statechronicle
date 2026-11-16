@@ -924,3 +924,21 @@ formatting, strict Clippy and rustdoc pass on Rust 1.100.0; no production source
 dependency or lockfile changes occur. [Exact evidence and remaining scope](evidence/conformance/mixed-single-batch-2c446ec/README.md)
 advance F5 without claiming randomized concurrency, database crash safety or
 completion of the release gates.
+
+## External native type and schema contracts
+
+Dev-tool source `46a6950` adds a fresh external consumer with seven diagnostic-
+checked compile-fail probes: wrong command/state types, event-as-native-state,
+owned extraction from a borrowed prepared batch, omitted operation mapping and
+omitted claim/history pins. Every refusal restores and recompiles the valid
+program. Dynamic zero-schema, schema-one/two, domain and operation isolation run
+separately; numeric metadata is not falsely advertised as statically proved.
+
+The exact archived campaign passes on Rust 1.100.0, including positive execution
+and strict Clippy. A control that demands rejection of the valid application
+fails as intended, including under optimized Python. The local release driver
+requires this stage and all three orchestration tests pass. [Retained attempts,
+source hashes and scope](evidence/f3/native-contracts/README.md) distinguish type
+safety from trusted pin origin, cryptography and migration authorization. No
+production library, dependency, lockfile or workflow changes occur. Broader
+F3/F8 and release qualification remain open.
