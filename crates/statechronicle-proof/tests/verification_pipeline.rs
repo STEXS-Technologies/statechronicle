@@ -1403,3 +1403,91 @@ async fn trade_service_resolves_coincident_commit_ids_in_each_tenant() {
         Err(ProofError::KeyNotFound(_))
     ));
 }
+
+#[tokio::test]
+async fn commit_reader_bridge_matches_compatibility_claim_checks() {
+    use statechronicle_proof::claim::{ClaimProof, ClaimVerifier, ExpectedClaim};
+    let fixture = fixture();
+    let proof = build_proof(&fixture);
+    let valid = ExpectedClaim::ownership(tenant(), resource(), SubjectId(owner()));
+    let expectations = [
+        valid.clone(),
+        ExpectedClaim::ownership(
+            tenant(),
+            resource(),
+            SubjectId(String::from("account:other")),
+        ),
+        ExpectedClaim::state(tenant(), ResourceId(String::from("asset:other"))),
+        ExpectedClaim::absence(tenant(), resource()),
+    ];
+    for head_mode in ["matching", "missing", "changed", "advance_during_lookup"] {
+        for expected in &expectations {
+            let store = FakeCommitStore::default();
+            store.put_commit(&tenant(), &fixture.signed).await.unwrap();
+            let mut canonical = head(&fixture.signed);
+            if head_mode != "missing" {
+                store
+                    .heads
+                    .lock()
+                    .unwrap()
+                    .insert(tenant().0, canonical.clone());
+            }
+            if head_mode == "changed" {
+                canonical.sequence = canonical.sequence.saturating_add(1);
+                store
+                    .heads
+                    .lock()
+                    .unwrap()
+                    .insert(tenant().0, canonical.clone());
+            }
+            if head_mode == "advance_during_lookup" {
+                canonical.sequence = canonical.sequence.saturating_add(1);
+                *store.advance_on_lookup.lock().unwrap() = Some(canonical.clone());
+            }
+            let service = claim_service(store.clone());
+            let reader = ClaimVerifier::new(Box::new(store.clone()));
+            let key = fixed_key().verifying_key();
+            let old = service
+                .verify_current(ClaimProof::State(&proof), expected, &key)
+                .await
+                .map_err(|error| error.to_string());
+            let old_reads = store
+                .head_reads
+                .swap(0, std::sync::atomic::Ordering::Relaxed);
+            // Re-arm the same head race for the second independent invocation.
+            if head_mode == "advance_during_lookup" {
+                store
+                    .heads
+                    .lock()
+                    .unwrap()
+                    .insert(tenant().0, head(&fixture.signed));
+                *store.advance_on_lookup.lock().unwrap() = Some(canonical);
+            }
+            let new = reader
+                .verify_current(ClaimProof::State(&proof), expected, &key)
+                .await
+                .map_err(|error| error.to_string());
+            assert_eq!(new, old, "{head_mode}");
+            assert_eq!(
+                store
+                    .head_reads
+                    .swap(0, std::sync::atomic::Ordering::Relaxed),
+                old_reads,
+                "{head_mode}"
+            );
+            let historical_old = service
+                .verify_historical(ClaimProof::State(&proof), expected, &commit_id(), &key)
+                .await
+                .map_err(|error| error.to_string());
+            let historical_new = reader
+                .verify_historical(ClaimProof::State(&proof), expected, &commit_id(), &key)
+                .await
+                .map_err(|error| error.to_string());
+            assert_eq!(historical_new, historical_old);
+            assert_eq!(
+                store.head_reads.load(std::sync::atomic::Ordering::Relaxed),
+                0
+            );
+        }
+    }
+}

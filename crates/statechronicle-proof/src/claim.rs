@@ -16,6 +16,7 @@ use statechronicle_domain::{
     subject::SubjectId,
     tenant::TenantId,
 };
+use statechronicle_ports::commit_store::{CommitReader, CommitStoreError};
 
 use crate::{
     bundle::{check_claim_identity, commit_ref, derive_state_key},
@@ -237,32 +238,15 @@ impl VerifiedClaim {
     }
 }
 
-impl ProofService {
-    /// Verifies an independent state, ownership or absence claim at current head.
-    ///
-    /// The commit is loaded under the expected tenant, then signature, key,
-    /// state and claim are verified before one final canonical-head read. The
-    /// adapter must provide immutable commit lookups and a linearizable head
-    /// read (see [`statechronicle_ports::commit_store::CommitStore`]). A head
-    /// advance before that read rejects the proof; an advance afterward cannot
-    /// change the returned result's explicit commit pin.
-    ///
-    /// `trusted_key` must come from independent signer policy for the expected
-    /// tenant; cryptographic validity alone does not establish key authorization.
-    /// This does not authenticate unsigned event or trade-summary metadata.
-    ///
-    /// # Errors
-    /// Returns expectation/kind, store, signature and root verification errors;
-    /// missing head support fails with [`ProofError::CanonicalHeadUnavailable`]
-    /// and a different head with [`ProofError::NonCanonicalCommit`].
-    pub async fn verify_current(
+impl<R: CommitReader + ?Sized> Verification<'_, R> {
+    async fn verify_current(
         &self,
         proof: ClaimProof<'_>,
         expected: &ExpectedClaim,
         trusted_key: &VerifyingKey,
     ) -> Result<VerifiedClaim, ProofError> {
         let (signed, commit) = self.verify_expected(proof, expected, trusted_key).await?;
-        self.ensure_canonical(expected.tenant(), &signed).await?;
+        ensure_canonical(self.reader, expected.tenant(), &signed).await?;
         Ok(VerifiedClaim {
             expectation: expected.clone(),
             commit,
@@ -271,15 +255,7 @@ impl ProofService {
         })
     }
 
-    /// Verifies a claim at an independently selected historical commit.
-    ///
-    /// No head lookup or freshness guarantee is implied. Resolve `trusted_key`
-    /// independently under the expected tenant's historical signer policy.
-    ///
-    /// # Errors
-    /// Returns [`ProofError::CommitRefMismatch`] for a different requested pin,
-    /// or the expectation, store, signature and root errors of current checking.
-    pub async fn verify_historical(
+    async fn verify_historical(
         &self,
         proof: ClaimProof<'_>,
         expected: &ExpectedClaim,
@@ -308,8 +284,9 @@ impl ProofService {
         trusted_key: &VerifyingKey,
     ) -> Result<(Signed<Commit>, CommitRef), ProofError> {
         expected.check(proof)?;
-        let signed = Self::require_commit(
-            self.load_commit(expected.tenant(), &proof.commit().commit_id)
+        let signed = require_commit(
+            self.reader
+                .read_commit(expected.tenant(), &proof.commit().commit_id)
                 .await,
         )?;
         if proof.commit().signature != signed.signature {
@@ -331,4 +308,149 @@ impl ProofService {
         }
         Ok((signed, reference))
     }
+}
+
+/// Verify supplied claims using only immutable commit lookup and optional head reads.
+///
+/// No proof index, projection index, snapshot store or commit writer is required.
+/// All expectation, signature, envelope, root and final head checks share the
+/// implementation used by [`ProofService`]. Caller-selected keys must already
+/// satisfy independent tenant/time/revocation policy. A valid signature alone
+/// does not establish that policy or physical truth. Host read implementations
+/// must not persist data or dispatch effects; no sandbox is implied.
+///
+/// ```compile_fail
+/// # fn check(verifier: statechronicle_proof::claim::ClaimVerifier) {
+/// verifier.put_commit(todo!(), todo!());
+/// # }
+/// ```
+pub struct ClaimVerifier {
+    reader: Box<dyn CommitReader>,
+}
+
+impl ClaimVerifier {
+    /// Compose a read-only claim verifier; no permissive signer policy is supplied.
+    pub fn new(reader: Box<dyn CommitReader>) -> Self {
+        Self { reader }
+    }
+    /// Verifies an independent state, ownership or absence claim at current head.
+    ///
+    /// The commit is loaded under the expected tenant, then signature, key,
+    /// state and claim are verified before one final canonical-head read. The
+    /// adapter must provide immutable commit lookups and a linearizable head
+    /// read (see [`statechronicle_ports::commit_store::CommitStore`]). A head
+    /// advance before that read rejects the proof; an advance afterward cannot
+    /// change the returned result's explicit commit pin.
+    ///
+    /// `trusted_key` must come from independent signer policy for the expected
+    /// tenant; cryptographic validity alone does not establish key authorization.
+    /// This does not authenticate unsigned event or trade-summary metadata.
+    ///
+    /// # Errors
+    /// Returns expectation/kind, store, signature and root verification errors;
+    /// missing head support fails with [`ProofError::CanonicalHeadUnavailable`]
+    /// and a different head with [`ProofError::NonCanonicalCommit`].
+    pub async fn verify_current(
+        &self,
+        proof: ClaimProof<'_>,
+        expected: &ExpectedClaim,
+        trusted_key: &VerifyingKey,
+    ) -> Result<VerifiedClaim, ProofError> {
+        Verification {
+            reader: self.reader.as_ref(),
+        }
+        .verify_current(proof, expected, trusted_key)
+        .await
+    }
+    /// Verifies a claim at an independently selected historical commit.
+    ///
+    /// No head lookup or freshness guarantee is implied. Resolve `trusted_key`
+    /// independently under the expected tenant's historical signer policy.
+    ///
+    /// # Errors
+    /// Returns [`ProofError::CommitRefMismatch`] for a different requested pin,
+    /// or the expectation, store, signature and root errors of current checking.
+    pub async fn verify_historical(
+        &self,
+        proof: ClaimProof<'_>,
+        expected: &ExpectedClaim,
+        pinned_commit: &CommitId,
+        trusted_key: &VerifyingKey,
+    ) -> Result<VerifiedClaim, ProofError> {
+        Verification {
+            reader: self.reader.as_ref(),
+        }
+        .verify_historical(proof, expected, pinned_commit, trusted_key)
+        .await
+    }
+}
+
+impl ProofService {
+    /// Compatibility entry point sharing [`ClaimVerifier::verify_current`] checks.
+    ///
+    /// # Errors
+    /// Returns the same expectation, store, signature, root and temporal-scope errors.
+    pub async fn verify_current(
+        &self,
+        proof: ClaimProof<'_>,
+        expected: &ExpectedClaim,
+        trusted_key: &VerifyingKey,
+    ) -> Result<VerifiedClaim, ProofError> {
+        Verification {
+            reader: self.ports().commit_store.as_ref(),
+        }
+        .verify_current(proof, expected, trusted_key)
+        .await
+    }
+    /// Compatibility entry point sharing [`ClaimVerifier::verify_historical`] checks.
+    ///
+    /// # Errors
+    /// Returns the same expectation, store, signature, root and temporal-scope errors.
+    pub async fn verify_historical(
+        &self,
+        proof: ClaimProof<'_>,
+        expected: &ExpectedClaim,
+        pinned_commit: &CommitId,
+        trusted_key: &VerifyingKey,
+    ) -> Result<VerifiedClaim, ProofError> {
+        Verification {
+            reader: self.ports().commit_store.as_ref(),
+        }
+        .verify_historical(proof, expected, pinned_commit, trusted_key)
+        .await
+    }
+}
+
+struct Verification<'read, R: ?Sized> {
+    reader: &'read R,
+}
+
+pub(crate) fn require_commit(
+    result: Result<Option<Signed<Commit>>, CommitStoreError>,
+) -> Result<Signed<Commit>, ProofError> {
+    result
+        .map_err(|error| ProofError::Store(error.to_string()))?
+        .ok_or(ProofError::NotFound)
+}
+
+pub(crate) async fn ensure_canonical<R: CommitReader + ?Sized>(
+    reader: &R,
+    tenant: &TenantId,
+    signed: &Signed<Commit>,
+) -> Result<(), ProofError> {
+    let head = reader
+        .read_canonical_head(tenant)
+        .await
+        .map_err(|err| ProofError::Store(err.to_string()))?
+        .ok_or(ProofError::CanonicalHeadUnavailable)?;
+    if head.commit_id != signed.body.commit_id
+        || head.sequence != signed.body.sequence
+        || head.state_root != signed.body.next_state_root
+    {
+        return Err(ProofError::NonCanonicalCommit {
+            tenant: tenant.0.clone(),
+            commit_id: signed.body.commit_id.0.clone(),
+        });
+    }
+    Ok(())
 }

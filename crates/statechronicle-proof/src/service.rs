@@ -344,28 +344,13 @@ impl ProofService {
         verify_bundle(proof, &signed, verifying_key, key)
     }
 
-    pub(crate) async fn ensure_canonical(
-        &self,
-        tenant: &TenantId,
-        signed: &Signed<Commit>,
-    ) -> Result<(), ProofError> {
-        let head = self
-            .ports
-            .commit_store
-            .canonical_head(tenant)
-            .await
-            .map_err(|err| ProofError::Store(err.to_string()))?
-            .ok_or(ProofError::CanonicalHeadUnavailable)?;
-        if head.commit_id != signed.body.commit_id
-            || head.sequence != signed.body.sequence
-            || head.state_root != signed.body.next_state_root
-        {
-            return Err(ProofError::NonCanonicalCommit {
-                tenant: tenant.0.clone(),
-                commit_id: signed.body.commit_id.0.clone(),
-            });
-        }
-        Ok(())
+    // Forward the shared head-check future without another async state machine.
+    pub(crate) fn ensure_canonical<'read>(
+        &'read self,
+        tenant: &'read TenantId,
+        signed: &'read Signed<Commit>,
+    ) -> impl Future<Output = Result<(), ProofError>> + Send + 'read {
+        crate::claim::ensure_canonical(self.ports.commit_store.as_ref(), tenant, signed)
     }
 
     // Return the adapter's existing future directly: do not add another
@@ -383,9 +368,7 @@ impl ProofService {
     pub(crate) fn require_commit(
         result: Result<Option<Signed<Commit>>, CommitStoreError>,
     ) -> Result<Signed<Commit>, ProofError> {
-        result
-            .map_err(|error| ProofError::Store(error.to_string()))?
-            .ok_or(ProofError::NotFound)
+        crate::claim::require_commit(result)
     }
 
     /// Verifies a trade proof end-to-end.

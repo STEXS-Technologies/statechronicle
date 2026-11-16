@@ -128,3 +128,17 @@ adapters in preparation consumers; they do not grant durable authority. The
 module extraction is given no deletion credit. Generic host read/callback
 purity remains a deployment contract; no sandbox is implied. Full durable/read
 composition and fresh tutorials remain open.
+
+
+Supplied-claim verification now has one minimum `CommitReader` capability and
+`ClaimVerifier`, without requiring commit writes, proof generation, projections
+or snapshots. Existing `CommitStore` adapters receive a direct-future forwarding
+implementation. New names avoid method ambiguity with legacy traits. One
+private generic verification owner serves both the read-only verifier and
+compatibility `ProofService`; one canonical-head comparison and synchronous
+lookup-result interpretation serve existing callers. Canonical verification
+still requires the final linearizable full head tuple. This adds a real
+capability boundary and consumer API, not source shrink. Boxed port futures
+are forwarded unchanged by the legacy bridge; no performance equivalence or
+allocation-free claim follows for the complete verifier. Full proof-serving
+composition and durable external integration remain separate work.

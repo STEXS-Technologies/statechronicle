@@ -101,6 +101,55 @@ pub trait CommitStore: Sync + Send {
     }
 }
 
+/// An object-safe commit read, returning the adapter's existing future directly.
+/// This alias does not add another async wrapper or require an async-trait macro.
+pub type CommitReadFuture<'read, T> = std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<T, CommitStoreError>> + Send + 'read>,
+>;
+
+/// Minimum read authority for verifying supplied historical or current claims.
+///
+/// Reads must be tenant-scoped and return immutable signed commits. A current
+/// claim additionally requires the same linearizable, atomically advanced head
+/// tuple described by [`CommitStore::canonical_head`]. Reads/callbacks must not
+/// persist data or dispatch effects. This trait exposes no write or sequence API.
+/// Existing [`CommitStore`] adapters implement it automatically, forwarding the
+/// original boxed future without allocating another async state machine.
+pub trait CommitReader: Send + Sync {
+    /// Load an immutable signed commit under the independently expected tenant.
+    fn read_commit<'read>(
+        &'read self,
+        tenant: &'read TenantId,
+        commit: &'read CommitId,
+    ) -> CommitReadFuture<'read, Option<Signed<Commit>>>;
+
+    /// Linearizable current head, or `None` when this reader is history-only.
+    /// A missing head always refuses current verification.
+    fn read_canonical_head<'read>(
+        &'read self,
+        _tenant: &'read TenantId,
+    ) -> CommitReadFuture<'read, Option<CanonicalHead>> {
+        Box::pin(async { Ok(None) })
+    }
+}
+
+impl<T: CommitStore + ?Sized> CommitReader for T {
+    fn read_commit<'read>(
+        &'read self,
+        tenant: &'read TenantId,
+        commit: &'read CommitId,
+    ) -> CommitReadFuture<'read, Option<Signed<Commit>>> {
+        self.commit_by_id(tenant, commit)
+    }
+
+    fn read_canonical_head<'read>(
+        &'read self,
+        tenant: &'read TenantId,
+    ) -> CommitReadFuture<'read, Option<CanonicalHead>> {
+        self.canonical_head(tenant)
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::panic)]
 mod tests {
