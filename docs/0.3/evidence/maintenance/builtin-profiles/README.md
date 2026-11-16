@@ -102,7 +102,7 @@ the final candidate measurements. [Interim root qualification](qualification-cd8
 and [positive parity](20261116T125230Z-109663/manifest.json) remain historical evidence.
 
 The [matched timing campaign](paired-20261116T125348Z-164088/manifest.json)
-uses identical consumer locks/features, Rust 1.100.0, seven alternating cycles,
+uses identical consumer locks/features, Rust 1.100.0, seven repeated cycles (fixed lane order; see audit below),
 all 22 frozen workloads and four extended workloads at twenty times the
 iteration count. Binary size decreases from 4,112,616 to 4,111,144 bytes.
 CPU 0 results are highly variable: checkpoint median paired change is +49.47%,
@@ -155,3 +155,17 @@ remains open; this is a reviewed bounded extraction, not universal neutrality.
 Timing variability, broader performance budgets, canonical facade costs,
 concurrency, final coverage and complete release qualification remain open.
 No blanket speedup, performance neutrality or full F3/F6/F8 pass is claimed.
+
+## Run-order correction
+
+A later [manifest order audit](order-audit.json), reproducible with
+`order-audit.py`, found that both `paired-*` campaigns used control first in
+every default cycle and candidate first in every extended cycle. Rotation and
+reversal canceled each other for two lanes. Earlier descriptions of alternating
+order were incorrect; this paragraph supersedes those descriptions in retained
+manifests or prose. Raw measurements remain unchanged and may contain lane-order
+bias. They cannot by themselves satisfy the matched alternating-order gate.
+The two `repeat-*` runners use an explicit conditional and do alternate; their
+actual command order is retained in the audit. The full final performance gate
+was already open and remains open. New campaigns must verify observed lane order
+from command records, in addition to intending alternation in source.

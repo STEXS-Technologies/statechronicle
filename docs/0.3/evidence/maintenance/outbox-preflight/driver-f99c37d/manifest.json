@@ -1,0 +1,57 @@
+{
+  "runner_commit": "f99c37d3561c63d6fc4c7251d1b13fc365d0acd1",
+  "checks": [
+    {
+      "label": "positive",
+      "command": [
+        "python3",
+        "scripts/check_proof_service_parity.py",
+        "--fixture",
+        "outbox",
+        "--revision",
+        "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+        "--revision",
+        "79baccfdfae964f8007dc086aa8a2f0d25f022b8",
+        "--revision",
+        "f99c37d3561c63d6fc4c7251d1b13fc365d0acd1"
+      ],
+      "environment": {
+        "PYTHONOPTIMIZE": "1",
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8"
+      },
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "passed": true,
+      "child_manifest": "docs/0.3/evidence/maintenance/outbox-preflight/20261116T141019Z-3323254/manifest.json",
+      "artifact": "positive.log.gz",
+      "sha256": "a2b0147a3200c721e1997fb8da3a90ab4957f47b64cbc92527d1ca2214f27789"
+    },
+    {
+      "label": "negative",
+      "command": [
+        "python3",
+        "scripts/check_proof_service_parity.py",
+        "--fixture",
+        "outbox",
+        "--revision",
+        "79baccfdfae964f8007dc086aa8a2f0d25f022b8",
+        "--revision",
+        "f99c37d3561c63d6fc4c7251d1b13fc365d0acd1",
+        "--negative-control-ignore-outbox-digest"
+      ],
+      "environment": {
+        "PYTHONOPTIMIZE": "1",
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8"
+      },
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "passed": true,
+      "child_manifest": "docs/0.3/evidence/maintenance/outbox-preflight/20261116T141035Z-3331553/manifest.json",
+      "artifact": "negative.log.gz",
+      "sha256": "c06fc08759a95b48fb1b32b6010098e6412ad8ebec86ec36060082a5982c010e"
+    }
+  ],
+  "status": "passed"
+}

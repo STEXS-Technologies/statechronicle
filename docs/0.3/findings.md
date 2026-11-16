@@ -1001,3 +1001,20 @@ authorization/source/rebuild/identity bypasses fail runtime assertions. The
 advance Scenario E. The grant is for a pinned historical snapshot; current-source
 freshness and physical storage remain additional contracts. No production API,
 dependency or lock changes occur, and full release qualification remains open.
+
+## Repeated immutable outbox validation
+
+Production source `52e8e6f` removes a redundant per-record validation/hash call
+after the complete immutable outbox slice has already validated. Payload/key/
+size/duplicate ordering and commit-scope checks remain. A 5,688-case external
+original/control/candidate corpus agrees exactly; a digest-bypass control yields
+552 differences even under optimized Python. Root qualification passes 896
+finite tests and 16 doctests, strict Clippy/rustdoc, and the frozen external
+consumer/portable checks pass. [Retained cost and limitations](evidence/maintenance/outbox-preflight/README.md)
+show six tokens/one branch deleted, 30–47% lower large-payload preflight medians,
+and three fewer allocations per tested one-row preflight.
+
+Review also caught an incorrect alternation description in two earlier built-in
+paired campaigns. Their actual fixed orders are now documented alongside the
+unchanged raw results; explicit-order repeat campaigns do alternate. Neither
+those corrections nor this bounded extraction closes full F6/F8 qualification.

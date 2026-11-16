@@ -195,3 +195,20 @@ all retained measurement attempts](evidence/maintenance/builtin-profiles/README.
 include a 0.133% binary increase and short-regime portable/wrong-key timing
 concerns that diminish in longer measurements. These are explicit limits, not a
 full performance or footprint-gate pass.
+
+Durable preflight's complete outbox validator was followed by the same per-record
+payload/key/size validation in an immutable scope-binding loop. Source `52e8e6f`
+deletes that second call, retaining the first pass and its refusal precedence.
+The [original/control/candidate 5,688-case oracle and measured cost](evidence/maintenance/outbox-preflight/README.md)
+retain adversarial callback traces, a 552-row digest-bypass control, exact-source
+qualification, six matched preflight workloads and allocations. Large payload
+medians improve 30–47%; three allocations per tested one-row preflight are
+removed. This adds no abstraction or public concept and deletes six tokens/one
+parsed branch. It is not a whole-workspace footprint or full performance pass.
+Recovered untrusted records still require independent validation on lookup.
+
+The same review found an order-label error in two earlier built-in paired timing
+campaigns: rotation and reversal canceled lane alternation. Their raw results
+are retained with an [observed-order audit](evidence/maintenance/builtin-profiles/order-audit.json);
+separate explicit-order repeat campaigns do alternate. The full final matched
+performance gate remains open and must verify actual command order.

@@ -1,0 +1,267 @@
+{
+  "status": "audited",
+  "runner_sha256": "d44a8b17164135e0f584244e4fa5d443d3f8f68881e2ee79fcfcd727d3ad10ac",
+  "runs": {
+    "paired-20261116T125348Z-164088": {
+      "manifest_sha256": "68af93796af51ed83b112a74a8acfd5b56a434e3af01029c1754573becdf310e",
+      "observed_lane_orders": {
+        "default": {
+          "0": [
+            "control",
+            "candidate"
+          ],
+          "1": [
+            "control",
+            "candidate"
+          ],
+          "2": [
+            "control",
+            "candidate"
+          ],
+          "3": [
+            "control",
+            "candidate"
+          ],
+          "4": [
+            "control",
+            "candidate"
+          ],
+          "5": [
+            "control",
+            "candidate"
+          ],
+          "6": [
+            "control",
+            "candidate"
+          ]
+        },
+        "extended": {
+          "0": [
+            "candidate",
+            "control"
+          ],
+          "1": [
+            "candidate",
+            "control"
+          ],
+          "2": [
+            "candidate",
+            "control"
+          ],
+          "3": [
+            "candidate",
+            "control"
+          ],
+          "4": [
+            "candidate",
+            "control"
+          ],
+          "5": [
+            "candidate",
+            "control"
+          ],
+          "6": [
+            "candidate",
+            "control"
+          ]
+        }
+      }
+    },
+    "paired-20261116T130401Z-565324": {
+      "manifest_sha256": "496fc4db5e537c05d4e380aa514ce45629dbf779769601b816eea8034af70c83",
+      "observed_lane_orders": {
+        "default": {
+          "0": [
+            "control",
+            "candidate"
+          ],
+          "1": [
+            "control",
+            "candidate"
+          ],
+          "2": [
+            "control",
+            "candidate"
+          ],
+          "3": [
+            "control",
+            "candidate"
+          ],
+          "4": [
+            "control",
+            "candidate"
+          ],
+          "5": [
+            "control",
+            "candidate"
+          ],
+          "6": [
+            "control",
+            "candidate"
+          ]
+        },
+        "extended": {
+          "0": [
+            "candidate",
+            "control"
+          ],
+          "1": [
+            "candidate",
+            "control"
+          ],
+          "2": [
+            "candidate",
+            "control"
+          ],
+          "3": [
+            "candidate",
+            "control"
+          ],
+          "4": [
+            "candidate",
+            "control"
+          ],
+          "5": [
+            "candidate",
+            "control"
+          ],
+          "6": [
+            "candidate",
+            "control"
+          ]
+        }
+      }
+    },
+    "repeat-20261116T125631Z-278672": {
+      "manifest_sha256": "e71d480b31042132ddc1c5d9769ec0462a81e673d2abd67520f80ea9c93b2dc9",
+      "observed_lane_orders": {
+        "default": {
+          "0": [
+            "candidate",
+            "control"
+          ],
+          "1": [
+            "control",
+            "candidate"
+          ],
+          "2": [
+            "candidate",
+            "control"
+          ],
+          "3": [
+            "control",
+            "candidate"
+          ],
+          "4": [
+            "candidate",
+            "control"
+          ],
+          "5": [
+            "control",
+            "candidate"
+          ],
+          "6": [
+            "candidate",
+            "control"
+          ]
+        },
+        "extended": {
+          "0": [
+            "candidate",
+            "control"
+          ],
+          "1": [
+            "control",
+            "candidate"
+          ],
+          "2": [
+            "candidate",
+            "control"
+          ],
+          "3": [
+            "control",
+            "candidate"
+          ],
+          "4": [
+            "candidate",
+            "control"
+          ],
+          "5": [
+            "control",
+            "candidate"
+          ],
+          "6": [
+            "candidate",
+            "control"
+          ]
+        }
+      }
+    },
+    "repeat-20261116T130653Z-711434": {
+      "manifest_sha256": "476fd03b7fb71fb73462cd8d66c7d5531067570c93e87b03d78ee918206ba212",
+      "observed_lane_orders": {
+        "default": {
+          "0": [
+            "candidate",
+            "control"
+          ],
+          "1": [
+            "control",
+            "candidate"
+          ],
+          "2": [
+            "candidate",
+            "control"
+          ],
+          "3": [
+            "control",
+            "candidate"
+          ],
+          "4": [
+            "candidate",
+            "control"
+          ],
+          "5": [
+            "control",
+            "candidate"
+          ],
+          "6": [
+            "candidate",
+            "control"
+          ]
+        },
+        "extended": {
+          "0": [
+            "candidate",
+            "control"
+          ],
+          "1": [
+            "control",
+            "candidate"
+          ],
+          "2": [
+            "candidate",
+            "control"
+          ],
+          "3": [
+            "control",
+            "candidate"
+          ],
+          "4": [
+            "candidate",
+            "control"
+          ],
+          "5": [
+            "control",
+            "candidate"
+          ],
+          "6": [
+            "candidate",
+            "control"
+          ]
+        }
+      }
+    }
+  },
+  "finding": "Both paired campaigns used fixed control-first default and candidate-first extended orders; repeats use an explicit conditional alternation."
+}
