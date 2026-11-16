@@ -44,7 +44,9 @@ use statechronicle_ports::authorization::{
 use statechronicle_ports::commit_store::CommitStore;
 use statechronicle_ports::event_publisher::EventPublisher;
 use statechronicle_ports::event_store::EventStore;
-use statechronicle_ports::ledger_store::{IdempotencyClaim, LedgerStore, OutboxRecord};
+use statechronicle_ports::ledger_store::{
+    IdempotencyClaim, LedgerStore, LedgerStoreError, LedgerTransaction, OutboxRecord,
+};
 use statechronicle_ports::observability::{MetricsSink, MutationMetric, MutationOutcome};
 use statechronicle_ports::state_index::StateIndex;
 
@@ -133,23 +135,88 @@ pub(crate) async fn persist_durable(
     authorizer: &dyn Authorizer,
     request: DurableCommitRequest<'_>,
 ) -> Result<DurablePersistResult, CommitError> {
+    let (tenant, events) = validate_request(authorizer, &request)
+        .await
+        .map_err(RequestFailure::into_legacy)?;
+    match write_transaction(ledger, &request, &tenant, &events)
+        .await
+        .map_err(|error| CommitError::Store(error.source.to_string()))?
+    {
+        TransactionDecision::Committed => Ok(DurablePersistResult::Committed {
+            commit_id: request.commit.body.commit_id.clone(),
+        }),
+        TransactionDecision::Replay(commit_id) => Ok(DurablePersistResult::Replay { commit_id }),
+        TransactionDecision::InProgress { .. } => Err(CommitError::Store(String::from(
+            "idempotency reservation in progress",
+        ))),
+        TransactionDecision::Conflict => Err(CommitError::Store(String::from(
+            "idempotency payload conflict",
+        ))),
+    }
+}
+
+pub(crate) enum RequestFailure {
+    Invalid(CommitError),
+    Authorization(AuthorizationError),
+}
+
+impl From<CommitError> for RequestFailure {
+    fn from(error: CommitError) -> Self {
+        Self::Invalid(error)
+    }
+}
+
+impl From<AuthorizationError> for RequestFailure {
+    fn from(error: AuthorizationError) -> Self {
+        Self::Authorization(error)
+    }
+}
+
+impl RequestFailure {
+    fn into_legacy(self) -> CommitError {
+        match self {
+            Self::Invalid(error) => error,
+            Self::Authorization(error) => CommitError::Store(error.to_string()),
+        }
+    }
+}
+
+/// One preflight owner for legacy writes and verified recovery records.
+pub(crate) async fn validate_request(
+    authorizer: &dyn Authorizer,
+    request: &DurableCommitRequest<'_>,
+) -> Result<(TenantId, Vec<Event>), RequestFailure> {
     validate_durable_intent(request.intent)?;
     let tenant = commit_tenant(&request.commit.body)?;
     let canonical_digest = canonicalize_and_digest(request.intent).map_err(CommitError::Core)?;
     if canonical_digest != *request.payload_digest {
-        return Err(CommitError::PayloadDigestMismatch);
+        return Err(CommitError::PayloadDigestMismatch.into());
     }
-    validate_durable_scope(request.intent, request.principal, tenant)?;
+    authorize_intent(authorizer, request.principal, request.intent, tenant).await?;
+    Ok((tenant.clone(), validate_effects(request, tenant)?))
+}
+
+pub(crate) async fn authorize_intent(
+    authorizer: &dyn Authorizer,
+    principal: &AuthenticatedPrincipal,
+    intent: &statechronicle_domain::intent::Intent,
+    tenant: &TenantId,
+) -> Result<(), AuthorizationError> {
+    validate_durable_scope(intent, principal, tenant)?;
     authorizer
         .authorize(AuthorizationContext {
-            principal: request.principal,
+            principal,
             tenant,
-            intent: request.intent,
-            resource: &request.intent.resource_id,
+            intent,
+            resource: &intent.resource_id,
         })
         .await
-        .map_err(|error| CommitError::Store(error.to_string()))?;
+}
 
+pub(crate) fn validate_effects(
+    request: &DurableCommitRequest<'_>,
+    tenant: &TenantId,
+) -> Result<Vec<Event>, CommitError> {
     let events: Vec<Event> = request
         .entries
         .iter()
@@ -214,67 +281,113 @@ pub(crate) async fn persist_durable(
         return Err(CommitError::EventRootMismatch);
     }
 
+    Ok(events)
+}
+
+pub(crate) enum TransactionDecision {
+    Committed,
+    Replay(CommitId),
+    InProgress {
+        attempt_id: String,
+        lease_expires_at_unix: i64,
+    },
+    Conflict,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum TransactionPhase {
+    Begin,
+    BeforeCommit,
+    Commit,
+    Rollback,
+}
+
+pub(crate) struct TransactionFailure {
+    pub(crate) source: LedgerStoreError,
+    pub(crate) phase: TransactionPhase,
+    pub(crate) rollback_error: Option<LedgerStoreError>,
+}
+
+async fn abort(
+    transaction: Box<dyn LedgerTransaction>,
+    source: LedgerStoreError,
+) -> TransactionFailure {
+    TransactionFailure {
+        source,
+        phase: TransactionPhase::BeforeCommit,
+        rollback_error: transaction.rollback().await.err(),
+    }
+}
+
+async fn rollback_only(transaction: Box<dyn LedgerTransaction>) -> Result<(), TransactionFailure> {
+    transaction
+        .rollback()
+        .await
+        .map_err(|source| TransactionFailure {
+            source,
+            phase: TransactionPhase::Rollback,
+            rollback_error: None,
+        })
+}
+
+/// One atomic write owner. Preserve stage and rollback uncertainty for the new
+/// surface; legacy callers intentionally retain their original error mapping.
+pub(crate) async fn write_transaction<S: LedgerStore + ?Sized>(
+    ledger: &S,
+    request: &DurableCommitRequest<'_>,
+    tenant: &TenantId,
+    events: &[Event],
+) -> Result<TransactionDecision, TransactionFailure> {
     let mut transaction = ledger
         .begin(tenant)
         .await
-        .map_err(|error| CommitError::Store(error.to_string()))?;
+        .map_err(|source| TransactionFailure {
+            source,
+            phase: TransactionPhase::Begin,
+            rollback_error: None,
+        })?;
     let claim = match transaction
         .claim_idempotency(tenant, request.intent, request.payload_digest)
         .await
     {
         Ok(claim) => claim,
-        Err(error) => {
-            let _ = transaction.rollback().await;
-            return Err(CommitError::Store(error.to_string()));
-        }
+        Err(error) => return Err(abort(transaction, error).await),
     };
     let attempt_id = match claim {
-        IdempotencyClaim::Committed { commit_id } => {
-            transaction
-                .rollback()
-                .await
-                .map_err(|error| CommitError::Store(error.to_string()))?;
-            return Ok(DurablePersistResult::Replay { commit_id });
-        }
         IdempotencyClaim::NewReservation { attempt_id } => attempt_id,
-        IdempotencyClaim::InProgress { .. } => {
-            transaction
-                .rollback()
-                .await
-                .map_err(|error| CommitError::Store(error.to_string()))?;
-            return Err(CommitError::Store(String::from(
-                "idempotency reservation in progress",
-            )));
+        IdempotencyClaim::Committed { commit_id } => {
+            rollback_only(transaction).await?;
+            return Ok(TransactionDecision::Replay(commit_id));
+        }
+        IdempotencyClaim::InProgress {
+            attempt_id,
+            lease_expires_at_unix,
+        } => {
+            rollback_only(transaction).await?;
+            return Ok(TransactionDecision::InProgress {
+                attempt_id,
+                lease_expires_at_unix,
+            });
         }
         IdempotencyClaim::ConflictDifferentPayload => {
-            transaction
-                .rollback()
-                .await
-                .map_err(|error| CommitError::Store(error.to_string()))?;
-            return Err(CommitError::Store(String::from(
-                "idempotency payload conflict",
-            )));
+            rollback_only(transaction).await?;
+            return Ok(TransactionDecision::Conflict);
         }
     };
-
-    if let Err(error) = transaction.append_events(&events).await {
-        let _ = transaction.rollback().await;
-        return Err(CommitError::Store(error.to_string()));
+    if let Err(error) = transaction.append_events(events).await {
+        return Err(abort(transaction, error).await);
     }
     if let Err(error) = transaction.append_commit(request.commit).await {
-        let _ = transaction.rollback().await;
-        return Err(CommitError::Store(error.to_string()));
+        return Err(abort(transaction, error).await);
     }
     for projection in request.projections {
         if let Err(error) = transaction.upsert_projection(projection).await {
-            let _ = transaction.rollback().await;
-            return Err(CommitError::Store(error.to_string()));
+            return Err(abort(transaction, error).await);
         }
     }
     for outbox in request.outbox {
         if let Err(error) = transaction.enqueue_outbox(outbox).await {
-            let _ = transaction.rollback().await;
-            return Err(CommitError::Store(error.to_string()));
+            return Err(abort(transaction, error).await);
         }
     }
     if let Err(error) = transaction
@@ -286,16 +399,17 @@ pub(crate) async fn persist_durable(
         )
         .await
     {
-        let _ = transaction.rollback().await;
-        return Err(CommitError::Store(error.to_string()));
+        return Err(abort(transaction, error).await);
     }
     transaction
         .commit()
         .await
-        .map_err(|error| CommitError::Store(error.to_string()))?;
-    Ok(DurablePersistResult::Committed {
-        commit_id: request.commit.body.commit_id.clone(),
-    })
+        .map_err(|source| TransactionFailure {
+            source,
+            phase: TransactionPhase::Commit,
+            rollback_error: None,
+        })?;
+    Ok(TransactionDecision::Committed)
 }
 
 /// Validates every event and rejects duplicate identities before persistence.
@@ -414,7 +528,7 @@ fn validate_committed_event(entry: &CommittedEvent<'_>) -> Result<(), CommitErro
 /// Re-runs the canonical intent boundary because this API accepts the domain
 /// body for compatibility. Callers should prefer passing an intent produced by
 /// `statechronicle-intent`; no durable claim is allowed for an unchecked body.
-fn validate_durable_intent(
+pub(crate) fn validate_durable_intent(
     intent: &statechronicle_domain::intent::Intent,
 ) -> Result<(), CommitError> {
     ValidatedIntent::try_from_intent(intent.clone(), None)
@@ -484,28 +598,26 @@ fn validate_outbox_records(records: &[OutboxRecord]) -> Result<(), CommitError> 
     Ok(())
 }
 
-fn validate_durable_scope(
+pub(crate) fn validate_durable_scope(
     intent: &statechronicle_domain::intent::Intent,
     principal: &AuthenticatedPrincipal,
     commit_tenant: &TenantId,
-) -> Result<(), CommitError> {
+) -> Result<(), AuthorizationError> {
     if intent.tenant_id != *commit_tenant
         || principal.tenant != *commit_tenant
         || principal.subject != intent.actor
     {
-        return Err(CommitError::Store(
-            AuthorizationError::ContextMismatch(String::from(
-                "principal, intent, and commit tenant/actor are not consistently bound",
-            ))
-            .to_string(),
-        ));
+        return Err(AuthorizationError::ContextMismatch(String::from(
+            "principal, intent, and commit tenant/actor are not consistently bound",
+        )));
     }
     Ok(())
 }
 
 /// Verifies a prepared commit and then persists it through the durable ledger
-/// boundary. This is the preferred composition-root entry point when commit
-/// signatures are required; verification happens before idempotency claiming.
+/// boundary. This compatibility route verifies before idempotency claiming,
+/// but its replay result contains only a store-supplied commit id. For checked
+/// original records and structured uncertainty use [`crate::durable`].
 ///
 /// # Errors
 ///
@@ -525,7 +637,7 @@ pub async fn persist_durable_verified(
 
 /// Verified durable persistence wrapper with privacy-safe mutation metrics.
 ///
-/// This is the preferred composition-root helper for player mutations: commit
+/// This compatibility helper retains the legacy result contract: commit
 /// trust verification and canonical payload-digest validation both happen
 /// before the idempotency reservation, while telemetry remains non-fatal.
 ///
@@ -681,7 +793,7 @@ pub fn projections_for<'event>(
 ///
 /// Returns [`CommitError::Store`] when the commit is not tenant-scoped or its
 /// tenant id is missing.
-fn commit_tenant(body: &Commit) -> Result<&TenantId, CommitError> {
+pub(crate) fn commit_tenant(body: &Commit) -> Result<&TenantId, CommitError> {
     if body.schema != COMMIT_SCHEMA {
         return Err(CommitError::Store(String::from(
             "commit schema is not the supported v0 schema",

@@ -146,6 +146,69 @@ pub trait LedgerStore: Send + Sync {
     ) -> Result<Box<dyn LedgerTransaction>, LedgerStoreError>;
 }
 
+/// Immutable evidence retained with a finalized idempotency row in the same
+/// atomic ledger transaction. These are untrusted adapter values until checked
+/// by the commit crate's recovery API. Projections and outbox are the ORIGINAL
+/// mutation's effects, not today's mutable projection or delivery queue state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LedgerMutation {
+    /// Complete original intent, binding identity and canonical payload.
+    pub intent: Intent,
+    /// Canonical original intent digest stored with its idempotency claim.
+    pub payload_digest: ContentDigest,
+    /// Original signed commit in this tenant's canonical append-only history.
+    pub commit: Signed<Commit>,
+    /// Complete ordered event set for this commit.
+    pub events: Vec<Event>,
+    /// Complete deterministic projections originally applied by the mutation.
+    pub projections: Vec<StateProjection>,
+    /// Complete notification rows originally enqueued, including delivered rows.
+    pub outbox: Vec<OutboxRecord>,
+}
+
+/// One consistent authoritative lookup by tenant and original intent id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LedgerLookup {
+    /// No row is visible at this read's linearization point. This does not
+    /// prove an outstanding transaction cannot subsequently commit.
+    NotFound,
+    /// An unfinished reservation, never a committed receipt.
+    InProgress {
+        /// Digest bound to the active reservation.
+        payload_digest: ContentDigest,
+        /// Adapter attempt identity.
+        attempt_id: String,
+        /// Reservation lease; expiration alone does not prove rollback.
+        lease_expires_at_unix: i64,
+    },
+    /// Finalized original record from the atomic ledger boundary.
+    Committed(Box<LedgerMutation>),
+}
+
+/// Read/recovery extension for the SAME authoritative store and transaction
+/// boundary as [`LedgerStore`]. Adding this trait leaves old adapters compatible.
+///
+/// The lookup must be linearizable, tenant-scoped and atomically observe the
+/// reservation together with all original mutation effects. It must never
+/// manufacture a committed record from an independent intent marker, return a
+/// staged/partial write, or accept a commit absent from canonical history.
+/// Final records are immutable across later commits, projection rebuilds and
+/// outbox delivery. A deployment must retain these effects or reconstruct them
+/// from immutable history and atomically finalized metadata, including outbox
+/// completeness. Signature/root verification cannot prove adapter atomicity or
+/// physical persistence; adapter conformance and database qualification remain
+/// required. Bounds on stored/decoded records must match protocol write limits.
+#[async_trait]
+pub trait LedgerRecovery: LedgerStore {
+    /// Resolve original identity without creating a reservation or dispatching
+    /// effects. Failure or an incomplete view must never be reported as absent.
+    async fn lookup_mutation(
+        &self,
+        tenant: &TenantId,
+        intent_id: &IntentId,
+    ) -> Result<LedgerLookup, LedgerStoreError>;
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {

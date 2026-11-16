@@ -1,4 +1,4 @@
-//! In-memory transactional adapter used to exercise the unchanged ledger port.
+//! In-memory transactional adapter for legacy writes and retained recovery records.
 #![allow(clippy::unwrap_used, clippy::panic)]
 use crate::common::fixed_key;
 use async_trait::async_trait;
@@ -8,12 +8,13 @@ use statechronicle::commit::persist::SignedCommitVerifier;
 use statechronicle::commit::sign::verify_commit;
 use statechronicle::ports::authorization::{AuthorizationContext, AuthorizationError, Authorizer};
 use statechronicle::ports::ledger_store::{
-    IdempotencyClaim, LedgerStore, LedgerStoreError, LedgerTransaction, OutboxRecord,
+    IdempotencyClaim, LedgerLookup, LedgerMutation, LedgerRecovery, LedgerStore, LedgerStoreError,
+    LedgerTransaction, OutboxRecord,
 };
 use statechronicle::{
     Commit, CommitId, ContentDigest, Event, Intent, IntentId, Signed, StateProjection, TenantId,
 };
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::future::pending;
 use std::sync::{Arc, Mutex};
 
@@ -29,9 +30,11 @@ pub enum Step {
     Finalize,
     Commit,
     Rollback,
+    Lookup,
 }
 #[derive(Default, Clone)]
 pub struct Stored {
+    pub mutations: BTreeMap<(String, String), LedgerMutation>,
     pub events: Vec<Event>,
     pub commits: Vec<Signed<Commit>>,
     pub projections: Vec<StateProjection>,
@@ -48,12 +51,13 @@ pub struct MemoryLedger {
     pub lose_commit_response: bool,
     pub yield_each_step: bool,
     pub calls: Arc<Mutex<Vec<Step>>>,
-    pub reservations: Arc<Mutex<BTreeSet<(String, String)>>>,
+    pub reservations: Arc<Mutex<BTreeMap<(String, String), ContentDigest>>>,
 }
 struct Transaction {
     ledger: MemoryLedger,
     staged: Stored,
     identity: Option<((String, String), ContentDigest)>,
+    intent: Option<Intent>,
 }
 impl MemoryLedger {
     async fn checkpoint(&self, step: Step) -> Result<(), LedgerStoreError> {
@@ -88,6 +92,7 @@ impl LedgerStore for MemoryLedger {
             ledger: self.clone(),
             staged: Stored::default(),
             identity: None,
+            intent: None,
         }))
     }
     async fn begin_multi(
@@ -118,12 +123,20 @@ impl LedgerTransaction for Transaction {
                 IdempotencyClaim::ConflictDifferentPayload
             });
         }
-        if !self.ledger.reservations.lock().unwrap().insert(key.clone()) {
-            return Ok(IdempotencyClaim::InProgress {
-                attempt_id: String::from("attempt"),
-                lease_expires_at_unix: i64::MAX,
+        let mut reservations = self.ledger.reservations.lock().unwrap();
+        if let Some(existing) = reservations.get(&key) {
+            return Ok(if existing == digest {
+                IdempotencyClaim::InProgress {
+                    attempt_id: String::from("attempt"),
+                    lease_expires_at_unix: i64::MAX,
+                }
+            } else {
+                IdempotencyClaim::ConflictDifferentPayload
             });
         }
+        reservations.insert(key.clone(), digest.clone());
+        drop(reservations);
+        self.intent = Some(intent.clone());
         self.identity = Some((key, digest.clone()));
         Ok(IdempotencyClaim::NewReservation {
             attempt_id: String::from("attempt"),
@@ -239,6 +252,16 @@ impl LedgerTransaction for Transaction {
                     "prepared state root mismatch",
                 )));
             }
+            let (identity, digest) = self.identity.as_ref().unwrap();
+            let record = LedgerMutation {
+                intent: self.intent.clone().unwrap(),
+                payload_digest: digest.clone(),
+                commit: prepared.clone(),
+                events: self.staged.events.clone(),
+                projections: self.staged.projections.clone(),
+                outbox: self.staged.outbox.clone(),
+            };
+            data.mutations.insert(identity.clone(), record);
             data.events.append(&mut self.staged.events);
             data.commits.append(&mut self.staged.commits);
             data.projections = projections;
@@ -258,6 +281,47 @@ impl LedgerTransaction for Transaction {
         Ok(())
     }
 }
+#[async_trait]
+impl LedgerRecovery for MemoryLedger {
+    async fn lookup_mutation(
+        &self,
+        tenant: &TenantId,
+        intent_id: &IntentId,
+    ) -> Result<LedgerLookup, LedgerStoreError> {
+        self.checkpoint(Step::Lookup).await?;
+        let identity = (tenant.0.clone(), intent_id.as_str().to_owned());
+        let data = self.data.lock().unwrap();
+        if let Some(record) = data.mutations.get(&identity) {
+            if data.identities.get(&identity)
+                != Some(&(
+                    record.payload_digest.clone(),
+                    record.commit.body.commit_id.clone(),
+                ))
+                || !data.commits.contains(&record.commit)
+            {
+                return Err(LedgerStoreError::Invariant(String::from(
+                    "retained record is not bound to finalized canonical history",
+                )));
+            }
+            return Ok(LedgerLookup::Committed(Box::new(record.clone())));
+        }
+        if data.identities.contains_key(&identity) {
+            return Err(LedgerStoreError::Invariant(String::from(
+                "finalized identity is missing its original record",
+            )));
+        }
+        let reservations = self.reservations.lock().unwrap();
+        if let Some(payload_digest) = reservations.get(&identity) {
+            return Ok(LedgerLookup::InProgress {
+                payload_digest: payload_digest.clone(),
+                attempt_id: String::from("attempt"),
+                lease_expires_at_unix: i64::MAX,
+            });
+        }
+        Ok(LedgerLookup::NotFound)
+    }
+}
+
 pub struct Allow;
 #[async_trait]
 impl Authorizer for Allow {

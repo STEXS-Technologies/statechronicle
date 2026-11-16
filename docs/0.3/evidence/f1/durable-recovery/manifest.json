@@ -1,0 +1,76 @@
+{
+  "base_commit": "869afad78209b1e5a77f897ea3dee82900f3f345",
+  "candidate": "Worktree identified by source hashes; exact committed external qualification follows.",
+  "toolchain": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8"
+  },
+  "source_sha256": {
+    "crates/statechronicle-commit/src/error.rs": "34852a7d61e2dfbd11bd37000b5ede086649a3d17d21df62a8491dc547f6357e",
+    "crates/statechronicle-commit/src/lib.rs": "d72ccb5836feafd551baddeccc321774d88149db09e2cb33b037621c405285bc",
+    "crates/statechronicle-commit/src/persist.rs": "0ce29eddd75382b525c572ad554d9106e083a4a4fbe6a9ed56205870f3e3dc08",
+    "crates/statechronicle-ports/src/ledger_store.rs": "960f9269b6b500b92c8fcd2415438ad9d9a87c19035ca18c0cb1007fc8ef6d0e",
+    "crates/statechronicle/tests/support/durable.rs": "78e12bcd07c83e747923aa50696659a58659274c74af8d5daf0bb1411db7cfa9",
+    "crates/statechronicle-commit/src/durable.rs": "d7008d65be98cd4aeb41d0e0d9f010cad82df273d706d3dbf5465cbf8172e9f0",
+    "crates/statechronicle/tests/durable_recovery.rs": "c6fb89a426d150595c90d7606094d3f2459d42b840fb137a5c06b53660602e54",
+    "ci/canonical-0.3/durable_recovery.rs": "0b16988b1f759b33e12112aa0082f2583beb0770be2351d63cf710ef5ca0259f",
+    "Cargo.lock": "9c551a66b5698d08a0d5eb1d6364d98107e573e4d6b464da6d83742b8932b86f"
+  },
+  "checks": [
+    {
+      "command": "cargo test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked --offline",
+      "exit_code": 0,
+      "log": "durable-final-workspace.log.gz",
+      "passed": 822,
+      "binaries": 63
+    },
+    {
+      "command": "cargo clippy --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked --offline -- -D warnings",
+      "exit_code": 0,
+      "log": "durable-final-clippy.log.gz"
+    },
+    {
+      "command": "RUSTDOCFLAGS=\"-D warnings\" cargo doc --workspace --exclude statechronicle-fuzz --all-features --no-deps --locked --offline",
+      "exit_code": 0,
+      "log": "durable-final-docs.log.gz"
+    },
+    {
+      "command": "cargo test -p statechronicle-commit --doc --locked --offline",
+      "exit_code": 0,
+      "log": "durable-final-doctest.log.gz"
+    }
+  ],
+  "development_failures": {
+    "durable-recovery-before.log.gz": "Expected failure: no public durable recovery module before implementation.",
+    "durable-clippy.log.gz": "Unqualified: wildcard enum fallback needed explicit variants.",
+    "durable-clippy-fixed.log.gz": "Unqualified: test locks needed lexical scopes and unreachable assertion was replaced with an explicit test panic."
+  },
+  "artifacts_sha256": {
+    "durable-check.log.gz": "73f9593028b35a827c6bc96f266db85d68be785a2a857a8aad0237785e766b60",
+    "durable-clippy-expanded.log.gz": "9c1e79daec617b7563f1662029b7ff9d84863ba3f4475509ecbffeda70a577f3",
+    "durable-clippy-fixed.log.gz": "301be671c08bb08b53219dbc52583a6c7c2057c233deac92706c3862d4fcdf64",
+    "durable-clippy.log.gz": "769980a59869ad3212f47a6b2de32496609d1cfe19c9ccf168ae4d3e1ce4b9ed",
+    "durable-docs.log.gz": "c5461f81ac4ff8a52763888fa53bdc4164792beef63a7322d2a78276d5e5ee5a",
+    "durable-doctest.log.gz": "98973be30b1a48a7363ab6865b45605b3f98c74a0584e4cc08a491b5106ecac6",
+    "durable-final-clippy.log.gz": "9c19e39c537ac826cd73a7e8127365f7eb92b52c9adf71f38216727986bb6dbc",
+    "durable-final-docs.log.gz": "614d971e67fc039e766cde8c817c28d982af278a788995edac9c180692a9e544",
+    "durable-final-doctest.log.gz": "e4c11296681901c3c256de7ed1c49a706c43455d88a5daef52337c86a96bd578",
+    "durable-final-workspace.log.gz": "47bf4ace5b40966ada9f0451594f49c29cd5087b6bc59ef759f5001203a5ade4",
+    "durable-graph-update.log.gz": "f8747acde039addad5f87920c38272cbf7c4cebd60f33abba578d95700c20c00",
+    "durable-recovery-before.log.gz": "cf666eba32cfb444283699014116621c258377bdda8a9d6ffa343ab2487b11b5",
+    "durable-recovery-expanded.log.gz": "a6c3155e847b10508c6c8dd8242880c84b8207afe1f78a3045928f957b1ffdf6",
+    "durable-recovery-first.log.gz": "47164164573f02e3c313f6cd4e2346da05b6b2643989bb78a05304007881863e",
+    "durable-recovery-tests.log.gz": "6d994775e959d36694a8a5d30089aa17c3fe9ecb6feea46c4ebd2160bf7598ef",
+    "durable-typed-policy-tests.log.gz": "09bdbcd613c60e47583a6c09d70ca4510f7a02b7f46537b83b4a1529dc8ebdf5",
+    "durable-workspace-clippy.log.gz": "b97f334f3d94d86a3d2b66b039d5f5fa7c71a0f34e88e906f8b930b899486631",
+    "durable-workspace.log.gz": "1fd13402cf50ac4292932e9408983de0a6f5cd9ab17b6815876196215e6e1fc4"
+  },
+  "limitations": [
+    "Single-intent advanced commit/recovery boundary; typed facade, multi-intent/cross-tenant canonical durable composition and full F1 remain pending.",
+    "In-memory fault/reopening model, not database, process crash or power-loss qualification.",
+    "Original outbox completeness and canonical-history membership require a conforming trusted LedgerRecovery adapter.",
+    "Hosted Rust 1.85 syntax incompatibility, final performance/fuzz/crash/coverage/advisory/release gates remain open.",
+    "New path includes original record readback and independent verification; legacy benchmark timings are not equal-work qualification."
+  ]
+}

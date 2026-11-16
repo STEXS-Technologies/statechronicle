@@ -236,3 +236,50 @@ add 106 production syntax lines, 502 lexical tokens, eight branch nodes and nine
 public syntax items relative to the owned-proof-payload checkpoint. The increase
 owns preparation authority and input isolation; it is not a claim of F6 net
 simplification, F8 performance qualification or completed durable recovery.
+
+## Authoritative durable outcomes and recovery
+
+The advanced `commit::durable` path now distinguishes confirmed committed/replay
+receipts, payload conflict, active reservation, typed authorization causes,
+pre-commit failures, corrupt evidence and unknown completion. Every final commit
+error is unknown; failed rollback or missing/inconsistent/unavailable readback
+cannot become safely failed or committed success. Unknown errors retain original
+identity and adapter/rollback causes. `recover` uses the original intent/digest
+and independently authenticated principal, checks access before reading, and
+loads immutable original effects through the additive `LedgerRecovery` port.
+It constructs no events or new identities and performs no claim or dispatch.
+A bare finalized commit-id claim is insufficient for a receipt.
+
+`CommittedMutation` privately owns the original verified record. Historical
+receipts remain valid after later canonical commits; current-state freshness is
+not implied. Original event root, event bindings, projections and outbox row
+integrity are checked. Newly acknowledged writes additionally compare exact
+signed commit, events and outbox readback. Canonical history membership, original
+outbox completeness and physical persistence remain adapter guarantees; no
+signature is presented as independent proof of database atomicity or physical
+truth. The port requires retention across projection advancement/outbox delivery.
+See `durable-outcomes.md` for the exact contract and recovery decisions.
+
+Legacy persistence now shares one preflight/effect-validation and transaction
+owner with the new path. Its public signatures, enum variants, gate/error order
+and string mapping remain unchanged; the new surface retains typed authorization
+and transaction-stage/rollback causes instead. No dependencies or protocol wire
+types change. The root in-memory adapter retains the original mutation atomically
+with its existing effects; frozen original consumer sources remain untouched.
+
+Worktree qualification in `evidence/f1/durable-recovery/` records 822 passing
+workspace tests in 63 binaries, strict workspace Clippy/rustdoc, formatting and
+a receipt-constructor compile-fail test. Eleven new integration tests cover ACK
+loss and reopened lookup, exact retry, conflicting payload, pre-commit fault and
+rollback matrix, failed readback, reservation/absence semantics, partial/corrupt
+records, bare replay claims, mismatched claimed commit, omitted new-write outbox,
+historical replay after a genuine later commit, signer/principal/policy refusal
+and typed policy unavailability. Development failures remain retained and marked
+unqualified. The external canonical overlay reuses exact archived public-API
+scenarios rather than duplicating the new test/adapter implementation.
+
+This completes a single-intent advanced durability slice, not F1 or the release.
+The canonical facade must still bind protected prepared events to signing and
+storage; canonical batches, independent adapter conformance/crash/restart gates,
+trade coverage/provenance and F2–F8 remain open. The new readback/verification cost
+requires its own matched measurements; legacy timings are not equivalent work.

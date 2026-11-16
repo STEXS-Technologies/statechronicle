@@ -25,6 +25,9 @@ pub mod sign;
 /// Commit persistence.
 pub mod persist;
 
+/// Verified durable outcomes and authoritative recovery.
+pub mod durable;
+
 /// Tenant checkpoint commits.
 pub mod checkpoint;
 
