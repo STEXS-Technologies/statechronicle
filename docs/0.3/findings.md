@@ -190,3 +190,9 @@ original proof after verification cannot alter that payload. A regression test
 changes the original owner and confirms the result remains unchanged; the
 public consumer reads the result's verified state directly. This adds no wire
 format or serialization constructor.
+
+The owned-payload follow-up at exact commit `8f05cce` passed the candidate
+external hosted/portable lane in `evidence/compat/20261116T031940Z-496125/`,
+including the canonical consumer's `verified.state()` assertion and bare-metal
+compilation. `evidence/f1/verified-state-payload/metrics.json` reports its exact
+source footprint. Hosted Rust 1.85 remains explicitly unqualified as noted above.

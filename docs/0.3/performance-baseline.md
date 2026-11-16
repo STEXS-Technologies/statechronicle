@@ -128,3 +128,14 @@ bytes relative to setup. The trade workload invokes the legacy pure entry point
 and measures its added tenant-binding check; it does not measure the new scoped
 service cache with coincident identifiers. These sequential samples are an
 initial checkpoint, not the final alternated performance disposition.
+
+## Independent-claim checkpoint scope
+
+The existing twenty-two-workload suite passed all ten measurement checks for
+`6be864f` in `evidence/compat/20261116T031539Z-345814/`. Portable transitions
+still add zero allocations/bytes. These fixed original workloads exercise
+legacy proof helpers and shared commit lookup; they do not measure the new
+`VerifiedClaim` construction or its owned-payload copy added in `8f05cce`. The
+final comparison matrix must measure those new guarantees separately and
+include their allocation cost, rather than treating a `Result<()>` verifier as
+equal work. No final performance disposition is claimed for the new route.
