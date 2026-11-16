@@ -115,7 +115,7 @@ python3 scripts/check_tutorials.py --toolchain 1.85.0
 The runner extracts the committed library and application, copies the application
 to a separate temporary directory outside the repository, and changes only its
 umbrella path dependency to point at the sibling archive. It runs locked/offline
-metadata, all-target tests, the CLI output contract, strict Clippy and formatting;
+metadata, all-target tests, the CLI output contract, strict Clippy and application-package formatting;
 checks that no registry packages were added relative to the library lockfile; and
 retains exact compiler/source/command/hash evidence in `docs/0.3/evidence/tutorials/`.
 It does not dispatch GitHub workflows or create a pull request.

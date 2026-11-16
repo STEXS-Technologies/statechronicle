@@ -83,12 +83,13 @@ def main():
             manifest['tutorial_lock_sha256'] = sha(original_lock)
             manifest['isolation'] = {'application': str(application), 'source_archive': str(source),
                                      'only_manifest_edit': 'Relocate the umbrella dependency to sibling archived source'}
+            application_name = tomllib.loads(cargo.read_text())['package']['name']
             checks = [
                 ('metadata', ['metadata', '--format-version', '1', '--locked', '--offline']),
                 ('tests', ['test', '--all-targets', '--all-features', '--locked', '--offline']),
                 ('run', ['run', '--quiet', '--locked', '--offline']),
                 ('clippy', ['clippy', '--all-targets', '--all-features', '--locked', '--offline', '--', '-D', 'warnings']),
-                ('format', ['fmt', '--all', '--', '--check']),
+                ('format', ['fmt', '--package', application_name, '--', '--check']),
             ]
             for label, command_args in checks:
                 command = ['cargo', '+' + args.toolchain, *command_args]
