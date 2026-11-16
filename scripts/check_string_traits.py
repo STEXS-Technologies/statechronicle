@@ -43,9 +43,12 @@ def main():
         (out / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     def check(label, command, cwd):
         start = time.monotonic()
-        result = subprocess.run(command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
+        result = subprocess.run(command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600)
         artifact = label + '.log.gz'
-        data = gzip.compress(result.stdout, mtime=0)
+        # Cargo's progress diagnostics (including cache-lock waits) belong to
+        # stderr, not the metadata JSON consumed by the caller. Retain both in
+        # the log without feeding diagnostics into the machine-readable output.
+        data = gzip.compress(result.stdout + result.stderr, mtime=0)
         (out / artifact).write_bytes(data)
         manifest['checks'].append({'label': label, 'command': command, 'exit_code': result.returncode, 'seconds': time.monotonic()-start, 'artifact': artifact, 'sha256': sha(data)})
         save()
