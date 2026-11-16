@@ -1,0 +1,42 @@
+{
+  "original_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "candidate_before_commit": "63b9a47d733646aeba698b679aa7ccc843413088",
+  "original_source_sha256": {
+    "Cargo.lock": "76837efdc48c4b33fb007b5ed9fe38ac1c903d389a2adfefc7643977732c7b82",
+    "crates/statechronicle-profiles/src/custom.rs": "4ecf91d8585ab735d4e30edd2ecec6a17dd43b2815b5f05df2ce72a31a0f051b",
+    "crates/statechronicle-profiles/src/registry.rs": "e098474b64486e143740299cd413830ff1a0f0d4f4a4fb491fb433e0ca7f87e9",
+    "crates/statechronicle-profile/src/contract.rs": "575401a9f1c2650f12c5cd5f7fbf4045eba048a58178982b9fcd5209ac33e208",
+    "crates/statechronicle-core/src/rate_limit.rs": "f526f1069078d1e85cef6c07aef0140be80c9d3777339160be20fb11cb51421d"
+  },
+  "fixture_sha256": "b144efb7c1950bcce2a5905b6ff0969928ff279ac2ad2c89b0a933e1cf1f247f",
+  "checks": [
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo +1.85.0 test -p statechronicle-profiles --test typed_evaluation --locked --offline",
+      "exit_code": 0,
+      "passed": 2,
+      "log": "typed-before.log.gz"
+    },
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo test --manifest-path target/emission-original/source/Cargo.toml -p statechronicle-profiles --test typed_evaluation --locked --offline",
+      "exit_code": 0,
+      "passed": 2,
+      "log": "typed-original-stable.log.gz"
+    }
+  ],
+  "unqualified_attempts": [
+    {
+      "log": "typed-original.log.gz",
+      "exit_code": 101,
+      "reason": "Original core uses let chains unsupported on Rust 1.85; unchanged source rerun on Rust 1.100."
+    }
+  ],
+  "artifacts_sha256": {
+    "typed-before.log.gz": "dfab3c22415b467650039e625d48b69cdfef1bf159473c73e4b57f94d370025f",
+    "typed-original.log.gz": "6f81e9cad9047eeee806964284ae5fa7e775b26891612a5ada68473e77af8db5",
+    "typed-original-stable.log.gz": "b77d96e2c7d8e2d4be2fcef57ad95f6a42b2ca35660ae2f083b1411c332e9ad6"
+  },
+  "limitations": [
+    "Instrumentation observes deterministic domain callback and deserialization counts; it is not a latency or allocation benchmark.",
+    "Original production and lockfile unchanged; characterization test added to archive only."
+  ]
+}
