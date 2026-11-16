@@ -56,3 +56,14 @@ verification; allocation ownership must be audited before optimization.
   process-kill recovery, physical durability or production concurrency.
 
 Reproduce with `RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 python3 scripts/refactor_compat.py --lane baseline --measure`.
+
+## Starting-point dependency control
+
+The same fifteen workloads and five allocation probes passed against
+`55b5be8` in `evidence/compat/20261116T022951Z-3197563/`. Its production Rust
+source is byte-identical to the original release; dependency versions differ.
+This captures a dependency control before production refactoring. The portable
+allocation guard passed. The runs were not alternated across revisions, so
+observed timing differences are not an accepted refactor performance delta.
+Use this starting control, in addition to the original release, for matched
+comparisons after changing code.
