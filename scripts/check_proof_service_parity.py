@@ -164,6 +164,11 @@ def main():
                 if traces and len(trace) != len(traces[0]): raise RuntimeError('profile corpus row count changed')
             else:
                 require(len(trace)=={'executor':23544,'settlement':10128,'proof_service':2352,'outbox':5688}[args.fixture], 'incomplete corpus')
+                if args.fixture == 'outbox':
+                    masks = {0} | {1 << first for first in range(12)} | {(1 << first) | (1 << second) for first in range(12) for second in range(first+1, 12)}
+                    expected = {f'outbox:{variant}:claim:{claim}:faults:{mask}' for variant in range(18) for claim in range(4) for mask in masks}
+                    require(len({row['case'] for row in trace}) == len(trace), 'duplicate outbox case')
+                    require({row['case'] for row in trace} == expected, 'outbox case coverage mismatch')
             traces.append(trace)
             manifest['lanes'].append({'revision':revision,'archive_sha256':sha(data),'source_sha256':hashes,'consumer_lock_sha256':sha(lock),'trace_sha256':sha(raw),'rows':len(trace),'binary_sha256':sha(binary.read_bytes())})
             require((consumer/'Cargo.lock').read_bytes()==lock, 'consumer lock drift')
