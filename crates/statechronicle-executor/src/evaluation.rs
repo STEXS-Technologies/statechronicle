@@ -169,7 +169,7 @@ impl Evaluation<'_> {
                 .map_err(map_trustgrant_error)?;
         }
 
-        let events = PreparedProfile::load(self, intent, allow_coordinated)
+        let (event, companion) = PreparedProfile::load(self, intent, allow_coordinated)
             .await?
             .events(self)
             .await?;
@@ -185,7 +185,10 @@ impl Evaluation<'_> {
                 .await
                 .map_err(|err| map_intent_store_error(err, &intent.intent_id.0))?;
         }
-        Ok(events)
+        Ok(match companion {
+            Some(destination) => vec![event, destination],
+            None => vec![event],
+        })
     }
 
     pub(super) fn validate_profile_groups<'event>(

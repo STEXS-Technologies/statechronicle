@@ -244,7 +244,7 @@ impl<'intent> PreparedProfile<'intent> {
     pub(super) async fn events(
         self,
         evaluation: &Evaluation<'_>,
-    ) -> Result<Vec<Event>, ExecutorError> {
+    ) -> Result<(Event, Option<Event>), ExecutorError> {
         let intent = self.intent;
         let tenant = &intent.tenant_id;
         let resource = &intent.resource_id;
@@ -300,9 +300,6 @@ impl<'intent> PreparedProfile<'intent> {
             None
         };
 
-        Ok(match companion {
-            Some(destination) => vec![event, destination],
-            None => vec![event],
-        })
+        Ok((event, companion))
     }
 }
