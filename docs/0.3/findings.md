@@ -564,3 +564,23 @@ operation. All raw samples, fixed overhead, extra candidate-legacy lane and
 shared-host limits remain visible in the
 [measurement contract](typed-evaluation.md). This closes the checkpoint's
 missing fixed-model timing/allocation evidence, not the complete F8 matrix.
+
+## Native command envelope authoring
+
+`TypedProfile::encode_command` removes repeated profile/schema/BCS input-map
+assembly and separately derived operation in the planning example. It uses the
+adapter's registered native discriminator and payload bounds; encoding is
+explicitly unsigned and state-dependent rules still run at evaluation. Static
+operation registration remains explicit, so exhaustive typed registration is
+still an open F3 item. See [authoring scope](typed-command-authoring.md).
+
+Exact `ef3fc59` passes 175 Rust 1.85 profile tests, the updated planning example,
+strict stable workspace Clippy/rustdoc and all five external Rust 1.85 checks.
+The new external fixture compares exact legacy operation/maps for independent
+Configuration and Equipment models; the frozen consumer is unchanged. Evidence:
+`evidence/f3/typed-command-authoring/` and
+`evidence/compat/20261116T050443Z-3328321/`. Metrics report 1,405,342 source bytes,
+15,107 syntax lines, 111,403 tokens, 1,801 branches and 1,306 public syntax items:
++1,432 bytes, +24 lines, +193 tokens, +5 branches and +1 public method versus
+`d1550a9`. This is an explicit authoring addition, not a production shrink claim.
+Full roadmap qualification is incomplete.

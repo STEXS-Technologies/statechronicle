@@ -70,3 +70,8 @@ share native decoded values; its existing methods retain their contracts.
 `StateProfile` and all existing exhaustive error enums remain unchanged. This
 adds a method and a new enum, not a variant to a previously exhaustive enum.
 External legacy consumers pass on Rust 1.85 and 1.100 at `d1550a9`.
+
+`TypedProfile::encode_command` adds a public native-to-wire authoring helper:
+it returns `(Operation, BTreeMap<String, Value>)` from the adapter's identity,
+schema, operation mapping and bounded BCS encoder. The pair carries no trust
+claim. No existing trait signature, error variant or protocol type changes.
