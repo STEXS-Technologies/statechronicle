@@ -16,6 +16,7 @@
     reason = "async_trait emits redundant must_use attributes"
 )]
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -63,6 +64,9 @@ use crate::preparation::{PreparedBatch, PreparedMutation};
 use statechronicle_profiles::resource::{
     destination_holder, holder_for, is_transfer_operation, subject_for,
 };
+#[path = "batch_completion.rs"]
+mod batch_completion;
+use batch_completion::BatchCompletion;
 #[path = "settlement.rs"]
 mod settlement;
 
@@ -802,10 +806,6 @@ impl Executor {
         self.execute_batch_inner(intents, None).await
     }
 
-    #[allow(
-        clippy::collapsible_if,
-        reason = "Rust 1.85 does not support let chains"
-    )]
     async fn execute_batch_inner(
         &self,
         intents: &[ValidatedIntent],
@@ -817,17 +817,8 @@ impl Executor {
             )));
         };
         let tenant = &first.intent.tenant_id;
-        let handle = if sink.is_none() {
-            Some(
-                self.ports
-                    .transaction_manager
-                    .begin(tenant)
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?,
-            )
-        } else {
-            None
-        };
+        let completion =
+            BatchCompletion::begin(sink, || self.ports.transaction_manager.begin(tenant)).await?;
 
         // Both a leg failure and an inconsistent-batch validation failure are
         // rolled back atomically (a failed validation must not short-circuit
@@ -841,36 +832,14 @@ impl Executor {
                 .map(|()| events),
             Err(error) => Err(error),
         };
-        match result {
-            Ok(events) => {
-                if let Some(sink) = sink.filter(|_| !events.is_empty()) {
-                    if let Err(error) = sink.persist_batch(intents, &events).await {
-                        if let Some(handle) = handle {
-                            if let Err(rollback_error) = handle.rollback().await {
-                                tracing::warn!(%rollback_error, "durable batch rollback failed");
-                            }
-                        }
-                        return Err(ExecutorError::Store(error));
-                    }
-                }
-                if let Some(handle) = handle {
-                    handle
-                        .commit()
-                        .await
-                        .map_err(|err| map_transaction_manager_error(&err))?;
-                }
-                Ok(events)
-            }
-            Err(error) => {
-                let message = error.to_string();
-                if let Some(handle) = handle {
-                    if let Err(rollback_error) = handle.rollback().await {
-                        tracing::warn!(rollback = %rollback_error, "batch rollback failed");
-                    }
-                }
-                Err(ExecutorError::AtomicityViolation(message))
-            }
-        }
+        completion
+            .finish(
+                result,
+                intents,
+                |events| Cow::Borrowed(events.as_slice()),
+                "batch rollback failed",
+            )
+            .await
     }
 
     /// Executes a batch and returns success only after the deployment's

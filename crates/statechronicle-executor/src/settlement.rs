@@ -1,11 +1,11 @@
 //! Optional baseline settlement coordinators using the common executor.
 
 use super::{
-    DurableBatchSink, Event, Executor, ExecutorError, ValidatedIntent, atomicity,
-    map_transaction_manager_error,
+    BatchCompletion, DurableBatchSink, Event, Executor, ExecutorError, ValidatedIntent, atomicity,
 };
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_profiles::unique_asset::op as asset_op;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 impl Executor {
@@ -40,10 +40,6 @@ impl Executor {
         self.execute_settle_inner(intents, None).await
     }
 
-    #[allow(
-        clippy::collapsible_if,
-        reason = "Rust 1.85 does not support let chains"
-    )]
     async fn execute_settle_inner(
         &self,
         intents: &[ValidatedIntent],
@@ -55,17 +51,8 @@ impl Executor {
             )));
         };
         let tenant = &first.intent.tenant_id;
-        let handle = if sink.is_none() {
-            Some(
-                self.ports
-                    .transaction_manager
-                    .begin(tenant)
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?,
-            )
-        } else {
-            None
-        };
+        let completion =
+            BatchCompletion::begin(sink, || self.ports.transaction_manager.begin(tenant)).await?;
 
         // Both a leg failure and a validation failure are rolled back atomically.
         // `allow_value_legs` is `true`: the settle batch's value legs are
@@ -83,36 +70,14 @@ impl Executor {
             }
             Err(error) => Err(error),
         };
-        match result {
-            Ok(events) => {
-                if let Some(sink) = sink.filter(|_| !events.is_empty()) {
-                    if let Err(error) = sink.persist_batch(intents, &events).await {
-                        if let Some(handle) = handle {
-                            if let Err(rollback_error) = handle.rollback().await {
-                                tracing::warn!(%rollback_error, "durable settle rollback failed");
-                            }
-                        }
-                        return Err(ExecutorError::Store(error));
-                    }
-                }
-                if let Some(handle) = handle {
-                    handle
-                        .commit()
-                        .await
-                        .map_err(|err| map_transaction_manager_error(&err))?;
-                }
-                Ok(events)
-            }
-            Err(error) => {
-                let message = error.to_string();
-                if let Some(handle) = handle {
-                    if let Err(rollback_error) = handle.rollback().await {
-                        tracing::warn!(rollback = %rollback_error, "settle rollback failed");
-                    }
-                }
-                Err(ExecutorError::AtomicityViolation(message))
-            }
-        }
+        completion
+            .finish(
+                result,
+                intents,
+                |events| Cow::Borrowed(events.as_slice()),
+                "settle rollback failed",
+            )
+            .await
     }
 
     /// Executes a value-leg settlement and persists it through the required
@@ -166,10 +131,6 @@ impl Executor {
         self.execute_cross_tenant_inner(intents, None).await
     }
 
-    #[allow(
-        clippy::collapsible_if,
-        reason = "Rust 1.85 does not support let chains"
-    )]
     async fn execute_cross_tenant_inner(
         &self,
         intents: &[ValidatedIntent],
@@ -193,17 +154,10 @@ impl Executor {
             )));
         }
 
-        let handle = if sink.is_none() {
-            Some(
-                self.ports
-                    .transaction_manager
-                    .begin_multi(&sorted_tenants)
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?,
-            )
-        } else {
-            None
-        };
+        let completion = BatchCompletion::begin(sink, || {
+            self.ports.transaction_manager.begin_multi(&sorted_tenants)
+        })
+        .await?;
 
         // Both a leg failure and an inconsistent-group validation failure are
         // rolled back atomically (a failed validation must not short-circuit
@@ -217,40 +171,21 @@ impl Executor {
             Ok(groups) => atomicity::validate_cross_tenant_consistency(&groups).map(|()| groups),
             Err(error) => Err(error),
         };
-        match result {
-            Ok(groups) => {
-                let events: Vec<Event> = groups
-                    .iter()
-                    .flat_map(|group| group.events.iter().cloned())
-                    .collect();
-                if let Some(sink) = sink.filter(|_| !events.is_empty()) {
-                    if let Err(error) = sink.persist_batch(intents, &events).await {
-                        if let Some(handle) = handle {
-                            if let Err(rollback_error) = handle.rollback().await {
-                                tracing::warn!(%rollback_error, "durable cross-tenant rollback failed");
-                            }
-                        }
-                        return Err(ExecutorError::Store(error));
-                    }
-                }
-                if let Some(handle) = handle {
-                    handle
-                        .commit()
-                        .await
-                        .map_err(|err| map_transaction_manager_error(&err))?;
-                }
-                Ok(groups)
-            }
-            Err(error) => {
-                let message = error.to_string();
-                if let Some(handle) = handle {
-                    if let Err(rollback_error) = handle.rollback().await {
-                        tracing::warn!(rollback = %rollback_error, "cross-tenant rollback failed");
-                    }
-                }
-                Err(ExecutorError::AtomicityViolation(message))
-            }
-        }
+        completion
+            .finish(
+                result,
+                intents,
+                |groups| {
+                    Cow::Owned(
+                        groups
+                            .iter()
+                            .flat_map(|group| group.events.iter().cloned())
+                            .collect(),
+                    )
+                },
+                "cross-tenant rollback failed",
+            )
+            .await
     }
 
     /// Executes a validated cross-tenant batch through the required durable
@@ -308,10 +243,6 @@ impl Executor {
             .await
     }
 
-    #[allow(
-        clippy::collapsible_if,
-        reason = "Rust 1.85 does not support let chains"
-    )]
     async fn execute_cross_tenant_trade_inner(
         &self,
         intents: &[ValidatedIntent],
@@ -334,17 +265,10 @@ impl Executor {
             )));
         }
 
-        let handle = if sink.is_none() {
-            Some(
-                self.ports
-                    .transaction_manager
-                    .begin_multi(&sorted_tenants)
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?,
-            )
-        } else {
-            None
-        };
+        let completion = BatchCompletion::begin(sink, || {
+            self.ports.transaction_manager.begin_multi(&sorted_tenants)
+        })
+        .await?;
 
         // Both a leg failure and a manifest-validation failure are rolled back
         // atomically (a failed validation must not short-circuit past the
@@ -364,43 +288,21 @@ impl Executor {
             }
             Err(error) => Err(error),
         };
-        match result {
-            Ok(groups) => {
-                let events: Vec<Event> = groups
-                    .iter()
-                    .flat_map(|group| group.events.iter().cloned())
-                    .collect();
-                if let Some(sink) = sink.filter(|_| !events.is_empty()) {
-                    if let Err(error) = sink.persist_batch(intents, &events).await {
-                        if let Some(handle) = handle {
-                            if let Err(rollback_error) = handle.rollback().await {
-                                tracing::warn!(%rollback_error, "durable cross-tenant rollback failed");
-                            }
-                        }
-                        return Err(ExecutorError::Store(error));
-                    }
-                }
-                if let Some(handle) = handle {
-                    handle
-                        .commit()
-                        .await
-                        .map_err(|err| map_transaction_manager_error(&err))?;
-                }
-                Ok(groups)
-            }
-            Err(error) => {
-                let message = error.to_string();
-                if let Some(handle) = handle {
-                    if let Err(rollback_error) = handle.rollback().await {
-                        tracing::warn!(
-                            rollback = %rollback_error,
-                            "cross-tenant trade rollback failed"
-                        );
-                    }
-                }
-                Err(ExecutorError::AtomicityViolation(message))
-            }
-        }
+        completion
+            .finish(
+                result,
+                intents,
+                |groups| {
+                    Cow::Owned(
+                        groups
+                            .iter()
+                            .flat_map(|group| group.events.iter().cloned())
+                            .collect(),
+                    )
+                },
+                "cross-tenant trade rollback failed",
+            )
+            .await
     }
 
     /// Executes a manifest-validated cross-tenant trade and persists every
