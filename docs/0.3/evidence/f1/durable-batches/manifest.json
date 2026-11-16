@@ -1,0 +1,79 @@
+{
+  "candidate_commit": "6f153bd859674ae739359be0b74d4ca3a04d65af",
+  "parent_commit": "d42b99a850b701a19b232abff1def901d8297d49",
+  "baseline_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "source_sha256": {
+    "crates/statechronicle-ports/src/ledger_batch.rs": "5043af6389be4d65ea92be2b66accff0bae3e13eb396f2a33b962b4d36bde7c5",
+    "crates/statechronicle-ports/src/ledger_store.rs": "5a2eccc785ee465496552f48cecf6bc95b13367995cb50fc6886c24a61b76bf4",
+    "crates/statechronicle-commit/src/durable_batch.rs": "29675d6d9f9a615bbf76b3d6039bf19bc69215abc0058acdfa70981e5d132bf2",
+    "crates/statechronicle-commit/src/durable.rs": "fdeb3e017661692c9522f629dbf87ef350c7e64d193fea1cb54dcd12882906ac",
+    "crates/statechronicle-commit/src/persist.rs": "38b80843e2604bab48a835d191bca54ab68b87953d37789f71646dd4bd5cc24f",
+    "crates/statechronicle/src/mutation.rs": "a986ff5eef303af60f469159f7c36a4e97665c87e5f0c775da154dc1c5495188",
+    "crates/statechronicle/tests/durable_batch.rs": "36038add8f785878c25e46946d3a9a139166d1832ccf07f6f442c5856a13992e",
+    "crates/statechronicle/tests/support/durable.rs": "3d7508c9a9498caf604aeaf816dd138cb6eb636933ebafc99916df2814c35037",
+    "ci/canonical-0.3/durable_batch.rs": "78d40c1c11dd0f77ac9afc03c1b531ffc58002c007694d3655af07d85f05d08f",
+    "Cargo.lock": "9c551a66b5698d08a0d5eb1d6364d98107e573e4d6b464da6d83742b8932b86f"
+  },
+  "environment": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8; offline locked cargo; MSRV Rust 1.85.0; current toolchain Rust 1.100.0",
+  "checks": {
+    "workspace": {
+      "command": "cargo +1.85.0 test --workspace --locked --offline",
+      "exit_code": 0,
+      "passed_including_doctests": 869,
+      "test_result_groups": 67,
+      "scope": "default-feature workspace; isolated conformance excluded",
+      "provenance": "Implementation worktree; functional source matches candidate. A rustdoc link in the mutation module introduction was corrected after this run; strict rustdoc was rerun. This is not final exact-candidate F8 qualification."
+    },
+    "focused": {
+      "command": "cargo +1.85.0 test -p statechronicle --test durable_batch --test durable_recovery --locked --offline",
+      "exit_code": 0,
+      "batch_tests": 12,
+      "unchanged_single_tests": 16
+    },
+    "clippy": {
+      "command": "cargo clippy -p statechronicle-ports -p statechronicle-commit -p statechronicle --all-targets --locked --offline -- -D warnings",
+      "exit_code": 0
+    },
+    "rustdoc": {
+      "command": "RUSTDOCFLAGS=-D warnings cargo doc -p statechronicle-ports -p statechronicle-commit -p statechronicle --no-deps --locked --offline",
+      "exit_code": 0
+    },
+    "conformance": {
+      "command": "cargo +1.85.0 test --manifest-path ci/conformance/Cargo.toml --locked --offline",
+      "exit_code": 0,
+      "scope": "four existing single-mutation generic harness tests; not new batch conformance"
+    },
+    "graph": {
+      "command": "graphify update .",
+      "exit_code": 0
+    },
+    "external": {
+      "manifest": "../../compat/20261116T055109Z-332732/manifest.json",
+      "exit_code": 0,
+      "scope": "exact archived candidate; frozen consumer and new protected batch overlay; hosted, portable and bare-metal MSRV checks"
+    }
+  },
+  "limitations": [
+    "Single-tenant protected batches with explicit event-to-intent scope binding; not all legacy companion/economic operations.",
+    "Bounded in-memory logical atomicity; no independent production database, process-kill or power-loss qualification.",
+    "Generic batch conformance and independent deliberately broken batch adapters remain open.",
+    "No matched batch performance claim; production growth is explicit in metrics.json.",
+    "Full F0-F8 release, API review, adversary/fuzz/performance/packaging and unresolved advisory gates remain incomplete."
+  ],
+  "development_attempts": [
+    "A test delimiter typo and use of a disabled Tokio sync feature were corrected; no dependency feature was added.",
+    "Strict Clippy initially reported indexing, enum wildcard, naming/shadow and test MutexGuard scope issues; corrected before qualification.",
+    "Strict rustdoc initially rejected the short SignedBatch link in the module introduction; corrected to the full path and rerun.",
+    "Intermediate failing output was inspected in-session; not all overwritten development logs are retained and none are counted as passing checks."
+  ],
+  "artifacts": {
+    "tests.log.gz": "f8b8e85315d95a7720d882af22e54e0c6b7fe2e80fea0b8998c1bd891b960591",
+    "old-recovery.log.gz": "6f6b270864778df9455a3a290af29dd70e2d19dd39e94620e9f541f57eb30015",
+    "workspace.log.gz": "8ce5fc86ad8b5bbeaeafcb686b4d8245c3c71aa6acf9759380efcfc7849f3393",
+    "clippy.log.gz": "5cce671c1ea7564c7a4f70197946527ed530a5113d6f6306c735fa95e9119eef",
+    "doc.log.gz": "1d9f413553edd64b406039ac12c499ffab3f1ed1640461a4b1b386b7f0e0c098",
+    "graph.log.gz": "fc176883b904bff344d2dfb8d0e9941afeedfb90ecc44573c38481c001244157",
+    "conformance.log.gz": "c6d082b3f2061e419e57abd86d8d369c264d5813d26fcd42220d1b1a47228f91",
+    "metrics.json": "771019c194b1ed91b21235f869cd9bfc98ae1effc1c6de4a992f16003e187533"
+  }
+}
