@@ -9,7 +9,7 @@
 pub use statechronicle_commit::durable::{
     CommittedMutation, DurableError, DurableOutcome, MutationIdentity, RecoveryOutcome, recover,
 };
-pub use statechronicle_executor::preparation::PreparedMutation;
+pub use statechronicle_executor::preparation::{PreparedBatch, PreparedMutation};
 
 use statechronicle_commit::durable::commit_verified;
 use statechronicle_commit::error::CommitError;

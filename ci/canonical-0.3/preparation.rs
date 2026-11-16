@@ -70,3 +70,69 @@ async fn public_preparation_never_treats_a_planning_marker_as_a_receipt() {
         &canonicalize_and_digest(&request.intent).unwrap()
     );
 }
+
+#[tokio::test]
+async fn public_batch_preparation_owns_both_legs() {
+    use statechronicle::PreparedBatch;
+    use statechronicle::executor::pipeline::PlayerBatchItem;
+    let harness = common::Harness::new();
+    let principal = AuthenticatedPrincipal {
+        subject: SubjectId(String::from("account:alice")),
+        tenant: harness.tenant(),
+        credential_id: String::from("authenticated-session"),
+    };
+    let requests: Vec<_> = ["first", "second"]
+        .into_iter()
+        .map(|name| {
+            harness.sign(
+                Intent::builder()
+                    .tenant(harness.tenant())
+                    .intent_id(IntentId::new(format!("int_prepare_{name}")).unwrap())
+                    .operation(Operation::from_static("asset.mint"))
+                    .actor(principal.subject.clone())
+                    .resource(ResourceId(format!("asset:{name}")))
+                    .state_type(StateType::UniqueAsset)
+                    .expected_version(0)
+                    .inputs([(String::from("to_owner"), serde_json::json!("account:alice"))].into())
+                    .created_at(harness.now())
+                    .nonce(Nonce::from_bytes(vec![1]).unwrap())
+                    .build()
+                    .unwrap(),
+                None,
+            )
+        })
+        .collect();
+    let registry = MemoryKeyRegistry::new();
+    registry
+        .register(KeyRecord {
+            key_id: harness.key_id(),
+            tenant: harness.tenant(),
+            subject: Some(principal.subject.clone()),
+            operations: vec![Operation::from_static("asset.mint")],
+            valid_from: harness.now(),
+            valid_until: None,
+            status: KeyStatus::Active,
+        })
+        .unwrap();
+    let items: Vec<_> = requests
+        .iter()
+        .map(|validated| PlayerBatchItem {
+            validated,
+            principal: &principal,
+        })
+        .collect();
+    let batch: PreparedBatch = harness
+        .executor
+        .prepare_player_batch(&items, &Allow, &registry)
+        .await
+        .unwrap();
+    assert_eq!(batch.mutations().len(), 2);
+    assert_eq!(batch.events().count(), 2);
+    for (leg, request) in batch.mutations().iter().zip(&requests) {
+        assert_eq!(leg.validated(), request);
+        assert_eq!(
+            leg.payload_digest(),
+            &canonicalize_and_digest(&request.intent).unwrap()
+        );
+    }
+}

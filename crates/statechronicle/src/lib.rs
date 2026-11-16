@@ -139,7 +139,7 @@ pub use statechronicle_executor::pipeline::Ports;
 /// The executor's port-bundle builder. See [`executor::pipeline::PortsBuilder`].
 pub use statechronicle_executor::pipeline::PortsBuilder;
 /// An authenticated, uncommitted event plan with protected inputs.
-pub use statechronicle_executor::preparation::PreparedMutation;
+pub use statechronicle_executor::preparation::{PreparedBatch, PreparedMutation};
 /// A validated intent with its idempotency key. See [`intent::validated::ValidatedIntent`].
 pub use statechronicle_intent::validated::{IdempotencyKey, ValidatedIntent};
 

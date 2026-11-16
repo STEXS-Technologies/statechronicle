@@ -24,14 +24,14 @@ use chrono::{DateTime, Utc};
 use async_trait::async_trait;
 use statechronicle_core::canonicalize::{canonicalize, canonicalize_and_digest};
 use statechronicle_core::digest::ContentDigest;
-use statechronicle_core::limits::{MAX_INTENT_BYTES, check_size};
+use statechronicle_core::limits::{MAX_EVENTS_PER_COMMIT, MAX_INTENT_BYTES, check_size};
 use statechronicle_domain::authority::{
     AggregationPolicy, AuthorityProof, EvaluationResult, TRUSTGRANT_EVALUATION_KIND,
     TrustGrantOutcome, aggregate_evaluation_digest,
 };
 use statechronicle_domain::commit::ProfileId;
 use statechronicle_domain::event::{Event, StateCommitment};
-use statechronicle_domain::ids::EventId;
+use statechronicle_domain::ids::{EventId, IntentId};
 #[cfg(test)]
 use statechronicle_domain::intent::Operation;
 use statechronicle_domain::intent::{Intent, SignatureBlock};
@@ -58,7 +58,7 @@ use statechronicle_profiles::registry::ProfileRegistry;
 use crate::atomicity;
 use crate::conflict;
 use crate::error::{ExecutorBuildError, ExecutorError, PortsBuildError};
-use crate::preparation::PreparedMutation;
+use crate::preparation::{PreparedBatch, PreparedMutation};
 #[cfg(test)]
 use statechronicle_profiles::resource::{
     destination_holder, holder_for, is_transfer_operation, subject_for,
@@ -589,6 +589,81 @@ impl Executor {
             .execute_authenticated_inner(&request, principal, authorizer, IntentHandling::Prepare)
             .await?;
         Ok(PreparedMutation::new(request, principal, events)?)
+    }
+
+    /// Authenticate and prepare every leg without claims or persistence.
+    ///
+    /// Like the legacy player batch lane, each item's signature presence,
+    /// principal/authorization and key policy are checked before execution.
+    /// Public validated fields are reconstructed, then duplicate identities
+    /// and mixed tenants refuse before state reads. Every leg uses the shared
+    /// preparation core, including real signature verification and all profile
+    /// gates; all resulting groups pass the shared batch validator.
+    ///
+    /// No intent-store call, transaction-manager operation or sink dispatch is
+    /// made. No successful subset escapes on failure. Event ids and clock
+    /// callbacks may advance; repeated preparation is not a durable replay.
+    /// This prepares one tenant scope and does not supply durable group commit
+    /// or recovery. Host callbacks/reads must obey the same effect restrictions
+    /// as [`Self::prepare_player`].
+    /// # Errors
+    /// Refuses empty, oversized, duplicate or mixed-tenant batches, ingress
+    /// failures and any leg or group invariant failure, without durable writes.
+    pub async fn prepare_player_batch(
+        &self,
+        items: &[PlayerBatchItem<'_>],
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+    ) -> Result<PreparedBatch, ExecutorError> {
+        if items.is_empty() {
+            return Err(ExecutorError::AtomicityViolation(String::from(
+                "empty batch",
+            )));
+        }
+        check_size("batch_intents", MAX_EVENTS_PER_COMMIT, items.len())?;
+        let mut requests = Vec::with_capacity(items.len());
+        for item in items {
+            let signature = player_signature(item.validated)?;
+            authorize_principal(item.validated, item.principal, authorizer).await?;
+            check_player_key(item.validated, item.principal, signature, key_registry).await?;
+            requests.push(ValidatedIntent::try_from_intent(
+                item.validated.intent.clone(),
+                item.validated.signature.clone(),
+            )?);
+        }
+        let mut identities = BTreeSet::new();
+        let tenant = &requests
+            .first()
+            .ok_or_else(|| ExecutorError::AtomicityViolation(String::from("empty batch")))?
+            .intent
+            .tenant_id;
+        for request in &requests {
+            if &request.intent.tenant_id != tenant || !identities.insert(&request.intent.intent_id)
+            {
+                return Err(ExecutorError::AtomicityViolation(String::from(
+                    "mixed tenant scopes or duplicate intent identity in prepared batch",
+                )));
+            }
+        }
+        let mut mutations = Vec::with_capacity(requests.len());
+        for (request, item) in requests.into_iter().zip(items) {
+            let events = self
+                .execute_inner(&request, false, IntentHandling::Prepare)
+                .await?;
+            mutations.push(PreparedMutation::new(request, item.principal, events)?);
+        }
+        let prepared = PreparedBatch::new(mutations)?;
+        self.validate_profile_groups(
+            |identity| {
+                prepared
+                    .mutations()
+                    .iter()
+                    .map(PreparedMutation::validated)
+                    .find(|request| &request.intent.intent_id == identity)
+            },
+            prepared.events(),
+        )?;
+        Ok(prepared)
     }
 
     /// Executes a player-originated mutation with the strict public-ingress
@@ -1218,6 +1293,21 @@ impl Executor {
         intents: &[ValidatedIntent],
         events: &[Event],
     ) -> Result<(), ExecutorError> {
+        self.validate_profile_groups(
+            |identity| {
+                intents
+                    .iter()
+                    .find(|request| &request.intent.intent_id == identity)
+            },
+            events,
+        )
+    }
+
+    fn validate_profile_groups<'event>(
+        &self,
+        intent_for: impl Fn(&IntentId) -> Option<&'event ValidatedIntent>,
+        events: impl IntoIterator<Item = &'event Event>,
+    ) -> Result<(), ExecutorError> {
         let mut identities = BTreeSet::new();
         let mut groups = BTreeMap::new();
         let mut tenant = None;
@@ -1239,12 +1329,9 @@ impl Executor {
                 .push(event);
         }
         for (identity, group) in groups {
-            let validated = intents
-                .iter()
-                .find(|entry| &entry.intent.intent_id == identity)
-                .ok_or_else(|| {
-                    ExecutorError::AtomicityViolation(String::from("event has no accepted intent"))
-                })?;
+            let validated = intent_for(identity).ok_or_else(|| {
+                ExecutorError::AtomicityViolation(String::from("event has no accepted intent"))
+            })?;
             let intent = &validated.intent;
             let state_type = intent.state_type.ok_or(ExecutorError::StateTypeRequired)?;
             self.profiles
