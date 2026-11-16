@@ -374,8 +374,10 @@ Protocol decisions are recorded in `docs/DESIGN/ADR/`. Original release evidence
 is retained in `docs/DESIGN/0.2.0_ACCEPTANCE.md`; exact candidate refactor checks
 and their limitations are retained in `docs/0.3/evidence/`. Neither historical
 evidence nor a tutorial pass establishes full candidate release qualification.
-Run `scripts/run_release_checks.sh` to execute the finite workspace, security,
-dependency, and bounded fuzz gates in one reproducible command.
+Run `scripts/run_release_checks.sh` for workspace tests/doctests, standalone
+tutorials, conformance, security/dependency policy and bounded fuzz smoke.
+See [local release checks](docs/0.3/release-checks.md) for prerequisites, failure
+semantics and the remaining separate qualification gates.
 
 ## Where to go next
 
