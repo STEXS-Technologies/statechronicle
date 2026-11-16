@@ -465,3 +465,21 @@ workspace Clippy/rustdoc, formatting and whitespace checks pass. No new public
 API or dependency was introduced. This is an initial shared typed stage with
 actual duplicate implementations removed, not completion of F2 or a speedup
 claim. Exact committed external qualification and parser metrics follow.
+
+Exact candidate `e30fdda` passes all five hosted/portable/bare-metal external
+checks on Rust 1.85 in `evidence/compat/20261116T042504Z-2228907/`, with frozen
+legacy consumers/wire data and new canonical overlays. Pinned-parser metrics
+report 1,402,524 tracked source bytes, 15,077 production syntax lines, 111,062
+tokens, 1,791 branch nodes and 1,302 public syntax items: -536 bytes, -2 lines,
+-92 tokens, -4 branches and no public syntax change relative to `45b61aa`.
+The reduction is small; it substantiates three duplicate sites removed, not
+the roadmap's final hotspot-reduction or whole-workspace footprint target.
+
+Cumulative original/candidate measurement checks also pass in
+`evidence/compat/20261116T042553Z-2255276/`: all 22 legacy workloads and portable
+zero-added-allocation probes. Seven follow-up alternating pairs retain all
+samples rather than suppressing the initial review triggers. They confirm an
+open stale-head refusal timing finding (+33 ns / +13.78% median paired change;
+no final performance acceptance). See [measurement disposition](performance-baseline.md).
+This is not attributed to the event-stage extraction without a controlled
+same-dependency experiment, and final performance qualification remains open.

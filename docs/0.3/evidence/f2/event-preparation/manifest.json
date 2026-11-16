@@ -63,6 +63,12 @@
     {
       "command": "cargo fmt --all --check; git diff --check",
       "exit_code": 0
+    },
+    {
+      "command": "graphify update .",
+      "exit_code": 0,
+      "log": "emission-final-graph.log.gz",
+      "scope": "Includes the retained Python paired-measurement script."
     }
   ],
   "artifacts_sha256": {
@@ -75,7 +81,8 @@
     "emission-clippy-qualified.log.gz": "128381e33572b9eb417c7ab6fda1839e71c3876a373e5a544d1499a52085770b",
     "emission-graph.log.gz": "88adf4a42238b3134ab8e364d5945da681b9ec88fb9f16e8e75ef8ce5dd1d936",
     "emission-original-qualified.log.gz": "59184a2e627e012c32a29f36812ff59878c67cebed4e05cbc8f163e64676fd3a",
-    "emission-doc.log.gz": "aacfc0d928a5f608f44b51e18323e71c772c4d424783076bf86cbeaa8fc867ce"
+    "emission-doc.log.gz": "aacfc0d928a5f608f44b51e18323e71c772c4d424783076bf86cbeaa8fc867ce",
+    "emission-final-graph.log.gz": "295711890f88dbfb8f9766885a001fa2c688c11a83a7aa67108526e5fa553135"
   },
   "development_failures": {
     "emission-clippy.log.gz": "Unqualified: direct helper exceeded six-argument policy. Replaced raw state arguments with a private owned checked commitment stage."

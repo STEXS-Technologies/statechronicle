@@ -139,3 +139,47 @@ legacy proof helpers and shared commit lookup; they do not measure the new
 final comparison matrix must measure those new guarantees separately and
 include their allocation cost, rather than treating a `Result<()>` verifier as
 equal work. No final performance disposition is claimed for the new route.
+
+
+## Shared event-stage checkpoint and open stale-head timing finding
+
+Exact candidate `e30fdda` and immutable original release pass all twenty
+measurement checks in `evidence/compat/20261116T042553Z-2255276/` on Rust
+1.100. All 22 fixed legacy workloads run three CPU-pinned processes with 31
+sample averages each. Native and portable operations each add zero allocations
+or bytes over their process/setup control. Hosted custom execution remains
+23 allocations / 362 bytes per operation; the legacy proof allocation probe
+remains 29 allocations / 41,128 bytes. These do not measure owned expected
+claims or protected signed-plan/readback costs.
+
+The initial sequential samples crossed the roadmap's median review trigger
+for hosted custom execution (+6.13%) and stale-head refusal (+8.12%). Rather
+than dropping samples or declaring a pass, seven alternating original/candidate
+pairs were run using the same verified binary hashes and pinned CPU. The
+reproducible script is `evidence/f2/event-preparation/paired_benchmark.py`;
+commands, raw sample arrays, checksums and summary are retained in the above
+measurement directory's `alternating/` folder.
+
+Hosted custom execution has +3.84% median paired change (+18.43 ns), with
+wide positive and negative pair deltas; its median paired p95 change is +8.76%.
+This is shared-host noise evidence, not final release disposition. Trade state
+verification has -0.22% median paired change (-92.1 ns), which does not establish
+a speedup or isolate the allocation cost of new coverage checks.
+
+**Open investigation:** stale-head refusal has +13.78% median paired change
+(+33 ns), with six positive pairs and one equal pair; median paired p95 change
+is +56.09%, with substantial outliers. This crosses both review triggers and
+is not accepted as final performance qualification. The timed compatibility
+route loads the original commit, then refuses its stale head before crypto.
+The cumulative candidate routes lookup through the shared async `load_commit`
+helper; an extra async layer/code generation is a hypothesis to test, not an
+established cause. The original and candidate also have different dependency
+lockfiles. A controlled same-dependency comparison is still needed before
+attributing this to any one extraction or deciding its disposition. No checks
+were removed or weakened to hide the observation.
+
+The event-stage extraction itself reduces three duplicate sites to one each
+and does not introduce allocations. The measured workload matrix covers the
+cumulative candidate, not an isolated before/after of just that extraction.
+New canonical safety APIs, final alternating noise bounds and this open
+refusal-path finding still need the F8 exact-candidate performance gate.
