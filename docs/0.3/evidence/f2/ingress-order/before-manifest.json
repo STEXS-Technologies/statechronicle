@@ -1,0 +1,35 @@
+{
+  "baseline_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "candidate_base_commit": "5632d008a328c7dfaaf9ce39436474685ba0231d",
+  "same_test_overlay_sha256": "c82de25001fff29ebbc37054798f165ebc7fd4eb9d467b95811ea66110201488",
+  "commands": [
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo test --manifest-path target/emission-original/source/Cargo.toml -p statechronicle-executor --test ingress_order --locked --offline",
+      "exit_code": 0,
+      "passed": 3,
+      "log": "ingress-original-final.log.gz"
+    },
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo +1.85.0 test -p statechronicle-executor --test ingress_order --locked --offline",
+      "exit_code": 0,
+      "passed": 3,
+      "log": "ingress-before.log.gz"
+    },
+    {
+      "command": "graphify update .",
+      "exit_code": 0,
+      "log": "ingress-fixture-graph.log.gz"
+    }
+  ],
+  "artifacts_sha256": {
+    "ingress-original.log.gz": "877c5d3dd073f20e24370994beaed720845c044168662f2e580ba643bbcf7246",
+    "ingress-original-final.log.gz": "e32ba072c536c51c12ff9f4a2b298aab1e9a9a76d2b1086a66251c6f97942fdc",
+    "ingress-before.log.gz": "fdcb1d8e2d9a7f0e41091530dda4c4f13b21962c89582d21443a4e4e5d33177b",
+    "ingress-fixture-graph.log.gz": "179b2c42955a359edf7b343960811855f65aa77c3d215d8983152a5c53a54ab6"
+  },
+  "limitations": [
+    "Signatures are placeholders; all cases must refuse before crypto/state execution.",
+    "Multi-fault refusal-order evidence, not successful authentication or durability qualification.",
+    "Original production and lockfile remain unchanged; only this additional test is overlaid."
+  ]
+}
