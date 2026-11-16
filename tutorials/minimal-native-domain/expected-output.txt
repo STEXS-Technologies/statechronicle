@@ -1,0 +1,3 @@
+Prepared configuration: ConfigurationState { revision: 1, enabled: true }
+Prepared equipment: EquipmentState { mode: Idle, cycles: 0 }
+Uncommitted: no intent claim, ledger write, outbox dispatch or durable receipt.

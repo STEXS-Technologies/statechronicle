@@ -31,6 +31,12 @@ and run `cargo run -p statechronicle --example custom_domains`. The portable
 encoding buffers and compatible integrity verification. The standard adapter
 and complete runtime currently require `std`.
 
+On this refactoring branch, the [standalone native-domain tutorial](tutorials/minimal-native-domain/README.md)
+shows signed, authenticated preparation for both domains using the public
+`mutation::Preparer` surface and read-only adapters. It has its own manifest and
+lockfile. Its development credentials and uncommitted results are explicit;
+preparation alone is not durable success.
+
 ## Use cases
 
 - **Configuration lifecycles**: define revisioned configuration, permitted
