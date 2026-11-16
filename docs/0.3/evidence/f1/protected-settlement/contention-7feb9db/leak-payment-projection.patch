@@ -1,0 +1,13 @@
+--- original/durable.rs
++++ control/durable.rs
+@@ -179,6 +179,10 @@
+         &mut self,
+         projection: &StateProjection,
+     ) -> Result<(), LedgerStoreError> {
++        if self.ledger.fail_at == Some((Step::Projection, 2))
++            && projection.state_type == statechronicle::StateType::FungibleBalance {
++            self.ledger.data.lock().unwrap().projections.push(projection.clone());
++        }
+         self.ledger.checkpoint(Step::Projection).await?;
+         if self.ledger.fail_projection {
+             return Err(LedgerStoreError::Unavailable(String::from(

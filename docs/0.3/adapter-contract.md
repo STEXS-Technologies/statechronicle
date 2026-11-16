@@ -306,3 +306,19 @@ single history and genesis batch visibility/replay checks, then fail this mixed
 schedule. Both signed per-tenant fixture histories verify before backend use.
 See [consumer setup](../../ci/conformance/README.md#alternating-single-and-batch-histories).
 Randomized concurrency, database crash recovery and full F5/F8 remain open.
+
+## Canonical economic contention
+
+The protected integration fixture now canonically seeds an asset lock and buyer
+balances, then races distinct asset/payment groups on 2, 8 and 32 OS threads.
+Its reader checks complete economic snapshots, signatures, event/projection
+binding and independently addressed full state roots. Loser lookup and retry,
+13 economic failure boundaries, lost ACK/current access checks and unsupported
+cross-tenant scope are covered. Three isolated broken-adapter controls fail the
+intended runtime oracles. See [exact source and limits](evidence/f1/protected-settlement/contention-7feb9db/README.md).
+
+This test adapter shares one in-memory authority across fresh handles. Its typed
+subject-held addressing covers the tested balance transfers; it does not model
+subject relocation, physical durability or independent database connections.
+The reusable generic conformance interface and backend-specific crash campaigns
+remain separate from this protected end-to-end scenario.

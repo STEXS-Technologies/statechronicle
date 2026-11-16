@@ -106,3 +106,11 @@ sequential preparation overlays. Specialized companion/economic event binding
 and cross-tenant settlement require separate authority review and tests; do
 not infer that every legacy batch operation is supported by this protected
 path. Full release fuzz/performance/API review gates remain open.
+
+The explicit `Preparer::prepare_player_settlement` route now returns the same
+`PreparedBatch` after complete economic/bundle validation. The protected
+single-tenant path is exercised by [contested canonical purchases](evidence/f1/protected-settlement/contention-7feb9db/README.md),
+including ownership plus debit/credit projections, complete roots, original
+winner/loser recovery and injected failures. This supersedes the earlier lack
+of economic-path tests above within that bounded fixture. Cross-tenant
+settlement and sequential preparation overlays remain unsupported here.

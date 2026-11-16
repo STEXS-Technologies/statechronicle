@@ -963,3 +963,23 @@ a repeat but diminish with longer measurements; they remain visible in the
 [evidence and limitations](evidence/maintenance/builtin-profiles/README.md).
 This advances F3's built-in review and F6's duplicate-owner work; it does not
 close full performance, footprint or release qualification.
+
+## Protected settlement and contested purchases
+
+Production source `f6cd75d` adds an explicit protected settlement coordinator,
+reusing existing authenticated preparation and settlement invariants. Ordinary
+resource routes now refuse incomplete bundle routing. Before-fix regressions,
+validation-bypass controls, original settlement/executor traces and frozen
+consumer qualification are [retained](evidence/f1/protected-settlement/README.md).
+
+Test source `7feb9db` canonically seeds and races distinct economic groups with
+2/8/32 OS threads. One winner moves ownership and currency atomically; losing
+unknowns recover as exact-group absence, and winner replay retains the original
+signed outcome. Independent snapshots check every economic balance, event/
+projection binding, signature and full root. Thirteen fault boundaries preserve
+all seeded effects, lost ACK and access denial preserve authority, and unsupported
+cross-tenant scope refuses. Three deliberately broken adapters fail the intended
+runtime assertions. The [893-test immutable-source campaign and scope limits](evidence/f1/protected-settlement/contention-7feb9db/README.md)
+advance Scenario D; schema migration, generic randomized adapters and final
+release qualification remain open. No new production changes occur in that
+second checkpoint.

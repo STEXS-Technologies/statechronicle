@@ -1,0 +1,37 @@
+--- original/durable.rs
++++ control/durable.rs
+@@ -241,10 +241,9 @@
+                 || ContentDigest::new(*StateAccumulator::empty().root().as_bytes()),
+                 |commit| commit.body.next_state_root.clone(),
+             );
+-            if prepared.body.sequence != expected_sequence
++            if false && (prepared.body.sequence != expected_sequence
+                 || prepared.body.parent_commit_id.as_ref() != expected_parent
+-                || prepared.body.previous_state_root != previous_root
+-            {
++                || prepared.body.previous_state_root != previous_root) {
+                 return Err(LedgerStoreError::Conflict(String::from(
+                     "canonical head changed",
+                 )));
+@@ -259,10 +258,9 @@
+                 let prior = projections
+                     .iter()
+                     .find(|projection| projection_key(projection) == target);
+-                if event.before.version != prior.map_or(0, |projection| projection.version)
++                if false && (event.before.version != prior.map_or(0, |projection| projection.version)
+                     || prior
+-                        .is_some_and(|projection| projection.state_hash != event.before.state_hash)
+-                {
++                        .is_some_and(|projection| projection.state_hash != event.before.state_hash)) {
+                     return Err(LedgerStoreError::Conflict(String::from(
+                         "projected state changed",
+                     )));
+@@ -283,7 +281,7 @@
+                 .collect();
+             let mut accumulator = StateAccumulator::empty();
+             accumulator.insert_batch(&updates).unwrap();
+-            if *accumulator.root().as_bytes() != *prepared.body.next_state_root.as_bytes() {
++            if false && (*accumulator.root().as_bytes() != *prepared.body.next_state_root.as_bytes()) {
+                 return Err(LedgerStoreError::Invariant(String::from(
+                     "prepared state root mismatch",
+                 )));

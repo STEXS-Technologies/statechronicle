@@ -1,0 +1,15 @@
+--- original/durable.rs
++++ control/durable.rs
+@@ -362,11 +362,7 @@
+             data.identities.append(&mut self.staged.identities);
+             data.finalized = self.staged.finalized;
+         }
+-        if self.ledger.lose_commit_response {
+-            return Err(LedgerStoreError::Unavailable(String::from(
+-                "commit response lost",
+-            )));
+-        }
++        if self.ledger.lose_commit_response { return Ok(()); }
+         Ok(())
+     }
+     async fn rollback(self: Box<Self>) -> Result<(), LedgerStoreError> {

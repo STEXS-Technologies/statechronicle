@@ -52,3 +52,9 @@ release/performance gates. It does not qualify physical storage durability or
 cross-tenant settlement. The intentional bundle-routing tightening is documented
 in the migration guide; unchanged compatibility traces do not cover every
 possible bundle declaration.
+
+A subsequent [contested canonical purchase checkpoint](contention-7feb9db/README.md)
+covers the previously open bounded ownership/payment contention and original
+loser recovery scenario on a typed in-memory authority. Schema migration and
+remaining exact-candidate release gates stay open; see that checkpoint for
+independent snapshot checks, real OS-thread contention and explicit limits.
