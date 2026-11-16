@@ -58,8 +58,9 @@ F0 baseline capture is complete, with the explicitly recorded original advisory
 failures and measurement limitations below. F1 is in progress; F2–F8 remain
 pending. This is not
 release qualification: final paired performance disposition and exact-candidate
-gates remain required. The first F1 change binds trade proofs and commit/key
-lookup to tenant scope; see [findings](findings.md) for remaining work.
+gates remain required. F1 now binds trade commits to tenant scope and adds
+independent current/historical expected-claim verification; see
+[findings](findings.md) for remaining durability and trade work.
 
 ## Additional local baseline evidence
 

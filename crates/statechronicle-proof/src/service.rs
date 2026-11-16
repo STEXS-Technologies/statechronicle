@@ -192,6 +192,8 @@ impl ProofService {
     /// `StateKey` (or use the pure `verify_non_membership(bundle, root, key)`
     /// with an independent key), since the service has no independent key with
     /// which to detect a forged or swapped `claimed_key`.
+    /// Prefer [`Self::verify_current`] or [`Self::verify_historical`] with an
+    /// independent [`ExpectedClaim`](crate::claim::ExpectedClaim) for new code.
     ///
     /// # Errors
     ///
@@ -205,15 +207,9 @@ impl ProofService {
         verifying_key: &VerifyingKey,
     ) -> Result<(), ProofError> {
         let key = StateKey::new(*bundle.claimed_key.as_bytes());
-        let Some(signed) = self
-            .ports
-            .commit_store
-            .commit_by_id(&bundle.tenant_id, &bundle.commit.commit_id)
-            .await
-            .map_err(|err| ProofError::Store(err.to_string()))?
-        else {
-            return Err(ProofError::NotFound);
-        };
+        let signed = self
+            .load_commit(&bundle.tenant_id, &bundle.commit.commit_id)
+            .await?;
         verify_non_membership_bundle(bundle, &signed, verifying_key, &key)
     }
 
@@ -255,6 +251,9 @@ impl ProofService {
     /// runs the full [`verify_bundle`] pipeline (schema, tenant scope, commit
     /// reference, commit signature, sparse Merkle inclusion, claimed-state
     /// hash) under the supplied verifying key and state key.
+    /// This compatibility helper derives its address from the bundle and does
+    /// not require an independently selected historical commit or current head.
+    /// Prefer [`Self::verify_current`] or [`Self::verify_historical`] for new code.
     ///
     /// # Errors
     ///
@@ -267,15 +266,9 @@ impl ProofService {
         verifying_key: &VerifyingKey,
     ) -> Result<(), ProofError> {
         let key = derive_state_key(proof)?;
-        let Some(signed) = self
-            .ports
-            .commit_store
-            .commit_by_id(&proof.tenant_id, &proof.commit.commit_id)
-            .await
-            .map_err(|err| ProofError::Store(err.to_string()))?
-        else {
-            return Err(ProofError::NotFound);
-        };
+        let signed = self
+            .load_commit(&proof.tenant_id, &proof.commit.commit_id)
+            .await?;
         verify_bundle(proof, &signed, verifying_key, &key)
     }
 
@@ -294,23 +287,18 @@ impl ProofService {
         verifying_key: &VerifyingKey,
         key: &StateKey,
     ) -> Result<(), ProofError> {
-        let Some(signed) = self
-            .ports
-            .commit_store
-            .commit_by_id(&proof.tenant_id, &proof.commit.commit_id)
-            .await
-            .map_err(|err| ProofError::Store(err.to_string()))?
-        else {
-            return Err(ProofError::NotFound);
-        };
+        let signed = self
+            .load_commit(&proof.tenant_id, &proof.commit.commit_id)
+            .await?;
         verify_bundle(proof, &signed, verifying_key, key)
     }
 
     /// Verifies a proof and additionally requires its commit to be the
     /// adapter's current canonical tenant head.
     ///
-    /// This is the recommended method for serving player-facing proofs when
-    /// the caller means "current" state. Plain [`Self::verify`] remains
+    /// This compatibility method derives its address from the proof. Prefer
+    /// [`Self::verify_current`] with an independent expected claim when the
+    /// caller means "current" state. Plain [`Self::verify`] remains
     /// useful for historical proofs pinned to an explicitly selected commit.
     ///
     /// # Errors
@@ -325,15 +313,9 @@ impl ProofService {
         verifying_key: &VerifyingKey,
     ) -> Result<(), ProofError> {
         let key = derive_state_key(proof)?;
-        let Some(signed) = self
-            .ports
-            .commit_store
-            .commit_by_id(&proof.tenant_id, &proof.commit.commit_id)
-            .await
-            .map_err(|err| ProofError::Store(err.to_string()))?
-        else {
-            return Err(ProofError::NotFound);
-        };
+        let signed = self
+            .load_commit(&proof.tenant_id, &proof.commit.commit_id)
+            .await?;
         self.ensure_canonical(&proof.tenant_id, &signed).await?;
         verify_bundle(proof, &signed, verifying_key, &key)
     }
@@ -350,20 +332,14 @@ impl ProofService {
         verifying_key: &VerifyingKey,
         key: &StateKey,
     ) -> Result<(), ProofError> {
-        let Some(signed) = self
-            .ports
-            .commit_store
-            .commit_by_id(&proof.tenant_id, &proof.commit.commit_id)
-            .await
-            .map_err(|err| ProofError::Store(err.to_string()))?
-        else {
-            return Err(ProofError::NotFound);
-        };
+        let signed = self
+            .load_commit(&proof.tenant_id, &proof.commit.commit_id)
+            .await?;
         self.ensure_canonical(&proof.tenant_id, &signed).await?;
         verify_bundle(proof, &signed, verifying_key, key)
     }
 
-    async fn ensure_canonical(
+    pub(crate) async fn ensure_canonical(
         &self,
         tenant: &TenantId,
         signed: &Signed<Commit>,
@@ -385,6 +361,19 @@ impl ProofService {
             });
         }
         Ok(())
+    }
+
+    pub(crate) async fn load_commit(
+        &self,
+        tenant: &TenantId,
+        commit: &CommitId,
+    ) -> Result<Signed<Commit>, ProofError> {
+        self.ports
+            .commit_store
+            .commit_by_id(tenant, commit)
+            .await
+            .map_err(|error| ProofError::Store(error.to_string()))?
+            .ok_or(ProofError::NotFound)
     }
 
     /// Verifies a trade proof end-to-end.

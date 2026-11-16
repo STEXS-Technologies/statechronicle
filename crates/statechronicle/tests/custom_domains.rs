@@ -389,7 +389,7 @@ async fn independent_domains_execute_replay_commit_and_prove() {
                 custom.schema_version = 2;
             }
             assert!(verify_bundle(&tampered, &signed, &fixed_key().verifying_key(), &key).is_err());
-            let mut retargeted = proof.clone();
+            let mut retargeted = proof;
             retargeted.resource_id = ResourceId(String::from("config:other"));
             assert!(
                 verify_custom_bundle(

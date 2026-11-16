@@ -86,6 +86,13 @@ pub trait CommitStore: Sync + Send {
     /// Returns the canonical head when the adapter tracks one. Adapters that
     /// expose only append-only commit lookup may return `Ok(None)`; production
     /// proof verification should require a non-`None` head implementation.
+    ///
+    /// Current-claim verification requires a linearizable read of the complete
+    /// `(commit_id, sequence, state_root)` tuple within this tenant scope. The
+    /// head must advance atomically with its immutable commit and canonical
+    /// ledger effects. A stale cache or independently read tuple fields cannot
+    /// implement that contract. A verifier's result is current at this read,
+    /// pinned to that exact head; it cannot promise freshness after the read.
     async fn canonical_head(
         &self,
         _tenant: &TenantId,

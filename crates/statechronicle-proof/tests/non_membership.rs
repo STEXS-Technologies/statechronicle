@@ -51,7 +51,7 @@ use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 
-use statechronicle_ports::commit_store::{CommitStore, CommitStoreError};
+use statechronicle_ports::commit_store::{CanonicalHead, CommitStore, CommitStoreError};
 use statechronicle_ports::proof_index::{ProofIndex, ProofIndexError};
 use statechronicle_ports::snapshot_store::{SnapshotStore, SnapshotStoreError};
 use statechronicle_ports::state_index::{StateIndex, StateIndexError};
@@ -116,8 +116,11 @@ struct Fixture {
 }
 
 fn fixture() -> Fixture {
+    fixture_at(absent_key(), resource())
+}
+
+fn fixture_at(absent: StateKey, absent_resource: ResourceId) -> Fixture {
     let present = present_key();
-    let absent = absent_key();
     let mut acc = StateAccumulator::empty();
     acc.insert_batch(&[StateUpdate::new(present, [0xa1u8; 32])])
         .unwrap();
@@ -139,9 +142,14 @@ fn fixture() -> Fixture {
     );
     let signed = sign_commit(&commit, &fixed_key(), key_id()).unwrap();
 
-    let bundle =
-        build_non_membership_proof(&tenant(), &resource(), &absent, &signed, &non_membership)
-            .unwrap();
+    let bundle = build_non_membership_proof(
+        &tenant(),
+        &absent_resource,
+        &absent,
+        &signed,
+        &non_membership,
+    )
+    .unwrap();
 
     Fixture {
         signed,
@@ -384,6 +392,7 @@ type StoredCommit = (TenantId, Signed<Commit>);
 #[derive(Clone, Default)]
 struct FakeCommitStore {
     inner: Arc<Mutex<Vec<StoredCommit>>>,
+    head: Arc<Mutex<Option<CanonicalHead>>>,
 }
 
 #[async_trait]
@@ -435,6 +444,14 @@ impl CommitStore for FakeCommitStore {
             .iter()
             .find(|(t, c)| t == tenant && c.body.sequence == sequence)
             .map(|(_, c)| c.clone()))
+    }
+
+    async fn canonical_head(
+        &self,
+        requested: &TenantId,
+    ) -> Result<Option<CanonicalHead>, CommitStoreError> {
+        assert_eq!(requested, &tenant());
+        Ok(self.head.lock().unwrap().clone())
     }
 }
 
@@ -647,6 +664,208 @@ async fn legacy_absence_service_does_not_bind_independent_key_or_current_head() 
             &fixed_key().verifying_key(),
             &present_key()
         ),
+        Err(ProofError::KeyMismatch { .. })
+    ));
+}
+
+fn claim_service(store: FakeCommitStore) -> ProofService {
+    ProofService::new(ProofPorts {
+        proof_index: Box::new(FakeProofIndex::default()),
+        state_index: Box::new(FakeStateIndex::default()),
+        commit_store: Box::new(store),
+        snapshot_store: Box::new(FakeSnapshotStore),
+    })
+}
+
+fn head(signed: &Signed<Commit>) -> CanonicalHead {
+    CanonicalHead {
+        commit_id: signed.body.commit_id.clone(),
+        sequence: signed.body.sequence,
+        state_root: signed.body.next_state_root.clone(),
+    }
+}
+
+#[tokio::test]
+async fn independent_absence_claim_rejects_swapped_keys_metadata_and_kind() {
+    use statechronicle_proof::claim::{ClaimProof, ExpectedClaim, VerificationPoint};
+    let missing = ResourceId(String::from("asset:missing"));
+    let expected = ExpectedClaim::absence(tenant(), missing.clone());
+    let fixture = fixture_at(expected.key(), missing);
+    let store = FakeCommitStore::default();
+    store.put_commit(&tenant(), &fixture.signed).await.unwrap();
+    let service = claim_service(store.clone());
+    let trusted = fixed_key().verifying_key();
+    let historical = service
+        .verify_historical(
+            ClaimProof::Absence(&fixture.bundle),
+            &expected,
+            &commit_id(),
+            &trusted,
+        )
+        .await
+        .unwrap();
+    assert_eq!(historical.point(), VerificationPoint::Historical);
+    assert_eq!(historical.expectation(), &expected);
+    assert!(historical.expectation().is_absence());
+    assert_eq!(historical.commit(), &fixture.bundle.commit);
+    assert!(matches!(
+        service
+            .verify_current(ClaimProof::Absence(&fixture.bundle), &expected, &trusted)
+            .await,
+        Err(ProofError::CanonicalHeadUnavailable)
+    ));
+    *store.head.lock().unwrap() = Some(head(&fixture.signed));
+    let current = service
+        .verify_current(ClaimProof::Absence(&fixture.bundle), &expected, &trusted)
+        .await
+        .unwrap();
+    assert_eq!(current.point(), VerificationPoint::Current);
+    assert!(matches!(
+        service
+            .verify_current(
+                ClaimProof::Absence(&fixture.bundle),
+                &expected,
+                &SigningKey::from_bytes(&[43; 32]).verifying_key()
+            )
+            .await,
+        Err(ProofError::CommitSignature(_))
+    ));
+    let mut swapped = fixture_at(
+        StateKey::for_resource(&tenant().0, "asset:other"),
+        ResourceId(String::from("asset:other")),
+    )
+    .bundle;
+    // Both absences genuinely verify under the same signed root. Neither
+    // swapping the bundle nor relabeling its unsigned resource can prove A.
+    assert!(matches!(
+        service
+            .verify_current(ClaimProof::Absence(&swapped), &expected, &trusted)
+            .await,
+        Err(ProofError::ResourceMismatch { .. })
+    ));
+    swapped.resource_id = expected.resource().clone();
+    assert!(matches!(
+        service
+            .verify_current(ClaimProof::Absence(&swapped), &expected, &trusted)
+            .await,
+        Err(ProofError::KeyMismatch { .. })
+    ));
+    swapped = fixture.bundle.clone();
+    swapped.tenant_id = TenantId(String::from("acme.game.beta"));
+    assert!(matches!(
+        service
+            .verify_current(ClaimProof::Absence(&swapped), &expected, &trusted)
+            .await,
+        Err(ProofError::TenantMismatch { .. })
+    ));
+    let presence = ExpectedClaim::state(tenant(), expected.resource().clone());
+    assert!(matches!(
+        service
+            .verify_current(ClaimProof::Absence(&fixture.bundle), &presence, &trusted)
+            .await,
+        Err(ProofError::InvalidState(_))
+    ));
+}
+
+#[tokio::test]
+async fn historical_absence_survives_creation_but_cannot_prove_current_absence() {
+    use statechronicle_proof::claim::{ClaimProof, ExpectedClaim};
+    let resource = ResourceId(String::from("asset:created_later"));
+    let expected = ExpectedClaim::absence(tenant(), resource.clone());
+    let fixture = fixture_at(expected.key(), resource);
+    let store = FakeCommitStore::default();
+    store.put_commit(&tenant(), &fixture.signed).await.unwrap();
+    let mut created = StateAccumulator::empty();
+    created
+        .insert_batch(&[
+            StateUpdate::new(present_key(), [0xa1; 32]),
+            StateUpdate::new(expected.key(), [0xb2; 32]),
+        ])
+        .unwrap();
+    let next_commit = Commit::new(
+        CommitScope::tenant(tenant()),
+        CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF6")).unwrap(),
+        Some(commit_id()),
+        2,
+        1,
+        ContentDigest::new([3; 32]),
+        fixture.signed.body.next_state_root.clone(),
+        ContentDigest::new(*created.root().as_bytes()),
+        timestamp(),
+        executor(),
+        profile(),
+    );
+    let signed = sign_commit(&next_commit, &fixed_key(), key_id()).unwrap();
+    store.put_commit(&tenant(), &signed).await.unwrap();
+    *store.head.lock().unwrap() = Some(head(&signed));
+    let service = claim_service(store);
+    assert!(matches!(
+        service
+            .verify_current(
+                ClaimProof::Absence(&fixture.bundle),
+                &expected,
+                &fixed_key().verifying_key()
+            )
+            .await,
+        Err(ProofError::NonCanonicalCommit { .. })
+    ));
+    service
+        .verify_historical(
+            ClaimProof::Absence(&fixture.bundle),
+            &expected,
+            &commit_id(),
+            &fixed_key().verifying_key(),
+        )
+        .await
+        .unwrap();
+    // Replacing the commit reference cannot carry an old empty path into the
+    // new root where this address is present.
+    let mut forged = fixture.bundle;
+    forged.commit = statechronicle_proof::bundle::commit_ref(&signed).unwrap();
+    assert!(
+        service
+            .verify_current(
+                ClaimProof::Absence(&forged),
+                &expected,
+                &fixed_key().verifying_key()
+            )
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn independent_subject_absence_binds_the_requested_holder() {
+    use statechronicle_proof::claim::{ClaimProof, ExpectedClaim};
+    let holder = SubjectId(String::from("account:holder"));
+    let expected = ExpectedClaim::subject_absence(tenant(), resource(), holder.clone());
+    let fixture = fixture_at(expected.key(), resource());
+    let store = FakeCommitStore::default();
+    store.put_commit(&tenant(), &fixture.signed).await.unwrap();
+    *store.head.lock().unwrap() = Some(head(&fixture.signed));
+    let service = claim_service(store);
+    assert_eq!(expected.subject(), Some(&holder));
+    service
+        .verify_current(
+            ClaimProof::Absence(&fixture.bundle),
+            &expected,
+            &fixed_key().verifying_key(),
+        )
+        .await
+        .unwrap();
+    let other = ExpectedClaim::subject_absence(
+        tenant(),
+        resource(),
+        SubjectId(String::from("account:other")),
+    );
+    assert!(matches!(
+        service
+            .verify_current(
+                ClaimProof::Absence(&fixture.bundle),
+                &other,
+                &fixed_key().verifying_key()
+            )
+            .await,
         Err(ProofError::KeyMismatch { .. })
     ));
 }

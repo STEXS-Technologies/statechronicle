@@ -332,16 +332,25 @@ pub fn check_claim(
     tenant: &TenantId,
     resource: &ResourceId,
 ) -> Result<(), ProofError> {
-    if proof.tenant_id != *tenant {
+    check_claim_identity(&proof.tenant_id, &proof.resource_id, tenant, resource)
+}
+
+pub(crate) fn check_claim_identity(
+    proof_tenant: &TenantId,
+    proof_resource: &ResourceId,
+    tenant: &TenantId,
+    resource: &ResourceId,
+) -> Result<(), ProofError> {
+    if proof_tenant != tenant {
         return Err(ProofError::TenantMismatch {
             expected: String::from(tenant.0.as_str()),
-            actual: String::from(proof.tenant_id.0.as_str()),
+            actual: String::from(proof_tenant.0.as_str()),
         });
     }
-    if proof.resource_id != *resource {
+    if proof_resource != resource {
         return Err(ProofError::ResourceMismatch {
             expected: String::from(resource.0.as_str()),
-            actual: String::from(proof.resource_id.0.as_str()),
+            actual: String::from(proof_resource.0.as_str()),
         });
     }
     Ok(())

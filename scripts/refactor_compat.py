@@ -115,6 +115,17 @@ def main():
             consumer_root = run / label / 'consumer'
             shutil.copytree(fixture, consumer_root)
             consumer = consumer_root / 'crates' / 'consumer'
+            # New canonical APIs are tested only against the candidate; the
+            # original consumer/provenance and wire corpus remain immutable.
+            if label == 'candidate':
+                overlays = root / 'ci/canonical-0.3'
+                manifest['canonical_consumer_overlays'] = {}
+                for overlay in sorted(overlays.glob('*.rs')):
+                    destination = consumer / 'tests' / ('canonical_' + overlay.name)
+                    if destination.exists():
+                        raise RuntimeError(f'Canonical overlay would replace a fixture: {destination.name}')
+                    shutil.copyfile(overlay, destination)
+                    manifest['canonical_consumer_overlays'][str(overlay.relative_to(root))] = digest(overlay.read_bytes())
             cargo = consumer / 'Cargo.toml'
             cargo.write_text(cargo.read_text().replace('../../../../crates/statechronicle',
                                                        str(source / 'crates/statechronicle')))

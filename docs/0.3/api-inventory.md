@@ -53,3 +53,11 @@ inventory, these compiler outputs include generated implementations and resolved
 public declarations. The manifest pins nightly and rustdoc flags; every
 compressed crate snapshot has a hash. Regenerate reference snapshots only from
 the pinned original source, with `scripts/refactor_baseline.py --api-inventory`.
+
+The additive `proof::claim` surface introduces `ExpectedClaim`, borrowed
+`ClaimProof`, `VerificationPoint`, and private-field `VerifiedClaim`, with
+`ProofService::verify_current` and `verify_historical`. No existing error enum
+variants, wire structs or serialized tags change. Existing verification helpers
+retain compatibility semantics. Candidate-only consumer overlays under
+`ci/canonical-0.3/` compile the new surface against original proof records; their
+hashes are recorded separately from the immutable original consumer manifest.

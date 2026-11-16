@@ -1,7 +1,8 @@
 # Baseline trust-boundary findings
 
 Status: reproduced on original production source. The trade tenant/cache fix
-is implemented; the independent-claim and durable-success routes remain open.
+is implemented, and independent current/historical claims are implemented.
+The authoritative durable-success route and remaining trade audit remain open.
 These are release-blocking inputs to F1. No deployed consumer or real database was tested.
 The probes use deterministic local fixtures and consumer-owned in-memory ports.
 
@@ -110,3 +111,51 @@ The post-fix twenty-two-workload run passed all ten checks in
 zero. See the performance baseline for its limits. F1 remains open for explicit
 expected claims/current-vs-historical APIs, authoritative durability/recovery
 receipts, and the remaining trade metadata/coverage audit.
+
+## F1 independent expected claims and verification point
+
+The new `proof::claim` API provides independent resource/holder/owner/absence
+expectations and separate `ProofService::verify_current` / `verify_historical`
+methods. `ExpectedClaim` derives keys from the independently supplied address;
+`ClaimProof` distinguishes present and absent evidence. Historical calls require
+a separately selected commit pin. Current calls perform one final canonical
+head read after claim and cryptographic verification, and return a private-field
+`VerifiedClaim` pinned to that exact observed head. The commit-store contract
+now explicitly requires immutable lookups and linearizable, atomic head tuples.
+
+Tests reject swapped absent keys, relabeled resources, wrong tenants, holders,
+owners, signers, proof kinds, roots and historical pins. A genuine pre-creation
+absence remains valid historically after a signed creating commit but fails as
+current absence. A head advance during commit lookup is rejected; a successful
+result retains its explicit commit pin if the head advances afterward. Missing
+head support fails closed. A compile-fail doctest protects the result's private
+constructor. Legacy APIs retain their original contracts and error order.
+
+The audit also found that legacy pure verification authenticates the stored
+commit signature, without comparing the redundant signature in the proof's
+reference. The canonical route requires an exact reference signature match and
+constructs its result reference from the verified stored commit. It also rejects
+a malformed global-checkpoint scope carrying a tenant. No unverified reference
+metadata is promoted into a `VerifiedClaim`; no old wire representation changes.
+
+The [claim guide](proof-claims.md) documents exact trust and temporal semantics.
+Candidate-only external tests use original-release signed proof bytes with
+independently fixed expectations and the public umbrella API.
+
+Rust 1.100 strict all-target Clippy additionally exposed redundant clones in the
+trade index and custom-domain test. The production ownership-only move was
+committed separately as `ae625a4`; index tests and strict package Clippy passed.
+The root test now moves its last-use proof without weakening any assertion.
+Original frozen consumer sources and all prior baseline evidence remain intact.
+
+F1 is not complete: canonical authoritative durability, ambiguous-ACK lookup and
+verified replay receipts, and trade summary/coverage provenance still require
+implementation and qualification. F2–F8 remain pending.
+
+The final worktree checks in `evidence/f1/expected-claims-20261116T031019Z/`
+passed full all-target/all-feature workspace tests (excluding fuzz binaries),
+strict workspace Clippy, strict rustdoc, formatting and the proof compile-fail
+doctest. Exact source hashes identify the tested worktree. The earlier failed
+strict-Clippy attempt remains in `expected-claims-20261116T030639Z/`. Rustc, Cargo
+and benchmark manifests remain revision-specific: early finite baseline checks
+used Rust 1.99, while the expanded workloads and this checkpoint use 1.100.
