@@ -171,3 +171,9 @@ The expanded fixture set also passed the complete ten-check hosted/portable
 external matrix in `evidence/compat/20261116T024127Z-3400784/`, including original
 wire readers, legacy consumer tests, independent portable tests and bare-metal
 compilation for both revisions.
+
+Hosted Rust 1.85 qualification was additionally attempted during F1 and found
+pre-existing unsupported let-chain syntax in the unchanged core rate limiter.
+The failed log and original-source identity proof are retained in the F1
+evidence. Portable MSRV success does not cover that hosted path; this remains
+a final release gate, with no approved MSRV increase.

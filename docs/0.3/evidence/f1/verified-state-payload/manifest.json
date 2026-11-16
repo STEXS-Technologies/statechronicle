@@ -1,0 +1,31 @@
+{
+  "parent_commit": "6be864f29262a3234dff57ab9442df039e1d10a6",
+  "source_sha256": {
+    "crates/statechronicle-proof/src/claim.rs": "39ae61dc10a9feff697d7700afd071aade2eb75bae1f6fc258bca97f4c3dc16d",
+    "crates/statechronicle-proof/tests/verification_pipeline.rs": "23e2e22f5bb7df86cd08b5cfd01b8605e985529b3fa1cc40a1bfb763ad6c598b",
+    "crates/statechronicle-proof/tests/non_membership.rs": "f3d8fe3dbb1a684fa88de5522656a2526b5eed66eab1154acb484b78843eefa1",
+    "ci/canonical-0.3/proof_claims.rs": "df9e0937dbccec47666dca94660378289d2840c8032e21ded7eadd5d7f40b364"
+  },
+  "checks": [
+    {
+      "command": "cargo test -p statechronicle-proof --all-features --locked",
+      "exit_code": 0,
+      "artifact": "tests.log.gz",
+      "sha256": "0495e75b2ffeed4437d6f8e67e8b792d96d210b2f199c250463f77521284c253",
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8"
+      }
+    },
+    {
+      "command": "cargo clippy -p statechronicle-proof --all-targets --all-features --locked -- -D warnings",
+      "exit_code": 0,
+      "artifact": "clippy.log.gz",
+      "sha256": "1e0cffc46927d1ade07f90e4db592574a0d072ed6ea062bad9348bfe9c4772e5",
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8"
+      }
+    }
+  ]
+}

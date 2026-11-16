@@ -46,6 +46,11 @@ untrusted reference metadata is not promoted into the result. `point()` is
 `VerificationPoint::Current` or `Historical`. A current result is pinned to the
 head observed at that final read. It cannot promise freshness after the read,
 and keeping or cloning the result does not keep it current.
+Its `state()` accessor returns the verified, owned payload for present claims
+and `None` for absence. Read application data from this result: later mutation
+of the original proof cannot change the verified payload. Ownership assertions
+use the protocol state's native owner field; opaque custom-domain owner policy
+requires its domain verifier.
 
 Historical verification additionally requires the application's independently
 chosen `CommitId` pin. It checks the same claim and cryptographic evidence but

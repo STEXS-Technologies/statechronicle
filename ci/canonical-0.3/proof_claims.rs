@@ -40,6 +40,7 @@ async fn original_proofs_establish_only_the_independently_requested_claim() {
     assert_eq!(verified.point(), VerificationPoint::Current);
     assert_eq!(verified.expectation(), &ownership);
     assert_eq!(verified.commit(), &corpus.state_proof.commit);
+    assert_eq!(verified.state(), Some(&corpus.state_proof.claimed_state));
     current
         .verify_current(
             ClaimProof::Absence(&corpus.absence_proof),

@@ -708,6 +708,7 @@ async fn independent_absence_claim_rejects_swapped_keys_metadata_and_kind() {
     assert_eq!(historical.expectation(), &expected);
     assert!(historical.expectation().is_absence());
     assert_eq!(historical.commit(), &fixture.bundle.commit);
+    assert!(historical.state().is_none());
     assert!(matches!(
         service
             .verify_current(ClaimProof::Absence(&fixture.bundle), &expected, &trusted)

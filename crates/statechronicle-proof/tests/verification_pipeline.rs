@@ -1154,6 +1154,22 @@ async fn verified_claim_never_promotes_unverified_reference_metadata() {
         .insert(tenant().0, head(&fixture.signed));
     let service = claim_service(store);
     let expected = ExpectedClaim::state(tenant(), resource());
+    let verified = service
+        .verify_current(
+            ClaimProof::State(&proof),
+            &expected,
+            &fixed_key().verifying_key(),
+        )
+        .await
+        .unwrap();
+    let authentic = proof.claimed_state.clone();
+    proof.claimed_state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+        StateType::UniqueAsset,
+        serde_json::json!({"owner":"account:mallory", "status":"active"}),
+    )
+    .unwrap();
+    assert_eq!(verified.state(), Some(&authentic));
+    proof.claimed_state = authentic;
     proof.commit.signature.sig = Signature::from_bytes([0; 64]);
     // The compatibility helper verifies the stored signature; the redundant
     // signature in the supplied reference was never part of its guarantee.

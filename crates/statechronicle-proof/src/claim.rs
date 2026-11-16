@@ -11,6 +11,7 @@ use statechronicle_domain::{
     ids::CommitId,
     proof::{CommitRef, NonMembershipProofBundle, ResourceStateProof},
     resource::ResourceId,
+    resource_state::ResourceState,
     signed::Signed,
     subject::SubjectId,
     tenant::TenantId,
@@ -177,6 +178,13 @@ impl<'proof> ClaimProof<'proof> {
             Self::Absence(proof) => &proof.commit,
         }
     }
+
+    const fn state(self) -> Option<&'proof ResourceState> {
+        match self {
+            Self::State(proof) => Some(&proof.claimed_state),
+            Self::Absence(_) => None,
+        }
+    }
 }
 
 /// Temporal scope of a successful verification, pinned by its commit reference.
@@ -198,7 +206,7 @@ pub enum VerificationPoint {
 /// use statechronicle_proof::claim::{ExpectedClaim, VerifiedClaim, VerificationPoint};
 /// use statechronicle_domain::proof::CommitRef;
 /// fn fabricate(expectation: ExpectedClaim, commit: CommitRef) -> VerifiedClaim {
-///     VerifiedClaim { expectation, commit, point: VerificationPoint::Current }
+///     VerifiedClaim { expectation, commit, point: VerificationPoint::Current, state: None }
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -206,6 +214,7 @@ pub struct VerifiedClaim {
     expectation: ExpectedClaim,
     commit: CommitRef,
     point: VerificationPoint,
+    state: Option<ResourceState>,
 }
 
 impl VerifiedClaim {
@@ -220,6 +229,11 @@ impl VerifiedClaim {
     /// Whether verification established historical or observed-current state.
     pub const fn point(&self) -> VerificationPoint {
         self.point
+    }
+    /// Verified state payload, or `None` for an absence claim.
+    /// This owned copy remains bound to verification if the input is changed.
+    pub const fn state(&self) -> Option<&ResourceState> {
+        self.state.as_ref()
     }
 }
 
@@ -253,6 +267,7 @@ impl ProofService {
             expectation: expected.clone(),
             commit,
             point: VerificationPoint::Current,
+            state: proof.state().cloned(),
         })
     }
 
@@ -282,6 +297,7 @@ impl ProofService {
             expectation: expected.clone(),
             commit,
             point: VerificationPoint::Historical,
+            state: proof.state().cloned(),
         })
     }
 

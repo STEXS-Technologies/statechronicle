@@ -159,3 +159,34 @@ doctest. Exact source hashes identify the tested worktree. The earlier failed
 strict-Clippy attempt remains in `expected-claims-20261116T030639Z/`. Rustc, Cargo
 and benchmark manifests remain revision-specific: early finite baseline checks
 used Rust 1.99, while the expanded workloads and this checkpoint use 1.100.
+
+Exact candidate `6be864f` passed the ten-check original/candidate external
+hosted/portable matrix in `evidence/compat/20261116T031203Z-184496/`. The log
+confirms execution of the new public consumer against original-release proof
+bytes, in addition to legacy imports, exhaustive matches, wire tests and both
+bare-metal builds. `evidence/f1/expected-claims-metrics.json` records source
+metrics: +215 syntax-bearing lines, +1,353 lexical tokens, +30 branch nodes and
++24 public syntax items since the trade-scope checkpoint (including the separate
+clone repair). These additions enforce independent claims and unforgeable result
+construction. Shared commit lookup and identity checks replace repeated logic;
+no dependencies, published crates or old wire types were added.
+
+## Hosted MSRV gate discovered during F1 qualification
+
+`cargo +1.85.0 check -p statechronicle-proof --all-features --locked --offline`
+fails before compiling the new claim module: the original
+`statechronicle-core/src/rate_limit.rs` uses let-chain syntax unsupported on the
+declared Rust 1.85 minimum. This file is byte-identical to the original release,
+as recorded with the failed log in
+`evidence/f1/expected-claims-20261116T031019Z/hosted-msrv.json`. The successful
+portable MSRV baseline excludes this hosted code and does not establish hosted
+MSRV compatibility. Preserve the declared minimum and fix the unsupported
+hosted syntax before final qualification; do not raise MSRV or label this gate
+as passing. The new hosted API's MSRV qualification is currently unproven.
+
+A follow-up hardens the result's data boundary: `VerifiedClaim::state()` returns
+an owned copy of the verified payload (or `None` for absence). Mutating the
+original proof after verification cannot alter that payload. A regression test
+changes the original owner and confirms the result remains unchanged; the
+public consumer reads the result's verified state directly. This adds no wire
+format or serialization constructor.

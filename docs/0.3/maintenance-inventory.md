@@ -23,3 +23,11 @@ code has been deleted and no reduction percentage is claimed yet. Each future
 extraction must identify the deleted path, equivalence evidence and measured
 source/performance delta. Protected hashing, signatures, canonical encoding and
 SMT algorithms remain separate from orchestration cleanup.
+
+The independent claim route shares tenant/resource comparison with the existing
+`bundle::check_claim` through `check_claim_identity`, and all five compatibility
+verification wrappers share `ProofService::load_commit`. Old gate order is
+preserved. New expected-claim verification owns expectation/kind checks and
+creates a private-field result only after signed-envelope verification and the
+requested temporal check. The final head read is required for an observed-current
+result; historical verification has an independent pin and no freshness claim.
