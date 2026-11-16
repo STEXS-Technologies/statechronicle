@@ -30,7 +30,7 @@ use statechronicle_conformance::{
     check_rollback, check_tenant_isolation,
 };
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     sync::{Arc, Mutex},
 };
 
@@ -53,6 +53,8 @@ enum Mode {
     FabricateSingleton,
     FilterBatchAsSingle,
     IgnoreBatchIdentity,
+    IgnoreSuperseded,
+    ReleaseSuccessor,
 }
 #[derive(Default)]
 struct Database {
@@ -61,6 +63,7 @@ struct Database {
     batches: BTreeMap<Identity, LedgerBatch>,
     leases: BTreeMap<Identity, (ContentDigest, String)>,
     attempt: u64,
+    expired: BTreeSet<Identity>,
 }
 #[derive(Clone)]
 struct Backend {
@@ -108,6 +111,18 @@ impl LedgerTestBackend for Backend {
     }
     async fn inspect(&self) -> Result<Snapshot, String> {
         Ok(self.db.lock().unwrap().visible.clone())
+    }
+}
+#[async_trait]
+impl statechronicle_conformance::LedgerLeaseTestBackend for Backend {
+    async fn expire_reservation(&self, tenant: &TenantId, intent: &IntentId) -> Result<(), String> {
+        let key = self.key(tenant, intent);
+        let mut db = self.db.lock().unwrap();
+        if !db.leases.contains_key(&key) {
+            return Err("no live lease to expire".into());
+        }
+        db.expired.insert(key);
+        Ok(())
     }
 }
 #[async_trait]
@@ -259,7 +274,9 @@ impl Drop for Transaction {
     fn drop(&mut self) {
         for (key, digest, attempt, _) in &self.reservations {
             let mut db = self.connection.0.db.lock().unwrap();
-            if db.leases.get(key) == Some(&(digest.clone(), attempt.clone())) {
+            if self.connection.0.mode == Mode::ReleaseSuccessor
+                || db.leases.get(key) == Some(&(digest.clone(), attempt.clone()))
+            {
                 db.leases.remove(key);
             }
         }
@@ -317,15 +334,17 @@ impl LedgerTransaction for Transaction {
             }
         }
         if let Some((original, attempt)) = db.leases.get(&key) {
-            return Ok(if original == digest {
-                IdempotencyClaim::InProgress {
+            if original != digest {
+                return Ok(IdempotencyClaim::ConflictDifferentPayload);
+            }
+            if !db.expired.contains(&key) {
+                return Ok(IdempotencyClaim::InProgress {
                     attempt_id: attempt.clone(),
                     lease_expires_at_unix: i64::MAX,
-                }
-            } else {
-                IdempotencyClaim::ConflictDifferentPayload
-            });
+                });
+            }
         }
+        db.expired.remove(&key);
         db.attempt += 1;
         let attempt = format!("attempt-{}", db.attempt);
         db.leases
@@ -449,7 +468,9 @@ impl LedgerTransaction for Transaction {
             return Err(invariant("incomplete mutation"));
         }
         let mut db = self.connection.0.db.lock().unwrap();
-        if db.leases.get(key) != Some(&(digest.clone(), token.clone())) {
+        if self.connection.0.mode != Mode::IgnoreSuperseded
+            && db.leases.get(key) != Some(&(digest.clone(), token.clone()))
+        {
             return Err(invariant("reservation fenced"));
         }
         if self.reservations.len() != self.staged.finalized.len()
@@ -457,7 +478,8 @@ impl LedgerTransaction for Transaction {
                 .reservations
                 .iter()
                 .any(|(key, digest, token, intent)| {
-                    db.leases.get(key) != Some(&(digest.clone(), token.clone()))
+                    (self.connection.0.mode != Mode::IgnoreSuperseded
+                        && db.leases.get(key) != Some(&(digest.clone(), token.clone())))
                         || !self.staged.finalized.contains(&(
                             intent.tenant_id.clone(),
                             intent.intent_id.clone(),
@@ -1035,5 +1057,23 @@ async fn namespace_negative_controls_fail_before_any_false_receipt() {
         .await
         .unwrap_err();
         assert_eq!(error.check, check, "{mode:?}: {error}");
+    }
+}
+
+#[tokio::test]
+async fn expired_lease_takeover_fences_stale_commit_and_cleanup() {
+    let mutation = fixture("alpha", 700);
+    statechronicle_conformance::check_lease_takeover(&Backend::new(Mode::Correct), &mutation)
+        .await
+        .unwrap();
+    for (mode, check) in [
+        (Mode::IgnoreSuperseded, "lease.stale_commit"),
+        (Mode::ReleaseSuccessor, "lease.successor"),
+    ] {
+        let error =
+            statechronicle_conformance::check_lease_takeover(&Backend::new(mode), &mutation)
+                .await
+                .unwrap_err();
+        assert_eq!(error.check, check);
     }
 }

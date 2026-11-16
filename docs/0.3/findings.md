@@ -660,3 +660,19 @@ items for bounded logical conformance. It changes no production crate or lock.
 Lease expiry/takeover, non-genesis retention/rebuild, physical database crash
 qualification, expected trade/history claims and remaining F2–F8 gates are
 still open; no final release qualification is claimed.
+
+
+## Optional lease takeover conformance extension
+
+A deterministic single-reservation schedule now retains a fully staged stale
+writer across expiry and takeover. A live lease must first return pending;
+takeover must issue a different token. Separate stale commit, rollback and drop
+cases must leave the successor pending and able to publish exactly the complete
+original. The independent reference passes; accepting a stale commit and
+releasing a successor claim fail distinct named oracles. This changes only the
+isolated dev harness, not production code or dependency locks.
+
+This is partial F5 progress: batch-member expiry, broader interleavings, real
+backend clocks/transactions, physical crash qualification, non-genesis generic
+rebuild, expected trade/history claims and the other F2–F8 requirements remain
+open. It does not establish release readiness.

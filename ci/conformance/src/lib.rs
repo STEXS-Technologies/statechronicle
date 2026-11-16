@@ -700,3 +700,101 @@ pub async fn check_cancellation<B: LedgerTestBackend>(
 
 /// Optional complete-group adapter contract checks.
 pub mod batch;
+
+/// Optional test control for adapters that support expiring reservations.
+/// Advance the adapter's injected clock past this reservation's lease and run
+/// its normal expiry machinery. Do not delete or replace the reservation here:
+/// the next ordinary claim must perform the real fenced takeover.
+#[async_trait]
+pub trait LedgerLeaseTestBackend: LedgerTestBackend {
+    async fn expire_reservation(&self, tenant: &TenantId, intent: &IntentId) -> Result<(), String>;
+}
+
+/// A superseded writer cannot commit, roll back or drop its successor's claim.
+/// Requires two simultaneously live independent write transactions. Run only
+/// for adapters that declare expiring leases and provide a deterministic clock.
+pub async fn check_lease_takeover<B: LedgerLeaseTestBackend>(
+    backend: &B,
+    mutation: &LedgerMutation,
+) -> Result<(), Violation> {
+    for cleanup in 0..3 {
+        let store = fresh(backend).await?;
+        let mut stale = store
+            .begin(&mutation.intent.tenant_id)
+            .await
+            .map_err(operation)?;
+        let old_attempt = claim(&mut *stale, mutation).await.map_err(operation)?;
+        for index in 0..step_count(mutation) {
+            step(&mut *stale, mutation, &old_attempt, index)
+                .await
+                .map_err(operation)?;
+        }
+        let observer = backend.connect().await.map_err(operation)?;
+        let mut pending = observer
+            .begin(&mutation.intent.tenant_id)
+            .await
+            .map_err(operation)?;
+        let observed = pending
+            .claim_idempotency(
+                &mutation.intent.tenant_id,
+                &mutation.intent,
+                &mutation.payload_digest,
+            )
+            .await
+            .map_err(operation)?;
+        require(
+            "lease.live",
+            matches!(observed, IdempotencyClaim::InProgress { attempt_id, .. } if attempt_id == old_attempt),
+            "unexpired reservation was not retained",
+        )?;
+        pending.rollback().await.map_err(operation)?;
+        backend
+            .expire_reservation(&mutation.intent.tenant_id, &mutation.intent.intent_id)
+            .await
+            .map_err(operation)?;
+        let successor = backend.connect().await.map_err(operation)?;
+        let mut winner = successor
+            .begin(&mutation.intent.tenant_id)
+            .await
+            .map_err(operation)?;
+        let attempt = claim(&mut *winner, mutation).await.map_err(operation)?;
+        require(
+            "lease.token",
+            attempt != old_attempt,
+            "takeover reused the stale attempt token",
+        )?;
+        for index in 0..step_count(mutation) {
+            step(&mut *winner, mutation, &attempt, index)
+                .await
+                .map_err(operation)?;
+        }
+        match cleanup {
+            0 => require(
+                "lease.stale_commit",
+                stale.commit().await.is_err(),
+                "superseded writer committed",
+            )?,
+            1 => {
+                stale.rollback().await.map_err(operation)?;
+            }
+            _ => drop(stale),
+        }
+        compare(backend, &Snapshot::default(), "lease.private").await?;
+        let reader = backend.connect().await.map_err(operation)?;
+        require(
+            "lease.successor",
+            matches!(lookup(&reader, mutation).await?, LedgerLookup::InProgress { attempt_id, payload_digest, .. }
+                if attempt_id == attempt && payload_digest == mutation.payload_digest),
+            "stale cleanup lost or changed the successor reservation",
+        )?;
+        winner.commit().await.map_err(operation)?;
+        original(&reader, mutation).await?;
+        compare(
+            backend,
+            &Snapshot::from_mutations(&[mutation]),
+            "lease.effects",
+        )
+        .await?;
+    }
+    Ok(())
+}

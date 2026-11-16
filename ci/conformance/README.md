@@ -45,6 +45,7 @@ Call the check functions independently on an isolated backend instance:
 | `check_head_contention` | 2, 8, then 32 distinct competing genesis mutations |
 | `check_idempotency_contention` | One mutation, 2, 8, then 32 exact concurrent requests |
 | `check_attempt_fencing` | Wrong reservation token must refuse |
+| `check_lease_takeover` | Optional `LedgerLeaseTestBackend`; live lease stays pending, expired lease gets a new token, stale commit/rollback/drop cannot invalidate successor |
 | `check_lost_ack` | Mutation plus independent principal, authorizer and signer verifier |
 | `check_unsupported_multi` | Only when the backend declares multi-tenant atomicity unsupported |
 
@@ -113,3 +114,22 @@ The batch extension remains bounded logical qualification. Lease expiry/takeover
 races, later-head retention/rebuild and physical database crash/power-loss
 qualification still require additional adapter tests. Do not
 claim those properties merely because these functions pass.
+
+## Optional expiring-lease tests
+
+Implement `LedgerLeaseTestBackend::expire_reservation` using an injected clock
+and the backend's normal expiry machinery. It must not delete the reservation,
+replace its token, or release the original transaction. The next ordinary claim
+must perform the takeover. `check_lease_takeover` keeps two independent write
+transactions alive, stages the complete mutation in each, and independently
+checks stale commit rejection, stale rollback and stale drop. Each scenario
+requires the successor reservation and complete committed original to survive.
+Two deliberately broken controls accept a superseded commit or release the
+successor during stale cleanup; both must fail their specific assertion.
+
+This optional test assumes concurrent visible reservations and expiring leases.
+Adapters with transaction-local reservations or database locking need their own
+schedule and backend-specific timeouts; they must not simulate this capability
+by deleting locks. The reference uses deterministic logical expiry, not elapsed
+wall time. This does not qualify batch-member expiry, transaction timeout,
+physical recovery or all lease interleavings.

@@ -90,3 +90,18 @@ Four namespace fault variants fail their intended oracles. Lease expiry/takeover
 and non-genesis retention/rebuild remain to be added; backend-specific crash and
 physical persistence qualification are still required. See the consumer instructions for
 exact capability and fixture requirements.
+
+## Optional single-reservation lease takeover
+
+The dev harness now provides `LedgerLeaseTestBackend` and `check_lease_takeover`.
+For a backend advertising expiring concurrent reservations, an injected-clock
+hook expires the old lease while leaving its transaction live. Normal claim
+must allocate a different attempt token. Complete stale staging cannot commit;
+stale rollback and drop cannot release the successor. Independent lookup and
+raw effects verify the successor commits the exact original once. Two broken
+reference controls fail `lease.stale_commit` and `lease.successor`.
+
+This closes one bounded logical single-reservation schedule. Batch-member lease
+expiry, other fencing interleavings, real database clock/transaction behavior,
+and process/power-loss qualification remain open. Earlier references to open
+lease testing should be read with this extension's precise scope.
