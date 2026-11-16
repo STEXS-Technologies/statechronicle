@@ -79,7 +79,7 @@ def main():
                 original=owner.read_text()
                 needle='conflict::check_expiry(intent, (self.now)())?;'
                 assert original.count(needle)==1
-                owner.write_text(original.replace(needle,'/* test-only negative control: expiry removed */'))
+                owner.write_text(original.replace(needle,'let _ = (self.now)(); /* test-only negative control: expiry refusal removed */'))
                 (evidence/'negative-control.json').write_text(json.dumps({'revision':revision,'path':str(owner.relative_to(source)),'original_sha256':sha(original.encode()),'mutated_sha256':sha(owner.read_bytes()),'removed':needle},indent=2)+'\n')
             hashes={str(p.relative_to(source)):sha(p.read_bytes()) for p in sorted(source.rglob('*')) if p.is_file()}
             consumer=source.parent/'consumer';(consumer/'src').mkdir(parents=True)
