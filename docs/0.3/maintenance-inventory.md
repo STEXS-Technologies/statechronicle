@@ -219,3 +219,36 @@ predicate (source `a315713`). Original/control/candidate contract checks cover
 removes 37 production tokens without changing public concepts. Index pair
 attribution and profile net-zero validation remain separate owners with different
 contracts. [Evidence](evidence/maintenance/index-value-declaration/README.md).
+
+## Current string-trait owner and retained exact matches
+
+At `d6aa9f4`, nine domain string types share one private macro for six conversion,
+formatting and serde shells. Type declarations, attributes, inherent methods and
+validators retain 45 exact matching hashes. Status's borrowed helper is unchanged;
+the template emits its identical constructor expression directly. Nonce's base64
+codec and unchecked identity serde derives retain their distinct contracts.
+[Evidence](evidence/maintenance/string-traits/README.md) includes 10,305 original/
+control/candidate cases, a 5,608-difference compiled negative control, 897 finite
+tests, 16 doctests and the frozen external consumer.
+
+Production syntax drops 2,129 tokens and 267 lines; the affected domain-file set
+falls 5,955→3,826 tokens including the template. Whole-workspace totals are
+118,924 tokens and 16,251 syntax lines. Macro expansion is excluded: the nine
+removed parsed try branches still exist in generated code. The additional
+private module centralizes maintenance; it adds no public macro/crate/dependency.
+The matched release consumer grows 720 binary bytes and 16 text bytes. This
+bounded cost is accepted for one trait owner; no speed/allocation gain is claimed.
+
+Four exact function groups remain, with explicit ownership:
+
+| Group | Retained boundary and owner |
+| --- | --- |
+| `From<StateChronicleError>` in executor/intent error modules | Distinct public destination enums own their classification. `SizeLimitExceeded` retains its fields; canonicalization/digest/signature errors wrap through each enum's domain error. Sharing would require an extra cross-crate generic mapper/trait for two small translations. |
+| `prepare_player` on Executor/Preparer | Separate capability/composition surfaces; both forward directly to the same private Evaluation implementation. |
+| `prepare_player_batch` on Executor/Preparer | Same shared Evaluation batch owner; no second ingress or reduction implementation. |
+| `prepare_player_settlement` on Executor/Preparer | Same shared Evaluation settlement owner; both retain the explicit coordinated route. |
+
+These are bounded compatibility/capability shells, not duplicate implementations
+of preparation. Exact token matching does not resolve `Self` to its destination
+type and does not expand macros; semantic duplication and the broader source/cost
+budget still require the full roadmap audit.

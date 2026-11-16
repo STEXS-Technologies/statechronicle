@@ -1037,3 +1037,14 @@ fails at runtime through the serialized-writer timeout. No library or root-lock
 changes occur in this checkpoint. This advances bounded logical F5 coverage;
 physical backend and complete F8 qualification remain open.
 [Evidence](evidence/conformance/concurrent-mixed-04a1bcd/README.md).
+
+Nine validated string types repeated 54 trait blocks. A private template now
+owns those shells while constructors, validators, derives and field privacy
+retain exact source hashes. The full 10,305-case original/control/candidate
+conversion, formatting, JSON and BCS corpus matches; unchecked deserialization
+produces 5,608 detected differences after successful compilation/execution.
+Final root qualification passes 897 finite tests and 16 doctests plus strict
+static checks. Source maintenance falls 2,129 tokens; generated implementations
+remain and the matched consumer grows 720 binary/16 text bytes. Macro syntax
+counts must not be presented as fewer runtime branches or exported API items.
+[Evidence](evidence/maintenance/string-traits/README.md).
