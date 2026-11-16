@@ -35,6 +35,7 @@ use statechronicle_domain::tenant::TenantId;
 use statechronicle_domain::trade::{
     TradeEventRef, TradeRecord, TradeSide, TradeStatus, TradeValueLeg,
 };
+use statechronicle_profiles::atomicity::declares_value_leg;
 use statechronicle_profiles::keys;
 use statechronicle_profiles::unique_asset::op as asset_op;
 
@@ -490,14 +491,6 @@ fn cmp_key(left: &ValuePairKey, right: &ValuePairKey) -> std::cmp::Ordering {
         .then_with(|| left.2.cmp(&right.2))
 }
 
-/// Returns whether a settle intent declares a value leg (any of the three
-/// value-leg inputs present).
-fn declares_value_leg(intent: &Intent) -> bool {
-    intent.inputs.contains_key(keys::VALUE_RESOURCE)
-        || intent.inputs.contains_key(keys::VALUE_AMOUNT)
-        || intent.inputs.contains_key(keys::VALUE_TO_SUBJECT)
-}
-
 /// Reads a required string input from an intent.
 ///
 /// # Errors
@@ -818,6 +811,47 @@ mod tests {
             None,
             Nonce::from_bytes(vec![0]).unwrap(),
         )
+    }
+
+    // Preserve the original presence-only contract, including malformed values.
+    // Parsing and complete-tuple validation belong to the downstream validator.
+    #[test]
+    fn value_leg_declaration_presence_contract() {
+        let values = [
+            None,
+            Some(Value::Null),
+            Some(serde_json::json!("")),
+            Some(serde_json::json!("valid")),
+            Some(serde_json::json!(0)),
+            Some(serde_json::json!(false)),
+            Some(serde_json::json!([])),
+            Some(serde_json::json!({})),
+        ];
+        for resource in &values {
+            for amount in &values {
+                for recipient in &values {
+                    let mut intent = value_settle_intent("trade", "currency", "1", "buyer");
+                    for (key, value) in [
+                        (keys::VALUE_RESOURCE, resource),
+                        (keys::VALUE_AMOUNT, amount),
+                        (keys::VALUE_TO_SUBJECT, recipient),
+                    ] {
+                        intent.inputs.remove(key);
+                        if let Some(value) = value {
+                            intent.inputs.insert(String::from(key), value.clone());
+                        }
+                    }
+                    // Unrelated inputs cannot turn a declaration on or off.
+                    intent.inputs.insert(String::from("unrelated"), Value::Null);
+                    let expected = resource.is_some() || amount.is_some() || recipient.is_some();
+                    assert_eq!(declares_value_leg(&intent), expected);
+                    assert_eq!(
+                        statechronicle_profiles::atomicity::declares_value_leg(&intent),
+                        expected
+                    );
+                }
+            }
+        }
     }
 
     #[test]
