@@ -1,0 +1,300 @@
+{
+  "candidate_commit": "9565a74bb5b33429b4e40a8a9b96c12aab2b1c06",
+  "archive_sha256": "36a312d5ef92d9b7bc65b6e4206a30fc158e7bcc4ce8ee772684a0e80ef4033a",
+  "compilers": {
+    "stable": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+    "1.85.0": "rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-linux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n"
+  },
+  "checks": [
+    {
+      "label": "stable-tests",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-retention/qualification/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--",
+        "--nocapture"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-retention/qualification/stable"
+      },
+      "exit_code": 0,
+      "seconds": 9.33247221900092,
+      "log": "stable-tests.log",
+      "sha256": "be595eb618384891acd1e0fd31b92f43eb3dd27dc363d3339e488728edf8fc8c",
+      "retained_log": "stable-tests.log.gz"
+    },
+    {
+      "label": "stable-doctests",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-retention/qualification/source/ci/conformance/Cargo.toml",
+        "--doc",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-retention/qualification/stable"
+      },
+      "exit_code": 0,
+      "seconds": 0.14297387399710715,
+      "log": "stable-doctests.log",
+      "sha256": "d79c4ba32d239a25d9f6b1f0ab2d524b44aebdbc35256ba3c2d91aa8f9f4f6a6",
+      "retained_log": "stable-doctests.log.gz"
+    },
+    {
+      "label": "stable-clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-retention/qualification/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-retention/qualification/stable"
+      },
+      "exit_code": 0,
+      "seconds": 3.6393802170059644,
+      "log": "stable-clippy.log",
+      "sha256": "62057e349499a0c813ee0240ba3b987a15c40d48e958d42329c7b0f11dc68c2c",
+      "retained_log": "stable-clippy.log.gz"
+    },
+    {
+      "label": "stable-rustdoc",
+      "command": [
+        "cargo",
+        "+stable",
+        "doc",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-retention/qualification/source/ci/conformance/Cargo.toml",
+        "--no-deps",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-retention/qualification/stable",
+        "RUSTDOCFLAGS": "-D warnings"
+      },
+      "exit_code": 0,
+      "seconds": 1.8256825449934695,
+      "log": "stable-rustdoc.log",
+      "sha256": "173034a4a74aec0e2cc0fde9d77352c506f295f522acaf356ead90c7983a86c4",
+      "retained_log": "stable-rustdoc.log.gz"
+    },
+    {
+      "label": "stable-format",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-retention/qualification/source/ci/conformance/Cargo.toml",
+        "--",
+        "--check"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-retention/qualification/stable"
+      },
+      "exit_code": 0,
+      "seconds": 0.05785967499832623,
+      "log": "stable-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "retained_log": "stable-format.log.gz"
+    },
+    {
+      "label": "1.85.0-tests",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-retention/qualification/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--",
+        "--nocapture"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-retention/qualification/1.85.0"
+      },
+      "exit_code": 0,
+      "seconds": 11.297242925007595,
+      "log": "1.85.0-tests.log",
+      "sha256": "c42c57b98c303921ea3f8deae7d9d3e7be52bbd1ffa535be08ce2796fb4d117d",
+      "retained_log": "1.85.0-tests.log.gz"
+    },
+    {
+      "label": "1.85.0-doctests",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-retention/qualification/source/ci/conformance/Cargo.toml",
+        "--doc",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-retention/qualification/1.85.0"
+      },
+      "exit_code": 0,
+      "seconds": 0.14520482798980083,
+      "log": "1.85.0-doctests.log",
+      "sha256": "d79c4ba32d239a25d9f6b1f0ab2d524b44aebdbc35256ba3c2d91aa8f9f4f6a6",
+      "retained_log": "1.85.0-doctests.log.gz"
+    },
+    {
+      "label": "1.85.0-clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-retention/qualification/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-retention/qualification/1.85.0"
+      },
+      "exit_code": 0,
+      "seconds": 4.336192325994489,
+      "log": "1.85.0-clippy.log",
+      "sha256": "bce420c1a3bcbff5136f5204ef762208dc26414f54cb0df68082b98c055e0fe1",
+      "retained_log": "1.85.0-clippy.log.gz"
+    },
+    {
+      "label": "1.85.0-rustdoc",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "doc",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-retention/qualification/source/ci/conformance/Cargo.toml",
+        "--no-deps",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-retention/qualification/1.85.0",
+        "RUSTDOCFLAGS": "-D warnings"
+      },
+      "exit_code": 0,
+      "seconds": 2.063621884008171,
+      "log": "1.85.0-rustdoc.log",
+      "sha256": "458d75d4d71f0c59666031ef07ac84ddb788419534a535175e1d44fcd871159b",
+      "retained_log": "1.85.0-rustdoc.log.gz"
+    },
+    {
+      "label": "1.85.0-format",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-retention/qualification/source/ci/conformance/Cargo.toml",
+        "--",
+        "--check"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-retention/qualification/1.85.0"
+      },
+      "exit_code": 0,
+      "seconds": 0.06957311199221294,
+      "log": "1.85.0-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "retained_log": "1.85.0-format.log.gz"
+    }
+  ],
+  "baseline_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "previous_checkpoint": "7e311a1e32ca2197fa36ecb3cd9b07441d2634d2",
+  "scope": "Dev-only complete batch retention after later canonical head, same-key current projection replacement and pending-outbox acknowledgement. 16 integration functions per compiler; zero doctest examples.",
+  "limitations": [
+    "Two two-member groups in one tenant; native unique-asset transfers replace both resource-keyed current projections.",
+    "No mixed single/batch histories, larger groups, arbitrary histories, projection rebuild, interrupted/corrupt replay, physical backend reopen, process-kill or power-loss qualification.",
+    "Reference fixture generation verifies signatures and native profile transition checks; storage harness does not establish ingress or signer authorization.",
+    "No production performance/source-footprint, root workspace requalification, full F5/F8 or release-pass claim. Root crates/manifests/lockfile/fuzz unchanged from previous checkpoint."
+  ],
+  "negative_controls": {
+    "PruneOriginal": "batch.retention.membership",
+    "PruneBatchMemberAfterHead": "batch.retention.membership; drops second original member only",
+    "CurrentProjectionLookup": "batch.lookup.original",
+    "CorruptOldSecondMemberLookup": "batch.lookup.original; explicitly asserts member 1",
+    "PendingOutboxLookup": "batch.lookup.original after first-group acknowledgement",
+    "ReplayLatestHead": "batch.replay.identity",
+    "AppendProjections": "batch.retention.effects"
+  },
+  "unchanged_git_objects": {
+    "crates": "7d1276d5f3685e7ec74a30f1735c325689db89d2",
+    "Cargo.toml": "bf6aff6a288a79467f3e66d91f1793a56c87849a",
+    "Cargo.lock": "029bcc763992f8d88672df95ed1c307aca2d20c1",
+    "fuzz": "804bf896a34ab9996cafcb7b67c6a3ea67370b91"
+  },
+  "source_sha256": {
+    "ci/conformance/src/lib.rs": "456a6bd9f183d670310348e71b774967fe265bf9c093ecabc40522c3aa95a257",
+    "ci/conformance/src/batch.rs": "d3eaa3895a52aea1a031c2d74ef273396325d0177549158d2f9e2c000aff9e6e",
+    "ci/conformance/tests/reference.rs": "60ef8c2f084aa52280ddb67eb76d0d57b46a979c2712fa7d0b0949fd138daaae",
+    "ci/conformance/Cargo.toml": "9c29dda775395286d8430213e555112fccb8f2eb42d200416b94406e44c03670",
+    "ci/conformance/Cargo.lock": "32fa64c17a2f4667c1754273c909552699a5eba804757b00f3608a3886c68670"
+  },
+  "artifacts_sha256": {
+    "1.85.0-clippy.log.gz": "8b6aac1e8abb69e741b185a66657ab64972b82a8037d10b27912a2239a18646e",
+    "1.85.0-doctests.log.gz": "79e3bada8acdf2ff252baf9550d2d14919dbe899d2c07b283510e0494656dad1",
+    "1.85.0-format.log.gz": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "1.85.0-rustdoc.log.gz": "1662479793ad3f676e96f5d2b57ed2010bb570258992bd6ec9c58bc4a83d263c",
+    "1.85.0-tests.log.gz": "a4ac7026e9d6b144f9f500a0b19fbd5fda5f543508c720b6104115b647a66e0e",
+    "README.md": "7466ddb3689217ea31d720ce399fdcca36ad61d40390c5c7194e06637e79b215",
+    "clippy-preflight.log.gz": "3f5dc6f8452e5cd0ba0c48afb031d3194a038f82fbb02a0b2779eceed9fb5f65",
+    "graph-update.log.gz": "f2db9b4ff39994271df2f143d9ee869d3285c31a43d4c4df466ab49eff4cf226",
+    "preflight-final.log.gz": "58b04a5ca7f06cc43427ae6999926664db80c108d0530e214fe26563847c4421",
+    "preflight.log.gz": "80d352ada76c56dcc8929b685eedfd0a3f4acb4c4ae2a3d3a5a8cfbeff04be58",
+    "qualify.py": "87f4974b0b983544d4144f65fc1c33d5f2885a17ab03386a4d0966a884e6fd49",
+    "runner.log.gz": "e3a527ca52f6937e07249fd9c80fe68db503227b08c71600699e3383eb2bf178",
+    "stable-clippy.log.gz": "f52dbc846fbed8e050b0aa78ccaa7d8682fd23c27262a07a08da81a35b4ae4e7",
+    "stable-doctests.log.gz": "79e3bada8acdf2ff252baf9550d2d14919dbe899d2c07b283510e0494656dad1",
+    "stable-format.log.gz": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "stable-rustdoc.log.gz": "004d54f6d617a15921d31fdba660eaac5c09a548e9c8c0f17577fd39fb1d0c25",
+    "stable-tests.log.gz": "fb062c5cc47e588bb473f842c1b31efb086b779a001329dfe9e404736071fc38"
+  }
+}
