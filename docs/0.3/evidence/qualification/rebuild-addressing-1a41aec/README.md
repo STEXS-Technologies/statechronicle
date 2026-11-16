@@ -1,0 +1,15 @@
+# Projection rebuild addressing correction
+
+Exact candidate `1a41aeca27e695cfc26c42513ac0406303e85c9b` passes stable/MSRV qualification: 869 finite workspace tests and 13 doctests per compiler, strict whole-workspace/all-target/all-feature Clippy (including fuzz compilation), strict rustdoc, formatting and the native custom-domain example. Sources were committed and unchanged during final qualification; this run uses the committed worktree and reusable isolated compiler target directories, not an archived source claim.
+
+Only `index/src/rebuild.rs` changes production code. One private projection-address helper keys latest selection and continuity by tenant/resource/subject for subject-held state, excluding mutable owners from resource keys. Duplicate event identity is tenant-scoped. Digest/schema/version checks and same-tenant duplicate refusal remain. No public signature, dependency, wire, canonical hashing or cryptographic change.
+
+An archived previous checkpoint `e02920b` with only the final candidate cfg(test) module overlaid reproduces exactly two failures: independent balance holders rejected as continuity mismatch, and coincident event IDs across tenants rejected as duplicates. Production prefix/archive/test-module hashes, command and expected-failure output are retained. The control is expected to exit 101.
+
+New negative controls reject wrong-holder before-state, reordered same-holder history and same-tenant duplicate IDs before any full/resumable write. Eight logical failure schedules (chunk widths 1/2/3, every checkpoint-save boundary) interrupt after projection writes; resumption of the same four-event pinned source produces both exact final holder rows without losing a checkpoint. This is not physical crash qualification or automatic source/checkpoint authentication.
+
+Frozen external/wire and portable/bare-metal MSRV evidence for this candidate is `../../compat/20261116T083945Z-3527917/manifest.json`; the initial candidate's compatibility run is also retained. The first full qualification at `fdccd0a` passed both test lanes but failed strict Clippy on test indexing. Its incomplete logs/manifest and an intermediate get-first lint failure remain unqualified. Corrected code passes without adding lint allowances.
+
+Production delta against `e02920b`: +5 syntax lines, +41 tokens, zero additional branch nodes/public syntax items. Raw tracked Rust bytes rise 7,939, mostly regression tests; raw bytes do not exclude tests/comments. Final totals: 16,148 syntax lines, 118,458 tokens, 1,951 branch nodes and 1,394 public syntax items. Parser limitations are in the metric files. No runtime performance pass or workspace shrink is claimed. Full fuzz/coverage/performance/packages/security/API and broader F0-F8 gates remain open.
+
+`qualify.py` reproduces compiler lanes from the repository root at the candidate with installed toolchains/cached dependencies. `manifest.json` records actual commands, environments, compiler versions, hashes and limitations. Do not interpret old-refusal latency as equivalent to accepted holder rebuild.

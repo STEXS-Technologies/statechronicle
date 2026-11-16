@@ -1,0 +1,30 @@
+{
+  "control_revision": "e02920b4173f3c1157499394e7f3c42af848fa0c",
+  "archive_sha256": "ce283a4e6e245a9027251cf5dfde26a6000343288f074dea5ca6b35826b412bc",
+  "unchanged_production_prefix_sha256": "12633a7b35cd703a995dc4d23103ee87d3aa93fc7cfb154ee444cdf164f64a4a",
+  "candidate_test_module_sha256": "82182b5f37a59f555386b44098a22ab377cf4ef88018334e0e2506f4669cd563",
+  "overlay": "Only final candidate cfg(test) module; all control production code remains from e02920b.",
+  "expected_failures": [
+    "rebuild_keeps_independent_holders_and_their_own_continuity",
+    "rebuild_event_identity_is_scoped_by_tenant"
+  ],
+  "actual_exit_code": 101,
+  "command": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "/home/ac/projects/statechronicle/target/rebuild-addressing/negative-control/source/Cargo.toml",
+    "-p",
+    "statechronicle-index",
+    "--lib",
+    "rebuild::tests::rebuild_",
+    "--locked",
+    "--offline"
+  ],
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_TARGET_DIR": "target/rebuild-addressing/negative-control/build"
+  },
+  "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n"
+}
