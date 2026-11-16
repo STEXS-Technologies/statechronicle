@@ -682,3 +682,26 @@ Exact archived `e85121b` qualification passes nine integration functions on Rust
 commands, hashes, compressed logs and limitations are retained in
 [evidence/conformance/lease-e85121b](evidence/conformance/lease-e85121b/README.md).
 Production crates and both manifests/locks match the parent unchanged.
+
+## Independently requested settlement history facts
+
+The legacy unsigned-summary limitation remains executable and unchanged. A new
+`proof::settlement` route instead requires independent trade/asset/payment
+expectations and full event batches authenticated by pinned signed commit
+bodies. It checks the actual trade hold and prior/new owner in signed asset
+states, and exact net-zero payment deltas/subjects/unit in signed payment
+states. A private receipt contains only those requested facts. The actual
+cross-tenant executor fixture exercises equal textual commit IDs under separate
+tenants; a separate fixture covers two assets in different commits.
+
+The event-root implementation moves unchanged into the existing accumulator
+crate and the old commit function becomes a thin delegate. No production
+implementation is copied, no runtime crate/dependency is added, and old wire
+representations/verifier semantics remain intact. This is an additive authority
+boundary with a production footprint increase, not a source-reduction claim.
+
+Full lifecycle/chain/current verification, automatic witness-serving composition,
+all broader malformed properties and final F8 performance/qualification remain
+open. Payment declarations are not signed into events; independently requested
+payment facts do not prove a declaration or distributed atomicity. See
+[the precise settlement contract](settlement-history.md).

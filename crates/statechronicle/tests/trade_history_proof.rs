@@ -1027,6 +1027,61 @@ async fn get_proof_uses_per_asset_commit_for_two_commit_settle() {
     let (signed_c1, acc1) = commit_at(&events_a, "cmt_0000000000000000f301");
     let (signed_c2, acc2) = commit_at(&events_b, "cmt_0000000000000000f302");
 
+    // The historical-event route authenticates both independently pinned
+    // assets even when their settlement commits differ. Legacy state-only
+    // fixtures above deliberately do not contain real event roots; construct
+    // separate genuine event-root commits for this additional assertion.
+    {
+        use statechronicle::core::canonicalize::canonicalize_and_digest;
+        use statechronicle::proof::settlement::{
+            ExpectedAssetSettlement, ExpectedSettlement, ExpectedSettlementEvent,
+            SettlementWitness, verify_settlement_history,
+        };
+        let mut body_a = signed_c1.body.clone();
+        body_a.event_merkle_root = statechronicle::commit::roots::event_root(&events_a).unwrap();
+        let mut body_b = signed_c2.body.clone();
+        body_b.event_merkle_root = statechronicle::commit::roots::event_root(&events_b).unwrap();
+        let history_a = sign_commit(&body_a, &fixed_key(), key_id()).unwrap();
+        let history_b = sign_commit(&body_b, &fixed_key(), key_id()).unwrap();
+        let assets = [(&events_a[0], &body_a), (&events_b[0], &body_b)]
+            .into_iter()
+            .map(|(event, body)| ExpectedAssetSettlement {
+                event: ExpectedSettlementEvent {
+                    tenant: alpha.clone(),
+                    resource: event.resource_id.clone(),
+                    event_id: event.event_id.clone(),
+                    intent_id: event.intent_id.clone(),
+                    commit_digest: canonicalize_and_digest(body).unwrap(),
+                },
+                from: SubjectId(ALICE.into()),
+                to: SubjectId(BOB.into()),
+            })
+            .collect();
+        let expected = ExpectedSettlement {
+            trade_id: TRADE.into(),
+            assets,
+            payments: vec![],
+        };
+        let witnesses = [
+            SettlementWitness {
+                commit: &history_b,
+                events: &events_b,
+            },
+            SettlementWitness {
+                commit: &history_a,
+                events: &events_a,
+            },
+        ];
+        let key = |_: &TenantId, _: &Signed<Commit>| Ok(fixed_key().verifying_key());
+        assert_eq!(
+            verify_settlement_history(&expected, &witnesses, key)
+                .unwrap()
+                .claim(),
+            &expected
+        );
+        assert!(verify_settlement_history(&expected, &witnesses[..1], key).is_err());
+    }
+
     // Genuine state proofs at each asset's own commit.
     let proof_a = build_asset_proof(&events_a[0], &signed_c1, &acc1);
     let proof_b = build_asset_proof(&events_b[0], &signed_c2, &acc2);
@@ -1216,4 +1271,343 @@ fn assert_trade_coverage(
     unsigned_metadata.legs[0].commit.commit_id =
         CommitId::new(String::from("cmt_unverified_representative")).unwrap();
     verify_trade_proof_scoped(&unsigned_metadata, &scoped).unwrap();
+}
+
+/// Independent claims authenticate signed events, including previous owner and
+/// payment deltas; unsigned summary equality is deliberately not an input.
+#[tokio::test]
+async fn requested_settlement_facts_require_authenticated_event_history() {
+    use statechronicle::core::{amount::Amount, canonicalize::canonicalize_and_digest};
+    use statechronicle::domain::resource_state::ResourceState;
+    use statechronicle::proof::settlement::{
+        ExpectedAssetSettlement, ExpectedSettlement, ExpectedSettlementEvent,
+        ExpectedSettlementPayment, SettlementWitness, verify_settlement_history,
+    };
+    let harness = Harness::new();
+    let alpha = harness.tenant();
+    let beta = beta();
+    harness.tenant_store.register(beta.clone());
+    seed(&harness, &alpha, &beta).await;
+    let groups = harness
+        .executor
+        .execute_cross_tenant_trade(&settle_intents(&harness, &alpha, &beta), &manifest())
+        .await
+        .unwrap();
+    let (signed_alpha, signed_beta, _) = commit_groups(&harness, &groups);
+    assert_eq!(signed_alpha.body.commit_id, signed_beta.body.commit_id);
+    let pin = |event: &Event, commit: &Signed<Commit>| ExpectedSettlementEvent {
+        tenant: event.tenant_id.clone(),
+        resource: event.resource_id.clone(),
+        event_id: event.event_id.clone(),
+        intent_id: event.intent_id.clone(),
+        commit_digest: canonicalize_and_digest(&commit.body).unwrap(),
+    };
+    let debit = groups[1]
+        .events
+        .iter()
+        .find(|event| event.before.state.subject().unwrap().0 == BOB)
+        .unwrap();
+    let credit = groups[1]
+        .events
+        .iter()
+        .find(|event| event.after.state.subject().unwrap().0 == ALICE)
+        .unwrap();
+    // Fixture-produced event identities/commit digests are captured before any
+    // adversarial alteration. Business expectations come from the test request.
+    let expected = ExpectedSettlement {
+        trade_id: TRADE.into(),
+        assets: vec![ExpectedAssetSettlement {
+            event: pin(&groups[0].events[0], &signed_alpha),
+            from: SubjectId(ALICE.into()),
+            to: SubjectId(BOB.into()),
+        }],
+        payments: vec![ExpectedSettlementPayment {
+            debit: pin(debit, &signed_beta),
+            credit: pin(credit, &signed_beta),
+            from: SubjectId(BOB.into()),
+            to: SubjectId(ALICE.into()),
+            amount: Amount::from_u64(PRICE),
+            unit: "gold_minor".into(),
+        }],
+    };
+    let witnesses = [
+        SettlementWitness {
+            commit: &signed_alpha,
+            events: &groups[0].events,
+        },
+        SettlementWitness {
+            commit: &signed_beta,
+            events: &groups[1].events,
+        },
+    ];
+    let trusted_key = |tenant: &TenantId, commit: &Signed<Commit>| {
+        assert!(tenant == &alpha || tenant == &beta);
+        if commit.signature.key_id != key_id() || commit.body.executor != executor_subject() {
+            return Err(ProofError::KeyNotFound(commit.signature.key_id.0.clone()));
+        }
+        Ok(fixed_key().verifying_key())
+    };
+    let verified = verify_settlement_history(&expected, &witnesses, trusted_key).unwrap();
+    assert_eq!(verified.claim(), &expected);
+    let mut reordered = witnesses;
+    reordered.reverse();
+    verify_settlement_history(&expected, &reordered, trusted_key).unwrap();
+    let mut candidates = Vec::new();
+    macro_rules! wrong {
+        ($name:expr, $alter:expr) => {{
+            let mut claim = expected.clone();
+            ($alter)(&mut claim);
+            candidates.push(($name, claim));
+        }};
+    }
+    wrong!("trade", |c: &mut ExpectedSettlement| c.trade_id =
+        "another_trade".into());
+    wrong!("from owner", |c: &mut ExpectedSettlement| c.assets[0]
+        .from =
+        SubjectId("mallory".into()));
+    wrong!("to owner", |c: &mut ExpectedSettlement| c.assets[0].to =
+        SubjectId("mallory".into()));
+    wrong!("tenant", |c: &mut ExpectedSettlement| c.assets[0]
+        .event
+        .tenant =
+        beta.clone());
+    wrong!("resource", |c: &mut ExpectedSettlement| c.assets[0]
+        .event
+        .resource =
+        ResourceId("another_asset".into()));
+    wrong!("event", |c: &mut ExpectedSettlement| c.assets[0]
+        .event
+        .event_id =
+        EventId("another_event".into()));
+    wrong!("intent", |c: &mut ExpectedSettlement| c.assets[0]
+        .event
+        .intent_id =
+        IntentId("another_intent".into()));
+    wrong!("commit", |c: &mut ExpectedSettlement| c.assets[0]
+        .event
+        .commit_digest =
+        hash_bytes(b"wrong"));
+    wrong!("duplicate asset", |c: &mut ExpectedSettlement| c
+        .assets
+        .push(c.assets[0].clone()));
+    wrong!("payment amount", |c: &mut ExpectedSettlement| c.payments
+        [0]
+    .amount =
+        Amount::from_u64(PRICE + 1));
+    wrong!("payment unit", |c: &mut ExpectedSettlement| c.payments[0]
+        .unit =
+        "other".into());
+    wrong!("payer", |c: &mut ExpectedSettlement| c.payments[0].from =
+        SubjectId("mallory".into()));
+    wrong!("payee", |c: &mut ExpectedSettlement| c.payments[0].to =
+        SubjectId("mallory".into()));
+    wrong!("zero payment", |c: &mut ExpectedSettlement| c.payments[0]
+        .amount =
+        Amount::ZERO);
+    wrong!("swapped payment events", |c: &mut ExpectedSettlement| {
+        let p = &mut c.payments[0];
+        std::mem::swap(&mut p.debit, &mut p.credit);
+    });
+    wrong!("duplicate payment", |c: &mut ExpectedSettlement| c
+        .payments
+        .push(c.payments[0].clone()));
+    wrong!("empty assets", |c: &mut ExpectedSettlement| c
+        .assets
+        .clear());
+    wrong!("empty trade", |c: &mut ExpectedSettlement| c
+        .trade_id
+        .clear());
+    for (name, candidate) in candidates {
+        assert!(
+            verify_settlement_history(&candidate, &reordered, trusted_key).is_err(),
+            "{name}"
+        );
+    }
+    assert!(verify_settlement_history(&expected, &[], trusted_key).is_err());
+    assert!(verify_settlement_history(&expected, &reordered[..1], trusted_key).is_err());
+    assert!(
+        verify_settlement_history(&expected, &reordered, |_, _| Ok(
+            ed25519_dalek::SigningKey::from_bytes(&[91; 32]).verifying_key()
+        ))
+        .is_err()
+    );
+    assert!(
+        verify_settlement_history(&expected, &reordered, |_, _| Err(ProofError::KeyNotFound(
+            "untrusted".into()
+        )))
+        .is_err()
+    );
+    // All these inputs retain the genuine signed commit, so event substitution,
+    // reordering, omission and duplication cannot be hidden by summary changes.
+    let altered_batches = [
+        {
+            let mut batch = groups[1].events.clone();
+            batch.reverse();
+            batch
+        },
+        {
+            let mut batch = groups[1].events.clone();
+            batch.pop();
+            batch
+        },
+        {
+            let mut batch = groups[1].events.clone();
+            batch.push(batch[0].clone());
+            batch
+        },
+        {
+            let mut batch = groups[1].events.clone();
+            batch[0].actor = SubjectId("mallory".into());
+            batch
+        },
+    ];
+    for altered in altered_batches {
+        let altered_events_witness = [
+            SettlementWitness {
+                commit: &signed_alpha,
+                events: &groups[0].events,
+            },
+            SettlementWitness {
+                commit: &signed_beta,
+                events: &altered,
+            },
+        ];
+        assert!(
+            verify_settlement_history(&expected, &altered_events_witness, trusted_key).is_err()
+        );
+    }
+    // A trusted signer cannot make a body claim authenticate a different body.
+    let mut altered_commit = signed_beta.clone();
+    altered_commit.body.sequence += 1;
+    let changed_commit_witness = [
+        SettlementWitness {
+            commit: &signed_alpha,
+            events: &groups[0].events,
+        },
+        SettlementWitness {
+            commit: &altered_commit,
+            events: &groups[1].events,
+        },
+    ];
+    assert!(verify_settlement_history(&expected, &changed_commit_witness, trusted_key).is_err());
+    let mut bad_signature = signed_beta.clone();
+    bad_signature.signature = signed_alpha.signature.clone();
+    let signature_witness = [
+        SettlementWitness {
+            commit: &signed_alpha,
+            events: &groups[0].events,
+        },
+        SettlementWitness {
+            commit: &bad_signature,
+            events: &groups[1].events,
+        },
+    ];
+    assert!(matches!(
+        verify_settlement_history(&expected, &signature_witness, trusted_key),
+        Err(ProofError::CommitSignature(_))
+    ));
+    let duplicates = [
+        SettlementWitness {
+            commit: &signed_alpha,
+            events: &groups[0].events,
+        },
+        SettlementWitness {
+            commit: &signed_alpha,
+            events: &groups[0].events,
+        },
+        SettlementWitness {
+            commit: &signed_beta,
+            events: &groups[1].events,
+        },
+    ];
+    assert!(verify_settlement_history(&expected, &duplicates, trusted_key).is_err());
+    let oversized: Vec<_> = (0..257)
+        .map(|_| SettlementWitness {
+            commit: &signed_alpha,
+            events: &groups[0].events,
+        })
+        .collect();
+    assert!(
+        verify_settlement_history(&expected, &oversized, |_, _| panic!(
+            "oversized witnesses reached signer lookup"
+        ))
+        .is_err()
+    );
+    let mut oversized_claim = expected.clone();
+    oversized_claim.assets = vec![expected.assets[0].clone(); 257];
+    assert!(
+        verify_settlement_history(&oversized_claim, &reordered, |_, _| panic!(
+            "oversized expectations reached signer lookup"
+        ))
+        .is_err()
+    );
+    // Re-sign malformed transitions and independently pin each new commit:
+    // structural checks remain necessary even when signature/root are genuine.
+    for case in 0..4 {
+        let mut malformed = groups[0].events.clone();
+        match case {
+            0 => {
+                if let ResourceState::UniqueAsset(state) = &mut malformed[0].after.state {
+                    state.trade_id = Some(TRADE.into());
+                }
+            }
+            1 => malformed[0].after.version = malformed[0].before.version,
+            2 => {
+                malformed[0].before.version = 0;
+                malformed[0].after.version = 1;
+            }
+            _ => malformed[0].before.state_hash = hash_bytes(b"forged state hash"),
+        }
+        malformed[0].after.state_hash = canonicalize_and_digest(&malformed[0].after.state).unwrap();
+        let mut body = signed_alpha.body.clone();
+        body.event_merkle_root = statechronicle::commit::roots::event_root(&malformed).unwrap();
+        let malformed_commit = sign_commit(&body, &fixed_key(), key_id()).unwrap();
+        let mut bad_claim = expected.clone();
+        bad_claim.assets[0].event.commit_digest = canonicalize_and_digest(&body).unwrap();
+        let malformed_witness = [
+            SettlementWitness {
+                commit: &malformed_commit,
+                events: &malformed,
+            },
+            SettlementWitness {
+                commit: &signed_beta,
+                events: &groups[1].events,
+            },
+        ];
+        assert!(
+            verify_settlement_history(&bad_claim, &malformed_witness, trusted_key).is_err(),
+            "signed malformed asset case {case}"
+        );
+    }
+    // Version zero requires the exact canonical unborn recipient, not merely
+    // a zero balance with a plausible existing holder and denomination.
+    let mut noncanonical_credit = groups[1].events.clone();
+    let recipient = noncanonical_credit
+        .iter_mut()
+        .find(|event| event.after.state.subject().unwrap().0 == ALICE)
+        .unwrap();
+    if let ResourceState::FungibleBalance(state) = &mut recipient.before.state {
+        state.subject = SubjectId(ALICE.into());
+        state.unit = "gold_minor".into();
+    }
+    recipient.before.state_hash = canonicalize_and_digest(&recipient.before.state).unwrap();
+    let mut payment_body = signed_beta.body.clone();
+    payment_body.event_merkle_root =
+        statechronicle::commit::roots::event_root(&noncanonical_credit).unwrap();
+    let payment_commit = sign_commit(&payment_body, &fixed_key(), key_id()).unwrap();
+    let mut payment_claim = expected;
+    let digest = canonicalize_and_digest(&payment_body).unwrap();
+    payment_claim.payments[0].debit.commit_digest = digest.clone();
+    payment_claim.payments[0].credit.commit_digest = digest;
+    let payment_witnesses = [
+        SettlementWitness {
+            commit: &signed_alpha,
+            events: &groups[0].events,
+        },
+        SettlementWitness {
+            commit: &payment_commit,
+            events: &noncanonical_credit,
+        },
+    ];
+    assert!(verify_settlement_history(&payment_claim, &payment_witnesses, trusted_key).is_err());
 }

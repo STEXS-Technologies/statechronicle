@@ -52,3 +52,6 @@ pub mod custom;
 
 /// Independent expected claims and explicit current/historical verification.
 pub mod claim;
+
+/// Historical settlement facts bound to independent expectations and signed events.
+pub mod settlement;

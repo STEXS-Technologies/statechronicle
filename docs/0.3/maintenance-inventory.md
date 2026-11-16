@@ -31,3 +31,22 @@ preserved. New expected-claim verification owns expectation/kind checks and
 creates a private-field result only after signed-envelope verification and the
 requested temporal check. The final head read is required for an observed-current
 result; historical verification has an independent pin and no freshness claim.
+
+The event Merkle root now has one production owner in the existing accumulator
+crate (`event_tree::event_merkle_root`). `commit::roots::event_root` preserves
+its existing return/error contract as a thin delegate; the independently
+requested historical settlement verifier uses that same root implementation.
+The former commit-local leaf helper remains only under `cfg(test)` as an
+independent oracle. No new published crate or dependency is needed.
+
+The new settlement expectation structs make event/commit/subject/payment pins
+explicit; the private verified result prevents unsigned trade summary fields
+from being promoted to authenticated facts. This deliberately adds validation
+and public input types, rather than claiming an orchestration shrink. It does
+not merge current SMT claims, signed event history and backend atomicity into
+one authority contract. See `settlement-history.md` for the limits.
+
+After moving the event-root owner, `statechronicle-commit` uses SHA-256 directly
+only in its independent test oracle. Its direct `sha2` dependency moves to dev
+scope. The accumulator still requires SHA-256, so this removes a production
+manifest edge without claiming a reduction in transitive compiled packages.

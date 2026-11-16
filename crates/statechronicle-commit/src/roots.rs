@@ -23,12 +23,14 @@
 //! by key bytes before insertion so the pipeline order is stable and
 //! documented.
 
+#[cfg(test)]
 use sha2::{Digest as _, Sha256};
 
 use statechronicle_accumulator::key::StateKey;
-use statechronicle_accumulator::sparse_merkle::{
-    LEAF_NODE_TAG, StateAccumulator, StateRoot, StateUpdate, internal_hash,
-};
+#[cfg(test)]
+use statechronicle_accumulator::sparse_merkle::{LEAF_NODE_TAG, internal_hash};
+use statechronicle_accumulator::sparse_merkle::{StateAccumulator, StateRoot, StateUpdate};
+#[cfg(test)]
 use statechronicle_core::canonicalize::canonicalize_and_digest;
 use statechronicle_core::digest::ContentDigest;
 
@@ -48,29 +50,8 @@ use crate::error::CommitError;
 /// Returns [`CommitError::EmptyBatch`] when `events` is empty, and
 /// [`CommitError::Core`] when an event cannot be BCS canonicalized.
 pub fn event_root(events: &[Event]) -> Result<ContentDigest, CommitError> {
-    if events.is_empty() {
-        return Err(CommitError::EmptyBatch);
-    }
-    let mut level: Vec<[u8; 32]> = Vec::with_capacity(events.len());
-    for event in events {
-        let digest = canonicalize_and_digest(event)?;
-        level.push(event_leaf_hash(*digest.as_bytes()));
-    }
-    while level.len() > 1 {
-        let mut next = Vec::with_capacity(level.len().div_ceil(2));
-        for chunk in level.chunks(2) {
-            let Some(left) = chunk.first().copied() else {
-                break;
-            };
-            let right = chunk.get(1).copied().unwrap_or(left);
-            next.push(internal_hash(left, right));
-        }
-        level = next;
-    }
-    let Some(root) = level.first().copied() else {
-        return Err(CommitError::EmptyBatch);
-    };
-    Ok(ContentDigest::new(root))
+    statechronicle_accumulator::event_tree::event_merkle_root(events)?
+        .ok_or(CommitError::EmptyBatch)
 }
 
 /// Derives the sparse Merkle state key for an event's after-state.
@@ -217,6 +198,7 @@ pub fn verify_state_root_continuity(
 /// `H(0x11 || event_digest)`: the event tree leaf, mirroring the
 /// accumulator's `LEAF_NODE_TAG` domain separation (ADR-005 §2). Events have
 /// no SMT key, so the leaf covers only the event's canonical digest.
+#[cfg(test)]
 fn event_leaf_hash(event_digest: [u8; 32]) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update([LEAF_NODE_TAG]);
