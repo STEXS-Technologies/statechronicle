@@ -1,0 +1,17 @@
+{
+  "source": "574fcede921e9ea09dfae949ac49a58181bcbb50",
+  "previous": "3ea6d3100805e0f0c27a90863510ec4fcbe79976",
+  "changed_source_files": [
+    "tutorials/durable-custom-ledger/README.md",
+    "tutorials/durable-custom-ledger/src/ledger.rs",
+    "tutorials/durable-custom-ledger/src/tests.rs"
+  ],
+  "library_dependencies_lockfiles_workflows_unchanged": true,
+  "qualification": "../../tutorials/durable-custom-ledger-20261116T120608Z-2582327/manifest.json",
+  "artifacts": {
+    "README.md": "c4f01cf1ff8a818b1c8b6446652cd88e9180f7b23a4350dada563be966005270",
+    "lock-negative.json": "6ae9f86b2008ee3e143f37133be07624898e4b78acd56993265097d6ed6c0cbd",
+    "lock-negative.log.gz": "bc2787cf94291e543360673a54258e087f5924983baf109fa980a062d4ace8e2",
+    "lock-negative.py": "0d9f9fd4132cd1ea2fbd1767da11f6ca7f129981f889ff1879da493a85eab2e9"
+  }
+}

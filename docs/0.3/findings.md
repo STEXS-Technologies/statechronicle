@@ -891,3 +891,19 @@ The simpler retained design has equal allocation totals in four bounded workflow
 a refusing-sink p95 increase remains open for release performance qualification.
 [All attempts, source deltas and observations](evidence/f2/batch-completion/README.md)
 are retained. Full F2/F5/F6/F8 and release readiness remain unproven.
+
+## File-backed process termination and restart
+
+Tutorial source `574fcede` replaces stale-file writer ownership with an OS-held
+exclusive lock and preserves interrupted scratch writes only after authoritative
+history verifies against retained independent pins. The persistent lock inode is
+never unlinked; occupied evidence slots refuse recovery.
+
+An actual Unix subprocess is killed with SIGKILL at six synchronized file
+boundaries, starting from prior history. Reopen checks all-or-none effects,
+original receipt/retry identity, exact replay, payload conflicts and temporal
+proofs. All 12 isolated tutorial tests, output, strict Clippy and formatting pass
+on Rust 1.100.0. Removing OS locking in an archive makes the unchanged process
+test fail at live-owner exclusion. [Source, logs and scoped evidence](evidence/conformance/file-process-restart/README.md)
+advance F5 without claiming power-loss safety, arbitrary backend qualification or
+completion of F5/F8. Library source, dependencies and lockfiles are unchanged.
