@@ -11,8 +11,10 @@
         "target/performance-matrix/20261116T130401Z-565324/lane-0-bench"
       ],
       "exit_code": 0,
-      "artifact": "control-size.txt",
-      "sha256": "2414b8ea1fa9af196775f7918e82e763dc89e4d20634808e467d8f741997cf17"
+      "artifact": "control-size.log.gz",
+      "sha256": "9fd4a35b1cfac123628da124c4005c5554dd2aef4b9955eba61eb4ed1bab1253",
+      "artifact_encoding": "gzip",
+      "uncompressed_sha256": "2414b8ea1fa9af196775f7918e82e763dc89e4d20634808e467d8f741997cf17"
     },
     {
       "lane": "control",
@@ -22,8 +24,10 @@
         "target/performance-matrix/20261116T130401Z-565324/lane-0-bench"
       ],
       "exit_code": 0,
-      "artifact": "control-readelf.txt",
-      "sha256": "d7d9b985e1375dfb4ace504954ad1a25f75a1375d984df8f43274312146716f0"
+      "artifact": "control-readelf.log.gz",
+      "sha256": "27f5d00c61749cc5cfbdbf491476ebfda7e0bc9f1f1ad59254378f5497427299",
+      "artifact_encoding": "gzip",
+      "uncompressed_sha256": "d7d9b985e1375dfb4ace504954ad1a25f75a1375d984df8f43274312146716f0"
     },
     {
       "lane": "candidate",
@@ -34,8 +38,10 @@
         "target/performance-matrix/20261116T130401Z-565324/lane-1-bench"
       ],
       "exit_code": 0,
-      "artifact": "candidate-size.txt",
-      "sha256": "7b10fdfc0febb63200a412820c30e74039501bb2f84bd7f5647a1f4ba7ad33d0"
+      "artifact": "candidate-size.log.gz",
+      "sha256": "513e103ac65cbc8db69aafb8a1d62e08a5eb42231f1e55b2f6a98db8d7031dd3",
+      "artifact_encoding": "gzip",
+      "uncompressed_sha256": "7b10fdfc0febb63200a412820c30e74039501bb2f84bd7f5647a1f4ba7ad33d0"
     },
     {
       "lane": "candidate",
@@ -45,8 +51,10 @@
         "target/performance-matrix/20261116T130401Z-565324/lane-1-bench"
       ],
       "exit_code": 0,
-      "artifact": "candidate-readelf.txt",
-      "sha256": "7a333eadb6c6321ae34f4cac449f8f286049c05f5294549be0aec9195d22861d"
+      "artifact": "candidate-readelf.log.gz",
+      "sha256": "7a319f63cff078019e31824b6e2e06b6b900885ccf7d4437d388e97966cd13cb",
+      "artifact_encoding": "gzip",
+      "uncompressed_sha256": "7a333eadb6c6321ae34f4cac449f8f286049c05f5294549be0aec9195d22861d"
     }
   ]
 }

@@ -71,7 +71,7 @@
       "sha256": "3bf286a4f758e046e313e9c49043b7ae0cef78fc48c7cc39a7f6cb2b4000d97b"
     }
   },
-  "verified_artifacts": 443,
+  "verified_artifacts": 447,
   "negative_control_owner_and_fixture_unchanged_from": "fb3d5a4",
   "production_delta": {
     "syntax_lines": -68,
@@ -83,5 +83,6 @@
   "remaining": [
     "Default short-regime portable and wrong-key timing concerns; extended measurements differ.",
     "Broader performance, footprint justification, canonical-facade qualification, exact-candidate coverage/packages and release work remain open."
-  ]
+  ],
+  "binary_sections_sha256": "9e97ef9bc65aaa2a2cf57bcadc4018fc6721bb4865426561fccb2be7e8ffc57a"
 }
