@@ -264,3 +264,6 @@ async fn schema_migration_recovers_versions_after_lost_commit_acknowledgement() 
     );
     assert!(V2.decode_state(&stored.events[1].after.state).is_err());
 }
+
+#[path = "authorized_migration.rs"]
+mod authorized;
