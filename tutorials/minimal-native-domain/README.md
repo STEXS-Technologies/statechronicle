@@ -98,9 +98,9 @@ A current proof additionally needs an independent expected claim, trusted signer
 policy and authoritative canonical head; a historical proof needs an independently
 selected pin. An uncommitted event alone provides neither guarantee.
 
-The separate durable-custom-ledger tutorial, migration/operator walkthroughs and
-full current/historical journey remain roadmap work. This native tutorial does
-not claim to complete those gates.
+Continue with the [durable custom-ledger tutorial](../durable-custom-ledger/README.md)
+for signed persistence, reopen/recovery and current/historical proofs. Broader
+migration/operator documentation and release qualification remain roadmap work.
 
 ## Reproduce the isolated checks
 

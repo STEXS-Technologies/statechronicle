@@ -35,7 +35,9 @@ On this refactoring branch, the [standalone native-domain tutorial](tutorials/mi
 shows signed, authenticated preparation for both domains using the public
 `mutation::Preparer` surface and read-only adapters. It has its own manifest and
 lockfile. Its development credentials and uncommitted results are explicit;
-preparation alone is not durable success.
+preparation alone is not durable success. Continue with the
+[durable custom-ledger tutorial](tutorials/durable-custom-ledger/README.md) for
+file-backed commits, unknown-acknowledgement recovery and current/historical proofs.
 
 ## Use cases
 

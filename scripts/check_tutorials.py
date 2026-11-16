@@ -49,7 +49,7 @@ def main():
                 'source_sha256': {name: sha((root / name).read_bytes()) for name in tracked},
                 'checks': [], 'status': 'running',
                 'limitations': ['Local tutorial qualification, not complete release qualification.',
-                                'Development keys, clock, principal and empty reads are fixture composition.',
+                                'Development keys, clock and principal are fixture composition.',
                                 'Preparation and transition checks are not durable receipts or trusted history proofs.']}
     path = evidence / 'manifest.json'
 
