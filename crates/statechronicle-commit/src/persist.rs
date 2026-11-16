@@ -280,7 +280,6 @@ pub(crate) fn validate_effects_with_binding(
                 "durable outbox record is not bound to the commit scope",
             )));
         }
-        validate_outbox_record(outbox)?;
     }
     let event_count = u64::try_from(events.len())
         .map_err(|error| CommitError::InvalidEvent(format!("event count overflow: {error}")))?;

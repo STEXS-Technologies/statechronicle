@@ -23,11 +23,14 @@ def require(condition, message):
 def main():
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument('--revision', action='append', required=True)
-    cli.add_argument('--fixture', choices=['proof_service', 'executor', 'settlement', 'profiles'], default='proof_service')
+    cli.add_argument('--fixture', choices=['proof_service', 'executor', 'settlement', 'profiles', 'outbox'], default='proof_service')
     cli.add_argument('--negative-control-share-amount-errors', action='store_true')
     cli.add_argument('--negative-control-remove-expiry', action='store_true')
     cli.add_argument('--negative-control-commit-on-refusal', action='store_true')
+    cli.add_argument('--negative-control-ignore-outbox-digest', action='store_true')
     args = cli.parse_args()
+    if args.negative_control_ignore_outbox_digest and args.fixture != 'outbox':
+        cli.error('outbox digest control requires outbox fixture')
     if args.negative_control_share_amount_errors and args.fixture != 'profiles':
         cli.error('amount-error control requires profiles fixture')
     if args.negative_control_commit_on_refusal and args.fixture != 'settlement':
@@ -45,6 +48,8 @@ def main():
     stamp = time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()) + f'-{os.getpid()}'
     run = root / f'target/{args.fixture}-parity' / stamp
     evidence = root / ('docs/0.3/evidence/f2/executor-order' if args.fixture != 'proof_service' else 'docs/0.3/evidence/maintenance/proof-service') / stamp
+    if args.fixture == 'outbox':
+        evidence = root / 'docs/0.3/evidence/maintenance/outbox-preflight' / stamp
     if args.fixture == 'profiles':
         evidence = root / 'docs/0.3/evidence/maintenance/builtin-profiles' / stamp
     evidence.mkdir(parents=True)
@@ -57,7 +62,7 @@ def main():
         provenance=json.loads((root/'ci/compat-0.2/provenance.json').read_text())
         require(sha(support)==provenance['files']['crates/consumer/examples/common/domains.rs']['sha256'], 'original domain fixture provenance mismatch')
     wire = root/'ci/wire-0.2/history.json'
-    manifest = {'revisions': revisions, 'fixture_sha256':sha(fixture.read_bytes()), 'negative_control_share_amount_errors':args.negative_control_share_amount_errors, 'negative_control_remove_expiry':args.negative_control_remove_expiry, 'negative_control_commit_on_refusal':args.negative_control_commit_on_refusal, 'wire_sha256':sha(wire.read_bytes()),
+    manifest = {'revisions': revisions, 'fixture_sha256':sha(fixture.read_bytes()), 'negative_control_share_amount_errors':args.negative_control_share_amount_errors, 'negative_control_ignore_outbox_digest':args.negative_control_ignore_outbox_digest,'negative_control_remove_expiry':args.negative_control_remove_expiry, 'negative_control_commit_on_refusal':args.negative_control_commit_on_refusal, 'wire_sha256':sha(wire.read_bytes()),
                 'rustc':subprocess.check_output(['rustc','-vV'],cwd=root,text=True), 'checks':[], 'lanes':[], 'status':'running',
                 'python_optimization':__import__('sys').flags.optimize, 'environment':{k:env[k] for k in ['RUSTC_WRAPPER','CARGO_BUILD_JOBS','CARGO_TARGET_DIR']},
                 'limitations':['Four compatibility state-proof methods; new expected-claim and absence/trade verification are separate.',
@@ -74,6 +79,8 @@ def main():
         manifest['profile_guard_sha256'] = sha(profile_support)
         manifest['limitations'] = ['Deterministic public built-in check/reduction and transfer corpus, including malformed inputs and mismatched payloads.', 'No native custom-domain reduction, full executor authority/side effects, concurrency or performance qualification.']
         (evidence/'profile_guards.rs').write_bytes(profile_support)
+    if args.fixture == 'outbox':
+        manifest['limitations'] = ['18 outbox shapes, four claim dispositions and zero/single/pairwise callback faults over a sentinel transaction adapter.', 'Legacy verified preflight and port trace only; no database atomicity, protected ingress or canonical receipt claim.']
     (evidence/f'{args.fixture}.rs').write_bytes(fixture.read_bytes())
     (evidence/'runner.py').write_bytes(Path(__file__).read_bytes())
     def save():
@@ -115,9 +122,21 @@ def main():
                 require(original.count(needle)==1, 'negative-control owner changed')
                 owner.write_text(original.replace(needle,'handle.commit().await'))
                 (evidence/'negative-control.json').write_text(json.dumps({'revision':revision,'path':str(owner.relative_to(source)),'original_sha256':sha(original.encode()),'mutated_sha256':sha(owner.read_bytes()),'removed':needle,'replacement':'handle.commit().await'},indent=2)+'\n')
+            if args.negative_control_ignore_outbox_digest and index == len(revisions)-1:
+                owner=source/'crates/statechronicle-commit/src/persist.rs'
+                original=owner.read_text()
+                needle='hash_bytes(&record.payload) != record.payload_digest'
+                require(original.count(needle)==1, 'outbox digest owner changed')
+                owner.write_text(original.replace(needle,'false /* isolated negative control */'))
+                (evidence/'negative-control.json').write_text(json.dumps({'revision':revision,'path':str(owner.relative_to(source)),'original_sha256':sha(original.encode()),'mutated_sha256':sha(owner.read_bytes()),'removed':needle},indent=2)+'\n')
             hashes={str(p.relative_to(source)):sha(p.read_bytes()) for p in sorted(source.rglob('*')) if p.is_file()}
             consumer=source.parent/'consumer';(consumer/'src').mkdir(parents=True)
             (consumer/'src/main.rs').write_bytes(fixture.read_bytes())
+            if args.fixture == 'outbox':
+                common=git('show','c418e98b91720188158c531cd5c2c4b8ab71cbcf:crates/statechronicle/tests/common/harness.rs')
+                (consumer/'src/common.rs').write_bytes(common)
+                (evidence/'common.rs').write_bytes(common)
+                manifest['support_sha256']=sha(common)
             if args.fixture == 'profiles':
                 (consumer/'src/profile_guards.rs').write_bytes(profile_support)
             if support is not None:
@@ -144,7 +163,7 @@ def main():
                     raise RuntimeError('incomplete or duplicate profile corpus')
                 if traces and len(trace) != len(traces[0]): raise RuntimeError('profile corpus row count changed')
             else:
-                require(len(trace)=={'executor':23544,'settlement':10128,'proof_service':2352}[args.fixture], 'incomplete corpus')
+                require(len(trace)=={'executor':23544,'settlement':10128,'proof_service':2352,'outbox':5688}[args.fixture], 'incomplete corpus')
             traces.append(trace)
             manifest['lanes'].append({'revision':revision,'archive_sha256':sha(data),'source_sha256':hashes,'consumer_lock_sha256':sha(lock),'trace_sha256':sha(raw),'rows':len(trace),'binary_sha256':sha(binary.read_bytes())})
             require((consumer/'Cargo.lock').read_bytes()==lock, 'consumer lock drift')
