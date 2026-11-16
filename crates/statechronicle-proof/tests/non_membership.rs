@@ -620,3 +620,33 @@ fn bundle_roundtrips_through_json_and_bcs() {
     let decoded_bcs: NonMembershipProofBundle = bcs::from_bytes(&first).unwrap();
     assert_eq!(decoded_bcs, fixture.bundle);
 }
+
+/// Characterizes the compatibility API before adding an expected-claim API.
+/// Success proves the supplied absent key, not the caller's intended resource.
+#[tokio::test]
+async fn legacy_absence_service_does_not_bind_independent_key_or_current_head() {
+    let fixture = fixture();
+    let service = service(fixture.bundle.clone(), &fixture).await;
+    assert!(
+        service
+            .ports()
+            .commit_store
+            .canonical_head(&tenant())
+            .await
+            .unwrap()
+            .is_none()
+    );
+    service
+        .verify_non_membership(&fixture.bundle, &fixed_key().verifying_key())
+        .await
+        .unwrap();
+    assert!(matches!(
+        verify_non_membership_bundle(
+            &fixture.bundle,
+            &fixture.signed,
+            &fixed_key().verifying_key(),
+            &present_key()
+        ),
+        Err(ProofError::KeyMismatch { .. })
+    ));
+}

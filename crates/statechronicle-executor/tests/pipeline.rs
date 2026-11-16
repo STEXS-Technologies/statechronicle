@@ -1509,3 +1509,33 @@ async fn execute_batch_fails_closed_on_partial_replay() {
             .is_none()
     );
 }
+
+/// A legacy intent marker is not a signed ledger receipt. Preserve this old
+/// behavior explicitly while the new canonical API is designed separately.
+#[tokio::test]
+async fn legacy_intent_marker_bypasses_durable_sink_without_commit_evidence() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let request = with_signature(
+        mint("legacy_marker", "asset:sword_001", "alice"),
+        &fixed_key(),
+    );
+    let principal = AuthenticatedPrincipal {
+        subject: SubjectId(String::from("alice")),
+        credential_id: String::from("session-1"),
+        tenant: tenant(),
+    };
+    // This is planning only: no ledger and no durable sink are involved.
+    assert_eq!(harness.executor.execute(&request).await.unwrap().len(), 1);
+    // If the sink ran it would reject. The legacy marker alone returns Ok([]).
+    let result = harness
+        .executor
+        .execute_player_durable(
+            &request,
+            &principal,
+            &AllowAuthorizer,
+            &RejectingDurableSink,
+        )
+        .await
+        .unwrap();
+    assert!(result.is_empty());
+}

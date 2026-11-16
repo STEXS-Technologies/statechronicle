@@ -32,3 +32,18 @@ change without rerunning an unaffected lane. The default runs both.
 enums. `tests/wire_compat.rs` is a new reader of original-version signed history;
 its goldens come from `ci/wire-0.2/`, never from the candidate. These new tests and
 the no-std consumer are not represented as byte-for-byte released source.
+
+`--measure` replaces tests with three pinned-CPU runs of `refactor_bench` and
+external Valgrind allocation probes. It never changes the library or requires
+unsafe allocator instrumentation. The fixed native, hosted, portable, canonical,
+signing, historical proof, short replay, authenticated planning, two-intent
+planning and reference durable/retry/ambiguous-ACK workloads assert their
+expected outcomes. Labels state when adapter setup is included. In-memory
+persistence is not disk durability. Compare only identical workloads and account
+for the original/start dependency difference.
+
+Allocation probes use fixed-width process arguments, identical fixture setup
+and identical output. Raw heap totals are retained alongside the difference
+from an empty-work control, divided by 1000 operations. The portable transition
+must add zero allocations and bytes. These observations do not replace the
+independent no-std compile or consumer-specific allocation guarantees.

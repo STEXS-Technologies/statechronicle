@@ -33,8 +33,14 @@ def main():
                         help='also run original release script (includes instrumented fuzz)')
     parser.add_argument('--fuzz-seconds', type=int, default=0,
                         help='run only the original parallel fuzz campaign for this many seconds per target')
+    parser.add_argument('--qualification', action='store_true',
+                        help='run remaining coverage, doctest, MSRV and benchmark baseline checks')
+    parser.add_argument('--audit', action='store_true',
+                        help='run new trust-boundary probes on original library source')
+    parser.add_argument('--api-inventory', action='store_true',
+                        help='snapshot complete rustdoc JSON for every library crate')
     args = parser.parse_args()
-    if args.fuzz_seconds < 0 or (args.release_checks and args.fuzz_seconds):
+    if args.fuzz_seconds < 0 or sum([args.release_checks, bool(args.fuzz_seconds), args.qualification, args.audit, args.api_inventory]) > 1:
         parser.error('Choose one nonnegative fuzz duration or release checks')
     root = Path(__file__).resolve().parents[1]
     resolved = output('git', 'rev-parse', 'v0.2.0^{commit}', cwd=root)
@@ -47,6 +53,16 @@ def main():
     source.mkdir(parents=True)
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
         tar.extractall(source, filter='data')
+    overlays = {}
+    if args.audit:
+        for name in [
+            'crates/statechronicle-executor/tests/pipeline.rs',
+            'crates/statechronicle-proof/tests/non_membership.rs',
+            'crates/statechronicle-proof/tests/verification_pipeline.rs',
+        ]:
+            data = (root / name).read_bytes()
+            (source / name).write_bytes(data)
+            overlays[name] = digest(data)
     # git diff --check in the original release script needs a repository.
     subprocess.run(['git', 'init', '-q', str(source)], check=True)
     subprocess.run(['git', 'add', '.'], cwd=source, check=True)
@@ -58,6 +74,7 @@ def main():
             if name.startswith('crates/') and '/src/' in name and name.endswith('.rs')}
     manifest = {
         'baseline_commit': BASELINE,
+        'test_overlays': overlays,
         'candidate_commit': output('git', 'rev-parse', 'HEAD', cwd=root),
         'archive_sha256': digest(archive),
         'runner_sha256': digest(Path(__file__).read_bytes()),
@@ -96,6 +113,30 @@ def main():
         environment['STATECHRONICLE_FUZZ_LOGS'] = str(source / 'fuzz-logs')
         manifest['fuzz_seconds_per_target'] = args.fuzz_seconds
         manifest['nightly_toolchain'] = output('rustc', '+nightly', '-Vv')
+    if args.api_inventory:
+        environment['RUSTDOCFLAGS'] = '-Z unstable-options --output-format json'
+        commands = [['cargo', '+nightly', 'doc', '--workspace', '--exclude',
+                     'statechronicle-fuzz', '--no-deps', '--all-features', '--locked']]
+        manifest['nightly_toolchain'] = output('rustc', '+nightly', '-Vv')
+        manifest['environment']['RUSTDOCFLAGS'] = environment['RUSTDOCFLAGS']
+    if args.audit:
+        commands = [['cargo', 'test', '-p', 'statechronicle-proof', '-p',
+                     'statechronicle-executor', '--all-features', '--locked', 'legacy_']]
+        manifest['limitations'].append('New test-only overlays characterize original behavior; not original release tests.')
+    if args.qualification:
+        environment['STATECHRONICLE_EMBEDDED_TOOLCHAIN'] = '1.85.0'
+        commands = [
+            ['bash', 'scripts/run_coverage_json.sh'],
+            ['bash', 'scripts/check_coverage_ratchet.sh'],
+            ['cargo', 'llvm-cov', 'report', '--json', '--summary-only',
+             '--output-path', 'target/coverage-unfiltered.json'],
+            ['cargo', 'test', '--workspace', '--exclude', 'statechronicle-fuzz',
+             '--doc', '--all-features', '--locked'],
+            ['bash', 'scripts/check_embedded.sh'],
+            ['bash', 'scripts/run_economy_bench.sh'],
+        ]
+        manifest['environment']['STATECHRONICLE_EMBEDDED_TOOLCHAIN'] = '1.85.0'
+        manifest['limitations'].append('Economy benchmark is a shared-host observation, not a matched performance disposition.')
     try:
         for index, command in enumerate(commands):
             log = run / f'check-{index}.log'
@@ -106,8 +147,11 @@ def main():
             start = time.monotonic()
             try:
                 with log.open('wb') as handle:
+                    check_environment = environment.copy()
+                    if command[:3] == ['cargo', 'llvm-cov', 'report']:
+                        check_environment['CARGO_TARGET_DIR'] = str(source / 'target/llvm-cov-target')
                     result = subprocess.run(command, cwd=source, stdout=handle,
-                                            stderr=subprocess.STDOUT, env=environment)
+                                            stderr=subprocess.STDOUT, env=check_environment)
                 record.update(exit_code=result.returncode,
                               status='passed' if result.returncode == 0 else 'failed')
             finally:
@@ -131,6 +175,19 @@ def main():
         manifest['modified_original_files'] = changed
         if changed:
             manifest['status'] = 'failed'
+        manifest['artifacts'] = []
+        for origin in sorted((source / 'target/doc').glob('statechronicle*.json')):
+            compressed = gzip.compress(origin.read_bytes(), mtime=0)
+            artifact = evidence / (origin.name + '.gz')
+            artifact.write_bytes(compressed)
+            manifest['artifacts'].append({'path': artifact.name, 'sha256': digest(compressed)})
+        for name in ['coverage.json', 'coverage-unfiltered.json']:
+            origin = source / 'target' / name
+            if origin.exists():
+                compressed = gzip.compress(origin.read_bytes(), mtime=0)
+                artifact = evidence / (name + '.gz')
+                artifact.write_bytes(compressed)
+                manifest['artifacts'].append({'path': artifact.name, 'sha256': digest(compressed)})
         if (source / 'fuzz-logs').exists():
             artifact = evidence / 'fuzz-campaign.tar.gz'
             with tarfile.open(artifact, 'w:gz') as tar:

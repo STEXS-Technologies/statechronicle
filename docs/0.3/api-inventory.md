@@ -37,3 +37,19 @@ revision's existing lockfile; exact package-version/checksum checks forbid
 unrecorded drift. The original signature corpus is verified across this change.
 This does not promise that downstream crates declaring only major version 3
 can directly exchange key objects with major version 2.
+
+The original dependency graph in
+`evidence/costs/20261116T021527Z-2997189/dependency-graph.log.gz` records every
+package dependency and activated feature. All 13 StateChronicle library crate
+manifests declare no custom Cargo features (`features = {}`); default and
+all-features library surfaces therefore have no package-defined alternatives.
+Third-party feature unification is still recorded and independently excluded
+from the bare-metal consumer builds. Cold facade build cost is measured with
+only the external `statechronicle` dependency, not workspace dev dependencies.
+
+A complete original-release rustdoc JSON snapshot is retained for all thirteen
+library crates in `evidence/baseline/20261116T022002Z-3050762/`. Unlike the syntax
+inventory, these compiler outputs include generated implementations and resolved
+public declarations. The manifest pins nightly and rustdoc flags; every
+compressed crate snapshot has a hash. Regenerate reference snapshots only from
+the pinned original source, with `scripts/refactor_baseline.py --api-inventory`.

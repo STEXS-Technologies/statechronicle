@@ -42,19 +42,20 @@ wrapper could not start. It remains recorded as failed. A separate attempt with 
 [`20261116T014840Z-2747068/manifest.json`](evidence/baseline/20261116T014840Z-2747068/manifest.json).
 This does not establish doctest, lint, coverage, fuzz or performance gates.
 
-## F0 remaining requirements
+## F0 execution status
 
-- [ ] Complete finite baseline and original release checks with current tools.
-- [ ] API/feature inventory including exhaustive-match obligations.
-- [ ] Frozen external consumer matrix and one-command cross-version runner.
-- [ ] Independent old-version protocol/history/receipt fixtures with provenance.
-- [ ] Production-only AST footprint, semantic duplication and control-flow metrics.
-- [ ] Matched build, allocation, latency and binary-size baseline measurements.
-- [ ] Coverage, MSRV, portable, fuzz and recovery qualification evidence.
-- [ ] Reproducers or explicit equivalence arguments for roadmap hypotheses.
+- [x] Original finite checks captured; original advisory failure is explicitly retained.
+- [x] Frozen external consumer matrix and one-command cross-version runner.
+- [x] Original-version signed history/proof/canonical-byte corpus and frozen recovery/receipt tests.
+- [x] Parser-derived syntax footprint and initial invariant/duplication ownership map.
+- [x] Coverage, doctests, stable/MSRV portable builds, bounded fuzz and recovery evidence.
+- [x] Original economy and cold facade build/binary/dependency-graph observations.
+- [x] Reproducers for absence expectations, marker-only durable replay and trade tenant substitution.
+- [x] Complete rustdoc API snapshot, including generated items and public trait signatures.
+- [ ] Workload-specific latency/allocation baseline and variance/control measurements.
 
-F1–F8 remain pending. No new API, correctness fix, performance improvement or
-release qualification is claimed by the baseline scaffolding.
+F0 remains open for the unchecked requirements. F1–F8 remain pending. No
+production refactor, security fix or release qualification is claimed yet.
 
 ## Additional local baseline evidence
 
@@ -119,3 +120,37 @@ budget and exact source hashes; the compressed artifact retains individual logs,
 statuses and corpora. All original tracked source hashes were rechecked after
 the campaign and remained unchanged. This is bounded exercised-input evidence,
 not proof of universal correctness.
+
+## Remaining baseline qualification and build cost
+
+`evidence/baseline/20261116T020832Z-2906802/` passed the original coverage
+ratchet, unfiltered report generation, doctests, Rust 1.85 independent portable
+crate checks and economy benchmark. Observed protocol-scope line coverage is
+94.29%; unfiltered workspace line coverage is 90.93%. These current compiler/
+tool observations differ from historical release numbers; the original
+exclusions and ratchet were retained. The benchmark observed 4,695,042 ops/s
+and ten correctness runs for each of the six original economy scenarios. It is
+a shared-host observation, not a noise-qualified performance comparison.
+
+`ci/cost-consumer/` supplies a fixed external public-facade workload with only
+one StateChronicle dependency. `scripts/refactor_costs.py --revision <sha>`
+builds it in a fresh target directory using the revision's exact dependencies,
+records the dependency/feature graph, compiler artifacts, CPU affinity, elapsed
+time, maximum compiler resident memory and final binary size/hash. The original
+release observation in `evidence/costs/20261116T021527Z-2997189/` compiled 74
+packages in 6.61 seconds, with maximum resident memory of 297,848 KiB and a
+333,392-byte stripped binary. Registry/filesystem caches were warm; this is one
+shared-host sample. It cannot establish a regression threshold.
+
+The initial [findings](findings.md) and [maintenance inventory](maintenance-inventory.md)
+identify verified trust-boundary failures and the owners of repeated flows.
+They distinguish observed behavior from remaining hypotheses. Test overlays are
+recorded separately when probing original production code.
+
+
+The initial [workload cost model](performance-baseline.md) now records three
+pinned-CPU rounds for fifteen fixed workloads and external allocation probes.
+Native and portable transitions added zero allocations relative to identical
+setup. Hosted typed check/apply added 23 allocations / 362 bytes per operation.
+See the raw reports and explicit remaining comparison scope; these observations
+are not full performance qualification or a universal regression threshold.

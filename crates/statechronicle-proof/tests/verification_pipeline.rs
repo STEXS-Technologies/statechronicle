@@ -821,3 +821,63 @@ fn bundle_roundtrips_through_json_and_bcs() {
     let sig_back: Signature = serde_json::from_str(&sig_json).unwrap();
     assert_eq!(sig_back, proof.commit.signature.sig);
 }
+
+/// Baseline characterization for the trade trust-boundary audit. A state proof
+/// carries signed state, but the old trade verifier does not bind its tenant to
+/// the summary's tenant. F1 must turn this into a rejection regression test.
+#[tokio::test]
+async fn legacy_trade_verifier_accepts_state_proof_under_a_different_leg_tenant() {
+    use statechronicle_domain::trade::TradeSide;
+    use std::collections::BTreeMap;
+    let fixture = fixture();
+    let mut state_proof = build_proof(&fixture);
+    // Operation metadata is not included in the signed commit/state root.
+    state_proof.latest_event.operation = Operation::from_static("trade.settle");
+    let other_tenant = TenantId(String::from("acme.game.beta"));
+    let mut trade = TradeProof {
+        schema: String::from(TRADE_PROOF_SCHEMA),
+        trade_id: String::from("trade_audit"),
+        summary: TradeSummary {
+            trade_id: String::from("trade_audit"),
+            status: TradeStatus::Settled,
+            sides: vec![TradeSide {
+                tenant: other_tenant.clone(),
+                settle_assets: vec![resource()],
+                from_owner: String::from("unverified_previous_owner"),
+                to_owner: owner(),
+                settle_commit: state_proof.commit.clone(),
+                settle_commits_by_asset: BTreeMap::from([(resource(), state_proof.commit.clone())]),
+                settle_event_ids: vec![state_proof.latest_event.event_id.clone()],
+            }],
+            value_legs: Vec::new(),
+        },
+        legs: vec![TradeProofLeg {
+            tenant: other_tenant,
+            commit: state_proof.commit.clone(),
+            state_proofs: vec![state_proof],
+        }],
+    };
+    let commits = BTreeMap::from([(
+        fixture.signed.body.commit_id.0.clone(),
+        (fixture.signed.clone(), fixed_key().verifying_key()),
+    )]);
+    statechronicle_proof::trade::verify_trade_proof(&trade, &commits).unwrap();
+    // A genuine alpha leg primes the service's commit-id-only cache. The beta
+    // leg reuses it without loading a beta commit or resolving a beta signer.
+    let mut alpha_side = trade.summary.sides[0].clone();
+    alpha_side.tenant = tenant();
+    trade.summary.sides.insert(0, alpha_side);
+    let mut alpha_leg = trade.legs[0].clone();
+    alpha_leg.tenant = tenant();
+    trade.legs.insert(0, alpha_leg);
+    let service = service(trade.legs[0].state_proofs[0].clone(), &fixture).await;
+    let resolved = Mutex::new(Vec::new());
+    service
+        .verify_trade(&trade, &|requested| {
+            resolved.lock().unwrap().push(requested.clone());
+            (requested == &tenant()).then(|| fixed_key().verifying_key())
+        })
+        .await
+        .unwrap();
+    assert_eq!(*resolved.lock().unwrap(), vec![tenant()]);
+}

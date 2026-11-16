@@ -5,6 +5,7 @@ import gzip
 import io
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -26,7 +27,11 @@ def main():
     parser.add_argument('--portable', action='store_true', help='also qualify external no-std consumer')
     parser.add_argument('--produce-wire', action='store_true',
                         help='produce initial wire corpus using original release only')
+    parser.add_argument('--measure', action='store_true',
+                        help='measure fixed workloads and external allocation profiles instead of tests')
     args = parser.parse_args()
+    if args.measure and (args.portable or args.produce_wire):
+        parser.error('Measurement is separate from portable tests and wire production')
     if args.produce_wire and args.lane == 'candidate':
         parser.error('Wire production requires the baseline lane')
     lanes = [('baseline', BASELINE)] if args.lane == 'baseline' else []
@@ -46,7 +51,7 @@ def main():
         raise SystemExit('Original release tag mismatch')
     dirty = output('git', 'status', '--porcelain', '--', 'crates', 'Cargo.toml',
                    'Cargo.lock', cwd=root)
-    if dirty:
+    if dirty and args.lane != 'baseline':
         raise SystemExit('Commit production changes before candidate qualification')
     candidate = output('git', 'rev-parse', 'HEAD', cwd=root)
     if args.lane == 'both':
@@ -142,6 +147,47 @@ def main():
             (consumer_root / 'wire').mkdir()
             shutil.copyfile(wire, consumer_root / 'wire' / 'history.json')
             manifest['wire_sha256'] = origin['history_sha256']
+            if args.measure:
+                manifest['measurement_cpu'] = min(os.sched_getaffinity(0))
+                manifest['allocation_profiler'] = output('valgrind', '--version')
+                if not check(['cargo', 'build', '--example', 'refactor_bench', '--release',
+                              '--locked', '--offline'], consumer, f'{label}-bench-build'):
+                    continue
+                binary = consumer / 'target/release/examples/refactor_bench'
+                manifest[f'{label}_binary_sha256'] = digest(binary.read_bytes())
+                rows = []
+                for index in range(3):
+                    name = f'{label}-latency-{index}'
+                    if check(['taskset', '-c', str(manifest['measurement_cpu']), str(binary)],
+                             consumer, name):
+                        rows.append(json.loads((run / f'{name}.log').read_text()))
+                allocations = {}
+                for workload in ['control', 'native', 'portable', 'hosted', 'proof']:
+                    name = f'{label}-alloc-{workload}'
+                    if check(['taskset', '-c', str(manifest['measurement_cpu']), 'valgrind',
+                              '--tool=memcheck', '--leak-check=no', '--error-exitcode=97',
+                              str(binary), ('alloc-' + workload).ljust(32, '_')], consumer, name):
+                        report = (run / f'{name}.log').read_text()
+                        match = re.search(r'total heap usage: ([\d,]+) allocs, ([\d,]+) frees, ([\d,]+) bytes allocated', report)
+                        if not match:
+                            raise RuntimeError('Allocation profiler omitted heap totals')
+                        allocations[workload] = {'allocations': int(match[1].replace(',', '')),
+                                                 'bytes': int(match[3].replace(',', ''))}
+                if len(allocations) == 5:
+                    for workload in ['native', 'portable', 'hosted', 'proof']:
+                        allocations[workload]['allocations_per_operation_control_delta'] = (allocations[workload]['allocations'] - allocations['control']['allocations']) / 1000
+                        allocations[workload]['bytes_per_operation_control_delta'] = (allocations[workload]['bytes'] - allocations['control']['bytes']) / 1000
+                summary = {'latency_rounds': rows, 'allocation_profiles': allocations,
+                           'limitations': ['Shared-host samples, not qualified regression thresholds.',
+                                           'Control-subtracted allocations include profiler/process effects; inspect raw totals.',
+                                           'Allocation probes use 1000 operations with identical fixture setup/output.']}
+                summary_path = evidence / f'{label}-measurements.json'
+                summary_path.write_text(json.dumps(summary, indent=2) + '\n')
+                manifest[f'{label}_measurements_sha256'] = digest(summary_path.read_bytes())
+                if len(allocations) == 5 and any(allocations['portable'][metric] != allocations['control'][metric]
+                                                for metric in ['allocations', 'bytes']):
+                    raise RuntimeError('Portable transition allocation differs from identical setup control')
+                continue
             check(['cargo', 'test', '--all-targets', '--all-features', '--locked',
                    '--offline'], consumer, f'{label}-tests')
             if args.portable:
@@ -163,7 +209,7 @@ def main():
                       f'{label}-portable-tests')
                 check(['cargo', 'check', '--target', 'riscv32imafc-unknown-none-elf',
                        '--locked', '--offline'], portable, f'{label}-bare-metal')
-        manifest['status'] = ('passed' if len(manifest['checks']) == (5 if args.portable else 2) * len(lanes) + int(args.produce_wire) and
+        manifest['status'] = ('passed' if len(manifest['checks']) == (10 if args.measure else (5 if args.portable else 2)) * len(lanes) + int(args.produce_wire) and
                               all(c['status'] == 'passed' for c in manifest['checks'])
                               else 'failed')
     except (KeyboardInterrupt, SystemExit):
