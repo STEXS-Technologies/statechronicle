@@ -10,7 +10,7 @@
 //! to the pure [`crate::verify`] functions; the service itself holds no
 //! verification logic.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, future::Future};
 
 use ed25519_dalek::VerifyingKey;
 use statechronicle_accumulator::key::StateKey;
@@ -26,7 +26,7 @@ use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_domain::trade::TradeProof;
 
-use statechronicle_ports::commit_store::CommitStore;
+use statechronicle_ports::commit_store::{CommitStore, CommitStoreError};
 use statechronicle_ports::proof_index::ProofIndex;
 use statechronicle_ports::snapshot_store::SnapshotStore;
 use statechronicle_ports::state_index::StateIndex;
@@ -207,9 +207,10 @@ impl ProofService {
         verifying_key: &VerifyingKey,
     ) -> Result<(), ProofError> {
         let key = StateKey::new(*bundle.claimed_key.as_bytes());
-        let signed = self
-            .load_commit(&bundle.tenant_id, &bundle.commit.commit_id)
-            .await?;
+        let signed = Self::require_commit(
+            self.load_commit(&bundle.tenant_id, &bundle.commit.commit_id)
+                .await,
+        )?;
         verify_non_membership_bundle(bundle, &signed, verifying_key, &key)
     }
 
@@ -266,9 +267,10 @@ impl ProofService {
         verifying_key: &VerifyingKey,
     ) -> Result<(), ProofError> {
         let key = derive_state_key(proof)?;
-        let signed = self
-            .load_commit(&proof.tenant_id, &proof.commit.commit_id)
-            .await?;
+        let signed = Self::require_commit(
+            self.load_commit(&proof.tenant_id, &proof.commit.commit_id)
+                .await,
+        )?;
         verify_bundle(proof, &signed, verifying_key, &key)
     }
 
@@ -287,9 +289,10 @@ impl ProofService {
         verifying_key: &VerifyingKey,
         key: &StateKey,
     ) -> Result<(), ProofError> {
-        let signed = self
-            .load_commit(&proof.tenant_id, &proof.commit.commit_id)
-            .await?;
+        let signed = Self::require_commit(
+            self.load_commit(&proof.tenant_id, &proof.commit.commit_id)
+                .await,
+        )?;
         verify_bundle(proof, &signed, verifying_key, key)
     }
 
@@ -313,9 +316,10 @@ impl ProofService {
         verifying_key: &VerifyingKey,
     ) -> Result<(), ProofError> {
         let key = derive_state_key(proof)?;
-        let signed = self
-            .load_commit(&proof.tenant_id, &proof.commit.commit_id)
-            .await?;
+        let signed = Self::require_commit(
+            self.load_commit(&proof.tenant_id, &proof.commit.commit_id)
+                .await,
+        )?;
         self.ensure_canonical(&proof.tenant_id, &signed).await?;
         verify_bundle(proof, &signed, verifying_key, &key)
     }
@@ -332,9 +336,10 @@ impl ProofService {
         verifying_key: &VerifyingKey,
         key: &StateKey,
     ) -> Result<(), ProofError> {
-        let signed = self
-            .load_commit(&proof.tenant_id, &proof.commit.commit_id)
-            .await?;
+        let signed = Self::require_commit(
+            self.load_commit(&proof.tenant_id, &proof.commit.commit_id)
+                .await,
+        )?;
         self.ensure_canonical(&proof.tenant_id, &signed).await?;
         verify_bundle(proof, &signed, verifying_key, key)
     }
@@ -363,15 +368,22 @@ impl ProofService {
         Ok(())
     }
 
-    pub(crate) async fn load_commit(
-        &self,
-        tenant: &TenantId,
-        commit: &CommitId,
+    // Return the adapter's existing future directly: do not add another
+    // async state machine to the short lookup/refusal path.
+    pub(crate) fn load_commit<'store>(
+        &'store self,
+        tenant: &'store TenantId,
+        commit: &'store CommitId,
+    ) -> impl Future<Output = Result<Option<Signed<Commit>>, CommitStoreError>> + Send + 'store
+    {
+        self.ports.commit_store.commit_by_id(tenant, commit)
+    }
+
+    // One synchronous owner for lookup error/absence interpretation.
+    pub(crate) fn require_commit(
+        result: Result<Option<Signed<Commit>>, CommitStoreError>,
     ) -> Result<Signed<Commit>, ProofError> {
-        self.ports
-            .commit_store
-            .commit_by_id(tenant, commit)
-            .await
+        result
             .map_err(|error| ProofError::Store(error.to_string()))?
             .ok_or(ProofError::NotFound)
     }

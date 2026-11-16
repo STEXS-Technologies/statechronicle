@@ -308,9 +308,10 @@ impl ProofService {
         trusted_key: &VerifyingKey,
     ) -> Result<(Signed<Commit>, CommitRef), ProofError> {
         expected.check(proof)?;
-        let signed = self
-            .load_commit(expected.tenant(), &proof.commit().commit_id)
-            .await?;
+        let signed = Self::require_commit(
+            self.load_commit(expected.tenant(), &proof.commit().commit_id)
+                .await,
+        )?;
         if proof.commit().signature != signed.signature {
             return Err(ProofError::CommitSignature(String::from(
                 "proof commit signature does not match the stored signed commit",
