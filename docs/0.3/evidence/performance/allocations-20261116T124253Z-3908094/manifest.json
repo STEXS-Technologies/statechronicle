@@ -1,0 +1,569 @@
+{
+  "candidate_commit": "a889f172a65bf203a0dde989d372dd111ae4b73e",
+  "source_campaign_sha256": "71f275706d214cc4064dc7c8accc7f656dbf20a8ceadcd6788e07862a88cec1d",
+  "source_campaign": "docs/0.3/evidence/performance/matrix-20261116T123514Z-3594158",
+  "valgrind": "valgrind-3.27.1",
+  "cpu": 0,
+  "status": "passed",
+  "checks": [
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-0-bench",
+        "alloc-control___________________"
+      ],
+      "exit_code": 0,
+      "seconds": 1.3768602430063765,
+      "artifact": "original-control.log.gz",
+      "sha256": "6980b7b21adfeeaa74a631fc7ace9db51dd782b72151f1e03158554b4a519dd7"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-0-bench",
+        "alloc-native____________________"
+      ],
+      "exit_code": 0,
+      "seconds": 0.8428239009954268,
+      "artifact": "original-native.log.gz",
+      "sha256": "350ffbd61c5deb84aa345e9c2f0ca2ce0e04f4f9ec4aac34222d1a4aa3369833"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-0-bench",
+        "alloc-portable__________________"
+      ],
+      "exit_code": 0,
+      "seconds": 0.7722992429917213,
+      "artifact": "original-portable.log.gz",
+      "sha256": "30eed10bca9d14e25a5f5e66d7280539d41c8886485f0b4cd55eed12bb85bf70"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-0-bench",
+        "alloc-hosted____________________"
+      ],
+      "exit_code": 0,
+      "seconds": 0.7890986290003639,
+      "artifact": "original-hosted.log.gz",
+      "sha256": "94647d37f8df7a8dcd910651033092839bf803d8c4cdfb8327fe2b78bee7126f"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-0-bench",
+        "alloc-proof_____________________"
+      ],
+      "exit_code": 0,
+      "seconds": 4.719287179003004,
+      "artifact": "original-proof.log.gz",
+      "sha256": "1510698df2a4488b0ee77e82a0bd6e3b0d90ad2d35e511f6859061acc3f1983e"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-1-bench",
+        "alloc-control___________________"
+      ],
+      "exit_code": 0,
+      "seconds": 1.2988618859963026,
+      "artifact": "dependency-control-control.log.gz",
+      "sha256": "70638017f2047ff62bdc59d9e34973c473563956cc5e07edcdac3be27e81e3f3"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-1-bench",
+        "alloc-native____________________"
+      ],
+      "exit_code": 0,
+      "seconds": 0.8578189389954787,
+      "artifact": "dependency-control-native.log.gz",
+      "sha256": "db103af87824f082719a348a88abe47b3eb4ca16956e4a17c090dc87742bc2ae"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-1-bench",
+        "alloc-portable__________________"
+      ],
+      "exit_code": 0,
+      "seconds": 0.819549708001432,
+      "artifact": "dependency-control-portable.log.gz",
+      "sha256": "779d801885b20d2a9c95a8f378aa35785615cb23512d8986f9b4b8054241552f"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-1-bench",
+        "alloc-hosted____________________"
+      ],
+      "exit_code": 0,
+      "seconds": 0.8189241280051647,
+      "artifact": "dependency-control-hosted.log.gz",
+      "sha256": "2d3b4dbf3ecec573ce6e841bb0c78f4b55ad87e7ffdabfe1533b6b76d9e26f6a"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-1-bench",
+        "alloc-proof_____________________"
+      ],
+      "exit_code": 0,
+      "seconds": 4.81744743300078,
+      "artifact": "dependency-control-proof.log.gz",
+      "sha256": "6d5e79a9fe33343321d9561a766dbd82aaec2f4bad2e4d6b363137cd8e1f4aee"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-2-bench",
+        "alloc-control___________________"
+      ],
+      "exit_code": 0,
+      "seconds": 1.2951390789967263,
+      "artifact": "completion-control-control.log.gz",
+      "sha256": "71b757abaeb1cfa3d70fc371c0262d4f4966fde34859cb651a4a571e68e2a603"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-2-bench",
+        "alloc-native____________________"
+      ],
+      "exit_code": 0,
+      "seconds": 0.7837237179919612,
+      "artifact": "completion-control-native.log.gz",
+      "sha256": "650e7a35eeb25e0a4e50ffb08e8e2076e0195b129d5c890c5cebf21cfebb4b68"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-2-bench",
+        "alloc-portable__________________"
+      ],
+      "exit_code": 0,
+      "seconds": 0.8181466649984941,
+      "artifact": "completion-control-portable.log.gz",
+      "sha256": "b59e0d2d1a3e39bb081b0fea3a717b00b9d4a9a34c1a247f2593f2445fcf1075"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-2-bench",
+        "alloc-hosted____________________"
+      ],
+      "exit_code": 0,
+      "seconds": 0.841742881006212,
+      "artifact": "completion-control-hosted.log.gz",
+      "sha256": "a9862495899dc11c138d27f522fdd0a9a2e740e6fd23301940c0a957b9433e50"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-2-bench",
+        "alloc-proof_____________________"
+      ],
+      "exit_code": 0,
+      "seconds": 4.763177489003283,
+      "artifact": "completion-control-proof.log.gz",
+      "sha256": "f0cd3d648965c7ac5b1432b0bcb7d6146826f3cd49c4926292147edae8a48be8"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-3-bench",
+        "alloc-control___________________"
+      ],
+      "exit_code": 0,
+      "seconds": 1.4009546619927278,
+      "artifact": "candidate-control.log.gz",
+      "sha256": "5126c4424fc16d3f67ad6e3675741a80d4554727efba850076ba7d903e71330e"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-3-bench",
+        "alloc-native____________________"
+      ],
+      "exit_code": 0,
+      "seconds": 0.8320225909992587,
+      "artifact": "candidate-native.log.gz",
+      "sha256": "2085006d84ceb5bb01c1043877167c13956c5f680aba4698cae7b45fe99f068d"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-3-bench",
+        "alloc-portable__________________"
+      ],
+      "exit_code": 0,
+      "seconds": 0.8269232120073866,
+      "artifact": "candidate-portable.log.gz",
+      "sha256": "f866a9922de38f474212c557211b740a312e822fe956f2b1a240f81898a9573a"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-3-bench",
+        "alloc-hosted____________________"
+      ],
+      "exit_code": 0,
+      "seconds": 0.8284075720002875,
+      "artifact": "candidate-hosted.log.gz",
+      "sha256": "2ea9eb0c513773d277578d10d429d476943f35fb90214e282d5a413151af9e51"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T123514Z-3594158/lane-3-bench",
+        "alloc-proof_____________________"
+      ],
+      "exit_code": 0,
+      "seconds": 4.8293474780075485,
+      "artifact": "candidate-proof.log.gz",
+      "sha256": "0f20ca396cad366d767a67dab76d7eb2a4d8f10b222827362c26f6dcfe53477c"
+    }
+  ],
+  "results": {
+    "original": {
+      "control": {
+        "allocations": 4231,
+        "frees": 4221,
+        "bytes": 243261,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "native": {
+        "allocations": 4231,
+        "frees": 4221,
+        "bytes": 243261,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "portable": {
+        "allocations": 4231,
+        "frees": 4221,
+        "bytes": 243261,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "hosted": {
+        "allocations": 27231,
+        "frees": 27221,
+        "bytes": 605261,
+        "control_subtracted_per_action": {
+          "allocations": 23.0,
+          "bytes": 362.0
+        }
+      },
+      "proof": {
+        "allocations": 33231,
+        "frees": 33221,
+        "bytes": 41371261,
+        "control_subtracted_per_action": {
+          "allocations": 29.0,
+          "bytes": 41128.0
+        }
+      }
+    },
+    "dependency-control": {
+      "control": {
+        "allocations": 4231,
+        "frees": 4221,
+        "bytes": 244029,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "native": {
+        "allocations": 4231,
+        "frees": 4221,
+        "bytes": 244029,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "portable": {
+        "allocations": 4231,
+        "frees": 4221,
+        "bytes": 244029,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "hosted": {
+        "allocations": 27231,
+        "frees": 27221,
+        "bytes": 606029,
+        "control_subtracted_per_action": {
+          "allocations": 23.0,
+          "bytes": 362.0
+        }
+      },
+      "proof": {
+        "allocations": 33231,
+        "frees": 33221,
+        "bytes": 41372029,
+        "control_subtracted_per_action": {
+          "allocations": 29.0,
+          "bytes": 41128.0
+        }
+      }
+    },
+    "completion-control": {
+      "control": {
+        "allocations": 4224,
+        "frees": 4214,
+        "bytes": 243898,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "native": {
+        "allocations": 4224,
+        "frees": 4214,
+        "bytes": 243898,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "portable": {
+        "allocations": 4224,
+        "frees": 4214,
+        "bytes": 243898,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "hosted": {
+        "allocations": 27224,
+        "frees": 27214,
+        "bytes": 605898,
+        "control_subtracted_per_action": {
+          "allocations": 23.0,
+          "bytes": 362.0
+        }
+      },
+      "proof": {
+        "allocations": 33224,
+        "frees": 33214,
+        "bytes": 41371898,
+        "control_subtracted_per_action": {
+          "allocations": 29.0,
+          "bytes": 41128.0
+        }
+      }
+    },
+    "candidate": {
+      "control": {
+        "allocations": 4224,
+        "frees": 4214,
+        "bytes": 243898,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "native": {
+        "allocations": 4224,
+        "frees": 4214,
+        "bytes": 243898,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "portable": {
+        "allocations": 4224,
+        "frees": 4214,
+        "bytes": 243898,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "hosted": {
+        "allocations": 27224,
+        "frees": 27214,
+        "bytes": 605898,
+        "control_subtracted_per_action": {
+          "allocations": 23.0,
+          "bytes": 362.0
+        }
+      },
+      "proof": {
+        "allocations": 33224,
+        "frees": 33214,
+        "bytes": 41371898,
+        "control_subtracted_per_action": {
+          "allocations": 29.0,
+          "bytes": 41128.0
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Full process totals include identical fixed startup and 1000 probe actions, not allocator telemetry for arbitrary requests.",
+    "Equal-length executable paths and padded probe arguments reduce process-argument differences.",
+    "Control-subtracted figures are bounded fixture observations, not universal per-operation allocation guarantees.",
+    "No latency inference from instrumentation; no allocation-free claim for complete hosted/canonical facades."
+  ],
+  "artifacts_sha256": {
+    "runner.py": "62134575645713d565f200924bea449772abfdbcb5e743712e5e404fc1a05607",
+    "original-control.log.gz": "6980b7b21adfeeaa74a631fc7ace9db51dd782b72151f1e03158554b4a519dd7",
+    "original-native.log.gz": "350ffbd61c5deb84aa345e9c2f0ca2ce0e04f4f9ec4aac34222d1a4aa3369833",
+    "original-portable.log.gz": "30eed10bca9d14e25a5f5e66d7280539d41c8886485f0b4cd55eed12bb85bf70",
+    "original-hosted.log.gz": "94647d37f8df7a8dcd910651033092839bf803d8c4cdfb8327fe2b78bee7126f",
+    "original-proof.log.gz": "1510698df2a4488b0ee77e82a0bd6e3b0d90ad2d35e511f6859061acc3f1983e",
+    "dependency-control-control.log.gz": "70638017f2047ff62bdc59d9e34973c473563956cc5e07edcdac3be27e81e3f3",
+    "dependency-control-native.log.gz": "db103af87824f082719a348a88abe47b3eb4ca16956e4a17c090dc87742bc2ae",
+    "dependency-control-portable.log.gz": "779d801885b20d2a9c95a8f378aa35785615cb23512d8986f9b4b8054241552f",
+    "dependency-control-hosted.log.gz": "2d3b4dbf3ecec573ce6e841bb0c78f4b55ad87e7ffdabfe1533b6b76d9e26f6a",
+    "dependency-control-proof.log.gz": "6d5e79a9fe33343321d9561a766dbd82aaec2f4bad2e4d6b363137cd8e1f4aee",
+    "completion-control-control.log.gz": "71b757abaeb1cfa3d70fc371c0262d4f4966fde34859cb651a4a571e68e2a603",
+    "completion-control-native.log.gz": "650e7a35eeb25e0a4e50ffb08e8e2076e0195b129d5c890c5cebf21cfebb4b68",
+    "completion-control-portable.log.gz": "b59e0d2d1a3e39bb081b0fea3a717b00b9d4a9a34c1a247f2593f2445fcf1075",
+    "completion-control-hosted.log.gz": "a9862495899dc11c138d27f522fdd0a9a2e740e6fd23301940c0a957b9433e50",
+    "completion-control-proof.log.gz": "f0cd3d648965c7ac5b1432b0bcb7d6146826f3cd49c4926292147edae8a48be8",
+    "candidate-control.log.gz": "5126c4424fc16d3f67ad6e3675741a80d4554727efba850076ba7d903e71330e",
+    "candidate-native.log.gz": "2085006d84ceb5bb01c1043877167c13956c5f680aba4698cae7b45fe99f068d",
+    "candidate-portable.log.gz": "f866a9922de38f474212c557211b740a312e822fe956f2b1a240f81898a9573a",
+    "candidate-hosted.log.gz": "2ea9eb0c513773d277578d10d429d476943f35fb90214e282d5a413151af9e51",
+    "candidate-proof.log.gz": "0f20ca396cad366d767a67dab76d7eb2a4d8f10b222827362c26f6dcfe53477c"
+  }
+}

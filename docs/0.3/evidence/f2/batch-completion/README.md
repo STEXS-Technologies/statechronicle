@@ -153,3 +153,7 @@ not a semantic comparison failure.
 Full F2 mutation/settlement composition audit, broader F5 histories/backends,
 F6 whole-repository budgets and F8 extended properties/fuzz/crash, performance,
 packaging/version/release gates remain open.
+
+## Later performance checkpoint
+
+The [four-lane and individual-request campaign](../../performance/README.md) retains the earlier batch-average concern and adds a separate observable. Individual refusing-batch p95 does not show a consistent slowdown against the pre-completion control; planning tails and shared-host variation remain unresolved. This does not close the full performance gate.
