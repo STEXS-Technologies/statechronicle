@@ -1,0 +1,1030 @@
+{
+  "statechronicle-accumulator": [
+    {
+      "path": "exports/statechronicle_accumulator::event_tree",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_accumulator::event_tree::event_merkle_root",
+      "change": "added"
+    }
+  ],
+  "statechronicle-commit": [
+    {
+      "path": "exports/statechronicle_commit::durable",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable::CommittedMutation",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable::DurableError",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable::DurableOutcome",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable::MutationIdentity",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable::RecoveryOutcome",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable::commit_verified",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable::recover",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable_batch",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable_batch::BatchIdentity",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable_batch::BatchMember",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable_batch::BatchRecoveryOutcome",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable_batch::CommittedBatch",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable_batch::DurableBatchError",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable_batch::DurableBatchOutcome",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable_batch::DurableBatchRequest",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable_batch::commit_batch_verified",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::durable_batch::recover_batch",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::persist::projections_for/declaration/function/generics/params",
+      "change": "changed",
+      "before": [
+        {
+          "kind": {
+            "lifetime": {
+              "outlives": []
+            }
+          },
+          "name": "'event"
+        }
+      ],
+      "after": []
+    },
+    {
+      "path": "exports/statechronicle_commit::persist::projections_for/declaration/function/sig/inputs",
+      "change": "changed",
+      "before": [
+        [
+          "commit_id",
+          {
+            "borrowed_ref": {
+              "is_mutable": false,
+              "lifetime": null,
+              "type": {
+                "resolved_path": {
+                  "args": null,
+                  "definition": {
+                    "kind": "struct",
+                    "path": "statechronicle_domain::ids::CommitId"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        [
+          "entries",
+          {
+            "borrowed_ref": {
+              "is_mutable": false,
+              "lifetime": null,
+              "type": {
+                "slice": {
+                  "resolved_path": {
+                    "args": {
+                      "angle_bracketed": {
+                        "args": [
+                          {
+                            "lifetime": "'event"
+                          }
+                        ],
+                        "constraints": []
+                      }
+                    },
+                    "definition": {
+                      "kind": "struct",
+                      "path": "statechronicle_commit::persist::CommittedEvent"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      ],
+      "after": [
+        [
+          "commit_id",
+          {
+            "borrowed_ref": {
+              "is_mutable": false,
+              "lifetime": null,
+              "type": {
+                "resolved_path": {
+                  "args": null,
+                  "definition": {
+                    "kind": "struct",
+                    "path": "statechronicle_domain::ids::CommitId"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        [
+          "entries",
+          {
+            "borrowed_ref": {
+              "is_mutable": false,
+              "lifetime": null,
+              "type": {
+                "slice": {
+                  "resolved_path": {
+                    "args": {
+                      "angle_bracketed": {
+                        "args": [
+                          {
+                            "lifetime": "'_"
+                          }
+                        ],
+                        "constraints": []
+                      }
+                    },
+                    "definition": {
+                      "kind": "struct",
+                      "path": "statechronicle_commit::persist::CommittedEvent"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "path": "exports/statechronicle_commit::persist::validate_committed_events",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_commit::persist::validate_tenant_commit",
+      "change": "added"
+    }
+  ],
+  "statechronicle-core": [],
+  "statechronicle-domain": [],
+  "statechronicle-executor": [
+    {
+      "path": "exports/statechronicle_executor::pipeline::Executor/declaration/struct/impls/impl:[null, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_executor::pipeline::Executor\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/prepare_player",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_executor::pipeline::Executor/declaration/struct/impls/impl:[null, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_executor::pipeline::Executor\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/prepare_player_batch",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_executor::pipeline::Executor/declaration/struct/impls/impl:[null, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_executor::pipeline::Executor\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/prepare_player_settlement",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_executor::pipeline::PreparationConfig",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_executor::pipeline::PreparationPorts",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_executor::pipeline::Preparer",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_executor::preparation",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_executor::preparation::PreparationConfig",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_executor::preparation::PreparationPorts",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_executor::preparation::PreparedBatch",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_executor::preparation::PreparedMutation",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_executor::preparation::Preparer",
+      "change": "added"
+    }
+  ],
+  "statechronicle-index": [
+    {
+      "path": "exports/statechronicle_index::build::IngestBatch/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::Instrument\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_index::build::IngestBatch\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::build::IngestBatch/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::WithSubscriber\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_index::build::IngestBatch\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::error::IndexError/declaration/enum/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::Instrument\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"enum\", \"path\": \"statechronicle_index::error::IndexError\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::error::IndexError/declaration/enum/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::WithSubscriber\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"enum\", \"path\": \"statechronicle_index::error::IndexError\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::error::TradeServiceError/declaration/enum/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::Instrument\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"enum\", \"path\": \"statechronicle_index::error::TradeServiceError\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::error::TradeServiceError/declaration/enum/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::WithSubscriber\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"enum\", \"path\": \"statechronicle_index::error::TradeServiceError\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::rebuild::RebuildCheckpoint/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::Instrument\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_index::rebuild::RebuildCheckpoint\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::rebuild::RebuildCheckpoint/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::WithSubscriber\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_index::rebuild::RebuildCheckpoint\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::rebuild::RebuildError/declaration/enum/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::Instrument\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"enum\", \"path\": \"statechronicle_index::rebuild::RebuildError\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::rebuild::RebuildError/declaration/enum/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::WithSubscriber\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"enum\", \"path\": \"statechronicle_index::rebuild::RebuildError\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::rebuild::RebuildProgress/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::Instrument\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_index::rebuild::RebuildProgress\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::rebuild::RebuildProgress/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::WithSubscriber\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_index::rebuild::RebuildProgress\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::rebuild::verified",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::rebuild::verified::HistoryPin",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::rebuild::verified::HistoryWitness",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::rebuild::verified::VerifiedHistory",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::rebuild::verified::verify_history",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::service::TradePorts/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::Instrument\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_index::service::TradePorts\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::service::TradePorts/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::WithSubscriber\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_index::service::TradePorts\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::service::TradeService/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::Instrument\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_index::service::TradeService\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_index::service::TradeService/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"tracing::instrument::WithSubscriber\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_index::service::TradeService\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"T\"}], \"where_predicates\": []}, false]",
+      "change": "added"
+    }
+  ],
+  "statechronicle-intent": [],
+  "statechronicle-portable": [],
+  "statechronicle-ports": [
+    {
+      "path": "exports/statechronicle_ports::commit_store::CommitReadFuture",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_ports::commit_store::CommitReader",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_ports::ledger_batch",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_ports::ledger_batch::LedgerBatch",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_ports::ledger_batch::LedgerBatchLookup",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_ports::ledger_batch::LedgerBatchRecovery",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_ports::ledger_store::LedgerLookup",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_ports::ledger_store::LedgerMutation",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_ports::ledger_store::LedgerRecovery",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_ports::ledger_store::LedgerTransaction/declaration/trait/items/retain_batch",
+      "change": "added"
+    }
+  ],
+  "statechronicle-profile": [],
+  "statechronicle-profiles": [
+    {
+      "path": "exports/statechronicle_profiles::command_operations",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_profiles::consumable_stack::ConsumableStackRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::consumable_stack::ConsumableStackRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::consumable_stack::ConsumableStackRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::consumable_stack::ConsumableStackRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::custom::TypedProfile/declaration/struct/impls/impl:[null, {\"resolved_path\": {\"args\": {\"angle_bracketed\": {\"args\": [{\"type\": {\"generic\": \"P\"}}], \"constraints\": []}}, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::custom::TypedProfile\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"P\"}], \"where_predicates\": [{\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}], \"generic_params\": [], \"type\": {\"generic\": \"P\"}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::ser::Serialize\"}}}}, {\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::de::DeserializeOwned\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"State\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::ser::Serialize\"}}}}, {\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::de::DeserializeOwned\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"Command\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"core::fmt::Display\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"Error\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}]}, false]/declaration/impl/items/encode_command",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_profiles::custom::TypedProfile/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": {\"angle_bracketed\": {\"args\": [{\"type\": {\"generic\": \"P\"}}], \"constraints\": []}}, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::custom::TypedProfile\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"P\"}], \"where_predicates\": [{\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}], \"generic_params\": [], \"type\": {\"generic\": \"P\"}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::ser::Serialize\"}}}}, {\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::de::DeserializeOwned\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"State\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::ser::Serialize\"}}}}, {\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::de::DeserializeOwned\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"Command\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"core::fmt::Display\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"Error\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}]}, false]/declaration/impl/items/evaluate",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_profiles::custom::TypedProfile/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": {\"angle_bracketed\": {\"args\": [{\"type\": {\"generic\": \"P\"}}], \"constraints\": []}}, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::custom::TypedProfile\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"P\"}], \"where_predicates\": [{\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}], \"generic_params\": [], \"type\": {\"generic\": \"P\"}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::ser::Serialize\"}}}}, {\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::de::DeserializeOwned\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"State\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::ser::Serialize\"}}}}, {\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::de::DeserializeOwned\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"Command\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"core::fmt::Display\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"Error\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}]}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::entitlement::EntitlementRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::entitlement::EntitlementRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::entitlement::EntitlementRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::entitlement::EntitlementRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::error::ProfileEvaluationError",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_profiles::fungible_balance::FungibleBalanceRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::fungible_balance::FungibleBalanceRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::fungible_balance::FungibleBalanceRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::fungible_balance::FungibleBalanceRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::marketplace::EscrowRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::marketplace::EscrowRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::marketplace::EscrowRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::marketplace::EscrowRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::marketplace::ListingRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::marketplace::ListingRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::marketplace::ListingRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::marketplace::ListingRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::meter::MeterRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::meter::MeterRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::meter::MeterRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::meter::MeterRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::paid_unique_asset::PaidUniqueAssetRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::paid_unique_asset::PaidUniqueAssetRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::paid_unique_asset::PaidUniqueAssetRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::paid_unique_asset::PaidUniqueAssetRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::consumable_stack::ConsumableStackRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::consumable_stack::ConsumableStackRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::entitlement::EntitlementRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::entitlement::EntitlementRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::fungible_balance::FungibleBalanceRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::fungible_balance::FungibleBalanceRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::marketplace::EscrowRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::marketplace::EscrowRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::marketplace::ListingRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::marketplace::ListingRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::meter::MeterRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::meter::MeterRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::paid_unique_asset::PaidUniqueAssetRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::paid_unique_asset::PaidUniqueAssetRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::unique_asset::UniqueAssetRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::unique_asset::UniqueAssetRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": {\"angle_bracketed\": {\"args\": [{\"type\": {\"generic\": \"P\"}}], \"constraints\": []}}, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::custom::TypedProfile\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"P\"}], \"where_predicates\": [{\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}], \"generic_params\": [], \"type\": {\"generic\": \"P\"}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::ser::Serialize\"}}}}, {\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::de::DeserializeOwned\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"State\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::ser::Serialize\"}}}}, {\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::de::DeserializeOwned\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"Command\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"core::fmt::Display\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"Error\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}]}, false]/declaration/impl/items/evaluate",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/implementations/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": {\"angle_bracketed\": {\"args\": [{\"type\": {\"generic\": \"P\"}}], \"constraints\": []}}, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::custom::TypedProfile\"}}}, {\"params\": [{\"kind\": {\"type\": {\"bounds\": [], \"default\": null, \"is_synthetic\": false}}, \"name\": \"P\"}], \"where_predicates\": [{\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}], \"generic_params\": [], \"type\": {\"generic\": \"P\"}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::ser::Serialize\"}}}}, {\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::de::DeserializeOwned\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"State\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::ser::Serialize\"}}}}, {\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"serde_core::de::DeserializeOwned\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"Command\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}, {\"bound_predicate\": {\"bounds\": [{\"trait_bound\": {\"generic_params\": [], \"modifier\": \"none\", \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"core::fmt::Display\"}}}}], \"generic_params\": [], \"type\": {\"qualified_path\": {\"args\": null, \"name\": \"Error\", \"self_type\": {\"generic\": \"P\"}, \"trait\": {\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profile::contract::StateProfile\"}}}}}}]}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    },
+    {
+      "path": "exports/statechronicle_profiles::registry::ProfileRules/declaration/trait/items/evaluate",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_profiles::unique_asset::UniqueAssetRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::unique_asset::UniqueAssetRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/execution_policy",
+      "change": "removed"
+    },
+    {
+      "path": "exports/statechronicle_profiles::unique_asset::UniqueAssetRules/declaration/struct/impls/impl:[{\"args\": null, \"definition\": {\"kind\": \"trait\", \"path\": \"statechronicle_profiles::registry::ProfileRules\"}}, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_profiles::unique_asset::UniqueAssetRules\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/provided_trait_methods",
+      "change": "changed",
+      "before": [
+        "execution_policy",
+        "apply",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ],
+      "after": [
+        "execution_policy",
+        "apply",
+        "evaluate",
+        "schema_version",
+        "validate_registration",
+        "requires_authority",
+        "authority_policy"
+      ]
+    }
+  ],
+  "statechronicle-proof": [
+    {
+      "path": "exports/statechronicle_proof::claim",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::claim::ClaimProof",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::claim::ClaimVerifier",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::claim::ExpectedClaim",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::claim::VerificationPoint",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::claim::VerifiedClaim",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::service::ProofService/declaration/struct/impls/impl:[null, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_proof::service::ProofService\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/verify_current",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::service::ProofService/declaration/struct/impls/impl:[null, {\"resolved_path\": {\"args\": null, \"definition\": {\"kind\": \"struct\", \"path\": \"statechronicle_proof::service::ProofService\"}}}, {\"params\": [], \"where_predicates\": []}, false]/declaration/impl/items/verify_historical",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::settlement",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::settlement::ExpectedAssetSettlement",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::settlement::ExpectedSettlement",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::settlement::ExpectedSettlementEvent",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::settlement::ExpectedSettlementPayment",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::settlement::SettlementWitness",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::settlement::VerifiedSettlement",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::settlement::verify_settlement_history",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle_proof::trade::verify_trade_proof_scoped",
+      "change": "added"
+    }
+  ],
+  "statechronicle": [
+    {
+      "path": "exports/statechronicle::PreparedBatch",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::PreparedMutation",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::command_operations",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::BatchIdentity",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::BatchMember",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::BatchRecoveryOutcome",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::CommittedBatch",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::CommittedMutation",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::DurableBatchError",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::DurableBatchOutcome",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::DurableError",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::DurableOutcome",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::MutationIdentity",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::PreparationConfig",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::PreparationPorts",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::PreparedBatch",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::PreparedMutation",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::Preparer",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::RecoveryOutcome",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::SignedBatch",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::SignedMutation",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::recover",
+      "change": "added"
+    },
+    {
+      "path": "exports/statechronicle::mutation::recover_batch",
+      "change": "added"
+    }
+  ]
+}

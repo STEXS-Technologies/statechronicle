@@ -1,6 +1,6 @@
 # API inventory work map
 
-Status: initial owner map, not a complete generated public API snapshot.
+Status: owner map plus original/candidate compiler catalogs; final release API review remains open.
 Reference: original release `c418e98b91720188158c531cd5c2c4b8ab71cbcf`.
 
 | Consumer contract | Authoritative source | Compatibility evidence needed |
@@ -102,3 +102,14 @@ settlement validators. Resource-profile bundle declarations now require a
 coordinator, an intentional validation tightening described in migration.md.
 See [settlement checkpoint](evidence/f1/protected-settlement/README.md) for exact
 source, passing consumer checks and remaining canonical contention gates.
+
+## Current compiler comparison
+
+The [compiler checkpoint](evidence/api/README.md) compares all thirteen original
+and candidate libraries with the same nightly compiler, including hidden public
+items and compiler-expanded implementations. It retains raw and normalized JSON,
+source/lock guards, reproducible collection and independent verification. There
+are 86 added export records, no removed records and 22 changed records at
+`64c5350`; nested methods and impls are reviewed separately from export counts.
+This complements the frozen external implementer matrix and does not establish
+SemVer compatibility or close the public-concept budget by itself.
