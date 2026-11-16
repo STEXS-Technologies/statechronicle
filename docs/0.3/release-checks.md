@@ -64,3 +64,23 @@ passes with immutable input guards and independently checked nested evidence:
 static/portable checks, four lock audits, dependency policy and all 25 fuzz smoke
 targets. The checkpoint explicitly records the remaining canonical API fuzz and
 other full-roadmap gates; it is not a release-completion assertion.
+
+Canonical claim fuzzing additionally has a dedicated campaign:
+
+```sh
+python3 scripts/check_claim_fuzz.py --candidate <commit> --output <new-directory>
+```
+
+It archives the named revision, builds `fuzz_claim_verifier` with nightly ASAN,
+then runs seeds 7331 and 42 with independent copies of the 18-input fixed corpus,
+60-second / million-run limits and 64-byte input bounds. Each input verifies
+real signed absence/presence checkpoints through the public minimum reader,
+then probes expected-address/owner/trust/pin substitutions, corrupt evidence,
+missing or mismatched head tuples and head advancement during lookup. Positive
+paths run even on empty input. The target also checks ownership of the verified
+payload after its input changes. Two isolated insecure-source controls must
+panic at the named head-advance and historical-pin assertions; compiler failure
+cannot satisfy these controls. Sources/locks must remain unchanged or be exactly
+restored after deliberate mutation. Raw logs, final corpora, seeds, budgets,
+actual counts and hashes are retained. This exercises read-side verification;
+it does not qualify durable storage, arbitrary histories or all interleavings.

@@ -211,3 +211,9 @@ name = "fuzz_profile_id"
 path = "fuzz_targets/fuzz_profile_id.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "fuzz_claim_verifier"
+path = "fuzz_targets/fuzz_claim_verifier.rs"
+test = false
+doc = false
