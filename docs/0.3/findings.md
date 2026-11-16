@@ -440,3 +440,28 @@ executes all five public-API integration scenarios, including the before-fix
 coverage reproducers and unsigned-metadata characterizations. Frozen producer
 history, legacy exhaustive imports and dependency provenance remain unchanged.
 Bare-metal checks qualify compilation, not execution on target hardware.
+
+
+## F2 shared event preparation and final legacy claim
+
+Primary and companion events now share private owned `PreparedEventStates` and
+one emitter, preserving checked version increment, unborn-state behavior,
+existing before hashes, canonical after hashes and callback order. Legacy claim
+writes share one final branch after complete event construction. Three exact
+duplicate sites in `pipeline.rs` each fall from two implementations to one:
+`Event::new`, checked version increment and final `put_intent`. The public API,
+wire format, ingress gates and legacy marker semantics are unchanged.
+
+Before the extraction, the unmodified original release generated canonical
+digests for creation and debit/credit event vectors. The same final test file
+passes against original production and candidate, including primary/companion
+overflow refusal, no poisoned intent marker and subsequent event-ID consumption.
+The original pipeline, helper and lockfile hashes are independently checked.
+`evidence/f2/event-preparation/` retains producer/frozen logs, development
+failures and source hashes. See [ordered gates](preparation-pipeline.md).
+
+Rust 1.85 passes all 829 workspace tests in 64 binaries. Rust 1.100 strict
+workspace Clippy/rustdoc, formatting and whitespace checks pass. No new public
+API or dependency was introduced. This is an initial shared typed stage with
+actual duplicate implementations removed, not completion of F2 or a speedup
+claim. Exact committed external qualification and parser metrics follow.

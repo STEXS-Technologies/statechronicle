@@ -32,12 +32,11 @@ use statechronicle_domain::authority::{
 use statechronicle_domain::commit::ProfileId;
 use statechronicle_domain::event::{Event, StateCommitment};
 use statechronicle_domain::ids::EventId;
-use statechronicle_domain::intent::SignatureBlock;
 #[cfg(test)]
-use statechronicle_domain::intent::{Intent, Operation};
+use statechronicle_domain::intent::Operation;
+use statechronicle_domain::intent::{Intent, SignatureBlock};
 use statechronicle_domain::resource::ResourceId;
 use statechronicle_domain::resource_state::ResourceState;
-#[cfg(test)]
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::subject::SubjectId;
@@ -52,6 +51,7 @@ use statechronicle_ports::state_index::StateIndex;
 use statechronicle_ports::tenant_store::TenantStore;
 use statechronicle_ports::transaction_manager::{TransactionManager, TransactionManagerError};
 use statechronicle_ports::trustgrant_evaluator::TrustGrantError;
+use statechronicle_profiles::execution::ExecutionPolicy;
 use statechronicle_profiles::registry::ProfileRegistry;
 
 use crate::atomicity;
@@ -262,6 +262,46 @@ pub struct Executor {
     /// composition root wires `key_id` → public-key resolution into this
     /// closure.
     intent_verifier: IntentVerifier,
+}
+
+// Owned checked commitments, produced once by the common preparation stage.
+// Neither event construction nor callbacks can run before this succeeds.
+struct PreparedEventStates {
+    before: StateCommitment,
+    after: StateCommitment,
+}
+
+impl PreparedEventStates {
+    fn new(
+        current: Option<&StateProjection>,
+        after_state: ResourceState,
+        policy: &dyn ExecutionPolicy,
+    ) -> Result<Self, ExecutorError> {
+        let version = current.map(|c| c.version).unwrap_or(0);
+        let next_version = version
+            .checked_add(1)
+            .ok_or_else(|| ExecutorError::TransitionInvalid(String::from("version overflow")))?;
+        let before_state = current
+            .map(|c| Ok(c.state.clone()))
+            .unwrap_or_else(|| policy.unborn_state(&after_state))?;
+        let before_hash = match current {
+            Some(projection) => projection.state_hash.clone(),
+            None => canonicalize_and_digest(&before_state)?,
+        };
+        let after_hash = canonicalize_and_digest(&after_state)?;
+        Ok(Self {
+            before: StateCommitment {
+                version,
+                state_hash: before_hash,
+                state: before_state,
+            },
+            after: StateCommitment {
+                version: next_version,
+                state_hash: after_hash,
+                state: after_state,
+            },
+        })
+    }
 }
 
 // Legacy lanes retain their historical marker lookup and optional write.
@@ -741,6 +781,32 @@ impl Executor {
     /// ordinary single-intent and batch calls reject those requests before
     /// claiming them. A coordinator validates the required group semantics.
     #[allow(clippy::collapsible_if)]
+    // One owner for both primary and companion event commitments. Complete
+    // version/state/hash validation before consuming an event id or timestamp.
+    // In particular, overflow precedes unborn-state construction, and an
+    // existing projection supplies its original before hash unchanged.
+    fn emit_event(
+        &self,
+        intent: &Intent,
+        resource: &ResourceId,
+        states: PreparedEventStates,
+        authority: Option<AuthorityProof>,
+    ) -> Event {
+        Event::new(
+            intent.tenant_id.clone(),
+            (self.event_id_fn)(),
+            intent.intent_id.clone(),
+            intent.operation.clone(),
+            resource.clone(),
+            intent.actor.clone(),
+            states.before,
+            states.after,
+            authority,
+            self.executor.clone(),
+            (self.now)(),
+        )
+    }
+
     async fn execute_inner(
         &self,
         validated: &ValidatedIntent,
@@ -993,46 +1059,14 @@ impl Executor {
         }
 
         // §18.1 step 11: emit the event.
-        let version = current.as_ref().map(|c| c.version).unwrap_or(0);
-        let next_version = version
-            .checked_add(1)
-            .ok_or_else(|| ExecutorError::TransitionInvalid(String::from("version overflow")))?;
-        let before_state = current
-            .as_ref()
-            .map(|c| Ok(c.state.clone()))
-            .unwrap_or_else(|| execution_policy.unborn_state(&after_state))?;
-        let before_hash = match current.as_ref() {
-            Some(projection) => projection.state_hash.clone(),
-            None => canonicalize_and_digest(&before_state)?,
-        };
-        let after_hash = canonicalize_and_digest(&after_state)?;
-        let event = Event::new(
-            tenant.clone(),
-            (self.event_id_fn)(),
-            intent.intent_id.clone(),
-            operation.clone(),
-            resource.clone(),
-            intent.actor.clone(),
-            StateCommitment {
-                version,
-                state_hash: before_hash,
-                state: before_state,
-            },
-            StateCommitment {
-                version: next_version,
-                state_hash: after_hash,
-                state: after_state,
-            },
-            authority.clone(),
-            self.executor.clone(),
-            (self.now)(),
-        );
+        let states = PreparedEventStates::new(current.as_ref(), after_state, execution_policy)?;
+        let event = self.emit_event(intent, resource, states, authority.clone());
 
         tracing::debug!(event_id = %event.event_id.as_str(), "emitted event");
 
         // Construct a profile-declared companion mutation, then claim the
         // intent only after every event has been validated and constructed.
-        if let Some(target) = execution_policy.companion_target(intent)? {
+        let companion = if let Some(target) = execution_policy.companion_target(intent)? {
             let destination_current = match &target.subject {
                 Some(subject) => {
                     self.ports
@@ -1057,58 +1091,22 @@ impl Executor {
                 .apply_companion(intent, source, destination_current.as_ref())
                 .map_err(|error| ExecutorError::TransitionInvalid(error.to_string()))?;
 
-            let destination_version = destination_current.as_ref().map(|c| c.version).unwrap_or(0);
-            let destination_next_version = destination_version.checked_add(1).ok_or_else(|| {
-                ExecutorError::TransitionInvalid(String::from("version overflow"))
-            })?;
-            let destination_before_state = destination_current
-                .as_ref()
-                .map(|c| Ok(c.state.clone()))
-                .unwrap_or_else(|| execution_policy.unborn_state(&destination_after_state))?;
-            let destination_before_hash = match destination_current.as_ref() {
-                Some(projection) => projection.state_hash.clone(),
-                None => canonicalize_and_digest(&destination_before_state)?,
-            };
-            let destination_after_hash = canonicalize_and_digest(&destination_after_state)?;
-
-            let destination_event = Event::new(
-                tenant.clone(),
-                (self.event_id_fn)(),
-                intent.intent_id.clone(),
-                operation.clone(),
-                target.resource.clone(),
-                intent.actor.clone(),
-                StateCommitment {
-                    version: destination_version,
-                    state_hash: destination_before_hash,
-                    state: destination_before_state,
-                },
-                StateCommitment {
-                    version: destination_next_version,
-                    state_hash: destination_after_hash,
-                    state: destination_after_state,
-                },
-                authority,
-                self.executor.clone(),
-                (self.now)(),
-            );
+            let destination_states = PreparedEventStates::new(
+                destination_current.as_ref(),
+                destination_after_state,
+                execution_policy,
+            )?;
+            let destination_event =
+                self.emit_event(intent, &target.resource, destination_states, authority);
 
             tracing::debug!(
                 event_id = %destination_event.event_id.as_str(),
                 "emitted companion event"
             );
-            // Claim only after both profile mutations have been fully validated and
-            // constructed. Durable implementations must make this claim
-            // atomic with persistence of both events and their commit.
-            if matches!(intent_handling, IntentHandling::LegacyClaim) {
-                self.ports
-                    .intent_store
-                    .put_intent(tenant, intent)
-                    .await
-                    .map_err(|err| map_intent_store_error(err, &intent.intent_id.0))?;
-            }
-            return Ok(vec![event, destination_event]);
-        }
+            Some(destination_event)
+        } else {
+            None
+        };
 
         // Claim only after authentication, authority, profile, transition, and
         // complete event construction have passed. This prevents malformed or
@@ -1122,7 +1120,10 @@ impl Executor {
                 .await
                 .map_err(|err| map_intent_store_error(err, &intent.intent_id.0))?;
         }
-        Ok(vec![event])
+        Ok(match companion {
+            Some(destination) => vec![event, destination],
+            None => vec![event],
+        })
     }
 
     /// Runs a batch of intents atomically (protocol §18.3).

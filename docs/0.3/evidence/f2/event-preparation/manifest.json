@@ -1,0 +1,89 @@
+{
+  "base_commit": "2c0bc46ed9a9be7ded525381c3fe098e8822912f",
+  "baseline_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "candidate": "Worktree identified by source hashes; exact committed external qualification follows.",
+  "toolchains": {
+    "stable": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+    "msrv": "rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-linux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n"
+  },
+  "source_sha256": {
+    "crates/statechronicle-executor/src/pipeline.rs": "4e7d30a2a0962a7b85037143b4fabab7adf8dcf62d1dd9638da4092c234b9300",
+    "crates/statechronicle-executor/tests/emission_contract.rs": "5c3ba61fd645a97ef2762ce809bb358294a2687e554213490c96c3223d71ef95",
+    "crates/statechronicle-executor/tests/common/harness.rs": "2802ffc5909f43d4d8de14f122abce513460f6e0f87a30f97b39c1b3d4b0cac8",
+    "Cargo.lock": "9c551a66b5698d08a0d5eb1d6364d98107e573e4d6b464da6d83742b8932b86f"
+  },
+  "original_unchanged_source_sha256": {
+    "crates/statechronicle-executor/src/pipeline.rs": "686bbc473ef9306114fb155a43e0185283c3ebb7be90ce59ee4a329d61d6de19",
+    "crates/statechronicle-executor/tests/common/harness.rs": "2802ffc5909f43d4d8de14f122abce513460f6e0f87a30f97b39c1b3d4b0cac8",
+    "Cargo.lock": "76837efdc48c4b33fb007b5ed9fe38ac1c903d389a2adfefc7643977732c7b82"
+  },
+  "same_test_overlay_sha256": "5c3ba61fd645a97ef2762ce809bb358294a2687e554213490c96c3223d71ef95",
+  "duplicate_sites": {
+    "scope": "pipeline.rs production event preparation and final marker writes",
+    "before": {
+      "event_constructors": 2,
+      "checked_version_increments": 2,
+      "legacy_claim_writes": 2
+    },
+    "after": {
+      "event_constructors": 1,
+      "checked_version_increments": 1,
+      "legacy_claim_writes": 1
+    }
+  },
+  "checks": [
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo test --manifest-path target/emission-original/source/Cargo.toml -p statechronicle-executor --test emission_contract --locked --offline",
+      "exit_code": 0,
+      "log": "emission-original-qualified.log.gz",
+      "passed": 2
+    },
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo +1.85.0 test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked --offline",
+      "exit_code": 0,
+      "log": "emission-workspace.log.gz",
+      "passed": 829,
+      "binaries": 64
+    },
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo clippy --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked --offline -- -D warnings",
+      "exit_code": 0,
+      "log": "emission-clippy-qualified.log.gz"
+    },
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 RUSTDOCFLAGS='-D warnings' cargo doc --workspace --exclude statechronicle-fuzz --all-features --no-deps --locked --offline",
+      "exit_code": 0,
+      "log": "emission-doc.log.gz"
+    },
+    {
+      "command": "graphify update .",
+      "exit_code": 0,
+      "log": "emission-graph.log.gz"
+    },
+    {
+      "command": "cargo fmt --all --check; git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "artifacts_sha256": {
+    "emission-original-producer.log.gz": "0f4f4059c14646f7c4facf5ee2c6467bc31ea224b1eff6c4e16fea588567ead3",
+    "emission-original-frozen.log.gz": "a9afeaa8d6bc1a66626e7109eed9fbd2c03260b629960ed0e79cc7a1434c2568",
+    "emission-candidate.log.gz": "8932cc93352531bc397246b5efb96edcaa115a92fc7a15f6f070f1b5f59d770d",
+    "emission-clippy.log.gz": "67ac1662da9ba6be689251c79b97460dc3d9dabdeee1ee14cf37d4194416cc93",
+    "emission-clippy-final.log.gz": "3f821e73224f88011d52ea25616c3d884666f3428ad46c0e42535537c00f9251",
+    "emission-workspace.log.gz": "6acd9e73ca33e1b91690e04e54e350d564d58791536071bef1238aabff7b7ae3",
+    "emission-clippy-qualified.log.gz": "128381e33572b9eb417c7ab6fda1839e71c3876a373e5a544d1499a52085770b",
+    "emission-graph.log.gz": "88adf4a42238b3134ab8e364d5945da681b9ec88fb9f16e8e75ef8ce5dd1d936",
+    "emission-original-qualified.log.gz": "59184a2e627e012c32a29f36812ff59878c67cebed4e05cbc8f163e64676fd3a",
+    "emission-doc.log.gz": "aacfc0d928a5f608f44b51e18323e71c772c4d424783076bf86cbeaa8fc867ce"
+  },
+  "development_failures": {
+    "emission-clippy.log.gz": "Unqualified: direct helper exceeded six-argument policy. Replaced raw state arguments with a private owned checked commitment stage."
+  },
+  "limitations": [
+    "First F2 extraction only; full gate trace matrix, shared preparation decomposition, protected batch composition and F3 remain incomplete.",
+    "Original fixtures use permissive test-only signature verifier and in-memory adapters; not authentication/durable storage qualification.",
+    "No matched runtime speedup/allocation claim.",
+    "Intermediate passing checks do not qualify final source; checks above identify final qualification."
+  ]
+}
