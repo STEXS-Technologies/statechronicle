@@ -10,13 +10,12 @@ use std::collections::BTreeMap;
 use statechronicle_domain::intent::Operation;
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
-use statechronicle_domain::status::Status;
 
 use crate::error::ProfileError;
 use crate::execution::ExecutionPolicy;
 use crate::keys;
 use crate::registry::{
-    ProfileRules, input_amount, input_str, require_from, state_str, state_trade_id,
+    ProfileRules, input_amount, input_str, require_from, single_from, state_str, state_trade_id,
 };
 use crate::resource;
 
@@ -234,24 +233,6 @@ impl ProfileRules for UniqueAssetRules {
             )))
         }
     }
-}
-
-/// Requires the operation's source state and returns the projection.
-///
-/// Delegates to [`require_from`], which reads the `status` field and enforces
-/// the allowed source states.
-///
-/// # Errors
-///
-/// Returns [`ProfileError::InvalidTransition`] when the resource does not
-/// exist or its status is not one of `allowed_from`.
-fn single_from(
-    current: Option<&StateProjection>,
-    operation: &str,
-    allowed_from: &[Status],
-) -> Result<(), ProfileError> {
-    require_from(current, operation, allowed_from)?;
-    Ok(())
 }
 
 /// Validates `asset.mint`: the resource must not exist yet.
@@ -474,6 +455,7 @@ mod tests {
     use statechronicle_core::digest::ContentDigest;
     use statechronicle_domain::ids::{CommitId, EventId};
     use statechronicle_domain::resource::ResourceId;
+    use statechronicle_domain::status::Status;
     use statechronicle_domain::tenant::TenantId;
 
     fn asset(status: &Status, owner: &str) -> StateProjection {

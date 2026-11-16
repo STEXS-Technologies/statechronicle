@@ -11,8 +11,8 @@ source-grounded inventory; exact function-token matches are in `metrics.json`.
 | Commit-only trade lookup maps | tenant-scoped commit read authority | Reproduced cross-tenant cache reuse; tuple scope is required, not a cosmetic helper |
 | Legacy intent replay versus ledger replay | ledger transaction / receipt lookup | Not equivalent; do not consolidate legacy marker into canonical durability authority |
 | Symbolic transaction manager versus ledger transaction | separate planning and durable authorities | Intentionally distinct; sharing a name or wrapper must not imply shared atomicity |
-| Fungible/stack positive-availability helper | profile quantity invariant | Exact duplicate tokens; compare decimal/quantity/error contracts before sharing |
-| Asset/entitlement/marketplace single-from helper | profile transition selection | Exact duplicate tokens; verify each authority contract and refusal precedence |
+| Fungible/stack positive-availability helper | profile quantity invariant | Shared private registry guard; frozen original 14,364-case public validation trace preserves exact amount fields and refusal precedence |
+| Asset/entitlement/marketplace single-from helper | profile transition selection | Shared private registry adapter to require_from; same original trace covers lifecycle and malformed-state refusals |
 | Newtype Display/FromStr/serde implementations | domain identifier types | Intentional type separation; macros may reduce text but must not erase validation differences or wire names |
 | Replay/index canonical-history checks | canonical history verifier | Compare missing/reordered/rewritten event and checkpoint semantics before extracting |
 
@@ -50,3 +50,22 @@ After moving the event-root owner, `statechronicle-commit` uses SHA-256 directly
 only in its independent test oracle. Its direct `sha2` dependency moves to dev
 scope. The accumulator still requires SHA-256, so this removes a production
 manifest edge without claiming a reduction in transitive compiled packages.
+
+The profile guard extraction shares only identical validation rules. Registry
+`require_positive_available` checks zero before shortage and retains both original
+amount values. Stack debit/consume/reserve share their ordered existence,
+state-quantity, input-quantity and availability gates; balance debit/reserve/spend
+share the corresponding balance gates. Each operation retains its literal name
+in errors. Asset, entitlement, listing and escrow status-only checks delegate to
+one private `single_from` adapter around `require_from`.
+
+Domain differences remain explicit: stack credit accepts zero while balance
+credit requires positive input. Transfer recipient, burn authorization and
+conversion unit checks remain in their original positions. No reduction,
+execution policy, authorization, canonical encoding or portable implementation
+is changed. The original-release oracle in
+`evidence/maintenance/profile-guards/` compares exact structured errors and
+Display text, including competing failures; it characterizes pure validation,
+not complete durable or reduction semantics. This extraction adds no public
+API, dependency or crate. Whole-roadmap footprint and qualification targets
+remain open.

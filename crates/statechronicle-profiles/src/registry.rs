@@ -404,6 +404,40 @@ pub(crate) fn require_from<'projection>(
     Ok(projection)
 }
 
+/// Checks a source status when the caller needs no retained projection.
+/// Keeps the exact `require_from` refusal order and details.
+pub(crate) fn single_from(
+    current: Option<&StateProjection>,
+    operation: &str,
+    allowed_from: &[Status],
+) -> Result<(), ProfileError> {
+    require_from(current, operation, allowed_from).map(|_| ())
+}
+
+/// Requires a strictly positive economic amount, before availability checks.
+pub(crate) const fn require_positive(amount: Amount) -> Result<(), ProfileError> {
+    if amount.is_zero() {
+        return Err(ProfileError::NonPositiveAmount);
+    }
+    Ok(())
+}
+
+/// Enforces `0 < requested <= available` without changing either amount's
+/// scale or the structured refusal fields. Zero takes precedence over shortage.
+pub(crate) fn require_positive_available(
+    requested: Amount,
+    available: Amount,
+) -> Result<(), ProfileError> {
+    require_positive(requested)?;
+    if requested > available {
+        return Err(ProfileError::InsufficientQuantity {
+            available,
+            requested,
+        });
+    }
+    Ok(())
+}
+
 impl ProfileRegistry {
     /// Constructs the baseline registry covering all seven state types.
     pub fn baseline() -> Self {
