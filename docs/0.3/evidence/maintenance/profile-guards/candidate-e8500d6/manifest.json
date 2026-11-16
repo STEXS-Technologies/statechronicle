@@ -1,0 +1,107 @@
+{
+  "candidate_commit": "e8500d6816c5f9d58abe830c37a983d057fed743",
+  "control_commit": "89e2494cce934a1ad7adec47255fb4fccc44cc52",
+  "original_behavior_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8"
+  },
+  "compilers": {
+    "stable": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+    "1.85.0": "rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-linux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n"
+  },
+  "checks": [
+    {
+      "name": "workspace-tests-final",
+      "toolchain": "stable",
+      "command": "cargo test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked --offline",
+      "exit_code": 0,
+      "passed_tests": 863,
+      "artifact": "workspace-tests-final.log.gz",
+      "sha256": "37c5c87ed02c50faa79db46ca835907fe810f60bbca67a50c74008ca1e0e70d5"
+    },
+    {
+      "name": "msrv-tests",
+      "toolchain": "1.85.0",
+      "command": "cargo test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked --offline",
+      "exit_code": 0,
+      "passed_tests": 863,
+      "artifact": "msrv-tests.log.gz",
+      "sha256": "c0888a85d0edd4752d2e5d640c388987376106d9ddfc6efc7d14cbf2d3824bf0"
+    },
+    {
+      "name": "doctests",
+      "toolchain": "stable",
+      "command": "cargo test --workspace --exclude statechronicle-fuzz --doc --all-features --locked --offline",
+      "exit_code": 0,
+      "passed_tests": 9,
+      "artifact": "doctests.log.gz",
+      "sha256": "dbeba1358b6891ee98c3f2f9f34a85f1651d258004c89a8b4d4091b3f9788278"
+    },
+    {
+      "name": "msrv-doctests",
+      "toolchain": "1.85.0",
+      "command": "cargo test --workspace --exclude statechronicle-fuzz --doc --all-features --locked --offline",
+      "exit_code": 0,
+      "passed_tests": 9,
+      "artifact": "msrv-doctests.log.gz",
+      "sha256": "9e2064b92c46c35c7c66c34d4bde0dcdcd85279462e0e675c60fa2bec5de5202"
+    },
+    {
+      "name": "conformance-stable",
+      "toolchain": "stable",
+      "command": "cargo test --manifest-path ci/conformance/Cargo.toml --all-targets --locked --offline",
+      "exit_code": 0,
+      "passed_tests": 9,
+      "artifact": "conformance-stable.log.gz",
+      "sha256": "04e5bdc958297a70f275c3401a39190b86958c69a16d6ea594010eec547ab377"
+    },
+    {
+      "name": "conformance-msrv",
+      "toolchain": "1.85.0",
+      "command": "cargo test --manifest-path ci/conformance/Cargo.toml --all-targets --locked --offline",
+      "exit_code": 0,
+      "passed_tests": 9,
+      "artifact": "conformance-msrv.log.gz",
+      "sha256": "075215c4a131293743ccf9bcac6141cf72ca0dba2ecf5ec4dc57d067fb4f0250"
+    },
+    {
+      "name": "after-clippy-final",
+      "toolchain": "stable",
+      "command": "cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings",
+      "exit_code": 0,
+      "passed_tests": null,
+      "artifact": "after-clippy-final.log.gz",
+      "sha256": "8ae6271678b6927005a78f230b1963348adc6fb3bc851d20fe1cd6547b31b94c"
+    },
+    {
+      "name": "rustdoc",
+      "toolchain": "stable",
+      "command": "RUSTDOCFLAGS='-D warnings' cargo doc --workspace --all-features --no-deps --locked --offline",
+      "exit_code": 0,
+      "passed_tests": null,
+      "artifact": "rustdoc.log.gz",
+      "sha256": "46509bb6b8963cd3cd2b54cc9fb72dfa17d5f1ebe4396306760c51d0901a2482"
+    }
+  ],
+  "source_sha256": {
+    "crates/statechronicle-profiles/src/consumable_stack.rs": "b9097cd278b41f8bd6769272a9c603d05abce3232acfd1494c49edd5e8fa29ca",
+    "crates/statechronicle-profiles/src/entitlement.rs": "383aa500ac8bdcf165cc8078539ff5e3f35b12da0b64f50126a26487517e9cfa",
+    "crates/statechronicle-profiles/src/fungible_balance.rs": "826f58f979907a6d2156a61ce7a0549000c1fe0850fb70961301ce619c8d3987",
+    "crates/statechronicle-profiles/src/marketplace.rs": "8f6041c9b65b5c7079aa1285bc0407f39cd461340159ca3472e0c43da852ee55",
+    "crates/statechronicle-profiles/src/registry.rs": "043a149ecbc6347c25b80cf9dc665c224844f64375a85c3910dcb92dae88c42e",
+    "crates/statechronicle-profiles/src/unique_asset.rs": "763f7f07687f47ea5d484fa81f7f82350748b322fcbef96a2fdc5b6b5513ba07"
+  },
+  "lock_sha256": {
+    "Cargo.lock": "9c551a66b5698d08a0d5eb1d6364d98107e573e4d6b464da6d83742b8932b86f",
+    "ci/conformance/Cargo.lock": "32fa64c17a2f4667c1754273c909552699a5eba804757b00f3608a3886c68670"
+  },
+  "external_compatibility": "../../../compat/20261116T071250Z-2548547/manifest.json",
+  "limitations": [
+    "Tests ran in the clean production worktree matching candidate commit; external compatibility independently archives the commit.",
+    "Initial full-suite/lint attempts failed because test-only Status imports had been removed; corrected imports are test-local. Failed logs retained as unqualified.",
+    "Not final F8 qualification: no new fuzz, property campaign budgets, real database crash, audit/deny, coverage or package release claim.",
+    "Three additional public syntax items are crate-private helpers; exported API unchanged. Tracked bytes include tests and comments; syntax counts exclude exact test-only items and comments.",
+    "Performance artifacts characterize pure checks only; shared-host timing is not a full workflow performance gate."
+  ]
+}

@@ -719,3 +719,23 @@ seven-pair event-root benchmark retains identical roots/allocations and median
 latency increases of +1.69%, +2.04% and +1.01% for 1/3/256 events on this host.
 This is added safety validation and shared ownership, not a shrink or speedup;
 the new settlement contract's full cost and final F8 gates remain open.
+
+
+## Shared profile validation guards
+
+`e8500d6` deletes duplicate quantity and status adapters after freezing 14,364
+public validation outcomes from the original production source. Exact error
+fields, Display strings and refusal precedence remain equal. Domain-specific
+required fields, operation names and zero-credit differences remain explicit.
+No public API, dependency, reduction, wire or portable codec changes.
+
+The extraction removes 72 production syntax lines, 517 tokens and 18 branch
+nodes. Stable and MSRV each pass 863 finite workspace tests and nine doctests;
+the isolated adapter harness passes nine tests on each. Strict stable Clippy
+and rustdoc, and MSRV archived external/wire/portable/bare-metal checks pass.
+The initial full builds caught removed test-only imports; corrected imports and
+failed logs are retained. Allocation calls/requested bytes match on ten measured
+validation paths. Timing has host/order interference and unresolved tail noise;
+no speedup or F8 performance-gate pass is claimed. Full-roadmap simplification,
+remaining F1–F7 work and release qualification remain incomplete. See
+[the exact evidence](evidence/maintenance/profile-guards/candidate-e8500d6/README.md).

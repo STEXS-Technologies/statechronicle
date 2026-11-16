@@ -18,9 +18,8 @@ source-grounded inventory; exact function-token matches are in `metrics.json`.
 
 Baseline syntax counts include all production conditional alternatives but
 exclude exact test-only items, comments and attribute syntax. The counts are
-not a semantic duplicate score or compiled executable complexity. No production
-code has been deleted and no reduction percentage is claimed yet. Each future
-extraction must identify the deleted path, equivalence evidence and measured
+not a semantic duplicate score or compiled executable complexity. At the initial inventory checkpoint no production
+code had been deleted. Each extraction must identify the deleted path, equivalence evidence and measured
 source/performance delta. Protected hashing, signatures, canonical encoding and
 SMT algorithms remain separate from orchestration cleanup.
 
@@ -69,3 +68,14 @@ Display text, including competing failures; it characterizes pure validation,
 not complete durable or reduction semantics. This extraction adds no public
 API, dependency or crate. Whole-roadmap footprint and qualification targets
 remain open.
+
+Exact `e8500d6` versus `89e2494` metrics remove 72 syntax lines, 517 tokens and
+18 branch nodes across the six affected files: -5.49%, -5.56% and -7.17%
+respectively. These are whole-file hotspot counts, not a claim that the broader
+10–20% reduction target is met. Whole-workspace counts are 16,122 syntax lines,
+118,199 tokens and 1,950 branch nodes, still above the original release. Raw
+tracked source bytes decrease 4,126 (including comments/test source); three new
+crate-private helper declarations increase the parser's public syntax count
+without changing exported API. See
+[evidence](evidence/maintenance/profile-guards/candidate-e8500d6/README.md)
+for exact metrics, compatibility checks and inconclusive shared-host timings.

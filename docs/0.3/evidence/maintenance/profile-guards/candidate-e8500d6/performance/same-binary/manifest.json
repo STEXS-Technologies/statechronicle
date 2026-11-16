@@ -1,0 +1,30 @@
+{
+  "control": "89e2494cce934a1ad7adec47255fb4fccc44cc52",
+  "candidate": "e8500d6816c5f9d58abe830c37a983d057fed743",
+  "cpu": 0,
+  "pairs": 7,
+  "samples": 31,
+  "iterations_per_sample": 50000,
+  "warmup": 10000,
+  "compiler": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+  "limitations": [
+    "Shared host; sample means, not per-operation tail latency.",
+    "Pure public ProfileRules::check only; no reduction, auth, durable write or full workflow.",
+    "Allocation counter measures calls/requested bytes, not peak live memory.",
+    "Repeated after own qualification processes finished; other host activity remains uncontrolled.",
+    "Both timing labels execute the identical candidate binary; measures host/order noise, not a source comparison."
+  ],
+  "hashes": {
+    "target/profile-guards/bench/control/source/Cargo.lock": "9c551a66b5698d08a0d5eb1d6364d98107e573e4d6b464da6d83742b8932b86f",
+    "target/profile-guards/bench/control/consumer/Cargo.lock": "b337b5e7384610a5685b4ff59f48667f5299dde6fa398a0997b2e4351f6576cc",
+    "target/profile-guards/bench/control/consumer/src/main.rs": "55af4b332123901b1b4bf9916389185a02f958926e12f1f45154ccace53cfe65",
+    "target/profile-guards/bench/control/consumer/src/fixture.rs": "fec9dd3c975f6b9cd0fde36ed6e4d886ad219f9417b4ad7e8b238245787baff2",
+    "target/profile-guards/bench/control/build/release/profile-guard-cost": "a3013f35d7602f03b2446d14cd16321575356f5b5890e7953b22a2ce80f4592d",
+    "target/profile-guards/bench/candidate/source/Cargo.lock": "9c551a66b5698d08a0d5eb1d6364d98107e573e4d6b464da6d83742b8932b86f",
+    "target/profile-guards/bench/candidate/consumer/Cargo.lock": "b337b5e7384610a5685b4ff59f48667f5299dde6fa398a0997b2e4351f6576cc",
+    "target/profile-guards/bench/candidate/consumer/src/main.rs": "55af4b332123901b1b4bf9916389185a02f958926e12f1f45154ccace53cfe65",
+    "target/profile-guards/bench/candidate/consumer/src/fixture.rs": "fec9dd3c975f6b9cd0fde36ed6e4d886ad219f9417b4ad7e8b238245787baff2",
+    "target/profile-guards/bench/candidate/build/release/profile-guard-cost": "08a07413080ef0c68c2390570576532022b3bf7ba98109787ed0385d614729f9"
+  },
+  "same_binary_control": true
+}
