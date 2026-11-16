@@ -433,7 +433,7 @@ fn match_value_legs(
             IndexError::MalformedValue(format!("malformed value_amount `{amount}`"))
         })?;
         declared.push(DeclaredValueLeg {
-            key: (amount_amt, resource.clone(), Some(to_subject.clone())),
+            key: (amount_amt, resource, Some(to_subject.clone())),
             trade_id,
             amount_str: amount,
             to_subject: SubjectId(to_subject),
