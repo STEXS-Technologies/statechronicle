@@ -1,0 +1,79 @@
+{
+  "revisions": [
+    "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+    "84287bd61b8471c023f3aa15ba5161853548f4bb"
+  ],
+  "fixture_sha256": "b19513d6cceb0f32d328a64179110e6ab0f89724659ddc8adfd8b323fa99742d",
+  "negative_control_remove_expiry": false,
+  "wire_sha256": "fdccce8e4ce783c27bd0239151930d1e51dc82c7704884731254b8199e991fff",
+  "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+  "checks": [
+    {
+      "label": "0-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/settlement-parity/20261116T113817Z-1799839/0/consumer",
+      "exit_code": 0,
+      "seconds": 0.10249657998792827,
+      "artifact": "0-resolve.log.gz",
+      "sha256": "1b71f7797abc480eff2d828fa59c1460ce7ccf2b73d3c3f55628e0565b3f59f0"
+    },
+    {
+      "label": "0-build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--offline",
+        "--release"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/settlement-parity/20261116T113817Z-1799839/0/consumer",
+      "exit_code": 0,
+      "seconds": 3.114704645005986,
+      "artifact": "0-build.log.gz",
+      "sha256": "6110e75fd57fc5bba6cfe24e3a23f96f076c3b24670e4c9b383b42c5c75ebdc2"
+    },
+    {
+      "label": "0-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/settlement-parity/20261116T113817Z-1799839/0/consumer",
+      "exit_code": 101,
+      "seconds": 1.322126830011257,
+      "artifact": "0-clippy.log.gz",
+      "sha256": "11a0778ab3d2cfbbbed727c3b4ce9542c4044e8457a9aba6d902bb150d628774"
+    }
+  ],
+  "lanes": [],
+  "status": "failed_or_interrupted",
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/proof-service-parity/build"
+  },
+  "limitations": [
+    "Eight legacy coordinator routes; six structures; zero, single and pairwise injected faults.",
+    "Fixed sentinel host, snapshots and compatibility sinks; no real durable storage or canonical settlement qualification."
+  ],
+  "failure": "RuntimeError('0-clippy failed')",
+  "artifacts_sha256": {
+    "0-build.log.gz": "6110e75fd57fc5bba6cfe24e3a23f96f076c3b24670e4c9b383b42c5c75ebdc2",
+    "0-clippy.log.gz": "11a0778ab3d2cfbbbed727c3b4ce9542c4044e8457a9aba6d902bb150d628774",
+    "0-resolve.log.gz": "1b71f7797abc480eff2d828fa59c1460ce7ccf2b73d3c3f55628e0565b3f59f0",
+    "0.lock": "923282759f08542b419d86e7f513c6cd0a1343f88cc96de0657ecc006614e7a0",
+    "runner.py": "7c51a5656b10a76f595195d60e84deb178bd31228bc6eb222e8702057a2a8389",
+    "settlement.rs": "b19513d6cceb0f32d328a64179110e6ab0f89724659ddc8adfd8b323fa99742d"
+  }
+}

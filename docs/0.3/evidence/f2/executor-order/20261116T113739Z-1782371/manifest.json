@@ -1,0 +1,61 @@
+{
+  "revisions": [
+    "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+    "84287bd61b8471c023f3aa15ba5161853548f4bb"
+  ],
+  "fixture_sha256": "6244cde82fe399198192bc90aaecf26a18011c86893aff9af43bbdb066ddb995",
+  "negative_control_remove_expiry": false,
+  "wire_sha256": "fdccce8e4ce783c27bd0239151930d1e51dc82c7704884731254b8199e991fff",
+  "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+  "checks": [
+    {
+      "label": "0-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/settlement-parity/20261116T113739Z-1782371/0/consumer",
+      "exit_code": 0,
+      "seconds": 0.10381719400174916,
+      "artifact": "0-resolve.log.gz",
+      "sha256": "143620dda8576522f1b9fd15fdde181237d433641431f91bd4b48068a444c47c"
+    },
+    {
+      "label": "0-build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--offline",
+        "--release"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/settlement-parity/20261116T113739Z-1782371/0/consumer",
+      "exit_code": 101,
+      "seconds": 2.5129544280061964,
+      "artifact": "0-build.log.gz",
+      "sha256": "d2520ed3f4d86ce245f7dec43176d5c46c6f821441768d9d790f1be39b659ca4"
+    }
+  ],
+  "lanes": [],
+  "status": "failed_or_interrupted",
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/proof-service-parity/build"
+  },
+  "limitations": [
+    "Eight legacy coordinator routes; six structures; zero, single and pairwise injected faults.",
+    "Fixed sentinel host, snapshots and compatibility sinks; no real durable storage or canonical settlement qualification."
+  ],
+  "failure": "RuntimeError('0-build failed')",
+  "artifacts_sha256": {
+    "0-build.log.gz": "d2520ed3f4d86ce245f7dec43176d5c46c6f821441768d9d790f1be39b659ca4",
+    "0-resolve.log.gz": "143620dda8576522f1b9fd15fdde181237d433641431f91bd4b48068a444c47c",
+    "0.lock": "923282759f08542b419d86e7f513c6cd0a1343f88cc96de0657ecc006614e7a0",
+    "runner.py": "7c51a5656b10a76f595195d60e84deb178bd31228bc6eb222e8702057a2a8389",
+    "settlement.rs": "6244cde82fe399198192bc90aaecf26a18011c86893aff9af43bbdb066ddb995"
+  }
+}

@@ -871,3 +871,23 @@ The explicit boundary adds 374 tokens and one parsed branch, with no F6 shrink
 credit. [Prototype and retained evidence](evidence/f2/prepared-profile-a52d53f/README.md)
 include the allocation-order correction, exact source metrics, all timing samples
 and limitations. Remaining mutation/settlement review and release gates stay open.
+
+
+## Shared compatibility batch completion
+
+Retained `1e995ab` represents the existing symbolic-handle/sink choice as one
+private enum and shares lazy begin, success and refusal handling across four
+coordinators. It removes unreachable rollback paths and duplicate tenant/settle
+selection without changing validation, marker, error or event behavior.
+
+All 10,128 original coordinator traces match; replacing rollback with commit in
+an archived negative control changes 2,556 traces while preserving every returned
+error. The existing 23,544 executor and 2,352 proof traces also match. Exact-source
+884 tests, 16 doctests, strict checks and external consumers pass. Production
+loses 375 tokens and 27 parsed branches, with no API/dependency/wire change.
+
+A generic result-owning prototype was replaced after a repeated trade-tail concern.
+The simpler retained design has equal allocation totals in four bounded workflows;
+a refusing-sink p95 increase remains open for release performance qualification.
+[All attempts, source deltas and observations](evidence/f2/batch-completion/README.md)
+are retained. Full F2/F5/F6/F8 and release readiness remain unproven.

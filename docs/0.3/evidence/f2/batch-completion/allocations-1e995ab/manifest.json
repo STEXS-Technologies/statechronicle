@@ -1,0 +1,231 @@
+{
+  "status": "passed",
+  "benchmark_manifest_sha256": "3461e8461a2ef04626212be8538ca0aac1e45f44afb1f508f97ac57e7dbdf4e2",
+  "valgrind": "valgrind-3.27.1",
+  "checks": [
+    {
+      "lane": "control",
+      "workload": "authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/batch-completion-bench/20261116T115040Z/allocation-a",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "seconds": 6.198032168002101,
+      "exit_code": 0,
+      "artifact": "control-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "fb5643baa9218a418d1708a18f95d2dea44b6425f0b9f1fbd465adab9e29c7a9",
+      "binary_sha256": "b038274b6d5c7ddddc7dad23675531c8e0d23d91ef0aa87d0f968caf1b40ba3b"
+    },
+    {
+      "lane": "control",
+      "workload": "authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/batch-completion-bench/20261116T115040Z/allocation-a",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "seconds": 5.250791512997239,
+      "exit_code": 0,
+      "artifact": "control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "780e777f572277756e74627a24fb112c8d1bcd36929ac6dff75a6eec0a3a8b59",
+      "binary_sha256": "b038274b6d5c7ddddc7dad23675531c8e0d23d91ef0aa87d0f968caf1b40ba3b"
+    },
+    {
+      "lane": "control",
+      "workload": "two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/batch-completion-bench/20261116T115040Z/allocation-a",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "seconds": 6.196159587008879,
+      "exit_code": 0,
+      "artifact": "control-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "54b0e05c3e8563003afa61a8e9a039ad536ff09bd4470a637e5a7586b9089838",
+      "binary_sha256": "b038274b6d5c7ddddc7dad23675531c8e0d23d91ef0aa87d0f968caf1b40ba3b"
+    },
+    {
+      "lane": "control",
+      "workload": "cross_tenant_trade_plan_including_seed_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/batch-completion-bench/20261116T115040Z/allocation-a",
+        "cross_tenant_trade_plan_including_seed_setup"
+      ],
+      "seconds": 7.201635631994577,
+      "exit_code": 0,
+      "artifact": "control-cross_tenant_trade_plan_including_seed_setup.log.gz",
+      "sha256": "1b15731fce2e207690de84d67847dc285e964d68bbb5aef8236f859c5bf894a7",
+      "binary_sha256": "b038274b6d5c7ddddc7dad23675531c8e0d23d91ef0aa87d0f968caf1b40ba3b"
+    },
+    {
+      "lane": "candidate",
+      "workload": "authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/batch-completion-bench/20261116T115040Z/allocation-b",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "seconds": 4.911019299004693,
+      "exit_code": 0,
+      "artifact": "candidate-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "b142d522fb16c669ac24fc92a1b67fdb277dab5511fa0054526a97727d4c1695",
+      "binary_sha256": "69bd99bcbf6b5ad2bceef478aae595c17af6bbeea0e6744ba3931320c12bc443"
+    },
+    {
+      "lane": "candidate",
+      "workload": "authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/batch-completion-bench/20261116T115040Z/allocation-b",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "seconds": 4.4467786960012745,
+      "exit_code": 0,
+      "artifact": "candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "8ec3255dbcb883437465bd3abcc3d43aa934a080d14cea60a0f44afe0f76c062",
+      "binary_sha256": "69bd99bcbf6b5ad2bceef478aae595c17af6bbeea0e6744ba3931320c12bc443"
+    },
+    {
+      "lane": "candidate",
+      "workload": "two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/batch-completion-bench/20261116T115040Z/allocation-b",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "seconds": 4.432305567010189,
+      "exit_code": 0,
+      "artifact": "candidate-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "603e8ecf4bc6c57b1d79187e251c815ddc7144ca6023ec07d9cfccca6d0fbc86",
+      "binary_sha256": "69bd99bcbf6b5ad2bceef478aae595c17af6bbeea0e6744ba3931320c12bc443"
+    },
+    {
+      "lane": "candidate",
+      "workload": "cross_tenant_trade_plan_including_seed_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/batch-completion-bench/20261116T115040Z/allocation-b",
+        "cross_tenant_trade_plan_including_seed_setup"
+      ],
+      "seconds": 4.750200944006792,
+      "exit_code": 0,
+      "artifact": "candidate-cross_tenant_trade_plan_including_seed_setup.log.gz",
+      "sha256": "318e9f47c2849ee02cf0aa2084a473c17dcee408b8fc7533c5bdbc039ce224d3",
+      "binary_sha256": "69bd99bcbf6b5ad2bceef478aae595c17af6bbeea0e6744ba3931320c12bc443"
+    }
+  ],
+  "totals": {
+    "control": {
+      "authenticated_prepare_including_adapter_setup": {
+        "allocations": 101835,
+        "frees": 101717,
+        "bytes": 8401657
+      },
+      "authenticated_two_intent_batch_to_refusing_sink_including_setup": {
+        "allocations": 130381,
+        "frees": 130263,
+        "bytes": 10449594
+      },
+      "two_intent_planning_including_adapter_setup": {
+        "allocations": 122625,
+        "frees": 122507,
+        "bytes": 9638986
+      },
+      "cross_tenant_trade_plan_including_seed_setup": {
+        "allocations": 144907,
+        "frees": 144789,
+        "bytes": 11584203
+      }
+    },
+    "candidate": {
+      "authenticated_prepare_including_adapter_setup": {
+        "allocations": 101835,
+        "frees": 101717,
+        "bytes": 8401657
+      },
+      "authenticated_two_intent_batch_to_refusing_sink_including_setup": {
+        "allocations": 130381,
+        "frees": 130263,
+        "bytes": 10449594
+      },
+      "two_intent_planning_including_adapter_setup": {
+        "allocations": 122625,
+        "frees": 122507,
+        "bytes": 9638986
+      },
+      "cross_tenant_trade_plan_including_seed_setup": {
+        "allocations": 144907,
+        "frees": 144789,
+        "bytes": 11584203
+      }
+    }
+  },
+  "limitations": [
+    "Full-process totals include startup, fixed benchmark setup, ten warmups and 31 samples (five operations each; two for cross-tenant trade).",
+    "Not a per-operation allocation claim; no subtraction or normalization.",
+    "Both executable paths have equal length; input selector and copied binary hashes are fixed.",
+    "These three fixed sentinel-adapter workflows do not establish allocation equivalence for other inputs or public APIs."
+  ],
+  "equal_full_process_totals": true,
+  "artifacts_sha256": {
+    "candidate-authenticated_prepare_including_adapter_setup.log.gz": "b142d522fb16c669ac24fc92a1b67fdb277dab5511fa0054526a97727d4c1695",
+    "candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "8ec3255dbcb883437465bd3abcc3d43aa934a080d14cea60a0f44afe0f76c062",
+    "candidate-cross_tenant_trade_plan_including_seed_setup.log.gz": "318e9f47c2849ee02cf0aa2084a473c17dcee408b8fc7533c5bdbc039ce224d3",
+    "candidate-two_intent_planning_including_adapter_setup.log.gz": "603e8ecf4bc6c57b1d79187e251c815ddc7144ca6023ec07d9cfccca6d0fbc86",
+    "control-authenticated_prepare_including_adapter_setup.log.gz": "fb5643baa9218a418d1708a18f95d2dea44b6425f0b9f1fbd465adab9e29c7a9",
+    "control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "780e777f572277756e74627a24fb112c8d1bcd36929ac6dff75a6eec0a3a8b59",
+    "control-cross_tenant_trade_plan_including_seed_setup.log.gz": "1b15731fce2e207690de84d67847dc285e964d68bbb5aef8236f859c5bf894a7",
+    "control-two_intent_planning_including_adapter_setup.log.gz": "54b0e05c3e8563003afa61a8e9a039ad536ff09bd4470a637e5a7586b9089838",
+    "runner.py": "534cd7c3a20e2bcdf44eeb174749f159ae59dea7b9ab94db1d6cb5dd19961e32"
+  }
+}

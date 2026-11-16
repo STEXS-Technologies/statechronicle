@@ -1,0 +1,9 @@
+{
+  "original_wrapper_exit_code": 1,
+  "diagnostic": "AssertionError: broad new-manifest set did not have exactly one member",
+  "completed_child_manifest": "docs/0.3/evidence/f2/executor-order/20261116T115404Z-2272634/manifest.json",
+  "completed_child_status": "passed",
+  "correction": "Restrict new-manifest discovery to the selected fixture evidence directory.",
+  "recovery_checks": "checks.json",
+  "limitation": "The original manifest set was not logged; exact unrelated members are not reconstructed."
+}

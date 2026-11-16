@@ -1,0 +1,75 @@
+[
+  {
+    "command": [
+      "python3",
+      "scripts/check_proof_service_parity.py",
+      "--fixture",
+      "settlement",
+      "--revision",
+      "c418e98",
+      "--revision",
+      "404dda5",
+      "--revision",
+      "9c3cb10"
+    ],
+    "exit_code": 0,
+    "seconds": 20.089916619006544,
+    "manifest": "docs/0.3/evidence/f2/executor-order/20261116T114552Z-2023809/manifest.json",
+    "status": "passed",
+    "different_rows": 0
+  },
+  {
+    "command": [
+      "python3",
+      "scripts/check_proof_service_parity.py",
+      "--fixture",
+      "executor",
+      "--revision",
+      "c418e98",
+      "--revision",
+      "404dda5",
+      "--revision",
+      "9c3cb10"
+    ],
+    "exit_code": 0,
+    "seconds": 23.03651933799847,
+    "manifest": "docs/0.3/evidence/f2/executor-order/20261116T114612Z-2034854/manifest.json",
+    "status": "passed",
+    "different_rows": 0
+  },
+  {
+    "command": [
+      "python3",
+      "scripts/check_proof_service_parity.py",
+      "--fixture",
+      "proof_service",
+      "--revision",
+      "c418e98",
+      "--revision",
+      "9c3cb10"
+    ],
+    "exit_code": 0,
+    "seconds": 11.133874282997567,
+    "manifest": "docs/0.3/evidence/maintenance/proof-service/20261116T114635Z-2046865/manifest.json",
+    "status": "passed",
+    "different_rows": 0
+  },
+  {
+    "command": [
+      "python3",
+      "scripts/check_proof_service_parity.py",
+      "--fixture",
+      "settlement",
+      "--revision",
+      "c418e98",
+      "--revision",
+      "9c3cb10",
+      "--negative-control-commit-on-refusal"
+    ],
+    "exit_code": 1,
+    "seconds": 11.062354107998544,
+    "manifest": "docs/0.3/evidence/f2/executor-order/20261116T114646Z-2053240/manifest.json",
+    "status": "failed_or_interrupted",
+    "different_rows": 2556
+  }
+]

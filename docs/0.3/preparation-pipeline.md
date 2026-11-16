@@ -116,3 +116,19 @@ still come from the shared evaluation. The [retained `4c55fe6` evidence](
 evidence/f2/prepared-profile-a52d53f/README.md) records original/control/candidate
 parity, full finite tests, external consumers, source growth and bounded matched
 performance/allocation observations. Broader F2 and release gates remain open.
+
+
+## Compatibility coordinator completion
+
+Ordinary batch, same-tenant settlement and the two cross-tenant coordinators
+share private `BatchCompletion`. Its enum keeps a symbolic handle and a durable
+sink mutually exclusive; lazy begin avoids even constructing a boxed transaction
+future on sink routes. Success and refusal handling have one owner, while callers
+keep result ownership, group flattening, validation policies and refusal context.
+Tenant partitioning and settle selection also share private deterministic helpers.
+
+The [retained evidence](evidence/f2/batch-completion/README.md) includes 10,128
+original coordinator traces and a negative control detected solely by side
+effects. This does not merge compatibility completion with canonical LedgerStore
+atomicity or recovery. A refusing-sink p95 concern remains open alongside the
+broader F2/F6/F8 requirements.

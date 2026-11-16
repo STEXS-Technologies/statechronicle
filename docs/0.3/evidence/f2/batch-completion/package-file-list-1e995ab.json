@@ -1,0 +1,19 @@
+{
+  "candidate_commit": "1e995abc29af266b487654f32fcf321c4b335e7a",
+  "command": [
+    "cargo",
+    "package",
+    "-p",
+    "statechronicle-executor",
+    "--list",
+    "--locked",
+    "--offline"
+  ],
+  "exit_code": 0,
+  "contains": [
+    "src/batch_completion.rs",
+    "src/prepared_profile.rs"
+  ],
+  "sha256": "14b732636697c5f0258fb2648a8b9d5811821ca877b341e2dbba5540219ee4d0",
+  "limitation": "Inclusion listing, not full unpacked crate qualification."
+}

@@ -168,3 +168,16 @@ branch. This buys an explicit checked boundary, not source reduction. Actual-ori
 evidence/f2/prepared-profile-a52d53f/README.md) retain small positive median timing
 changes amid shared-host noise, larger binary size and identical full-process
 allocation totals for three bounded workloads. No full F2/F6/F8 pass is claimed.
+
+
+Four compatibility batch/settlement completion handlers now share the private
+`BatchCompletion` enum and lazy begin/success/refusal methods. A handle and sink
+cannot coexist, removing unreachable sink-error rollback branches. Coordinators
+retain results, policy validators, group flattening and marker semantics. Two
+private helpers share tenant partitioning and settle selection. Actual-original
+10,128-row errors/effects/warning parity and exact retained root/external checks
+pass. Production loses 375 tokens and 27 parsed branches; affected files shrink
+6.05% in tokens, with no full hotspot/flat-footprint gate claim. [Evidence](
+evidence/f2/batch-completion/README.md) retains a rejected generic result wrapper,
+two matched retained campaigns, equal allocation totals and an open refusing-sink
+p95 concern. Canonical ledger authority remains separate.
