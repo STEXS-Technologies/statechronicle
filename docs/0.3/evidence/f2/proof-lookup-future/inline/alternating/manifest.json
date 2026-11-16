@@ -1,0 +1,220 @@
+{
+  "measurement_manifest": "target/stale-experiment/comparison/manifest.json",
+  "measurement_manifest_sha256": "bf3222e617be34d126d33323cebebafd4b3152f27dcca31509a0cacacbe089c6",
+  "runner_sha256": "e3b116c2362688a1db3301fb80b6295d4d23baf0fd6f5bea2e5073d5e432474c",
+  "candidate_commit": "5632d00 plus isolated #[inline] load_commit experiment (not a commit)",
+  "baseline_commit": "e30fdda29df41d540daf9b98350f1b229a4a87fa",
+  "toolchain": {
+    "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5",
+    "cargo": "cargo 1.100.0 (3acc79c0c 2026-11-05)"
+  },
+  "cpu": 0,
+  "status": "passed",
+  "runs": [
+    {
+      "pair": 0,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T042553Z-2255276/candidate/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.972174370996072,
+      "artifact": "pair-0-baseline.log.gz",
+      "sha256": "a8baec0adf0e96547cc0ffb19cdcd1b30c57cc68d94241060bcaf7697ccecb64"
+    },
+    {
+      "pair": 0,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/stale-experiment/inline/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.9605617259949213,
+      "artifact": "pair-0-candidate.log.gz",
+      "sha256": "d436001e33b6d8bc8fcff4f5626d2b24997ad10cab4c4f19c62947245cb03a8c"
+    },
+    {
+      "pair": 1,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/stale-experiment/inline/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.937030135995883,
+      "artifact": "pair-1-candidate.log.gz",
+      "sha256": "c4b634dd0a870664513543301ba421140282962280ff18654d736930e4853ae2"
+    },
+    {
+      "pair": 1,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T042553Z-2255276/candidate/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.9343701119942125,
+      "artifact": "pair-1-baseline.log.gz",
+      "sha256": "4ad6a8ce43af351a13bd0e5620ba86fe185475a2df88f5f8347e30a3e95ac59d"
+    },
+    {
+      "pair": 2,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T042553Z-2255276/candidate/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.9376278909985558,
+      "artifact": "pair-2-baseline.log.gz",
+      "sha256": "ec3da038705cdbd513d6082087725cb063524c045fca862e744f56a654fa4634"
+    },
+    {
+      "pair": 2,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/stale-experiment/inline/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.9475869179950678,
+      "artifact": "pair-2-candidate.log.gz",
+      "sha256": "03ac9f7c08de2f6928849b3cfbbe64b7a56b81edb1cced72c3881a9f556e64c7"
+    },
+    {
+      "pair": 3,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/stale-experiment/inline/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.9421452559981844,
+      "artifact": "pair-3-candidate.log.gz",
+      "sha256": "04e569dcce04b653f297e4ed3d5b2a86cc883fda3d747ebb534d771cb02124b7"
+    },
+    {
+      "pair": 3,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T042553Z-2255276/candidate/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.9473403610027162,
+      "artifact": "pair-3-baseline.log.gz",
+      "sha256": "84b6a5011b76701255cc8c6f5834188550d9e36215690bef7c6fd56265f87342"
+    },
+    {
+      "pair": 4,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T042553Z-2255276/candidate/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.942765525993309,
+      "artifact": "pair-4-baseline.log.gz",
+      "sha256": "2d627bb7277d8723a6ee45968f676ec7b2b2382c90601ce0c0f998579bc087d0"
+    },
+    {
+      "pair": 4,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/stale-experiment/inline/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.9543295260009472,
+      "artifact": "pair-4-candidate.log.gz",
+      "sha256": "4a63a41b6b609b82a90714112a4b0dad6ff233af6009ebf0f6d4c5ff18bf148f"
+    },
+    {
+      "pair": 5,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/stale-experiment/inline/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.944442287000129,
+      "artifact": "pair-5-candidate.log.gz",
+      "sha256": "bd5c7527bd51ae611540432231343a96388e4a2f107916162519bdb016289279"
+    },
+    {
+      "pair": 5,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T042553Z-2255276/candidate/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.9428030780036352,
+      "artifact": "pair-5-baseline.log.gz",
+      "sha256": "750a3008510e1c661271b995c4aadbe6ac5136835dde62fb9f460eb7145cddaa"
+    },
+    {
+      "pair": 6,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T042553Z-2255276/candidate/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.9454786109999986,
+      "artifact": "pair-6-baseline.log.gz",
+      "sha256": "98bcad3d34f6db8df9b0f92781a256043734dd54536a9bdb7e309136cd5449a1"
+    },
+    {
+      "pair": 6,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/stale-experiment/inline/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "exit_code": 0,
+      "seconds": 0.9480299940041732,
+      "artifact": "pair-6-candidate.log.gz",
+      "sha256": "376db7e2eb70622c1eb8947719cc3bb680c109f846056bced3fcd973221c7f6d"
+    }
+  ],
+  "limitations": [
+    "Shared host, seven alternating pairs; not an isolated final release qualification.",
+    "Same compiler, original/candidate lockfiles differ; not attribution to one extraction.",
+    "Tail values describe 31 sample averages, not individual-request latency.",
+    "Legacy workloads omit new owned claims and verified durable record readback."
+  ],
+  "baseline_binary_sha256": "616d10c93fae808c0f549e17f78003699db56650d21fa3a413595e7bdac0c991",
+  "candidate_binary_sha256": "ec2a7ef6c35a995eb468777f63a5fb5e4deb5d8253d727afdc619502d1e4304c",
+  "summary_sha256": "59282b4eb6b68d7ac7764b2f43f672baef0959a3092b4c14ec2e690d4635dfda"
+}

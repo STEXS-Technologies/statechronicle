@@ -483,3 +483,41 @@ open stale-head refusal timing finding (+33 ns / +13.78% median paired change;
 no final performance acceptance). See [measurement disposition](performance-baseline.md).
 This is not attributed to the event-stage extraction without a controlled
 same-dependency experiment, and final performance qualification remains open.
+
+
+## Proof lookup future and shared ingress ordering
+
+Controlled same-dependency experiments support removing the extra async lookup
+state machine rather than adding an ineffective inline hint. Production returns
+the adapter future directly and retains one synchronous owner for store errors
+and absent rows. All six proof consumers preserve their trust/crypto/head checks.
+See [lookup investigation](proof-lookup-performance.md); exact final performance
+qualification is recorded separately from prototype evidence.
+
+Three new multi-fault ingress fixtures execute against unmodified original
+production and candidate. They preserve the deliberate difference between
+single registry lanes (key policy before binding/authorization) and batches
+(binding/authorization before key policy), with signature presence first in all
+player lanes. Protected preparation retains reconstruction of public structural
+fields and skips legacy markers. Six signature-refusal implementations become
+one, two binding/policy implementations become one, and four registry calls
+become one private implementation. Each caller still chooses the original order.
+This removes duplicate decisions rather than imposing one policy on every lane.
+
+Rust 1.85 passes 832 workspace tests in 65 binaries and five doctests; the
+final renamed fixture separately passes all three original-release tests.
+Strict Rust 1.100 workspace Clippy/rustdoc, formatting and whitespace pass.
+No public trait, default feature, dependency or wire schema changed. The earlier
+emitter extraction's misplaced internal documentation/lint scope was corrected
+without a runtime change. Full F2/F3–F8 qualification remains incomplete.
+
+Exact combined candidate `abd7245` also passes all five external Rust 1.85
+hosted/portable/bare-metal checks and all ten Rust 1.100 measurement checks.
+Evidence is in `evidence/compat/20261116T044250Z-2789154/` and
+`evidence/compat/20261116T044250Z-2789155/`. Production metrics are 1,401,366
+tracked source bytes, 15,043 syntax lines, 110,940 tokens, 1,792 branches and
+1,303 public syntax items: versus `5632d00`, -1,158 bytes, -34 lines, -122
+tokens, +1 branch and +1 crate-restricted helper (no exported consumer API).
+This is a checkpoint reduction, not the final hotspot target. The repeated
+stale-head observation improves to +12 ns versus original, with substantial
+noise and final performance qualification still open.

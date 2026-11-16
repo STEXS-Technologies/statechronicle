@@ -183,3 +183,13 @@ and does not introduce allocations. The measured workload matrix covers the
 cumulative candidate, not an isolated before/after of just that extraction.
 New canonical safety APIs, final alternating noise bounds and this open
 refusal-path finding still need the F8 exact-candidate performance gate.
+
+## Proof lookup mitigation checkpoint
+
+The exact combined candidate `abd7245` repeats the stale-head investigation with
+seven alternating pairs against both the pre-fix same-dependency candidate and
+the frozen original. Observed paired median deltas are respectively -10 ns
+(-3.71%) and +12 ns (+4.88%); paired p95 deltas are -5.02% and +1.14%.
+All samples remain recorded, including substantial host noise. This mitigates
+the earlier +33 ns observation without declaring the final F8 gate passed.
+See [controlled investigation and limitations](proof-lookup-performance.md).

@@ -31,5 +31,14 @@
     "Signatures are placeholders; all cases must refuse before crypto/state execution.",
     "Multi-fault refusal-order evidence, not successful authentication or durability qualification.",
     "Original production and lockfile remain unchanged; only this additional test is overlaid."
-  ]
+  ],
+  "toolchains": {
+    "original": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+    "candidate": "rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-linux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n"
+  },
+  "original_source_sha256": {
+    "crates/statechronicle-executor/src/pipeline.rs": "686bbc473ef9306114fb155a43e0185283c3ebb7be90ce59ee4a329d61d6de19",
+    "crates/statechronicle-executor/tests/common/harness.rs": "2802ffc5909f43d4d8de14f122abce513460f6e0f87a30f97b39c1b3d4b0cac8",
+    "Cargo.lock": "76837efdc48c4b33fb007b5ed9fe38ac1c903d389a2adfefc7643977732c7b82"
+  }
 }

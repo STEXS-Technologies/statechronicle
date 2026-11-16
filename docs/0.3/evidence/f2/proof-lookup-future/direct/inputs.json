@@ -1,0 +1,27 @@
+{
+  "status": "passed",
+  "baseline_commit": "e30fdda29df41d540daf9b98350f1b229a4a87fa",
+  "candidate_commit": "5632d00 plus isolated direct lookup experiment (not a commit)",
+  "toolchain": {
+    "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5",
+    "cargo": "cargo 1.100.0 (3acc79c0c 2026-11-05)"
+  },
+  "measurement_cpu": 0,
+  "checks": [
+    {
+      "label": "baseline-latency-0",
+      "command": [
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T042553Z-2255276/candidate/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ]
+    },
+    {
+      "label": "candidate-latency-0",
+      "command": [
+        "/home/ac/projects/statechronicle/target/stale-experiment/direct/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ]
+    }
+  ],
+  "baseline_binary_sha256": "616d10c93fae808c0f549e17f78003699db56650d21fa3a413595e7bdac0c991",
+  "candidate_binary_sha256": "4b225fc2d7dd9a3c3eea79565fbe6e7edfb4e7bf4027258f8d2d43444c5e9882",
+  "scope": "Built executable inputs for an experiment, not production qualification; identical candidate dependency lockfiles."
+}

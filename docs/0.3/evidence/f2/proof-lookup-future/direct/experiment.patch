@@ -1,0 +1,16 @@
+--- a/crates/statechronicle-proof/src/service.rs
++++ b/crates/statechronicle-proof/src/service.rs
+@@ -332,9 +332,10 @@
+         verifying_key: &VerifyingKey,
+         key: &StateKey,
+     ) -> Result<(), ProofError> {
+-        let signed = self
+-            .load_commit(&proof.tenant_id, &proof.commit.commit_id)
+-            .await?;
++        let signed = self.ports.commit_store
++            .commit_by_id(&proof.tenant_id, &proof.commit.commit_id)
++            .await.map_err(|error| ProofError::Store(error.to_string()))?
++            .ok_or(ProofError::NotFound)?;
+         self.ensure_canonical(&proof.tenant_id, &signed).await?;
+         verify_bundle(proof, &signed, verifying_key, key)
+     }

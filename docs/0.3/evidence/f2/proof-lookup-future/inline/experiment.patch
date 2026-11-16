@@ -1,0 +1,10 @@
+--- a/crates/statechronicle-proof/src/service.rs
++++ b/crates/statechronicle-proof/src/service.rs
+@@ -363,6 +363,7 @@
+         Ok(())
+     }
+ 
++    #[inline]
+     pub(crate) async fn load_commit(
+         &self,
+         tenant: &TenantId,
