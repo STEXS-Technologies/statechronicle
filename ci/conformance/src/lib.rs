@@ -359,6 +359,97 @@ pub async fn check_replay<B: LedgerTestBackend>(
     .await?;
     original(&reader, mutation).await
 }
+/// Advancing a tenant head must preserve exact original receipts and retry identity.
+/// Supply two independently constructed, valid sequential commits and the expected
+/// final raw database view (including current projections and pending outbox rows).
+/// This checks logical retention across fresh connections, not physical crash safety.
+pub async fn check_later_head_retention<B: LedgerTestBackend>(
+    backend: &B,
+    first: &LedgerMutation,
+    later: &LedgerMutation,
+    expected: &Snapshot,
+) -> Result<(), Violation> {
+    require(
+        "setup.chain",
+        first.intent.tenant_id == later.intent.tenant_id
+            && first.intent.intent_id != later.intent.intent_id
+            && first.commit.body.commit_id != later.commit.body.commit_id
+            && later.commit.body.parent_commit_id.as_ref() == Some(&first.commit.body.commit_id)
+            && first.commit.body.sequence.checked_add(1) == Some(later.commit.body.sequence)
+            && later.commit.body.previous_state_root == first.commit.body.next_state_root,
+        "requires distinct identities in one tenant and consecutive linked commits",
+    )?;
+    let writer = fresh(backend).await?;
+    write(&writer, first).await.map_err(operation)?;
+    original(&backend.connect().await.map_err(operation)?, first).await?;
+    write(&backend.connect().await.map_err(operation)?, later)
+        .await
+        .map_err(operation)?;
+    compare(backend, expected, "retention.effects").await?;
+    let reader = backend.connect().await.map_err(operation)?;
+    original(&reader, first).await?;
+    original(&reader, later).await?;
+    let mut retry = reader
+        .begin(&first.intent.tenant_id)
+        .await
+        .map_err(operation)?;
+    let result = retry
+        .claim_idempotency(
+            &first.intent.tenant_id,
+            &first.intent,
+            &first.payload_digest,
+        )
+        .await
+        .map_err(operation)?;
+    require(
+        "retention.retry",
+        result
+            == IdempotencyClaim::Committed {
+                commit_id: first.commit.body.commit_id.clone(),
+            },
+        "retry after head advance did not identify the original commit",
+    )?;
+    retry.rollback().await.map_err(operation)?;
+    compare(backend, expected, "retention.retry_effects").await?;
+    original(&backend.connect().await.map_err(operation)?, first).await
+}
+/// Optional test capability for adapters with a removable pending-delivery queue.
+/// Use the adapter's normal acknowledgement path; immutable receipt data must not
+/// be changed. This hook does not assert exactly-once external delivery.
+#[async_trait]
+pub trait LedgerOutboxTestBackend: LedgerTestBackend {
+    async fn acknowledge_outbox(&self, rows: &[OutboxRecord]) -> Result<(), String>;
+}
+/// Original receipts survive both later heads and acknowledgement of their outbox.
+/// `expected` is the independent raw view before acknowledging the first commit.
+pub async fn check_delivered_retention<B: LedgerOutboxTestBackend>(
+    backend: &B,
+    first: &LedgerMutation,
+    later: &LedgerMutation,
+    expected: &Snapshot,
+) -> Result<(), Violation> {
+    require(
+        "setup.outbox",
+        !first.outbox.is_empty(),
+        "requires original outbox rows",
+    )?;
+    check_later_head_retention(backend, first, later, expected).await?;
+    backend
+        .acknowledge_outbox(&first.outbox)
+        .await
+        .map_err(operation)?;
+    let mut delivered = expected.clone();
+    delivered.outbox.retain(|row| {
+        !first
+            .outbox
+            .iter()
+            .any(|old| old.tenant == row.tenant && old.delivery_key == row.delivery_key)
+    });
+    compare(backend, &delivered, "retention.delivered_effects").await?;
+    let reader = backend.connect().await.map_err(operation)?;
+    original(&reader, first).await?;
+    original(&reader, later).await
+}
 /// Coincident textual intent/event/commit ids in two tenants remain independent.
 pub async fn check_tenant_isolation<B: LedgerTestBackend>(
     backend: &B,

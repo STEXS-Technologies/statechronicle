@@ -59,6 +59,9 @@ enum Mode {
     ReuseExpiredToken,
     SharedExpiry,
     LieClaimToken,
+    PruneOriginal,
+    CurrentProjectionLookup,
+    PendingOutboxLookup,
 }
 #[derive(Default)]
 struct Database {
@@ -115,6 +118,17 @@ impl LedgerTestBackend for Backend {
     }
     async fn inspect(&self) -> Result<Snapshot, String> {
         Ok(self.db.lock().unwrap().visible.clone())
+    }
+}
+#[async_trait]
+impl statechronicle_conformance::LedgerOutboxTestBackend for Backend {
+    async fn acknowledge_outbox(&self, rows: &[OutboxRecord]) -> Result<(), String> {
+        self.db.lock().unwrap().visible.outbox.retain(|row| {
+            !rows
+                .iter()
+                .any(|old| old.tenant == row.tenant && old.delivery_key == row.delivery_key)
+        });
+        Ok(())
     }
 }
 #[async_trait]
@@ -230,6 +244,17 @@ impl LedgerRecovery for Connection {
             let mut record = record.clone();
             if self.0.mode == Mode::CorruptLookup {
                 record.outbox.clear();
+            }
+            if self.0.mode == Mode::PendingOutboxLookup {
+                record.outbox.retain(|old| {
+                    db.visible
+                        .outbox
+                        .iter()
+                        .any(|row| old.tenant == row.tenant && old.delivery_key == row.delivery_key)
+                });
+            }
+            if self.0.mode == Mode::CurrentProjectionLookup {
+                record.projections = db.visible.projections.clone();
             }
             return Ok(LedgerLookup::Committed(Box::new(record)));
         }
@@ -585,6 +610,9 @@ impl LedgerTransaction for Transaction {
         }
         if self.connection.0.mode == Mode::ForgetFinalization {
             self.staged.finalized.pop();
+        }
+        if self.connection.0.mode == Mode::PruneOriginal {
+            db.records.clear();
         }
         if let Some(batch) = &self.batch {
             let count = if self.connection.0.mode == Mode::ForgetMember {
@@ -1192,6 +1220,79 @@ async fn batch_member_expiry_fences_nonfirst_member_and_stale_cleanup() {
         assert_eq!(error.check, check, "{mode:?}: {error}");
         if mode == Mode::FenceFirstMemberOnly {
             assert!(error.detail.contains("Some(1)"), "{error}");
+        }
+    }
+}
+
+#[tokio::test]
+async fn original_records_survive_later_canonical_head() {
+    use statechronicle::commit::roots::state_root_updates;
+    use statechronicle_conformance::check_delivered_retention;
+    let first = fixture("acme.game.alpha", 900);
+    let mut later = fixture("acme.game.alpha", 901);
+    let mut tree = StateAccumulator::empty();
+    let events: Vec<_> = first.events.iter().chain(&later.events).cloned().collect();
+    tree.insert_batch(&state_root_updates(&events).unwrap())
+        .unwrap();
+    let mut body = later.commit.body.clone();
+    body.sequence = 2;
+    body.parent_commit_id = Some(first.commit.body.commit_id.clone());
+    body.previous_state_root = first.commit.body.next_state_root.clone();
+    body.next_state_root = ContentDigest::new(*tree.root().as_bytes());
+    let signing = ed25519_dalek::SigningKey::from_bytes(&[77; 32]);
+    later.commit = sign_commit(
+        &body,
+        &signing,
+        KeyId::new("test:conformance-key".into()).unwrap(),
+    )
+    .unwrap();
+    verify_commit(&later.commit, &signing.verifying_key()).unwrap();
+    let expected = Snapshot {
+        events,
+        commits: vec![first.commit.clone(), later.commit.clone()],
+        projections: first
+            .projections
+            .iter()
+            .chain(&later.projections)
+            .cloned()
+            .collect(),
+        outbox: first.outbox.iter().chain(&later.outbox).cloned().collect(),
+        finalized: [&first, &later]
+            .into_iter()
+            .map(|m| {
+                (
+                    m.intent.tenant_id.clone(),
+                    m.intent.intent_id.clone(),
+                    m.payload_digest.clone(),
+                    m.commit.body.commit_id.clone(),
+                )
+            })
+            .collect(),
+        heads: vec![(
+            later.intent.tenant_id.clone(),
+            later.commit.body.commit_id.clone(),
+            later.commit.body.next_state_root.clone(),
+            2,
+        )],
+    };
+    for mode in [
+        Mode::Correct,
+        Mode::PruneOriginal,
+        Mode::CurrentProjectionLookup,
+        Mode::PendingOutboxLookup,
+    ] {
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            check_delivered_retention(&Backend::new(mode), &first, &later, &expected),
+        )
+        .await
+        .unwrap();
+        if mode == Mode::Correct {
+            result.unwrap();
+        } else {
+            let error = result.unwrap_err();
+            println!("{mode:?}: {error}");
+            assert_eq!(error.check, "lookup.original");
         }
     }
 }

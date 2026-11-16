@@ -133,3 +133,28 @@ large-group, process-reopen or power-loss qualification. Generic later-head
 retention/rebuild, interrupted/corrupt replay, real backend clocks/transactions
 and broader F5/F8 work remain open. See the consumer instructions for exact
 hook and fixture contracts.
+
+## Retention after a later canonical head
+
+Run `check_later_head_retention` with two independently constructed, signed,
+consecutive mutations in one tenant, distinct intent/commit identities, and an
+independent expected final `Snapshot`. The expected view must include retained
+history/finalizations, current projections, pending outbox rows and only the new
+canonical head. It must not be reconstructed from adapter lookups. Fresh
+connections must retrieve both exact original records; retrying the first key
+must identify its original commit and leave the final view unchanged.
+
+Adapters with removable pending outbox rows can additionally implement
+`LedgerOutboxTestBackend::acknowledge_outbox` and run
+`check_delivered_retention`. Use the normal delivery acknowledgement path, not
+receipt mutation. The check removes the first commit's pending rows from its
+expected raw view and requires both immutable receipts to remain exact. This
+is not an exactly-once delivery claim.
+
+The bounded reference uses two different unique-asset resources and two signed
+commits. Three deliberately faulty modes discard old receipts, substitute the
+current projection collection, or reconstruct the original outbox from remaining
+pending rows. Each fails `lookup.original`. This does not yet cover overwritten
+same-key projections, batch retention, projection rebuild, interrupted/corrupt
+replay, real database reopen, process kill or power loss. Callers must supply
+valid fixtures; the harness checks storage, not ingress or signer authorization.
