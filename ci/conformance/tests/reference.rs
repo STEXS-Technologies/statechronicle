@@ -50,6 +50,9 @@ enum Mode {
     ForgetMember,
     SplitGroupLookup,
     ForgetFinalization,
+    FabricateSingleton,
+    FilterBatchAsSingle,
+    IgnoreBatchIdentity,
 }
 #[derive(Default)]
 struct Database {
@@ -157,7 +160,23 @@ impl LedgerRecovery for Connection {
     ) -> Result<LedgerLookup, LedgerStoreError> {
         let db = self.0.db.lock().unwrap();
         let key = self.0.key(tenant, intent);
-        if db.batches.contains_key(&key) {
+        if let Some(batch) = db.batches.get(&key) {
+            if self.0.mode == Mode::FilterBatchAsSingle {
+                let intent = batch
+                    .intents
+                    .iter()
+                    .find(|member| member.intent_id == *intent)
+                    .unwrap()
+                    .clone();
+                return Ok(LedgerLookup::Committed(Box::new(LedgerMutation {
+                    payload_digest: canonicalize_and_digest(&intent).unwrap(),
+                    intent,
+                    commit: batch.commit.clone(),
+                    events: batch.events.clone(),
+                    projections: batch.projections.clone(),
+                    outbox: batch.outbox.clone(),
+                })));
+            }
             return Err(invariant("batch member is not a standalone mutation"));
         }
         if let Some(record) = db.records.get(&key) {
@@ -194,12 +213,23 @@ impl LedgerBatchRecovery for Connection {
             }
             return Ok(LedgerBatchLookup::Committed(Box::new(batch)));
         }
-        if db.records.contains_key(&key)
-            || db
-                .visible
-                .finalized
-                .iter()
-                .any(|(scope, id, ..)| scope == tenant && id == intent)
+        if let Some(record) = db.records.get(&key) {
+            if self.0.mode == Mode::FabricateSingleton {
+                return Ok(LedgerBatchLookup::Committed(Box::new(LedgerBatch {
+                    intents: vec![record.intent.clone()],
+                    commit: record.commit.clone(),
+                    events: record.events.clone(),
+                    projections: record.projections.clone(),
+                    outbox: record.outbox.clone(),
+                })));
+            }
+            return Err(invariant("standalone mutation is not a batch"));
+        }
+        if db
+            .visible
+            .finalized
+            .iter()
+            .any(|(scope, id, ..)| scope == tenant && id == intent)
         {
             return Err(invariant("finalized member lacks original batch"));
         }
@@ -257,7 +287,11 @@ impl LedgerTransaction for Transaction {
 
         let mut db = self.connection.0.db.lock().unwrap();
         if self.connection.0.mode != Mode::DuplicateReservation {
-            if let Some(batch) = db.batches.get(&key) {
+            if let Some(batch) = db
+                .batches
+                .get(&key)
+                .filter(|_| self.connection.0.mode != Mode::IgnoreBatchIdentity)
+            {
                 let original = batch
                     .intents
                     .iter()
@@ -788,8 +822,11 @@ async fn token_fencing_and_unsupported_multi_tenant_scope_are_enforced() {
 }
 
 fn batch_fixture(suffix: usize) -> LedgerBatch {
-    let left = fixture("acme.game.alpha", suffix * 2);
-    let right = fixture("acme.game.alpha", suffix * 2 + 1);
+    batch_fixture_at("acme.game.alpha", suffix)
+}
+fn batch_fixture_at(tenant: &str, suffix: usize) -> LedgerBatch {
+    let left = fixture(tenant, suffix * 2);
+    let right = fixture(tenant, suffix * 2 + 1);
     let events: Vec<_> = left.events.iter().chain(&right.events).cloned().collect();
     let mut group = CommitBatch::new(left.commit.body.scope.clone());
     for event in &events {
@@ -932,4 +969,71 @@ async fn independently_broken_batch_adapters_fail_the_intended_oracles() {
     .await
     .unwrap_err();
     assert_eq!(error.check, "batch.ack.original");
+}
+
+#[tokio::test]
+async fn batch_tenants_and_single_namespace_remain_distinct_authorities() {
+    use statechronicle_conformance::batch;
+    let backend = Backend::new(Mode::Correct);
+    let group = batch_fixture(0);
+    batch::check_tenant_isolation(&backend, &group, &batch_fixture_at("acme.game.beta", 0))
+        .await
+        .unwrap();
+    batch::check_single_namespace(&backend, &fixture("acme.game.alpha", 0), &group)
+        .await
+        .unwrap();
+    let principals: Vec<_> = group
+        .intents
+        .iter()
+        .map(
+            |intent| statechronicle::ports::authorization::AuthenticatedPrincipal {
+                tenant: intent.tenant_id.clone(),
+                subject: intent.actor.clone(),
+                credential_id: "test-session".into(),
+            },
+        )
+        .collect();
+    for clients in [2, 8, 32] {
+        tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            batch::check_idempotency_contention(
+                &backend,
+                &group,
+                &principals,
+                Arc::new(FixturePolicy),
+                Arc::new(FixtureVerifier),
+                clients,
+            ),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    }
+}
+#[tokio::test]
+async fn namespace_negative_controls_fail_before_any_false_receipt() {
+    use statechronicle_conformance::batch;
+    let group = batch_fixture(0);
+    let error = batch::check_tenant_isolation(
+        &Backend::new(Mode::GlobalIdentity),
+        &group,
+        &batch_fixture_at("acme.game.beta", 0),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.check, "batch.tenant.lookup");
+    for (mode, check) in [
+        (Mode::FabricateSingleton, "batch.namespace.singleton"),
+        (Mode::FilterBatchAsSingle, "batch.namespace.subset"),
+        (Mode::IgnoreBatchIdentity, "batch.namespace.claim"),
+    ] {
+        let error = batch::check_single_namespace(
+            &Backend::new(mode),
+            &fixture("acme.game.alpha", 0),
+            &group,
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(error.check, check, "{mode:?}: {error}");
+    }
 }

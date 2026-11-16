@@ -97,8 +97,10 @@ power-loss qualification. The reusable `ci/conformance::batch` module now
 checks staged visibility, rollback/cancellation, replay, lost ACK and distinct
 group head contention against a separate reference adapter, with nine broken
 batch controls. Its raw inspection includes original group membership, not just
-lookup results. Batch-specific tenant isolation, cross-lane collisions, lease
-expiry/races and non-genesis retention/rebuild still need generic qualification.
+lookup results. Generic checks additionally cover tenant isolation with coincident
+IDs, cross-lane identity collisions and refusal of fabricated singleton/subset
+receipts, plus 2/8/32-client exact-group contention. Lease expiry/races and
+non-genesis retention/rebuild still need generic qualification.
 This path does not support multi-tenant group commits or
 sequential preparation overlays. Specialized companion/economic event binding
 and cross-tenant settlement require separate authority review and tests; do

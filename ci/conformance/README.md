@@ -91,6 +91,9 @@ the root mutation-test adapter.
 | `check_cancellation` | Drop each completed prefix; no effects or committed group receipt; unfinished leases may remain |
 | `check_replay` | Each member replays the original commit; changed payload conflicts; original complete group remains unchanged |
 | `check_head_contention` | 2, 8, then 32 distinct complete groups against one genesis head; exactly one whole winner |
+| `check_idempotency_contention` | 2, 8, then 32 exact concurrent groups; one writer and only complete replay or pending results |
+| `check_tenant_isolation` | Distinct tenant genesis groups with coincident member/event/resource/commit IDs; no lookup leak or identity conflict |
+| `check_single_namespace` | A standalone mutation whose full intent exactly matches one batch member; shared claim status in both directions and no cross-kind receipt fabrication |
 | `check_lost_ack` | Independent principals/policy/verifier; post-commit response loss, unknown complete identity, fresh-handle recovery and exact replay |
 
 The reference integration includes nine deliberately broken batch behaviors:
@@ -99,9 +102,14 @@ forgotten membership, forgotten finalization, filtered single-leg lookup,
 duplicate accepted identity, ignored head CAS, and discarded commits. Each must
 fail its named oracle. All older single-mutation controls still run.
 
-The batch extension remains bounded logical qualification. Same-group contention
-is currently tested in the root protected API suite, not this generic module.
-Batch-specific tenant isolation, cross-lane single/batch identity collisions,
-lease expiry/takeover races, later-head retention/rebuild and physical database
-crash/power-loss qualification still require additional adapter tests. Do not
+Namespace checks add four deliberate fault cases: global tenant keys, fabricated
+singleton groups, group members returned as standalone mutations, and ignored
+committed batch identities. Wrong-kind lookup must return an invariant error;
+returning absence or a plausible record is not sufficient. The exact-group race
+uses independently supplied principals and `Arc`-owned authorizer/verifier
+policies so each task can call the actual verified coordinator.
+
+The batch extension remains bounded logical qualification. Lease expiry/takeover
+races, later-head retention/rebuild and physical database crash/power-loss
+qualification still require additional adapter tests. Do not
 claim those properties merely because these functions pass.

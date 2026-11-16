@@ -641,3 +641,22 @@ same-group contention and a later head; that is not a substitute for generic or
 real-backend qualification. Independent expected trade/history claims and the
 remaining F2–F8 work are still release-blocking. See the
 [conformance consumer guide](../../ci/conformance/README.md).
+
+
+## Batch namespace and exact-group conformance extension
+
+The generic batch module now tests coincident identities in distinct tenants,
+both directions of shared single/batch idempotency, and invariant refusal for
+cross-kind lookup. Independent raw observations must still contain exactly the
+original effects and retained membership. Four new fault cases expose global
+tenant keys, fabricated singleton batches, batch members returned as standalone
+mutations, and missing committed batch identity checks. Each fails its intended
+oracle. The generic exact-group race now runs with 2, 8 and 32 clients through
+the verified coordinator, independently supplied principal/policy/verifier
+inputs, complete pending/replay identity checks and raw final inspection.
+
+This supersedes the preceding checkpoint's open tenant/namespace/same-group
+items for bounded logical conformance. It changes no production crate or lock.
+Lease expiry/takeover, non-genesis retention/rebuild, physical database crash
+qualification, expected trade/history claims and remaining F2–F8 gates are
+still open; no final release qualification is claimed.

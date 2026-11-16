@@ -83,8 +83,10 @@ The optional `ci/conformance::batch` module checks complete atomic visibility,
 rollback/cancellation, replay, lost-ACK recovery and distinct-group head CAS
 through independent raw effects and retained membership observations. Its
 separate reference adapter includes nine broken batch controls. The existing
-single-mutation suite still runs. Batch-specific tenant isolation, cross-lane
-collisions, same-group generic contention, lease expiry/takeover and non-genesis
-retention/rebuild remain to be added; backend-specific crash and physical
-persistence qualification are still required. See the consumer instructions for
+single-mutation suite still runs. Additional generic checks cover tenant-isolated
+coincident IDs, both directions of the shared single/batch namespace, rejection
+of cross-kind fabricated receipts, and 2/8/32-client same-group contention.
+Four namespace fault variants fail their intended oracles. Lease expiry/takeover
+and non-genesis retention/rebuild remain to be added; backend-specific crash and
+physical persistence qualification are still required. See the consumer instructions for
 exact capability and fixture requirements.
