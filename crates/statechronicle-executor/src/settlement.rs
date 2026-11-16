@@ -40,6 +40,10 @@ impl Executor {
         self.execute_settle_inner(intents, None).await
     }
 
+    #[allow(
+        clippy::collapsible_if,
+        reason = "Rust 1.85 does not support let chains"
+    )]
     async fn execute_settle_inner(
         &self,
         intents: &[ValidatedIntent],
@@ -81,15 +85,15 @@ impl Executor {
         };
         match result {
             Ok(events) => {
-                if let Some(sink) = sink.filter(|_| !events.is_empty())
-                    && let Err(error) = sink.persist_batch(intents, &events).await
-                {
-                    if let Some(handle) = handle
-                        && let Err(rollback_error) = handle.rollback().await
-                    {
-                        tracing::warn!(%rollback_error, "durable settle rollback failed");
+                if let Some(sink) = sink.filter(|_| !events.is_empty()) {
+                    if let Err(error) = sink.persist_batch(intents, &events).await {
+                        if let Some(handle) = handle {
+                            if let Err(rollback_error) = handle.rollback().await {
+                                tracing::warn!(%rollback_error, "durable settle rollback failed");
+                            }
+                        }
+                        return Err(ExecutorError::Store(error));
                     }
-                    return Err(ExecutorError::Store(error));
                 }
                 if let Some(handle) = handle {
                     handle
@@ -101,10 +105,10 @@ impl Executor {
             }
             Err(error) => {
                 let message = error.to_string();
-                if let Some(handle) = handle
-                    && let Err(rollback_error) = handle.rollback().await
-                {
-                    tracing::warn!(rollback = %rollback_error, "settle rollback failed");
+                if let Some(handle) = handle {
+                    if let Err(rollback_error) = handle.rollback().await {
+                        tracing::warn!(rollback = %rollback_error, "settle rollback failed");
+                    }
                 }
                 Err(ExecutorError::AtomicityViolation(message))
             }
@@ -162,6 +166,10 @@ impl Executor {
         self.execute_cross_tenant_inner(intents, None).await
     }
 
+    #[allow(
+        clippy::collapsible_if,
+        reason = "Rust 1.85 does not support let chains"
+    )]
     async fn execute_cross_tenant_inner(
         &self,
         intents: &[ValidatedIntent],
@@ -215,15 +223,15 @@ impl Executor {
                     .iter()
                     .flat_map(|group| group.events.iter().cloned())
                     .collect();
-                if let Some(sink) = sink.filter(|_| !events.is_empty())
-                    && let Err(error) = sink.persist_batch(intents, &events).await
-                {
-                    if let Some(handle) = handle
-                        && let Err(rollback_error) = handle.rollback().await
-                    {
-                        tracing::warn!(%rollback_error, "durable cross-tenant rollback failed");
+                if let Some(sink) = sink.filter(|_| !events.is_empty()) {
+                    if let Err(error) = sink.persist_batch(intents, &events).await {
+                        if let Some(handle) = handle {
+                            if let Err(rollback_error) = handle.rollback().await {
+                                tracing::warn!(%rollback_error, "durable cross-tenant rollback failed");
+                            }
+                        }
+                        return Err(ExecutorError::Store(error));
                     }
-                    return Err(ExecutorError::Store(error));
                 }
                 if let Some(handle) = handle {
                     handle
@@ -235,10 +243,10 @@ impl Executor {
             }
             Err(error) => {
                 let message = error.to_string();
-                if let Some(handle) = handle
-                    && let Err(rollback_error) = handle.rollback().await
-                {
-                    tracing::warn!(rollback = %rollback_error, "cross-tenant rollback failed");
+                if let Some(handle) = handle {
+                    if let Err(rollback_error) = handle.rollback().await {
+                        tracing::warn!(rollback = %rollback_error, "cross-tenant rollback failed");
+                    }
                 }
                 Err(ExecutorError::AtomicityViolation(message))
             }
@@ -300,6 +308,10 @@ impl Executor {
             .await
     }
 
+    #[allow(
+        clippy::collapsible_if,
+        reason = "Rust 1.85 does not support let chains"
+    )]
     async fn execute_cross_tenant_trade_inner(
         &self,
         intents: &[ValidatedIntent],
@@ -358,15 +370,15 @@ impl Executor {
                     .iter()
                     .flat_map(|group| group.events.iter().cloned())
                     .collect();
-                if let Some(sink) = sink.filter(|_| !events.is_empty())
-                    && let Err(error) = sink.persist_batch(intents, &events).await
-                {
-                    if let Some(handle) = handle
-                        && let Err(rollback_error) = handle.rollback().await
-                    {
-                        tracing::warn!(%rollback_error, "durable cross-tenant rollback failed");
+                if let Some(sink) = sink.filter(|_| !events.is_empty()) {
+                    if let Err(error) = sink.persist_batch(intents, &events).await {
+                        if let Some(handle) = handle {
+                            if let Err(rollback_error) = handle.rollback().await {
+                                tracing::warn!(%rollback_error, "durable cross-tenant rollback failed");
+                            }
+                        }
+                        return Err(ExecutorError::Store(error));
                     }
-                    return Err(ExecutorError::Store(error));
                 }
                 if let Some(handle) = handle {
                     handle
@@ -378,13 +390,13 @@ impl Executor {
             }
             Err(error) => {
                 let message = error.to_string();
-                if let Some(handle) = handle
-                    && let Err(rollback_error) = handle.rollback().await
-                {
-                    tracing::warn!(
-                        rollback = %rollback_error,
-                        "cross-tenant trade rollback failed"
-                    );
+                if let Some(handle) = handle {
+                    if let Err(rollback_error) = handle.rollback().await {
+                        tracing::warn!(
+                            rollback = %rollback_error,
+                            "cross-tenant trade rollback failed"
+                        );
+                    }
                 }
                 Err(ExecutorError::AtomicityViolation(message))
             }

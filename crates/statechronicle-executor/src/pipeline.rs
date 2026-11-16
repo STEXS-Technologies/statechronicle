@@ -1155,6 +1155,10 @@ impl Executor {
         self.execute_batch_inner(intents, None).await
     }
 
+    #[allow(
+        clippy::collapsible_if,
+        reason = "Rust 1.85 does not support let chains"
+    )]
     async fn execute_batch_inner(
         &self,
         intents: &[ValidatedIntent],
@@ -1192,15 +1196,15 @@ impl Executor {
         };
         match result {
             Ok(events) => {
-                if let Some(sink) = sink.filter(|_| !events.is_empty())
-                    && let Err(error) = sink.persist_batch(intents, &events).await
-                {
-                    if let Some(handle) = handle
-                        && let Err(rollback_error) = handle.rollback().await
-                    {
-                        tracing::warn!(%rollback_error, "durable batch rollback failed");
+                if let Some(sink) = sink.filter(|_| !events.is_empty()) {
+                    if let Err(error) = sink.persist_batch(intents, &events).await {
+                        if let Some(handle) = handle {
+                            if let Err(rollback_error) = handle.rollback().await {
+                                tracing::warn!(%rollback_error, "durable batch rollback failed");
+                            }
+                        }
+                        return Err(ExecutorError::Store(error));
                     }
-                    return Err(ExecutorError::Store(error));
                 }
                 if let Some(handle) = handle {
                     handle
@@ -1212,10 +1216,10 @@ impl Executor {
             }
             Err(error) => {
                 let message = error.to_string();
-                if let Some(handle) = handle
-                    && let Err(rollback_error) = handle.rollback().await
-                {
-                    tracing::warn!(rollback = %rollback_error, "batch rollback failed");
+                if let Some(handle) = handle {
+                    if let Err(rollback_error) = handle.rollback().await {
+                        tracing::warn!(rollback = %rollback_error, "batch rollback failed");
+                    }
                 }
                 Err(ExecutorError::AtomicityViolation(message))
             }

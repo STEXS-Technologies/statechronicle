@@ -294,3 +294,23 @@ syntax lines, +2,537 lexical tokens, +50 branch nodes and +38 public syntax item
 relative to preparation checkpoint `0fb6179`. The delta owns typed uncertainty,
 authoritative retained-record validation and private receipt construction; it
 is a justified safety addition, not a net source-reduction or performance claim.
+
+## Hosted declared-MSRV repair
+
+The original hosted let-chain syntax was not confined to rate limiting: removing
+that first compiler failure exposed the same unsupported syntax in executor
+batch/settlement handling and rebuild continuity checks. Four files now use
+Rust 1.85-compatible conditions with the same left-to-right checks, sink and
+rollback calls, early returns and refusal behavior. No MSRV, lockfile or frozen
+reference change is needed. Scoped Clippy allowances explain why the nested
+conditions must not be collapsed back into unsupported let chains.
+
+`evidence/msrv/hosted-let-chains/` retains the original failure, intermediate
+partial repairs and final source hashes. Rust 1.85 now checks all workspace
+targets/features, passes all 822 tests in 63 binaries and all four doctests across
+13 crates, including the new protected plan/receipt/claim constructor checks.
+Strict Rust 1.100 workspace Clippy and formatting also pass. This resolves the
+previously recorded hosted syntax incompatibility at this checkpoint; final
+release qualification must still run on the exact final candidate. External
+original/candidate durability evidence above remains pinned to `ea988b6`, before
+this separate compiler-compatibility repair.
