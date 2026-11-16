@@ -523,9 +523,20 @@ where
             && left
                 .intents
                 .iter()
-                .map(|intent| &intent.intent_id)
-                .eq(right.intents.iter().map(|intent| &intent.intent_id)),
-        "distinct tenants with coincident commit/member IDs required",
+                .map(|intent| (&intent.intent_id, &intent.resource_id))
+                .eq(right
+                    .intents
+                    .iter()
+                    .map(|intent| (&intent.intent_id, &intent.resource_id)))
+            && left
+                .events
+                .iter()
+                .map(|event| (&event.event_id, &event.resource_id))
+                .eq(right
+                    .events
+                    .iter()
+                    .map(|event| (&event.event_id, &event.resource_id))),
+        "distinct tenants with coincident commit/member/event/resource IDs required",
     )?;
     let writer = fresh(backend).await?;
     write(&writer, left).await?;
