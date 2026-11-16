@@ -1,0 +1,179 @@
+{
+  "status": "passed",
+  "benchmark_manifest_sha256": "e18eb74a631741c0a9cf3bc89a0b70f6408658dd41fec914281cb511b14fff0d",
+  "valgrind": "valgrind-3.27.1",
+  "checks": [
+    {
+      "lane": "control",
+      "workload": "authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/allocation-a",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "seconds": 5.630661325005349,
+      "exit_code": 0,
+      "artifact": "control-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "91d28977325b5e64376cb8bd45d4b9224b614302275a1cc2bd2c3ebb73955eef",
+      "binary_sha256": "c25966992c96de6ab918891aeb479b3f404f344b700b73ccfb9c704cdf5f45d1"
+    },
+    {
+      "lane": "control",
+      "workload": "authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/allocation-a",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "seconds": 4.472131079004612,
+      "exit_code": 0,
+      "artifact": "control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "0ab14c681eebb2ed22a233b6b9345846000e12af5294b8e05db4d6ba5eaafef5",
+      "binary_sha256": "c25966992c96de6ab918891aeb479b3f404f344b700b73ccfb9c704cdf5f45d1"
+    },
+    {
+      "lane": "control",
+      "workload": "two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/allocation-a",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "seconds": 4.3438026310032,
+      "exit_code": 0,
+      "artifact": "control-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "87a4b1f0fd958fd55b5787fba7428f906cff5ff75359579dee7a0c8a3d557028",
+      "binary_sha256": "c25966992c96de6ab918891aeb479b3f404f344b700b73ccfb9c704cdf5f45d1"
+    },
+    {
+      "lane": "candidate",
+      "workload": "authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/allocation-b",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "seconds": 4.397359174996382,
+      "exit_code": 0,
+      "artifact": "candidate-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "73473003901b8860c1c7ae2118b7307f1e733ea8274761871022fb8034eb7688",
+      "binary_sha256": "9e8225b3cd2433a45a0a0004b3b9723aa97a46945381b6031606a4a1b42a6f68"
+    },
+    {
+      "lane": "candidate",
+      "workload": "authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/allocation-b",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "seconds": 4.390218927001115,
+      "exit_code": 0,
+      "artifact": "candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "b16a6df1a13c2963db926e0f4c8cba5b12fa0095ddf3b35672784f81e454ea2a",
+      "binary_sha256": "9e8225b3cd2433a45a0a0004b3b9723aa97a46945381b6031606a4a1b42a6f68"
+    },
+    {
+      "lane": "candidate",
+      "workload": "two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/allocation-b",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "seconds": 4.389296492008725,
+      "exit_code": 0,
+      "artifact": "candidate-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "52e1acd2553dab1f87ac97ff739b6d50c8d19765bfee351af63ba867337366b1",
+      "binary_sha256": "9e8225b3cd2433a45a0a0004b3b9723aa97a46945381b6031606a4a1b42a6f68"
+    }
+  ],
+  "totals": {
+    "control": {
+      "authenticated_prepare_including_adapter_setup": {
+        "allocations": 101835,
+        "frees": 101717,
+        "bytes": 8401657
+      },
+      "authenticated_two_intent_batch_to_refusing_sink_including_setup": {
+        "allocations": 130381,
+        "frees": 130263,
+        "bytes": 10449594
+      },
+      "two_intent_planning_including_adapter_setup": {
+        "allocations": 122625,
+        "frees": 122507,
+        "bytes": 9638986
+      }
+    },
+    "candidate": {
+      "authenticated_prepare_including_adapter_setup": {
+        "allocations": 101835,
+        "frees": 101717,
+        "bytes": 8401657
+      },
+      "authenticated_two_intent_batch_to_refusing_sink_including_setup": {
+        "allocations": 130381,
+        "frees": 130263,
+        "bytes": 10449594
+      },
+      "two_intent_planning_including_adapter_setup": {
+        "allocations": 122625,
+        "frees": 122507,
+        "bytes": 9638986
+      }
+    }
+  },
+  "limitations": [
+    "Full-process totals include startup, fixed benchmark setup, ten warmups and 31 samples of five operations.",
+    "Not a per-operation allocation claim; no subtraction or normalization.",
+    "Both executable paths have equal length; input selector and copied binary hashes are fixed.",
+    "These three fixed sentinel-adapter workflows do not establish allocation equivalence for other inputs or public APIs."
+  ],
+  "equal_full_process_totals": true,
+  "artifacts_sha256": {
+    "candidate-authenticated_prepare_including_adapter_setup.log.gz": "73473003901b8860c1c7ae2118b7307f1e733ea8274761871022fb8034eb7688",
+    "candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "b16a6df1a13c2963db926e0f4c8cba5b12fa0095ddf3b35672784f81e454ea2a",
+    "candidate-two_intent_planning_including_adapter_setup.log.gz": "52e1acd2553dab1f87ac97ff739b6d50c8d19765bfee351af63ba867337366b1",
+    "control-authenticated_prepare_including_adapter_setup.log.gz": "91d28977325b5e64376cb8bd45d4b9224b614302275a1cc2bd2c3ebb73955eef",
+    "control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "0ab14c681eebb2ed22a233b6b9345846000e12af5294b8e05db4d6ba5eaafef5",
+    "control-two_intent_planning_including_adapter_setup.log.gz": "87a4b1f0fd958fd55b5787fba7428f906cff5ff75359579dee7a0c8a3d557028",
+    "runner.py": "dea7a6f4e56b24b2d2b7f667bb114f792aeb16ecced57612aa4b1b468dfa6eb0"
+  }
+}

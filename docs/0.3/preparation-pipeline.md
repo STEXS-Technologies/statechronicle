@@ -1,8 +1,8 @@
 # Preparation ownership and ordered gates
 
-The public `prepare_player` and compatibility planning lanes share
-`Executor::execute_inner`; they deliberately differ in ingress policy and
-legacy marker handling. Preparation is not a committed result. This table
+Executor and the read-only Preparer share `Evaluation::execute_inner`.
+Protected preparation and compatibility planning deliberately differ in ingress
+policy and legacy marker handling. Preparation is not a committed result. This table
 records current order, not a claim that F2 is complete.
 
 | Stage | Authoritative owner and order |
@@ -15,7 +15,7 @@ records current order, not a claim that F2 is complete.
 | Conflicts | Expected version, then profile access checks. |
 | Custom identity | Registered operation and existing domain/schema pinning. |
 | Authority | Required binding; evaluate configured authorities; aggregate policy; preserve unavailable > stale > denied precedence; check aggregate freshness. |
-| Reduction | Profile check, apply, output state type and custom domain/schema. Repeated custom decoding is still a later F3 item. |
+| Reduction | Shared profile evaluation, output state type and custom domain/schema. Native typed profiles decode once; default rules preserve check then apply. |
 | Primary commitments | Private `PreparedEventStates`: checked version increment, existing or profile-defined unborn state, existing before hash or canonical unborn hash, canonical after hash. |
 | Primary emission | Shared `emit_event` consumes checked commitments; event ID precedes injected timestamp. |
 | Companion | Profile target, destination lookup, required source, profile companion reduction, the same checked commitment stage and emitter. |
@@ -98,3 +98,21 @@ negative controls and limitations](evidence/f2/executor-order/README.md).
 
 These are sentinel compatibility hosts and sinks. They do not qualify protected
 canonical settlement, real transaction rollback or physical crash recovery.
+
+
+## Checked profile context
+
+The private `PreparedProfile` now owns the resolved profile/policy, state type
+and observed projection with a borrowed immutable intent. Its only constructor
+performs scope/state/version/access/custom-schema checks in their original order.
+Authority, reduction and event construction use that context; event construction
+consumes it. Existing `PreparedEventStates` remains the commitment owner. The
+outer evaluation retains compatibility marker reads/claims, allocating the final
+event vector only after any claim. No marker capability enters the profile stage.
+
+This is a checked profile record, not an authentication seal or receipt. Signature
+and principal policy remain explicit ingress decisions; clocks and event IDs
+still come from the shared evaluation. The [retained `4c55fe6` evidence](
+evidence/f2/prepared-profile-a52d53f/README.md) records original/control/candidate
+parity, full finite tests, external consumers, source growth and bounded matched
+performance/allocation observations. Broader F2 and release gates remain open.

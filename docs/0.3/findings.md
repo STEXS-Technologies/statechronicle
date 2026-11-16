@@ -853,3 +853,21 @@ retained. This development-only addition qualifies bounded legacy semantics;
 canonical protected settlement, real durable adapters, arbitrary faults and
 concurrency remain separate work. No production code/API/dependency changes or
 performance claim are included. Full F2/F8 remain open.
+
+
+## Checked profile facts across preparation stages
+
+Retained `4c55fe6` makes `PreparedProfile` the private owner of the immutable intent
+reference, resolved rules/policy and checked observed state. Authority, reduction
+and emission reuse it; the common evaluation retains ingress and legacy markers.
+The original result-vector allocation order after the marker claim is preserved.
+No new public API, dependency or durable authority is introduced.
+
+Actual original, prior control and candidate match all 23,544 executor traces.
+884 finite tests, 16 doctests, strict Clippy/rustdoc, frozen external consumers
+and bare-metal checks pass. Three matched bounded workflows have unchanged total
+heap usage; timing medians move slightly positive amid wide shared-host noise.
+The explicit boundary adds 374 tokens and one parsed branch, with no F6 shrink
+credit. [Prototype and retained evidence](evidence/f2/prepared-profile-a52d53f/README.md)
+include the allocation-order correction, exact source metrics, all timing samples
+and limitations. Remaining mutation/settlement review and release gates stay open.

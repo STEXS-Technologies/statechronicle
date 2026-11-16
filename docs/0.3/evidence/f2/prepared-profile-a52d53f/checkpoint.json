@@ -1,0 +1,23 @@
+{
+  "control_commit": "04dd9461e2c87e2a98fb34ce5210f83e7679aeb2",
+  "prototype_commit": "a52d53fcc5c8710f3ddc21cecce77f11bd308dff",
+  "retained_commit": "4c55fe681d75d2d5f0868f27cd0d2663d964eba3",
+  "verified_manifests": 10,
+  "production_changed_paths": [
+    "crates/statechronicle-executor/src/evaluation.rs",
+    "crates/statechronicle-executor/src/prepared_profile.rs"
+  ],
+  "production_metric_deltas": {
+    "tracked_bytes": 2374,
+    "syntax_lines": 65,
+    "lexical_tokens": 374,
+    "branch_nodes": 1,
+    "public_syntax_items": 3
+  },
+  "metric_commands": [
+    "uv run --offline --python 3.13 --with tree-sitter==0.25.2 --with tree-sitter-rust==0.24.2 python scripts/refactor_metrics.py --revision 04dd946 --output target/prepared-profile-before-metrics.json",
+    "uv run --offline --python 3.13 --with tree-sitter==0.25.2 --with tree-sitter-rust==0.24.2 python scripts/refactor_metrics.py --revision a52d53f --output target/prepared-profile-after-metrics.json",
+    "uv run --offline --python 3.13 --with tree-sitter==0.25.2 --with tree-sitter-rust==0.24.2 python scripts/refactor_metrics.py --revision 4c55fe6 --output target/prepared-profile-retained-metrics.json"
+  ],
+  "complete_roadmap_phase_claim": false
+}

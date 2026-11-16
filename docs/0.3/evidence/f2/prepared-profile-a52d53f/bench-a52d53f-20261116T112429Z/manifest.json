@@ -1,0 +1,788 @@
+{
+  "control_commit": "04dd9461e2c87e2a98fb34ce5210f83e7679aeb2",
+  "candidate_commit": "a52d53fcc5c8710f3ddc21cecce77f11bd308dff",
+  "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+  "cpu": 0,
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/proof-delegation-bench/build"
+  },
+  "status": "passed",
+  "checks": [
+    {
+      "label": "control-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 0.11513659699994605,
+      "artifact": "control-resolve.log.gz",
+      "sha256": "5b08775b9fed82000b8c1f9433b5b2cacbc84954f649f4d0c94459c4e0bcf251"
+    },
+    {
+      "label": "control-build",
+      "command": [
+        "cargo",
+        "build",
+        "--example",
+        "refactor_bench",
+        "--release",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 4.474398013000609,
+      "artifact": "control-build.log.gz",
+      "sha256": "4679e7822ee8b62fc2f97fafa30d0ce29c8753b0d46f203514320c8b04f753cd"
+    },
+    {
+      "label": "candidate-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 0.10639315599109977,
+      "artifact": "candidate-resolve.log.gz",
+      "sha256": "c257c838d851b1c498f8607fb568581109e9575d98b0aaa3d5414c6c235c07bf"
+    },
+    {
+      "label": "candidate-build",
+      "command": [
+        "cargo",
+        "build",
+        "--example",
+        "refactor_bench",
+        "--release",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 4.214010422001593,
+      "artifact": "candidate-build.log.gz",
+      "sha256": "cc22261582c77d6b4528ceb6dba2630072aac9ec98c00146931a65effbb5cd26"
+    },
+    {
+      "label": "pair-0-control-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.04485696001211181,
+      "artifact": "pair-0-control-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "e447b98af34a8cb54327b2fd3153dcac4cf7fc2abd19f6fdeecb852df693960e"
+    },
+    {
+      "label": "pair-0-control-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05275408200395759,
+      "artifact": "pair-0-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "65c3f1a1c6392c87b210f9302894c0d879e6069c98d778f2ee2ee81a8e9eb19c"
+    },
+    {
+      "label": "pair-0-control-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.0517603509943001,
+      "artifact": "pair-0-control-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "dd2d80f384253ca7d7b8ee245ec3d8ffffc950c59697685e522977f9161ba6d7"
+    },
+    {
+      "label": "pair-0-candidate-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.0446099920081906,
+      "artifact": "pair-0-candidate-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "c63b360f526b91356014f274312ef1a5d334e5197f2bb329ad805f15ec5d9a63"
+    },
+    {
+      "label": "pair-0-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.050934713988681324,
+      "artifact": "pair-0-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "e422c33a2f80c664bc842205f7f3d91c672414c39eda67ccf126d1bc2ce953bd"
+    },
+    {
+      "label": "pair-0-candidate-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05070068199711386,
+      "artifact": "pair-0-candidate-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "17a66765f48758a3d8d6ac335ddb400a350c1b1b17271bc6349f22dbb0079e46"
+    },
+    {
+      "label": "pair-1-candidate-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.044235057997866534,
+      "artifact": "pair-1-candidate-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "d5d0e937210e40c3a3e0896f3a96ec37d3c797375b32988a57585971402ca484"
+    },
+    {
+      "label": "pair-1-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05354448100843001,
+      "artifact": "pair-1-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "cc5ecd699b3160e81229e6e37912942ddb39fe9e67923c67594b0ca9819ca51e"
+    },
+    {
+      "label": "pair-1-candidate-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05767544099944644,
+      "artifact": "pair-1-candidate-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "a028f4339dd6bbc1c5864efc97baf6684db355edafe4ed95f8148c95433010fc"
+    },
+    {
+      "label": "pair-1-control-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05204798799240962,
+      "artifact": "pair-1-control-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "f2a264b242d70c3e298d32a1ef07b565b1bf7d987e6367b2f5d0f1dcc81c6162"
+    },
+    {
+      "label": "pair-1-control-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05740615999093279,
+      "artifact": "pair-1-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "fe98f504755ba2acf2f70ab997919f63ec1f14a2e36e62883912f1d8bfe050db"
+    },
+    {
+      "label": "pair-1-control-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.055043880987796,
+      "artifact": "pair-1-control-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "ad12c8ba7fb1aa6f3fe938826e66100f4c53edafa1d5b09e2cb39deae3c28be2"
+    },
+    {
+      "label": "pair-2-control-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.04763997200643644,
+      "artifact": "pair-2-control-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "181e7e1b4f1594fdb5023d433169ecc534d696f303d161825b34dd55904dc837"
+    },
+    {
+      "label": "pair-2-control-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05681608899612911,
+      "artifact": "pair-2-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "6df291a1df38bf4e161e317c4fc05c38d1528942a7d0d70c395960b30affe44c"
+    },
+    {
+      "label": "pair-2-control-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.053016659992863424,
+      "artifact": "pair-2-control-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "73b8e45e6fc74768c40483181d31b63f0f8dac6026f7a82b34d6a2e856d73581"
+    },
+    {
+      "label": "pair-2-candidate-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.047962105003534816,
+      "artifact": "pair-2-candidate-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "db9a11ff15e5c8472a83828b9ac3a35ee72569a53184eb22388de4010066feb0"
+    },
+    {
+      "label": "pair-2-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05753043000004254,
+      "artifact": "pair-2-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "a7d384b52617f2c8af604060c63dbbe688a257501e1dc1d234c6bcfafe405228"
+    },
+    {
+      "label": "pair-2-candidate-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05641895999724511,
+      "artifact": "pair-2-candidate-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "06a1bf9702af3d7c5466ca183baac7a0572c5c1b99b67d1fee4c21fff5b9fdf3"
+    },
+    {
+      "label": "pair-3-candidate-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.04839319900202099,
+      "artifact": "pair-3-candidate-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "65adbd5b6d369a25e0affced4dd2b4f41fdcf4c5a50a8cfbfa1defa93f19260b"
+    },
+    {
+      "label": "pair-3-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.053287414004444145,
+      "artifact": "pair-3-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "be6148ea816fe2cacab6cc9417253fe44ccaeff2dfcb043afe9c6131b034d8f8"
+    },
+    {
+      "label": "pair-3-candidate-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05567531200358644,
+      "artifact": "pair-3-candidate-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "59c3dc0dc40548c26fbbcfe56bb2906ff3f60e645427f69516f1d3b02d3d3d1e"
+    },
+    {
+      "label": "pair-3-control-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.04985218099318445,
+      "artifact": "pair-3-control-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "7b7faf83916d35b97e7974bf67b76590f5bbf7c962811a492c9b70101c3ea5d8"
+    },
+    {
+      "label": "pair-3-control-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05389367599855177,
+      "artifact": "pair-3-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "1a2df26cfbfbb91ed0c2a313401dfdd1e6520f45d6963da8a014f3b5ff28214d"
+    },
+    {
+      "label": "pair-3-control-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.062277741002617404,
+      "artifact": "pair-3-control-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "c03f82271495668a88cea1796ceffc81286d885bb164e5e1a76f65cf7e51f218"
+    },
+    {
+      "label": "pair-4-control-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.048909486999036744,
+      "artifact": "pair-4-control-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "0d9fafacad3c402c4273d092ef9b0d0a37934a7e18f7da34fa1b783f06ab314e"
+    },
+    {
+      "label": "pair-4-control-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.06344805400294717,
+      "artifact": "pair-4-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "b6eb47fb324ef40dad429ff920fd0107f8e87faf631d01bfebfc6faa8b58f51a"
+    },
+    {
+      "label": "pair-4-control-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05180823399859946,
+      "artifact": "pair-4-control-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "14053f37bd434134d2ceb1c32494a663dd6a45c48f68dff9d42704c475b9d113"
+    },
+    {
+      "label": "pair-4-candidate-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.04733150599349756,
+      "artifact": "pair-4-candidate-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "f50c870d649eb13622519b3637c3280a1dcb1d87f50db099595563c535eccd2b"
+    },
+    {
+      "label": "pair-4-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.0588371769990772,
+      "artifact": "pair-4-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "c80a9cd745b038182f8c529179e2d5854071542f95225687cd14f0b3e1be5a32"
+    },
+    {
+      "label": "pair-4-candidate-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.0515398539864691,
+      "artifact": "pair-4-candidate-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "ce28dc1ac9f7a157d184b06637498824720de9cd0d4949f246c78bad910d7433"
+    },
+    {
+      "label": "pair-5-candidate-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.04612628500035498,
+      "artifact": "pair-5-candidate-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "fed58a5608e3a591b49705e78b61884cbfde714bdea870e3521b111b73348c51"
+    },
+    {
+      "label": "pair-5-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05802048799523618,
+      "artifact": "pair-5-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "d0a6a9c4103180e9f4b6cea09562dd25409acfe7df62a9d05bae24519d6556b6"
+    },
+    {
+      "label": "pair-5-candidate-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05376297399925534,
+      "artifact": "pair-5-candidate-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "d47c48d3118d5471c559d1553286801fe92612479ab0cb2cd542b568a4e78495"
+    },
+    {
+      "label": "pair-5-control-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.04493678399012424,
+      "artifact": "pair-5-control-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "3a7d1753379d4284c1f9dfd63fa76608cf21648868aeff71f7c33e021d71f673"
+    },
+    {
+      "label": "pair-5-control-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.056964685005368665,
+      "artifact": "pair-5-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "765ae478c15ab7f97ab8e24c36fdccf31cb46bb332db905b1fb543cc8b329a47"
+    },
+    {
+      "label": "pair-5-control-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05317881399241742,
+      "artifact": "pair-5-control-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "d85dbd26b893c516195842d38c5fbc7e9de4e5c1ff65501c4c712292f666e8a6"
+    },
+    {
+      "label": "pair-6-control-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.04632197300088592,
+      "artifact": "pair-6-control-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "3c9b643ea336c0b2b3dad041536e357006bc3687b415ee4fecef02a09c34fbbe"
+    },
+    {
+      "label": "pair-6-control-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05236745499132667,
+      "artifact": "pair-6-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "1187b90afc8e889185d8c671df784801ba765310a2bc21eacbc2d55552dcaeb7"
+    },
+    {
+      "label": "pair-6-control-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/control/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05682959499245044,
+      "artifact": "pair-6-control-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "bcb3f7f058638d941570f7c73a6ea8abb88546cb4309394403bec4680cd314e4"
+    },
+    {
+      "label": "pair-6-candidate-authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_prepare_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.04705124400788918,
+      "artifact": "pair-6-candidate-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "86c65498495d4b4416de5eeaa6adb82c33f554e20c9b481da99b90977d446839"
+    },
+    {
+      "label": "pair-6-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05747526300547179,
+      "artifact": "pair-6-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "453ae479fdf7712d888b2516fc22f78fda7b96282c58fac611dfd160f290ff27"
+    },
+    {
+      "label": "pair-6-candidate-two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/prepared-profile-bench/20261116T112429Z/candidate/executor-bench",
+        "two_intent_planning_including_adapter_setup"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.053437092996318825,
+      "artifact": "pair-6-candidate-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "c4934dde5e78bebcd3dc326a4abeef0028aababac279b8cc50f3884a9fd3225d"
+    }
+  ],
+  "lanes": {
+    "control": {
+      "revision": "04dd9461e2c87e2a98fb34ce5210f83e7679aeb2",
+      "archive_sha256": "1635c789c75ee09050f2884c5023fd08f98ebfdb8ed20fd44bc0fd7c23d99f90",
+      "lock_sha256": "149437be775111580570d4d9a3dba7c8b2df5b407d05f9c8a8c80609514c7c43",
+      "benchmark_sha256": "cf46d97b8defa2aa32401d380e6f59ba8403cb2f8511a6b6753fbea36d6a435c",
+      "binary_sha256": "c25966992c96de6ab918891aeb479b3f404f344b700b73ccfb9c704cdf5f45d1",
+      "binary_bytes": 4079888
+    },
+    "candidate": {
+      "revision": "a52d53fcc5c8710f3ddc21cecce77f11bd308dff",
+      "archive_sha256": "41b392afdc7b083b8009fade360aa24b630d197942b33ed8d1e2101c3ba1babb",
+      "lock_sha256": "149437be775111580570d4d9a3dba7c8b2df5b407d05f9c8a8c80609514c7c43",
+      "benchmark_sha256": "cf46d97b8defa2aa32401d380e6f59ba8403cb2f8511a6b6753fbea36d6a435c",
+      "binary_sha256": "9e8225b3cd2433a45a0a0004b3b9723aa97a46945381b6031606a4a1b42a6f68",
+      "binary_bytes": 4087840
+    }
+  },
+  "runs": [],
+  "limitations": [
+    "Shared host, seven alternating pairs; no discarded samples or universal performance threshold.",
+    "Tail values are percentiles of 31 batch averages, not individual-request latency.",
+    "Frozen benchmark byte-identical in both lanes; native custom profile preparation workloads.",
+    "Identical compiler, resolved consumer dependencies and workload in both lanes.",
+    "Fixed in-memory adapters, including setup; refusal sink never reports durable success. No physical durability or complete release performance claim."
+  ],
+  "artifacts_sha256": {
+    "candidate-benchmark.rs": "cf46d97b8defa2aa32401d380e6f59ba8403cb2f8511a6b6753fbea36d6a435c",
+    "candidate-build.log.gz": "cc22261582c77d6b4528ceb6dba2630072aac9ec98c00146931a65effbb5cd26",
+    "candidate-resolve.log.gz": "c257c838d851b1c498f8607fb568581109e9575d98b0aaa3d5414c6c235c07bf",
+    "candidate.lock": "149437be775111580570d4d9a3dba7c8b2df5b407d05f9c8a8c80609514c7c43",
+    "control-benchmark.rs": "cf46d97b8defa2aa32401d380e6f59ba8403cb2f8511a6b6753fbea36d6a435c",
+    "control-build.log.gz": "4679e7822ee8b62fc2f97fafa30d0ce29c8753b0d46f203514320c8b04f753cd",
+    "control-resolve.log.gz": "5b08775b9fed82000b8c1f9433b5b2cacbc84954f649f4d0c94459c4e0bcf251",
+    "control.lock": "149437be775111580570d4d9a3dba7c8b2df5b407d05f9c8a8c80609514c7c43",
+    "pair-0-candidate-authenticated_prepare_including_adapter_setup.log.gz": "c63b360f526b91356014f274312ef1a5d334e5197f2bb329ad805f15ec5d9a63",
+    "pair-0-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "e422c33a2f80c664bc842205f7f3d91c672414c39eda67ccf126d1bc2ce953bd",
+    "pair-0-candidate-two_intent_planning_including_adapter_setup.log.gz": "17a66765f48758a3d8d6ac335ddb400a350c1b1b17271bc6349f22dbb0079e46",
+    "pair-0-control-authenticated_prepare_including_adapter_setup.log.gz": "e447b98af34a8cb54327b2fd3153dcac4cf7fc2abd19f6fdeecb852df693960e",
+    "pair-0-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "65c3f1a1c6392c87b210f9302894c0d879e6069c98d778f2ee2ee81a8e9eb19c",
+    "pair-0-control-two_intent_planning_including_adapter_setup.log.gz": "dd2d80f384253ca7d7b8ee245ec3d8ffffc950c59697685e522977f9161ba6d7",
+    "pair-1-candidate-authenticated_prepare_including_adapter_setup.log.gz": "d5d0e937210e40c3a3e0896f3a96ec37d3c797375b32988a57585971402ca484",
+    "pair-1-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "cc5ecd699b3160e81229e6e37912942ddb39fe9e67923c67594b0ca9819ca51e",
+    "pair-1-candidate-two_intent_planning_including_adapter_setup.log.gz": "a028f4339dd6bbc1c5864efc97baf6684db355edafe4ed95f8148c95433010fc",
+    "pair-1-control-authenticated_prepare_including_adapter_setup.log.gz": "f2a264b242d70c3e298d32a1ef07b565b1bf7d987e6367b2f5d0f1dcc81c6162",
+    "pair-1-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "fe98f504755ba2acf2f70ab997919f63ec1f14a2e36e62883912f1d8bfe050db",
+    "pair-1-control-two_intent_planning_including_adapter_setup.log.gz": "ad12c8ba7fb1aa6f3fe938826e66100f4c53edafa1d5b09e2cb39deae3c28be2",
+    "pair-2-candidate-authenticated_prepare_including_adapter_setup.log.gz": "db9a11ff15e5c8472a83828b9ac3a35ee72569a53184eb22388de4010066feb0",
+    "pair-2-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "a7d384b52617f2c8af604060c63dbbe688a257501e1dc1d234c6bcfafe405228",
+    "pair-2-candidate-two_intent_planning_including_adapter_setup.log.gz": "06a1bf9702af3d7c5466ca183baac7a0572c5c1b99b67d1fee4c21fff5b9fdf3",
+    "pair-2-control-authenticated_prepare_including_adapter_setup.log.gz": "181e7e1b4f1594fdb5023d433169ecc534d696f303d161825b34dd55904dc837",
+    "pair-2-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "6df291a1df38bf4e161e317c4fc05c38d1528942a7d0d70c395960b30affe44c",
+    "pair-2-control-two_intent_planning_including_adapter_setup.log.gz": "73b8e45e6fc74768c40483181d31b63f0f8dac6026f7a82b34d6a2e856d73581",
+    "pair-3-candidate-authenticated_prepare_including_adapter_setup.log.gz": "65adbd5b6d369a25e0affced4dd2b4f41fdcf4c5a50a8cfbfa1defa93f19260b",
+    "pair-3-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "be6148ea816fe2cacab6cc9417253fe44ccaeff2dfcb043afe9c6131b034d8f8",
+    "pair-3-candidate-two_intent_planning_including_adapter_setup.log.gz": "59c3dc0dc40548c26fbbcfe56bb2906ff3f60e645427f69516f1d3b02d3d3d1e",
+    "pair-3-control-authenticated_prepare_including_adapter_setup.log.gz": "7b7faf83916d35b97e7974bf67b76590f5bbf7c962811a492c9b70101c3ea5d8",
+    "pair-3-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "1a2df26cfbfbb91ed0c2a313401dfdd1e6520f45d6963da8a014f3b5ff28214d",
+    "pair-3-control-two_intent_planning_including_adapter_setup.log.gz": "c03f82271495668a88cea1796ceffc81286d885bb164e5e1a76f65cf7e51f218",
+    "pair-4-candidate-authenticated_prepare_including_adapter_setup.log.gz": "f50c870d649eb13622519b3637c3280a1dcb1d87f50db099595563c535eccd2b",
+    "pair-4-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "c80a9cd745b038182f8c529179e2d5854071542f95225687cd14f0b3e1be5a32",
+    "pair-4-candidate-two_intent_planning_including_adapter_setup.log.gz": "ce28dc1ac9f7a157d184b06637498824720de9cd0d4949f246c78bad910d7433",
+    "pair-4-control-authenticated_prepare_including_adapter_setup.log.gz": "0d9fafacad3c402c4273d092ef9b0d0a37934a7e18f7da34fa1b783f06ab314e",
+    "pair-4-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "b6eb47fb324ef40dad429ff920fd0107f8e87faf631d01bfebfc6faa8b58f51a",
+    "pair-4-control-two_intent_planning_including_adapter_setup.log.gz": "14053f37bd434134d2ceb1c32494a663dd6a45c48f68dff9d42704c475b9d113",
+    "pair-5-candidate-authenticated_prepare_including_adapter_setup.log.gz": "fed58a5608e3a591b49705e78b61884cbfde714bdea870e3521b111b73348c51",
+    "pair-5-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "d0a6a9c4103180e9f4b6cea09562dd25409acfe7df62a9d05bae24519d6556b6",
+    "pair-5-candidate-two_intent_planning_including_adapter_setup.log.gz": "d47c48d3118d5471c559d1553286801fe92612479ab0cb2cd542b568a4e78495",
+    "pair-5-control-authenticated_prepare_including_adapter_setup.log.gz": "3a7d1753379d4284c1f9dfd63fa76608cf21648868aeff71f7c33e021d71f673",
+    "pair-5-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "765ae478c15ab7f97ab8e24c36fdccf31cb46bb332db905b1fb543cc8b329a47",
+    "pair-5-control-two_intent_planning_including_adapter_setup.log.gz": "d85dbd26b893c516195842d38c5fbc7e9de4e5c1ff65501c4c712292f666e8a6",
+    "pair-6-candidate-authenticated_prepare_including_adapter_setup.log.gz": "86c65498495d4b4416de5eeaa6adb82c33f554e20c9b481da99b90977d446839",
+    "pair-6-candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "453ae479fdf7712d888b2516fc22f78fda7b96282c58fac611dfd160f290ff27",
+    "pair-6-candidate-two_intent_planning_including_adapter_setup.log.gz": "c4934dde5e78bebcd3dc326a4abeef0028aababac279b8cc50f3884a9fd3225d",
+    "pair-6-control-authenticated_prepare_including_adapter_setup.log.gz": "3c9b643ea336c0b2b3dad041536e357006bc3687b415ee4fecef02a09c34fbbe",
+    "pair-6-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz": "1187b90afc8e889185d8c671df784801ba765310a2bc21eacbc2d55552dcaeb7",
+    "pair-6-control-two_intent_planning_including_adapter_setup.log.gz": "bcb3f7f058638d941570f7c73a6ea8abb88546cb4309394403bec4680cd314e4",
+    "runner.py": "e9bbbb72742ac76a225b29d51967d41d9ce781361e4bcb48c439623a59c8a360",
+    "summary.json": "060342cff0d1b04316f23e4970129e5131a6fbeb0617377289039e82b85789fc"
+  }
+}

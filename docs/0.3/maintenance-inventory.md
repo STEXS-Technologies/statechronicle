@@ -154,3 +154,17 @@ The retained extraction removes four syntax lines, 28 tokens and one parsed
 branch node, with no new public API/dependency. It does not establish the broader
 hotspot target or a speedup. See [the source, parity and paired measurements](
 evidence/maintenance/proof-service/README.md) for every sample and limitation.
+
+
+The executor's shared core now carries scope/profile/version facts in one private
+`PreparedProfile` instead of loose locals spanning every stage. It borrows the
+immutable intent and owns the observed projection; no extra projection clone or
+marker capability is introduced. Four focused methods own scope loading, authority,
+reduction and event construction. The outer core keeps ingress and compatibility
+marker policy, including final vector allocation after the claim. Its body moves
+from 1,791 to 367 tokens, while total production grows 374 tokens and one parsed
+branch. This buys an explicit checked boundary, not source reduction. Actual-original
+23,544-row parity and exact-source qualification pass. [Measurements](
+evidence/f2/prepared-profile-a52d53f/README.md) retain small positive median timing
+changes amid shared-host noise, larger binary size and identical full-process
+allocation totals for three bounded workloads. No full F2/F6/F8 pass is claimed.
