@@ -59,11 +59,7 @@ impl Executor {
         // validated by [`atomicity::validate_settle_batch`] below.
         let result = match self.run_batch(intents, true, sink.is_some()).await {
             Ok(events) => {
-                let settle_intents: Vec<statechronicle_domain::intent::Intent> = intents
-                    .iter()
-                    .filter(|validated| &validated.intent.operation == asset_op::trade_settle())
-                    .map(|validated| validated.intent.clone())
-                    .collect();
+                let settle_intents = settle_requests(intents);
                 atomicity::validate_batch_consistency(&events)
                     .and_then(|()| atomicity::validate_settle_batch(&events, &settle_intents))
                     .map(|()| events)
@@ -139,15 +135,7 @@ impl Executor {
         // Partition by tenant id, preserving input order within each tenant.
         // Keyed by the tenant id string: `TenantId` is not `Ord`, so sorting by
         // the id string yields the same deterministic sorted-tenant scope.
-        let mut by_name: BTreeMap<String, Vec<ValidatedIntent>> = BTreeMap::new();
-        for validated in intents {
-            by_name
-                .entry(validated.intent.tenant_id.0.clone())
-                .or_default()
-                .push(validated.clone());
-        }
-        let sorted_tenants: Vec<TenantId> =
-            by_name.keys().map(|name| TenantId(name.clone())).collect();
+        let (by_name, sorted_tenants) = partition_tenants(intents);
         if sorted_tenants.len() < 2 {
             return Err(ExecutorError::AtomicityViolation(String::from(
                 "cross-tenant batch requires at least two distinct tenants",
@@ -250,15 +238,7 @@ impl Executor {
         sink: Option<&dyn DurableBatchSink>,
     ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
         // Partition by tenant id, preserving input order within each tenant.
-        let mut by_name: BTreeMap<String, Vec<ValidatedIntent>> = BTreeMap::new();
-        for validated in intents {
-            by_name
-                .entry(validated.intent.tenant_id.0.clone())
-                .or_default()
-                .push(validated.clone());
-        }
-        let sorted_tenants: Vec<TenantId> =
-            by_name.keys().map(|name| TenantId(name.clone())).collect();
+        let (by_name, sorted_tenants) = partition_tenants(intents);
         if sorted_tenants.len() < 2 {
             return Err(ExecutorError::AtomicityViolation(String::from(
                 "cross-tenant trade requires at least two distinct tenants",
@@ -278,11 +258,7 @@ impl Executor {
             .await
         {
             Ok(groups) => {
-                let settle_intents: Vec<statechronicle_domain::intent::Intent> = intents
-                    .iter()
-                    .filter(|validated| &validated.intent.operation == asset_op::trade_settle())
-                    .map(|validated| validated.intent.clone())
-                    .collect();
+                let settle_intents = settle_requests(intents);
                 atomicity::validate_cross_tenant_trade(&groups, manifest, &settle_intents)
                     .map(|()| groups)
             }
@@ -325,4 +301,28 @@ impl Executor {
         self.execute_cross_tenant_trade_inner(intents, manifest, Some(sink))
             .await
     }
+}
+
+// Keep partition/clone order identical for both cross-tenant policies. The
+// caller still owns its minimum-scope error and declared/inferred linkage gate.
+fn partition_tenants(
+    intents: &[ValidatedIntent],
+) -> (BTreeMap<String, Vec<ValidatedIntent>>, Vec<TenantId>) {
+    let mut by_name: BTreeMap<String, Vec<ValidatedIntent>> = BTreeMap::new();
+    for validated in intents {
+        by_name
+            .entry(validated.intent.tenant_id.0.clone())
+            .or_default()
+            .push(validated.clone());
+    }
+    let sorted_tenants = by_name.keys().map(|name| TenantId(name.clone())).collect();
+    (by_name, sorted_tenants)
+}
+
+fn settle_requests(intents: &[ValidatedIntent]) -> Vec<statechronicle_domain::intent::Intent> {
+    intents
+        .iter()
+        .filter(|validated| &validated.intent.operation == asset_op::trade_settle())
+        .map(|validated| validated.intent.clone())
+        .collect()
 }
