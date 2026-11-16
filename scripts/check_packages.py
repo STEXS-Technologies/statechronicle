@@ -51,8 +51,7 @@ def main():
     def save():
         path.write_text(json.dumps(manifest, indent=2) + '\n')
 
-    overrides = {'RUSTC_WRAPPER': '', 'CARGO_BUILD_JOBS': '8',
-                 'CARGO_TARGET_DIR': str(root / 'target/package-checks')}
+    overrides = {'RUSTC_WRAPPER': '', 'CARGO_BUILD_JOBS': '8'}
     env = dict(os.environ, **overrides)
     manifest['environment'] = overrides
 
@@ -75,6 +74,12 @@ def main():
     try:
         with tempfile.TemporaryDirectory(prefix='statechronicle-packages-') as temporary:
             sandbox = Path(temporary)
+            # Archive mtimes can predate cached compilation of another revision.
+            # Qualify the actual unpacked bytes with a fresh build directory.
+            overrides['CARGO_TARGET_DIR'] = str(sandbox / 'target')
+            env.update(overrides)
+            manifest['build_isolation'] = 'fresh per-archive target directory'
+            save()
             source = sandbox / 'source'
             source.mkdir()
             archive = subprocess.check_output(['git', 'archive', revision, 'Cargo.toml', 'Cargo.lock',
