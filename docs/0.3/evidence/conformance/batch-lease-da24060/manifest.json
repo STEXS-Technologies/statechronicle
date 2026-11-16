@@ -1,0 +1,303 @@
+{
+  "candidate_commit": "da2406008c0e08c87f96166c11a82d32b99ee8e1",
+  "archive_sha256": "da94cefe6f0cbb42f4f70a6edd85507fed7316d779ee2e2c730ea1dcbdbfbc23",
+  "compilers": {
+    "stable": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+    "1.85.0": "rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-linux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n"
+  },
+  "checks": [
+    {
+      "label": "stable-tests",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-lease/qualification/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--",
+        "--nocapture"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-lease/qualification/stable"
+      },
+      "exit_code": 0,
+      "seconds": 8.802974275007728,
+      "log": "stable-tests.log",
+      "sha256": "9534a11f0c294214d8f6ec085e1c7f7e0795f5c3ea8a81e200a652573de5c956",
+      "artifact": "stable-tests.log.gz",
+      "artifact_sha256": "33b43fb1353feeab25e12c16617a113a861d1e1fbdea4f5e0043f3d2b0f73cf8",
+      "passed_tests": 11
+    },
+    {
+      "label": "stable-doctests",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-lease/qualification/source/ci/conformance/Cargo.toml",
+        "--doc",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-lease/qualification/stable"
+      },
+      "exit_code": 0,
+      "seconds": 0.13732295800582506,
+      "log": "stable-doctests.log",
+      "sha256": "d79c4ba32d239a25d9f6b1f0ab2d524b44aebdbc35256ba3c2d91aa8f9f4f6a6",
+      "artifact": "stable-doctests.log.gz",
+      "artifact_sha256": "79e3bada8acdf2ff252baf9550d2d14919dbe899d2c07b283510e0494656dad1",
+      "passed_tests": 0
+    },
+    {
+      "label": "stable-clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-lease/qualification/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-lease/qualification/stable"
+      },
+      "exit_code": 0,
+      "seconds": 3.7107054100051755,
+      "log": "stable-clippy.log",
+      "sha256": "84c481209a6faa754d75cfd2437bce1e0b65b234a5079800d24c42b81e463671",
+      "artifact": "stable-clippy.log.gz",
+      "artifact_sha256": "519828db144282f5db74fb381790be94fd859563d4f5159109010a8ee434e9ad"
+    },
+    {
+      "label": "stable-rustdoc",
+      "command": [
+        "cargo",
+        "+stable",
+        "doc",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-lease/qualification/source/ci/conformance/Cargo.toml",
+        "--no-deps",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-lease/qualification/stable",
+        "RUSTDOCFLAGS": "-D warnings"
+      },
+      "exit_code": 0,
+      "seconds": 1.8409835650090827,
+      "log": "stable-rustdoc.log",
+      "sha256": "6646403cbf891ff39cfe1b582cb78645857838411e462822a8ce591865148d68",
+      "artifact": "stable-rustdoc.log.gz",
+      "artifact_sha256": "e439a87df59ca3ecc4a7e132dbec949b45a46a2edccce72b71456087a809acc0"
+    },
+    {
+      "label": "stable-format",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-lease/qualification/source/ci/conformance/Cargo.toml",
+        "--",
+        "--check"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-lease/qualification/stable"
+      },
+      "exit_code": 0,
+      "seconds": 0.06021199800306931,
+      "log": "stable-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact": "stable-format.log.gz",
+      "artifact_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "label": "1.85.0-tests",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-lease/qualification/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--",
+        "--nocapture"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-lease/qualification/1.85.0"
+      },
+      "exit_code": 0,
+      "seconds": 10.686234473992954,
+      "log": "1.85.0-tests.log",
+      "sha256": "287fa802a60c6239840ca8486df7dd9e6ff25ce2527108d03b53a3f4224e6c51",
+      "artifact": "1.85.0-tests.log.gz",
+      "artifact_sha256": "1c36caf02ba9b59beca3b69d390b97a3663094a122db49e30401e214c0ad6b4e",
+      "passed_tests": 11
+    },
+    {
+      "label": "1.85.0-doctests",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-lease/qualification/source/ci/conformance/Cargo.toml",
+        "--doc",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-lease/qualification/1.85.0"
+      },
+      "exit_code": 0,
+      "seconds": 0.17391056299675256,
+      "log": "1.85.0-doctests.log",
+      "sha256": "58b9a0e95bb9f8b3b4c622cb3c12c8834f5c965561d7c4ef9d031d142bb57f1d",
+      "artifact": "1.85.0-doctests.log.gz",
+      "artifact_sha256": "f842dec1a3d1a022b61c60d7d9295c9e268c4540d90e1da324fb97144387cb31",
+      "passed_tests": 0
+    },
+    {
+      "label": "1.85.0-clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-lease/qualification/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-lease/qualification/1.85.0"
+      },
+      "exit_code": 0,
+      "seconds": 4.027480914010084,
+      "log": "1.85.0-clippy.log",
+      "sha256": "ba95e320f37fd7f3b1c98aab07450ed1256398d53efcbee0031ac0399452a5c6",
+      "artifact": "1.85.0-clippy.log.gz",
+      "artifact_sha256": "bbcd60c839d90e8980d1ea6afbb5a8fe5fe4b5e39d493619eed148c3a5c07059"
+    },
+    {
+      "label": "1.85.0-rustdoc",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "doc",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-lease/qualification/source/ci/conformance/Cargo.toml",
+        "--no-deps",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-lease/qualification/1.85.0",
+        "RUSTDOCFLAGS": "-D warnings"
+      },
+      "exit_code": 0,
+      "seconds": 2.1819694450095994,
+      "log": "1.85.0-rustdoc.log",
+      "sha256": "17437a4e2db3aef4ed8fdf7a3e58f3f2eb395df4df5e792788b50c74980968e2",
+      "artifact": "1.85.0-rustdoc.log.gz",
+      "artifact_sha256": "6a718b1134314fa7f9ec64c966701f23d8dee7f80c72b4c81df75689ebee8cd0"
+    },
+    {
+      "label": "1.85.0-format",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-lease/qualification/source/ci/conformance/Cargo.toml",
+        "--",
+        "--check"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/batch-lease/qualification/1.85.0"
+      },
+      "exit_code": 0,
+      "seconds": 0.06092175999947358,
+      "log": "1.85.0-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact": "1.85.0-format.log.gz",
+      "artifact_sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    }
+  ],
+  "control_commit": "d70ce92d50d71a41876814f320499ef4e6b64aae",
+  "unchanged_runtime_and_dependencies": {
+    "crates": {
+      "control_git_object": "7d1276d5f3685e7ec74a30f1735c325689db89d2",
+      "candidate_git_object": "7d1276d5f3685e7ec74a30f1735c325689db89d2"
+    },
+    "Cargo.toml": {
+      "control_git_object": "bf6aff6a288a79467f3e66d91f1793a56c87849a",
+      "candidate_git_object": "bf6aff6a288a79467f3e66d91f1793a56c87849a"
+    },
+    "Cargo.lock": {
+      "control_git_object": "029bcc763992f8d88672df95ed1c307aca2d20c1",
+      "candidate_git_object": "029bcc763992f8d88672df95ed1c307aca2d20c1"
+    },
+    "ci/conformance/Cargo.toml": {
+      "control_git_object": "61af9924940ec7c99e18e5709a2dd06b50c81cf3",
+      "candidate_git_object": "61af9924940ec7c99e18e5709a2dd06b50c81cf3"
+    },
+    "ci/conformance/Cargo.lock": {
+      "control_git_object": "d4fbb319ff2576813efef273be6a8489a76e51c3",
+      "candidate_git_object": "d4fbb319ff2576813efef273be6a8489a76e51c3"
+    }
+  },
+  "source_sha256": {
+    "ci/conformance/README.md": "80bf57aeeed3f7cc1ff6c8633ccc41386c8ea9c62792dca0baf1c85acd818d16",
+    "ci/conformance/src/batch.rs": "ded62aea5208cd34bfc27fbbb8c25eb0e2c14642c18c0fda2518ae19a7e23678",
+    "ci/conformance/tests/reference.rs": "8dfd476970b94590753eed046120e3d0729ec50f1384fd7e2608c4bf862f01ba",
+    "docs/0.3/adapter-contract.md": "0815e33d9887c4653b06e542ee87575e95743da04f1c2c853d23f8847e5d6d75"
+  },
+  "limitations": [
+    "Dev-only isolated conformance package; root production Rust/manifests/locks unchanged.",
+    "Eleven integration functions contain multiple scenarios and negative controls, not eleven exhaustive backend states.",
+    "Reference uses two-member signed-commit genesis fixtures with independent handles/raw observations.",
+    "Isolated-member expiry is an optional schedule capability; shared-deadline-only adapters need not implement it.",
+    "Lease clock hook must tolerate already-expired sibling callbacks for shared deadlines.",
+    "No physical database, wall-clock, power-loss, transaction-timeout, non-genesis replay, larger-group or all-interleavings qualification.",
+    "No new root workspace, fuzz, performance or release-gate qualification claimed; earlier root evidence applies only by source equivalence.",
+    "Initial missing import/borrow compile failure and pre-separation schedules retained as unqualified preflights."
+  ]
+}

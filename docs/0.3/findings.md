@@ -764,3 +764,30 @@ campaigns; logs retain exact counts and time/run limits. This is partial tooling
 qualification, not completed F8 or release readiness. Failed attempts, final
 corpora and runners remain in
 [MSRV/fuzz evidence](evidence/qualification/msrv-f8e953d/README.md).
+
+
+## Optional batch lease takeover conformance
+
+`da24060` adds reusable whole-group expiry and an optional independently expired
+member schedule in the isolated dev harness. Both retain a completely staged
+old transaction while a successor takes over. Stale commit, rollback and drop
+cannot publish old effects or erase the successor. Whole takeover must publish
+and reopen the exact original group; partial acquisition remains pending and
+publishes nothing. Returned tokens are checked against independent lookup.
+
+Shared-deadline adapters use the whole-group check without an isolated-member
+capability. Independently expirable backends configure normal test lease policy
+before claims. A first-member-only fault passes the smaller whole-group check
+but fails isolated takeover of member 1, making the coverage boundary explicit.
+Five lease fault behaviors fail named oracles; a shared-expiry model passes its
+applicable schedule and refuses unsupported configuration as a setup error.
+
+Archived source passes eleven conformance integration functions, strict
+Clippy/rustdoc and formatting on stable and MSRV. Its doctest command succeeds
+with zero examples. Production crates and
+both manifests/locks are unchanged. Full commands, hashes, failed/unqualified
+preflights and limits are retained in
+[evidence/conformance/batch-lease-da24060](evidence/conformance/batch-lease-da24060/README.md).
+Real database clocks/transactions, larger groups, broader fencing interleavings,
+physical crash/power-loss qualification, later-head retention/rebuild and other
+remaining F1–F8 requirements stay open. This is partial F5 progress.
