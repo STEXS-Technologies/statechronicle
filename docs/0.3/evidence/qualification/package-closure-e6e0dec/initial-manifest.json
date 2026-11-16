@@ -1,0 +1,14 @@
+{
+  "candidate_commit": "4c042e40527334716edb0c280cb81f66562d91c9",
+  "command": [
+    "cargo",
+    "package",
+    "--workspace",
+    "--exclude",
+    "statechronicle-fuzz",
+    "--locked",
+    "--offline",
+    "--no-verify"
+  ],
+  "exit_code": 0
+}

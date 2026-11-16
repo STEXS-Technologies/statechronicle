@@ -46,6 +46,7 @@ The suite is itself part of the local release-check sequence.
 This script is one qualification component. A successful run does not establish
 the full roadmap: frozen independent compatibility, full fuzz/property/crash
 campaigns, coverage ratchets, matched performance/source-cost measurements,
-package/registry qualification and public API review remain separate gates.
+[isolated package checks](package-checks.md), registry qualification and public
+API review remain separate gates.
 Publishing/tagging still requires separate authorization. See [the roadmap](ROADMAP.md)
 and retained exact-candidate manifests under `evidence/` for scope and limits.
