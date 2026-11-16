@@ -2,8 +2,10 @@
 
 Status: reproduced on original production source. The trade tenant/cache fix
 is implemented, and independent current/historical claims are implemented.
-Protected single-intent durability and structural trade coverage are implemented.
-Batch composition and independent expected trade/history claims remain open.
+Protected single-intent durability, bounded single-tenant batch composition and
+structural trade coverage are implemented. Reusable single/batch adapter checks
+now have independent negative controls. Broader batch qualification and
+independent expected trade/history claims remain open.
 These are release-blocking inputs to F1. No deployed consumer or real database was tested.
 The probes use deterministic local fixtures and consumer-owned in-memory ports.
 
@@ -611,3 +613,31 @@ internal-statement faults, lease expiry/fencing races, non-genesis immutable
 retention, corruption/replay/checkpoints/schema evolution and supported
 multi-tenant atomicity remain open. This bounded reference and logical response
 loss wrapper do not establish those guarantees or final F8 qualification.
+
+
+## Protected batches and optional batch adapter qualification
+
+`6f153bd` added owned protected batch signing, one atomic multi-claim transaction,
+complete immutable group retention and verified recovery through every member.
+Subset, superset, reordered and changed-payload requests cannot be accepted as a
+new atomic group. Final commit/rollback/readback uncertainty retains the whole
+original identity. Its evidence records 869 worktree workspace tests/doctests,
+strict Clippy/rustdoc and exact archived external/portable MSRV checks. This
+safety addition grew production syntax by 688 lines; it does not satisfy the
+source-reduction goal. See [durable batches](durable-batches.md).
+
+`c31571f` extends the isolated dev-only conformance package with raw retained
+membership inspection. Batch checks cover every completed write prefix,
+rollback and cancellation, replay/payload conflict, lost-ACK recovery and
+2/8/32-client distinct-group head races. Nine broken batch modes fail their
+specific intended oracles. The separate reference implementation also continues
+to pass the existing single-mutation checks and negative controls. This change
+leaves production crates and dependency locks unchanged.
+
+Batch tenant isolation, cross-lane identity collisions, generic same-group
+contention, lease expiry/takeover, later-head retention/rebuild and physical
+crash qualification remain open. Root protected tests already exercise bounded
+same-group contention and a later head; that is not a substitute for generic or
+real-backend qualification. Independent expected trade/history claims and the
+remaining F2–F8 work are still release-blocking. See the
+[conformance consumer guide](../../ci/conformance/README.md).
