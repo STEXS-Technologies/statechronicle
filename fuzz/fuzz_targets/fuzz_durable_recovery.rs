@@ -272,22 +272,36 @@ fuzz_target!(|data: &[u8]| {
             4 => corrupt.commit.signature.sig = Signature::from_bytes([0; 64]),
             _ => corrupt.intent = conflict.clone(),
         }
-        reopened
-            .data
-            .lock()
-            .unwrap()
-            .mutations
-            .insert(identity.clone(), corrupt);
+        {
+            // Keep the fake's redundant storage copies consistent so it cannot
+            // mask the receipt verifier's digest/signature checks.
+            let mut stored = reopened.data.lock().unwrap();
+            stored.identities.insert(
+                identity.clone(),
+                (
+                    corrupt.payload_digest.clone(),
+                    corrupt.commit.body.commit_id.clone(),
+                ),
+            );
+            stored.commits[0] = corrupt.commit.clone();
+            stored.mutations.insert(identity.clone(), corrupt);
+        }
         assert!(
             matches!(resolve(&reopened), Err(DurableError::Corrupt(_))),
             "durable.recovery.corrupt_record:{corruption}"
         );
-        reopened
-            .data
-            .lock()
-            .unwrap()
-            .mutations
-            .insert(identity.clone(), original.clone());
+        {
+            let mut stored = reopened.data.lock().unwrap();
+            stored.identities.insert(
+                identity.clone(),
+                (
+                    original.payload_digest.clone(),
+                    original.commit.body.commit_id.clone(),
+                ),
+            );
+            stored.commits[0] = original.commit.clone();
+            stored.mutations.insert(identity.clone(), original.clone());
+        }
     }
     let RecoveryOutcome::Committed(receipt) = resolve(&reopened).unwrap() else {
         panic!("durable.restored.receipt");
