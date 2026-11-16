@@ -1,0 +1,199 @@
+{
+  "candidate_commit": "75394371ddf938966ee86a63ebd143b3e1468694",
+  "parent_commit": "28bbf9046a9d53e8f4e15328222ddbfb3f9c6b51",
+  "source_archive_sha256": "0844968036e5bfc470e54a3d35f1bfdff0e32fb54ca5857997ee3e5cc8033787",
+  "source_sha256": {
+    "ci/conformance/src/lib.rs": "d86d98a1785a02a1d4c078e6e3b3e5368c2b829726da63cfa452f2d55c16cbd1",
+    "ci/conformance/src/batch.rs": "3824f393bd8a3165e954132984ddc9c49d66d8063567baf0aff95d0f8bdcb7e3",
+    "ci/conformance/src/faults.rs": "1e39a6d76244b9a929b1adce59eae787ae4bb2531889d922f3b9cb7cb92100dd",
+    "ci/conformance/tests/reference.rs": "c35217ad431e1d4c407adbdea14e5ddc73c798d590488210e7672c96c9952de2",
+    "ci/conformance/Cargo.toml": "9c29dda775395286d8430213e555112fccb8f2eb42d200416b94406e44c03670",
+    "ci/conformance/Cargo.lock": "7cb5e651298ca39dfe9afe8727edb86da24979150d449d89a2f52921ff121cf7",
+    "Cargo.toml": "19a53af0626663837c232ae6dbb3df6079f234e93fcc60f0158aa35085f99aa0",
+    "Cargo.lock": "9c551a66b5698d08a0d5eb1d6364d98107e573e4d6b464da6d83742b8932b86f"
+  },
+  "production_crates_tree": "0068b705d6ee332bcfd1b88a55fa99b75d67ec15",
+  "production_unchanged_from_parent": true,
+  "root_and_conformance_locks_unchanged": true,
+  "toolchains": {
+    "stable": "rustc 1.100.0 (0ef1bc386 2026-11-09)",
+    "msrv": "rustc 1.85.0 (4d91de4e4 2025-02-17)",
+    "cargo": "cargo 1.100.0 (3acc79c0c 2026-11-05)"
+  },
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/ci/conformance/target",
+    "RUSTDOCFLAGS_for_doc": "-D warnings"
+  },
+  "execution_source": "isolated git archive of candidate; no edits during final qualification",
+  "commands": [
+    {
+      "name": "msrv",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-namespace-qualification/candidate-oo4gdsus/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "stable",
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-namespace-qualification/candidate-oo4gdsus/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-namespace-qualification/candidate-oo4gdsus/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "doc",
+      "command": [
+        "cargo",
+        "doc",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/batch-namespace-qualification/candidate-oo4gdsus/source/ci/conformance/Cargo.toml",
+        "--no-deps",
+        "--locked",
+        "--offline"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "scope": {
+    "integration_test_functions": 8,
+    "prior_functions": 6,
+    "new_functions": 2,
+    "new_generic_checks": [
+      "batch::check_tenant_isolation",
+      "batch::check_single_namespace",
+      "batch::check_idempotency_contention"
+    ],
+    "exact_group_clients": [
+      2,
+      8,
+      32
+    ],
+    "new_namespace_oracles": {
+      "GlobalIdentity": "batch.tenant.lookup",
+      "FabricateSingleton": "batch.namespace.singleton",
+      "FilterBatchAsSingle": "batch.namespace.subset",
+      "IgnoreBatchIdentity": "batch.namespace.claim"
+    },
+    "fixture_guards": "tenant isolation requires distinct scopes and coincident ordered intent/resource/event IDs and commit ID; namespace requires exact original intent body overlap and distinct single/group commit IDs",
+    "inspection": "raw combined effects and retained membership, preserving duplicates; independent handles; wrong-kind lookup must specifically return Invariant"
+  },
+  "development_attempts": [
+    {
+      "status": "unqualified",
+      "artifact": "development-failure.log.gz",
+      "detail": "initial expected-record builder cloned a reference instead of the owned LedgerBatch; fixed before qualification; failing source snapshot not retained"
+    },
+    {
+      "status": "superseded",
+      "candidate_commit": "60a525914d13f8587935f0087d286ce76a315010",
+      "commands": [
+        {
+          "name": "msrv",
+          "command": [
+            "cargo",
+            "+1.85.0",
+            "test",
+            "--manifest-path",
+            "/home/ac/projects/statechronicle/target/batch-namespace-qualification/candidate-gsy4mvc4/source/ci/conformance/Cargo.toml",
+            "--all-targets",
+            "--locked",
+            "--offline"
+          ],
+          "exit_code": 0
+        },
+        {
+          "name": "stable",
+          "command": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "/home/ac/projects/statechronicle/target/batch-namespace-qualification/candidate-gsy4mvc4/source/ci/conformance/Cargo.toml",
+            "--all-targets",
+            "--locked",
+            "--offline"
+          ],
+          "exit_code": 0
+        },
+        {
+          "name": "clippy",
+          "command": [
+            "cargo",
+            "clippy",
+            "--manifest-path",
+            "/home/ac/projects/statechronicle/target/batch-namespace-qualification/candidate-gsy4mvc4/source/ci/conformance/Cargo.toml",
+            "--all-targets",
+            "--locked",
+            "--offline",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0
+        },
+        {
+          "name": "doc",
+          "command": [
+            "cargo",
+            "doc",
+            "--manifest-path",
+            "/home/ac/projects/statechronicle/target/batch-namespace-qualification/candidate-gsy4mvc4/source/ci/conformance/Cargo.toml",
+            "--no-deps",
+            "--locked",
+            "--offline"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "detail": "all four archived checks passed; superseded to strengthen tenant fixture preconditions for advertised event/resource ID collisions"
+    }
+  ],
+  "limitations": [
+    "Dev-only logical conformance with bounded reference storage, not a physical database.",
+    "Lease expiry/takeover, non-genesis retention/rebuild, process-kill and power-loss qualification remain open.",
+    "Production code, runtime public API, wire formats and dependency locks unchanged in this step.",
+    "Full roadmap, expected trade/history claims and final F8 qualification remain incomplete."
+  ],
+  "artifacts": {
+    "msrv.log.gz": "8d970d713ee1d8d54a8e39bb3d1fcc0972b03c78c29185aebc85e8c49f272481",
+    "stable.log.gz": "8b9e1b9f78067fe116903aa5dcf720a14b8aa6e48ed3a2310369856c1601e6ab",
+    "clippy.log.gz": "11e844d1743f28bbce1b8f8cbb72e07ff85d7bd580582cbf65d3c5c3f578a8ab",
+    "doc.log.gz": "7d3d848f9f201af3ea67b95b39d7cf1791e4d6b3cb71212d2bbe1798983a90dc",
+    "graph.log.gz": "cc546cf9ae11c9ceef71bcce9a62277afc6ffc857717f6126caadc4413744c49",
+    "development-failure.log.gz": "c98cc77f250fffa714771fccc2b2a4ae663e9ca0dc42d6c55d5a42227b80556d",
+    "superseded-msrv.log.gz": "a32749ae106664446b48bb88a98a52d268c859c3f24857d2f3f4b070bb233733",
+    "superseded-stable.log.gz": "bb8d58f0607ceddb6acc05db1a678cbc64a81fa05b480ef13caccadb3bcbf3f0",
+    "superseded-clippy.log.gz": "a2d9a712f72137316d4147f8a36eecddfb67783e1f7e1ed29a9ca36a93ce4743",
+    "superseded-doc.log.gz": "61ac4b4ebb52680d9eaab70bc3b25499bbeefee26976fef8fe1f919271bbd240"
+  }
+}
