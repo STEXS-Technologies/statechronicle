@@ -1,0 +1,788 @@
+{
+  "control_commit": "b1257d7faecb7b9b3f27afdcada6d924df25c347",
+  "candidate_commit": "2b73ab74039c09574c50dff38e85b6f0f31b8572",
+  "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+  "cpu": 0,
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/proof-delegation-bench/build"
+  },
+  "status": "passed",
+  "checks": [
+    {
+      "label": "control-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 0.123319136997452,
+      "artifact": "control-resolve.log.gz",
+      "sha256": "d7012345f3449e42fca8a4a5a8ab7d654edfad267c215e91fcdd6222d2ceeb8f"
+    },
+    {
+      "label": "control-build",
+      "command": [
+        "cargo",
+        "build",
+        "--example",
+        "refactor_bench",
+        "--release",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 4.695512207996217,
+      "artifact": "control-build.log.gz",
+      "sha256": "16d7c473df941fac2c1394492973a02729252ec3c079f86ee4a13f7dea99ffd9"
+    },
+    {
+      "label": "candidate-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 0.1126617609988898,
+      "artifact": "candidate-resolve.log.gz",
+      "sha256": "4383f2a2b47423977dd3f6498bc3c231be59b72f40b1e81f7e07c6a6b7be6d91"
+    },
+    {
+      "label": "candidate-build",
+      "command": [
+        "cargo",
+        "build",
+        "--example",
+        "refactor_bench",
+        "--release",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 4.64873383899976,
+      "artifact": "candidate-build.log.gz",
+      "sha256": "2a5d0947b6eb582b0912b1b9352e7318a8e1f670b16ae4fb52ff4e73cc932754"
+    },
+    {
+      "label": "pair-0-control-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.15005836900672875,
+      "artifact": "pair-0-control-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "b46082718c7340c6843da3ce1b9ab49e25372a09d5b66417d7661eabbfe97160"
+    },
+    {
+      "label": "pair-0-control-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.19024849000561517,
+      "artifact": "pair-0-control-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "e3c91dcfa30adf40f83596cade314fd579440033108c316b2d056f6b2dba5b02"
+    },
+    {
+      "label": "pair-0-control-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.07544485801190604,
+      "artifact": "pair-0-control-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "a3cd570d8b93e39ca593aaa42e6ecba0bd10d059a0a2781b4330dd8958ba3707"
+    },
+    {
+      "label": "pair-0-candidate-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.08999516200856306,
+      "artifact": "pair-0-candidate-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "5d175dcc5982a60500e281ddbed94927fd2da8d85e1fb2d8663375787a3f7c19"
+    },
+    {
+      "label": "pair-0-candidate-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.09042051500000525,
+      "artifact": "pair-0-candidate-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "2ffaf2a37060d6c7ed946580a371c7f1bc584ebe31884092214de992202b8bb6"
+    },
+    {
+      "label": "pair-0-candidate-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.19781541099655442,
+      "artifact": "pair-0-candidate-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "d9e02327fa0d25940afd0380862c107b63f83402ea21a7f73479cf3bf2666b18"
+    },
+    {
+      "label": "pair-1-candidate-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.13219218399899546,
+      "artifact": "pair-1-candidate-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "5ca150bd4a7fd013e5601e97291e317d40af6edad8771016fbbe95c2d1362ee2"
+    },
+    {
+      "label": "pair-1-candidate-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.1659558579995064,
+      "artifact": "pair-1-candidate-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "be3916e644e67b152099dd1d7fbc3dec98969b4680c8446ce097e71b346b93c7"
+    },
+    {
+      "label": "pair-1-candidate-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.16085480399488006,
+      "artifact": "pair-1-candidate-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "cfb8d84d073ee6b5d2440f57c6bb8817a10a43247a4bd71d9046efa4946d9911"
+    },
+    {
+      "label": "pair-1-control-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.3119234280020464,
+      "artifact": "pair-1-control-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "be2046ddaf771c93bd04eac413a42d658d2ebfb159dd95e9e35dbf12219f1f76"
+    },
+    {
+      "label": "pair-1-control-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.19079830299597234,
+      "artifact": "pair-1-control-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "054ebd4d46a85e957113b2b0a3c1f0a2e8080c7b1db4b019e4995561a041926e"
+    },
+    {
+      "label": "pair-1-control-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.06004091299837455,
+      "artifact": "pair-1-control-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "819dc6214d2162b1688506192998c0f10dad6ba18bc48ad0a3b6fce9a7c04236"
+    },
+    {
+      "label": "pair-2-control-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.24768737200065516,
+      "artifact": "pair-2-control-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "3e7045be9baeebd1d7de75f913bf2233175ab03240fcf075fd76a0295c2c1e72"
+    },
+    {
+      "label": "pair-2-control-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.07149730500532314,
+      "artifact": "pair-2-control-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "525373519e2e7360035ccba044752193d44002140023ac837003f2e227088cb6"
+    },
+    {
+      "label": "pair-2-control-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.05986341999960132,
+      "artifact": "pair-2-control-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "cc0f89d6badeec3fe066b1a6566f1986b4c526739897a6f4ead3a0bdce05134a"
+    },
+    {
+      "label": "pair-2-candidate-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.07352979498682544,
+      "artifact": "pair-2-candidate-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "69f656d056170f36b211a784fc9ef511469c49ea305ff8befd355405e71d9ce1"
+    },
+    {
+      "label": "pair-2-candidate-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.061854851999669336,
+      "artifact": "pair-2-candidate-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "b748b74fc3abb720320874abc3ca7e6acc08e50f662b77b7dd6df3fb9970abb0"
+    },
+    {
+      "label": "pair-2-candidate-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.06274543299514335,
+      "artifact": "pair-2-candidate-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "5b26a36a2caa5f24da202c2160868200bd74c1b1dc33925caacaf0b13fad7e0e"
+    },
+    {
+      "label": "pair-3-candidate-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.12034368400054518,
+      "artifact": "pair-3-candidate-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "6111421c14d35548094140513312f9f598968c41f24781c4f0f3f67ee3606fb5"
+    },
+    {
+      "label": "pair-3-candidate-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.11448561699944548,
+      "artifact": "pair-3-candidate-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "acb83e3c7a90171d6a56d228afc4bae41d183fec25f21b12e7912f06dbd20939"
+    },
+    {
+      "label": "pair-3-candidate-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.10593864100519568,
+      "artifact": "pair-3-candidate-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "dfa3cd48720e72c43197613b481d35b9093c6b7c30559c726d8c8170c00cc4a9"
+    },
+    {
+      "label": "pair-3-control-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.16214897800819017,
+      "artifact": "pair-3-control-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "969b90cb66f5b6c1a350a3b055aa4aa16600f2f622b344d5e77ed3395743d429"
+    },
+    {
+      "label": "pair-3-control-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.2738417340005981,
+      "artifact": "pair-3-control-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "a14546c222f27f58976298294fd8902006ae3334e5b2934c11536c78305c0274"
+    },
+    {
+      "label": "pair-3-control-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.04209024499868974,
+      "artifact": "pair-3-control-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "eacb60508d80e7600e726b7c0d95e424ff71e9dfa90bc681446c9cce04177181"
+    },
+    {
+      "label": "pair-4-control-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.07470552899758331,
+      "artifact": "pair-4-control-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "ab1d430223659f538eec173c2ddfdfd1722855ea705f2c6d05365d60a25b02b7"
+    },
+    {
+      "label": "pair-4-control-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.06130774300254416,
+      "artifact": "pair-4-control-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "ed2a9df162dc1ec280fa760e26f0c541993e5bfd32b921ec4bde31bd6a481e83"
+    },
+    {
+      "label": "pair-4-control-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.07579665900266264,
+      "artifact": "pair-4-control-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "b80c974c75c350d05bc05735c11545f93f2eedc05e8e15d2db2844c4012f19c4"
+    },
+    {
+      "label": "pair-4-candidate-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.2012188920052722,
+      "artifact": "pair-4-candidate-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "fdd4625605e99df0166454c8540e65e017e7a7d6720bea5f7e113285617b44aa"
+    },
+    {
+      "label": "pair-4-candidate-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.11525515399989672,
+      "artifact": "pair-4-candidate-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "8ab57270dfd9ed3e05808496d59d78dc00e78a0f5bba8d42da51b97f8ecc8df4"
+    },
+    {
+      "label": "pair-4-candidate-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.16505533699819352,
+      "artifact": "pair-4-candidate-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "53ef0f06920f6c33615aa0517e8b7d3ccd802d0802c16584b878472621006a12"
+    },
+    {
+      "label": "pair-5-candidate-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.2189550149923889,
+      "artifact": "pair-5-candidate-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "07f12d7ef728eaba9859c47705c4a9f99e4374cc6b61ad26394377f8939c71c6"
+    },
+    {
+      "label": "pair-5-candidate-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.06301680800970644,
+      "artifact": "pair-5-candidate-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "0dc7a2d9d4688e1150a8db466977455bdaff4b9db6542e1503e907070643425e"
+    },
+    {
+      "label": "pair-5-candidate-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.218921602005139,
+      "artifact": "pair-5-candidate-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "56e6dfcf2fb4f828f3e9c9d86985a800fc73b9fe9e17fd3c998d7b759d3a9bb9"
+    },
+    {
+      "label": "pair-5-control-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.20785316001274623,
+      "artifact": "pair-5-control-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "8b792ffe0aae227ad08c8290cb8aab851eaa7ba8b8eac2ade7349caa4f50e597"
+    },
+    {
+      "label": "pair-5-control-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.0587261310138274,
+      "artifact": "pair-5-control-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "6852ff4ade482d0bb8a146dd08c43873180918ceef2710bbb5f438d74e7a2d18"
+    },
+    {
+      "label": "pair-5-control-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.20998971098742913,
+      "artifact": "pair-5-control-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "fbf3dfe5824d4307c1c63a4ba830c921b1db4b4fd59d61a6680e8fdc6b68b4e3"
+    },
+    {
+      "label": "pair-6-control-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.10146098199766129,
+      "artifact": "pair-6-control-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "ccc38180db2e6de128c42ec936b0b574411618621c464562e1d1fd00851270ac"
+    },
+    {
+      "label": "pair-6-control-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.09855286899255589,
+      "artifact": "pair-6-control-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "b6878131b5c6b40fbfebcc1f6cd7c0581878ff875050c42af95f41124e6ca592"
+    },
+    {
+      "label": "pair-6-control-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/control/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.11628745999769308,
+      "artifact": "pair-6-control-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "9de483f48bff0ecab7c1e9888b4c4e3824ca27ddfb98a8ecf98b54b9d3be6965"
+    },
+    {
+      "label": "pair-6-candidate-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.150402163999388,
+      "artifact": "pair-6-candidate-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "548caf8c9557a0d3ad0085e866ab8a20cfb36edf4d2e79a39f61e069085abd66"
+    },
+    {
+      "label": "pair-6-candidate-historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "historical_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.055684851002297364,
+      "artifact": "pair-6-candidate-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "9c55b28596c646dedc946b61630b8269d05591367a21f5a3e74bcdccb069b91a"
+    },
+    {
+      "label": "pair-6-candidate-stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105750Z/candidate/proof-bench",
+        "stale_head_refusal_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.10565282800234854,
+      "artifact": "pair-6-candidate-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "113d0e09773bb9bdce1420eadd7f4956041be6d755ec9cabb629c48dba0597cf"
+    }
+  ],
+  "lanes": {
+    "control": {
+      "revision": "b1257d7faecb7b9b3f27afdcada6d924df25c347",
+      "archive_sha256": "60ea2b7ed70205bfe85dc33681178ef8824d0e2d83feb2fc95eb78bf6eb3af3b",
+      "lock_sha256": "149437be775111580570d4d9a3dba7c8b2df5b407d05f9c8a8c80609514c7c43",
+      "benchmark_sha256": "0e0544823fff3db4955cae3f61c43d052da41e063f6a923e310e66a407e46772",
+      "binary_sha256": "ea0aee4bef2327ce982b71369e7076901f4153e86b1a720e47623e79bdcce212",
+      "binary_bytes": 4078520
+    },
+    "candidate": {
+      "revision": "2b73ab74039c09574c50dff38e85b6f0f31b8572",
+      "archive_sha256": "85c48d8bf889f00cf4909272b5593fc3572ef71231008b6e1c83fb3b09b27d76",
+      "lock_sha256": "149437be775111580570d4d9a3dba7c8b2df5b407d05f9c8a8c80609514c7c43",
+      "benchmark_sha256": "0e0544823fff3db4955cae3f61c43d052da41e063f6a923e310e66a407e46772",
+      "binary_sha256": "50d476c2c45c308872c511a588f5fb645a6cd9c1629024503dc461c250a09e59",
+      "binary_bytes": 4081632
+    }
+  },
+  "runs": [],
+  "limitations": [
+    "Shared host, seven alternating pairs; no discarded samples or universal performance threshold.",
+    "Tail values are percentiles of 31 batch averages, not individual-request latency.",
+    "Frozen benchmark altered only to call the derived-key methods being extracted.",
+    "Identical compiler, resolved consumer dependencies and workload in both lanes.",
+    "Fixed in-memory read adapter; no new expected-claim or durable workflow qualification."
+  ],
+  "artifacts_sha256": {
+    "candidate-benchmark.rs": "0e0544823fff3db4955cae3f61c43d052da41e063f6a923e310e66a407e46772",
+    "candidate-build.log.gz": "2a5d0947b6eb582b0912b1b9352e7318a8e1f670b16ae4fb52ff4e73cc932754",
+    "candidate-resolve.log.gz": "4383f2a2b47423977dd3f6498bc3c231be59b72f40b1e81f7e07c6a6b7be6d91",
+    "candidate.lock": "149437be775111580570d4d9a3dba7c8b2df5b407d05f9c8a8c80609514c7c43",
+    "control-benchmark.rs": "0e0544823fff3db4955cae3f61c43d052da41e063f6a923e310e66a407e46772",
+    "control-build.log.gz": "16d7c473df941fac2c1394492973a02729252ec3c079f86ee4a13f7dea99ffd9",
+    "control-resolve.log.gz": "d7012345f3449e42fca8a4a5a8ab7d654edfad267c215e91fcdd6222d2ceeb8f",
+    "control.lock": "149437be775111580570d4d9a3dba7c8b2df5b407d05f9c8a8c80609514c7c43",
+    "pair-0-candidate-current_state_proof_reference_read_adapter.log.gz": "5d175dcc5982a60500e281ddbed94927fd2da8d85e1fb2d8663375787a3f7c19",
+    "pair-0-candidate-historical_state_proof_reference_read_adapter.log.gz": "2ffaf2a37060d6c7ed946580a371c7f1bc584ebe31884092214de992202b8bb6",
+    "pair-0-candidate-stale_head_refusal_reference_read_adapter.log.gz": "d9e02327fa0d25940afd0380862c107b63f83402ea21a7f73479cf3bf2666b18",
+    "pair-0-control-current_state_proof_reference_read_adapter.log.gz": "b46082718c7340c6843da3ce1b9ab49e25372a09d5b66417d7661eabbfe97160",
+    "pair-0-control-historical_state_proof_reference_read_adapter.log.gz": "e3c91dcfa30adf40f83596cade314fd579440033108c316b2d056f6b2dba5b02",
+    "pair-0-control-stale_head_refusal_reference_read_adapter.log.gz": "a3cd570d8b93e39ca593aaa42e6ecba0bd10d059a0a2781b4330dd8958ba3707",
+    "pair-1-candidate-current_state_proof_reference_read_adapter.log.gz": "5ca150bd4a7fd013e5601e97291e317d40af6edad8771016fbbe95c2d1362ee2",
+    "pair-1-candidate-historical_state_proof_reference_read_adapter.log.gz": "be3916e644e67b152099dd1d7fbc3dec98969b4680c8446ce097e71b346b93c7",
+    "pair-1-candidate-stale_head_refusal_reference_read_adapter.log.gz": "cfb8d84d073ee6b5d2440f57c6bb8817a10a43247a4bd71d9046efa4946d9911",
+    "pair-1-control-current_state_proof_reference_read_adapter.log.gz": "be2046ddaf771c93bd04eac413a42d658d2ebfb159dd95e9e35dbf12219f1f76",
+    "pair-1-control-historical_state_proof_reference_read_adapter.log.gz": "054ebd4d46a85e957113b2b0a3c1f0a2e8080c7b1db4b019e4995561a041926e",
+    "pair-1-control-stale_head_refusal_reference_read_adapter.log.gz": "819dc6214d2162b1688506192998c0f10dad6ba18bc48ad0a3b6fce9a7c04236",
+    "pair-2-candidate-current_state_proof_reference_read_adapter.log.gz": "69f656d056170f36b211a784fc9ef511469c49ea305ff8befd355405e71d9ce1",
+    "pair-2-candidate-historical_state_proof_reference_read_adapter.log.gz": "b748b74fc3abb720320874abc3ca7e6acc08e50f662b77b7dd6df3fb9970abb0",
+    "pair-2-candidate-stale_head_refusal_reference_read_adapter.log.gz": "5b26a36a2caa5f24da202c2160868200bd74c1b1dc33925caacaf0b13fad7e0e",
+    "pair-2-control-current_state_proof_reference_read_adapter.log.gz": "3e7045be9baeebd1d7de75f913bf2233175ab03240fcf075fd76a0295c2c1e72",
+    "pair-2-control-historical_state_proof_reference_read_adapter.log.gz": "525373519e2e7360035ccba044752193d44002140023ac837003f2e227088cb6",
+    "pair-2-control-stale_head_refusal_reference_read_adapter.log.gz": "cc0f89d6badeec3fe066b1a6566f1986b4c526739897a6f4ead3a0bdce05134a",
+    "pair-3-candidate-current_state_proof_reference_read_adapter.log.gz": "6111421c14d35548094140513312f9f598968c41f24781c4f0f3f67ee3606fb5",
+    "pair-3-candidate-historical_state_proof_reference_read_adapter.log.gz": "acb83e3c7a90171d6a56d228afc4bae41d183fec25f21b12e7912f06dbd20939",
+    "pair-3-candidate-stale_head_refusal_reference_read_adapter.log.gz": "dfa3cd48720e72c43197613b481d35b9093c6b7c30559c726d8c8170c00cc4a9",
+    "pair-3-control-current_state_proof_reference_read_adapter.log.gz": "969b90cb66f5b6c1a350a3b055aa4aa16600f2f622b344d5e77ed3395743d429",
+    "pair-3-control-historical_state_proof_reference_read_adapter.log.gz": "a14546c222f27f58976298294fd8902006ae3334e5b2934c11536c78305c0274",
+    "pair-3-control-stale_head_refusal_reference_read_adapter.log.gz": "eacb60508d80e7600e726b7c0d95e424ff71e9dfa90bc681446c9cce04177181",
+    "pair-4-candidate-current_state_proof_reference_read_adapter.log.gz": "fdd4625605e99df0166454c8540e65e017e7a7d6720bea5f7e113285617b44aa",
+    "pair-4-candidate-historical_state_proof_reference_read_adapter.log.gz": "8ab57270dfd9ed3e05808496d59d78dc00e78a0f5bba8d42da51b97f8ecc8df4",
+    "pair-4-candidate-stale_head_refusal_reference_read_adapter.log.gz": "53ef0f06920f6c33615aa0517e8b7d3ccd802d0802c16584b878472621006a12",
+    "pair-4-control-current_state_proof_reference_read_adapter.log.gz": "ab1d430223659f538eec173c2ddfdfd1722855ea705f2c6d05365d60a25b02b7",
+    "pair-4-control-historical_state_proof_reference_read_adapter.log.gz": "ed2a9df162dc1ec280fa760e26f0c541993e5bfd32b921ec4bde31bd6a481e83",
+    "pair-4-control-stale_head_refusal_reference_read_adapter.log.gz": "b80c974c75c350d05bc05735c11545f93f2eedc05e8e15d2db2844c4012f19c4",
+    "pair-5-candidate-current_state_proof_reference_read_adapter.log.gz": "07f12d7ef728eaba9859c47705c4a9f99e4374cc6b61ad26394377f8939c71c6",
+    "pair-5-candidate-historical_state_proof_reference_read_adapter.log.gz": "0dc7a2d9d4688e1150a8db466977455bdaff4b9db6542e1503e907070643425e",
+    "pair-5-candidate-stale_head_refusal_reference_read_adapter.log.gz": "56e6dfcf2fb4f828f3e9c9d86985a800fc73b9fe9e17fd3c998d7b759d3a9bb9",
+    "pair-5-control-current_state_proof_reference_read_adapter.log.gz": "8b792ffe0aae227ad08c8290cb8aab851eaa7ba8b8eac2ade7349caa4f50e597",
+    "pair-5-control-historical_state_proof_reference_read_adapter.log.gz": "6852ff4ade482d0bb8a146dd08c43873180918ceef2710bbb5f438d74e7a2d18",
+    "pair-5-control-stale_head_refusal_reference_read_adapter.log.gz": "fbf3dfe5824d4307c1c63a4ba830c921b1db4b4fd59d61a6680e8fdc6b68b4e3",
+    "pair-6-candidate-current_state_proof_reference_read_adapter.log.gz": "548caf8c9557a0d3ad0085e866ab8a20cfb36edf4d2e79a39f61e069085abd66",
+    "pair-6-candidate-historical_state_proof_reference_read_adapter.log.gz": "9c55b28596c646dedc946b61630b8269d05591367a21f5a3e74bcdccb069b91a",
+    "pair-6-candidate-stale_head_refusal_reference_read_adapter.log.gz": "113d0e09773bb9bdce1420eadd7f4956041be6d755ec9cabb629c48dba0597cf",
+    "pair-6-control-current_state_proof_reference_read_adapter.log.gz": "ccc38180db2e6de128c42ec936b0b574411618621c464562e1d1fd00851270ac",
+    "pair-6-control-historical_state_proof_reference_read_adapter.log.gz": "b6878131b5c6b40fbfebcc1f6cd7c0581878ff875050c42af95f41124e6ca592",
+    "pair-6-control-stale_head_refusal_reference_read_adapter.log.gz": "9de483f48bff0ecab7c1e9888b4c4e3824ca27ddfb98a8ecf98b54b9d3be6965",
+    "runner.py": "a3b86f73e05adfa954bbcdf669fecfcf52d5a089d75c25aff7033abda16363d4",
+    "summary.json": "5a38306fd1486eb09d928eaa5580e1c875d9d5d4ac4d2e5052a8e21bfc82f41c"
+  }
+}

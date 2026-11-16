@@ -1,0 +1,132 @@
+{
+  "control_commit": "b1257d7faecb7b9b3f27afdcada6d924df25c347",
+  "candidate_commit": "2b73ab74039c09574c50dff38e85b6f0f31b8572",
+  "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+  "cpu": 0,
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/proof-delegation-bench/build"
+  },
+  "status": "failed_or_interrupted",
+  "checks": [
+    {
+      "label": "control-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105703Z/control/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 0.12395480599661823,
+      "artifact": "control-resolve.log.gz",
+      "sha256": "c1a7b37affae9bcfc2e4346d9d70001cba2694802d519a18407339998b04615d"
+    },
+    {
+      "label": "control-build",
+      "command": [
+        "cargo",
+        "build",
+        "--example",
+        "refactor_bench",
+        "--release",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105703Z/control/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 10.088636543005123,
+      "artifact": "control-build.log.gz",
+      "sha256": "72e627fd2ee09ed58b65f6b18e0d1de7ec36508b9e0fcb50273ee679fdcf25ae"
+    },
+    {
+      "label": "candidate-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105703Z/candidate/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 0.12341377900156658,
+      "artifact": "candidate-resolve.log.gz",
+      "sha256": "cb146624ddbbaf725a1b421a473ce4493b8dfd09b61cccf9cd680584e0830cdc"
+    },
+    {
+      "label": "candidate-build",
+      "command": [
+        "cargo",
+        "build",
+        "--example",
+        "refactor_bench",
+        "--release",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105703Z/candidate/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 4.897267798005487,
+      "artifact": "candidate-build.log.gz",
+      "sha256": "88baf99843723ce2140ae938b776ac8377b9bf99a50acb4caa3ec67e3bfe0d9c"
+    },
+    {
+      "label": "pair-0-control-current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/proof-delegation-bench/20261116T105703Z/control/proof-bench",
+        "current_state_proof_reference_read_adapter"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 126,
+      "seconds": 0.004288291995180771,
+      "artifact": "pair-0-control-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "bb00bab0173b04b345d9f582e4812a99bbba1d70aea9a5234f0dbdb3162bc0ea"
+    }
+  ],
+  "lanes": {
+    "control": {
+      "revision": "b1257d7faecb7b9b3f27afdcada6d924df25c347",
+      "archive_sha256": "60ea2b7ed70205bfe85dc33681178ef8824d0e2d83feb2fc95eb78bf6eb3af3b",
+      "lock_sha256": "149437be775111580570d4d9a3dba7c8b2df5b407d05f9c8a8c80609514c7c43",
+      "benchmark_sha256": "0e0544823fff3db4955cae3f61c43d052da41e063f6a923e310e66a407e46772",
+      "binary_sha256": "86601c167b3235caaf14de485da11241035f861bb4e81c7b93aa7ed69bda915d",
+      "binary_bytes": 4078592
+    },
+    "candidate": {
+      "revision": "2b73ab74039c09574c50dff38e85b6f0f31b8572",
+      "archive_sha256": "85c48d8bf889f00cf4909272b5593fc3572ef71231008b6e1c83fb3b09b27d76",
+      "lock_sha256": "149437be775111580570d4d9a3dba7c8b2df5b407d05f9c8a8c80609514c7c43",
+      "benchmark_sha256": "0e0544823fff3db4955cae3f61c43d052da41e063f6a923e310e66a407e46772",
+      "binary_sha256": "4e36640861f630c355e1d8c9e65e80e5f9cf1224ff31e325ca1673af1169266e",
+      "binary_bytes": 4080504
+    }
+  },
+  "runs": [],
+  "limitations": [
+    "Shared host, seven alternating pairs; no discarded samples or universal performance threshold.",
+    "Tail values are percentiles of 31 batch averages, not individual-request latency.",
+    "Frozen benchmark altered only to call the derived-key methods being extracted.",
+    "Identical compiler, resolved consumer dependencies and workload in both lanes.",
+    "Fixed in-memory read adapter; no new expected-claim or durable workflow qualification."
+  ],
+  "failure": "RuntimeError('pair-0-control-current_state_proof_reference_read_adapter failed')",
+  "artifacts_sha256": {
+    "candidate-benchmark.rs": "0e0544823fff3db4955cae3f61c43d052da41e063f6a923e310e66a407e46772",
+    "candidate-build.log.gz": "88baf99843723ce2140ae938b776ac8377b9bf99a50acb4caa3ec67e3bfe0d9c",
+    "candidate-resolve.log.gz": "cb146624ddbbaf725a1b421a473ce4493b8dfd09b61cccf9cd680584e0830cdc",
+    "candidate.lock": "149437be775111580570d4d9a3dba7c8b2df5b407d05f9c8a8c80609514c7c43",
+    "control-benchmark.rs": "0e0544823fff3db4955cae3f61c43d052da41e063f6a923e310e66a407e46772",
+    "control-build.log.gz": "72e627fd2ee09ed58b65f6b18e0d1de7ec36508b9e0fcb50273ee679fdcf25ae",
+    "control-resolve.log.gz": "c1a7b37affae9bcfc2e4346d9d70001cba2694802d519a18407339998b04615d",
+    "control.lock": "149437be775111580570d4d9a3dba7c8b2df5b407d05f9c8a8c80609514c7c43",
+    "pair-0-control-current_state_proof_reference_read_adapter.log.gz": "bb00bab0173b04b345d9f582e4812a99bbba1d70aea9a5234f0dbdb3162bc0ea",
+    "runner.py": "abac48f6337a2b25c263e844332fc732ca4e3f3b9858c20226b754706aaea0ea"
+  }
+}

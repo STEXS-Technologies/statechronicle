@@ -1,0 +1,60 @@
+{
+  "revisions": [
+    "ae3d94bc22c7835eaa3fdcd766e3c117929c12bb",
+    "d7167a184249a65b3ab8b4527c8611c7356f8fdc"
+  ],
+  "fixture_sha256": "cf02572dbb095a63a0d7a6206a698e7e41abb16790e5f96b9042fce697b09751",
+  "wire_sha256": "fdccce8e4ce783c27bd0239151930d1e51dc82c7704884731254b8199e991fff",
+  "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+  "checks": [
+    {
+      "label": "0-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/proof-service-parity/20261116T105314Z-112719/0/consumer",
+      "exit_code": 0,
+      "seconds": 0.113634240013198,
+      "artifact": "0-resolve.log.gz",
+      "sha256": "74b793148149a924e90cfb4f84e5dfa8bd4f754f4406912473cd181f7f2e9edb"
+    },
+    {
+      "label": "0-build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/proof-service-parity/20261116T105314Z-112719/0/consumer",
+      "exit_code": 101,
+      "seconds": 5.015929578992655,
+      "artifact": "0-build.log.gz",
+      "sha256": "270669b3c3dd0bd06df0c76b27b5eb46f796d4528af36cdd7df707b1396e44ee"
+    }
+  ],
+  "lanes": [],
+  "status": "failed_or_interrupted",
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/proof-service-parity/build"
+  },
+  "limitations": [
+    "Four compatibility state-proof methods; new expected-claim and absence/trade verification are separate.",
+    "Deterministic matrix over frozen original wire; not exhaustive input/property/concurrency qualification.",
+    "A dependency-patched original comparator must be identified separately from unmodified release execution."
+  ],
+  "failure": "RuntimeError('0-build failed')",
+  "artifacts_sha256": {
+    "0-build.log.gz": "270669b3c3dd0bd06df0c76b27b5eb46f796d4528af36cdd7df707b1396e44ee",
+    "0-resolve.log.gz": "74b793148149a924e90cfb4f84e5dfa8bd4f754f4406912473cd181f7f2e9edb",
+    "0.lock": "4a790e93b35cdd5e23d282975d96712f07155edfeda60d93c11cacf1136cdb85",
+    "proof_service.rs": "cf02572dbb095a63a0d7a6206a698e7e41abb16790e5f96b9042fce697b09751",
+    "runner.py": "6fed0dfd0f038840eae0d741c1c72360be9b4badccd2fcaa48039e04ec051cbb"
+  }
+}

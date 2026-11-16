@@ -1,0 +1,14 @@
+{
+  "retained_candidate_commit": "a818f9bd884bc6bd9754376d44cbfad811289b6a",
+  "strict_parity_manifest": "20261116T105936Z-326221/manifest.json",
+  "strict_parity_sha256": "752a11a8a634ee326a7859074b57415ee41712f2ae1aaea0fbfc6582018be1b1",
+  "qualification_manifest": "qualification-a818f9b/manifest.json",
+  "qualification_sha256": "fbf000fed28f0877fa958a06bdc2e86e168e6adbe4832138b2dcc288041a5cbb",
+  "external_manifest": "docs/0.3/evidence/compat/20261116T110216Z-413482/manifest.json",
+  "external_sha256": "8b4c08dfec10792657063c762f3f1bf4a13da3ddb88410d74f792c589ce7060e",
+  "retained_benchmark_manifest": "bench-a818f9b-20261116T110001Z/manifest.json",
+  "retained_benchmark_sha256": "b5ec2ccc898afd63eea0a049190eb0289782a924a7e34c8a81e13007748b90d2",
+  "all_nested_retained_artifact_hashes_verified": true,
+  "libraries_manifests_locks_frozen_fixtures_unchanged_during_qualification": true,
+  "release_status": "Partial F2/F6 checkpoint; broader roadmap incomplete."
+}

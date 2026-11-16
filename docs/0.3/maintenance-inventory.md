@@ -142,3 +142,15 @@ capability boundary and consumer API, not source shrink. Boxed port futures
 are forwarded unchanged by the legacy bridge; no performance equivalence or
 allocation-free claim follows for the complete verifier. Full proof-serving
 composition and durable external integration remain separate work.
+
+Compatibility state-proof orchestration now makes ordinary derived-key `verify`
+a thin delegate to existing `verify_with_key`. A 2,352-row external matrix
+matches actual original-release errors and tenant/commit/head read order exactly.
+The canonical derived-key wrapper deliberately retains its direct orchestration:
+a prototype nested delegation repeatedly added stale-head refusal cost. Lookup,
+head comparison and bundle cryptography still share their existing owners.
+This is a measured retained duplication, not a second canonicality invariant.
+The retained extraction removes four syntax lines, 28 tokens and one parsed
+branch node, with no new public API/dependency. It does not establish the broader
+hotspot target or a speedup. See [the source, parity and paired measurements](
+evidence/maintenance/proof-service/README.md) for every sample and limitation.

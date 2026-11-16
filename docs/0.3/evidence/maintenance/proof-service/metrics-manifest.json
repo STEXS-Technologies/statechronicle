@@ -1,0 +1,20 @@
+{
+  "before_revision": "d7167a184249a65b3ab8b4527c8611c7356f8fdc",
+  "before_source_matches_control": "b1257d7faecb7b9b3f27afdcada6d924df25c347",
+  "prototype_revision": "2b73ab74039c09574c50dff38e85b6f0f31b8572",
+  "retained_revision": "a818f9bd884bc6bd9754376d44cbfad811289b6a",
+  "command_template": "uv run --offline --python 3.13 --with tree-sitter==0.25.2 --with tree-sitter-rust==0.24.2 python scripts/refactor_metrics.py --revision <revision> --output <report>",
+  "retained_totals": {
+    "tracked_bytes": 1501841,
+    "syntax_lines": 16536,
+    "lexical_tokens": 121252,
+    "branch_nodes": 1984,
+    "public_syntax_items": 1445
+  },
+  "artifacts_sha256": {
+    "before-metrics.json.gz": "bfb72be8d271bc04187645c2012d2acbc09fbe3a9b735b3782a79c2dfbc7a9cc",
+    "prototype-metrics.json.gz": "98ff157b5c4bdcbc58b29254d28f37007b126d33ba5834a5765efdc8e90f1d6f",
+    "retained-metrics.json.gz": "8bf3eaca89483ffc318b7a7f8f53702377a33dea092a5a95e509e8e163d8b07b",
+    "metrics-runner.py": "862681ee03bd51f4b4c446d980ec746b9a28a6ee8063a84f3173e2922a863038"
+  }
+}

@@ -814,3 +814,25 @@ Production code, manifests, locks and frozen historical fixtures are unchanged.
 This closes a bounded growing single-mutation history test gap. Mixed single/
 batch and randomized histories, real database/process reopen and physical crash
 qualification remain open; it is not completed F5/F8 or release readiness.
+
+## Compatibility proof wrapper deletion and measured retention
+
+`a818f9b` deletes ordinary derived-key verification's duplicate lookup/verification
+sequence and delegates to its existing explicit-key owner. An external 2,352-row
+matrix matches the actual original `v0.2.0`, pre-extraction candidate and retained
+candidate on complete errors and lookup/head-read order. The original wire
+corpus and source are independently archived, not regenerated from the candidate.
+
+The canonical delegation prototype passes that same parity but raises a repeated
+stale-head refusal cost concern (+18.1 ns / +5.79% median paired change). Its
+nested delegation is reverted; canonical orchestration remains direct while
+sharing lookup, head comparison and bundle verification. Retained paired results
+are noisy and show no repeatable regression in the ordinary route. No universal
+speedup, allocation equivalence or final performance-gate pass is claimed.
+
+The retained source removes 28 tokens and one parsed branch node, with no new
+public API/dependency. Formatting, 884 finite tests, 16 doctests, strict Clippy
+and strict rustdoc pass at the exact retained candidate. All failures, prototype
+results, actual-original trace and dependency-patched diagnostic difference are
+in [the evidence](evidence/maintenance/proof-service/README.md). Broader F2/F6/F8
+requirements remain open.
