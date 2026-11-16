@@ -52,7 +52,7 @@ def main():
         print(label, result.returncode, flush=True)
         require(result.returncode == 0, label + ' failed')
         return result.stdout
-    names = ['StateId', 'IntentId', 'EventId', 'CommitId', 'SnapshotId', 'ProfileId', 'Operation', 'KeyId']
+    names = ['StateId', 'IntentId', 'EventId', 'CommitId', 'SnapshotId', 'ProfileId', 'Operation', 'KeyId', 'Status']
     expected = {f'{name}:{kind}:{index}' for name in names for kind, count in [('string', 1128), ('json', 10), ('bcs', 7)] for index in range(count)}
     traces = []
     save()

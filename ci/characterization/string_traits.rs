@@ -4,6 +4,7 @@ use statechronicle::domain::{
     commit::ProfileId,
     ids::{CommitId, EventId, IntentId, SnapshotId, StateId},
     intent::{KeyId, Operation},
+    status::Status,
 };
 use std::fmt::{Debug, Display};
 
@@ -46,10 +47,13 @@ fn inputs(prefix: &str) -> Vec<String> {
     values
 }
 macro_rules! characterize {
-    ($rows:ident, $name:ident, $prefix:literal) => {{
+    ($rows:ident, $name:ident, $prefix:literal) => {
+        characterize!($rows, $name, $prefix, $name);
+    };
+    ($rows:ident, $name:ident, $prefix:literal, $raw:expr) => {{
         for (index, value) in inputs($prefix).into_iter().enumerate() {
             // Public tuple construction is intentionally unchecked in the old API.
-            let raw = $name(value.clone());
+            let raw = ($raw)(value.clone());
             let bytes = bcs::to_bytes(&value).unwrap();
             let json = serde_json::to_string(&value).unwrap();
             $rows.push(json!({
@@ -87,5 +91,13 @@ fn main() {
     characterize!(rows, ProfileId, "profile.");
     characterize!(rows, Operation, "op.");
     characterize!(rows, KeyId, "key:");
+    // Status has a private tuple field, but its trusted static constructor
+    // retains the same unchecked string behavior. Leaking here is test-only.
+    characterize!(
+        rows,
+        Status,
+        "status.",
+        |value: String| Status::from_static(Box::leak(value.into_boxed_str()))
+    );
     serde_json::to_writer(std::io::stdout(), &rows).unwrap();
 }
