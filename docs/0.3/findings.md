@@ -225,3 +225,14 @@ by the legacy benchmark. No protocol bytes or dependency versions change.
 This prepares the durability work but does not yet implement authoritative
 receipt lookup, structured unknown acknowledgements or atomic durable replay.
 F1 remains incomplete; the remaining F2–F8 gates are also open.
+
+Exact production commit `0fb6179` passed all five candidate external hosted,
+portable and bare-metal checks in
+`evidence/compat/20261116T033222Z-889194/`. The retained log confirms execution of
+`public_preparation_never_treats_a_planning_marker_as_a_receipt`; the runner also
+verifies original frozen fixture provenance and unchanged wire bytes. No new
+third-party lock entries were admitted. The source metrics at that exact commit
+add 106 production syntax lines, 502 lexical tokens, eight branch nodes and nine
+public syntax items relative to the owned-proof-payload checkpoint. The increase
+owns preparation authority and input isolation; it is not a claim of F6 net
+simplification, F8 performance qualification or completed durable recovery.
