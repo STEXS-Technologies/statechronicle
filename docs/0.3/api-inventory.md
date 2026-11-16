@@ -85,3 +85,11 @@ and manual registration remain unchanged. Macro-generated consumer API is not
 captured by the syntax metric. In the subsequent MSRV compatibility correction,
 three immutable receipt accessors become `const fn` and `projections_for` elides
 an equivalent lifetime; existing calls and lifetime relationships are unchanged.
+
+
+The later maintainer-requested [dependency refresh](dependency-refresh.md) pins
+Rust 1.100.0, raises the declared minimum to Rust 1.100 and returns the current
+public key types to Ed25519 Dalek 3. Earlier version-2 and Rust-1.85 evidence
+above describes those exact historical checkpoints, not the refreshed tree.
+Frozen original sources and measurement artifacts remain unchanged. Consumers
+of interim version-2 checkpoints must align their direct key-type dependency.
