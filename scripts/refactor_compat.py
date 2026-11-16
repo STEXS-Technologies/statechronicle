@@ -71,7 +71,8 @@ def main():
         'environment': {'RUSTC_WRAPPER': os.environ.get('RUSTC_WRAPPER', ''),
                         'CARGO_BUILD_JOBS': os.environ.get('CARGO_BUILD_JOBS', '')},
         'limitations': ['Frozen released tests, not an independent semantic model.',
-                        'No performance, fuzz, bare-metal or exhaustive API qualification.'],
+                        'Only recorded checks qualify; no fuzz or exhaustive API qualification.',
+                        'Bare-metal compilation requires --portable; benchmark measurements require --measure.'],
         'checks': [], 'status': 'running',
     }
     path = evidence / 'manifest.json'

@@ -356,3 +356,25 @@ formatting and whitespace checks pass. Development failures and source hashes
 are retained in `evidence/f1/signed-mutation/`; final documentation links were
 qualified separately after test execution. Exact committed external and source
 metric evidence follows separately.
+
+Exact production checkpoint `fc641fe` measures 1,400,945 tracked source bytes,
+15,043 production syntax lines, 110,912 lexical tokens, 1,786 branch nodes and
+1,302 public syntax items using the pinned F0 parser methodology. Relative to
+`59ca749`, this adds 6,834 bytes, 90 syntax lines, 561 tokens, six branch nodes
+and eight public syntax items. The delta binds the protected preparation token
+to signing/storage and adds one shared structural-validation seam; it is a
+justified authority boundary, not a measured simplification or speedup.
+
+Exact `fc641fe` external qualification is retained in
+`evidence/compat/20261116T041110Z-1773334/`. All five candidate hosted/portable/
+bare-metal checks pass on Rust 1.85, including all 16 public-API recovery and
+signed-plan scenarios. That manifest retains a preexisting generic limitation
+saying bare-metal was unqualified despite its explicit passing compilation
+record. The runner disclaimer was corrected to describe the recorded checks
+and flag-controlled scope; the subsequent qualification manifest records the
+corrected runner hash without changing frozen fixtures or production source.
+
+The corrected-runner repetition
+`evidence/compat/20261116T041204Z-1800235/` also passes all five checks against
+the same exact production candidate. Bare-metal evidence is compilation only,
+not target execution or power-loss qualification.
