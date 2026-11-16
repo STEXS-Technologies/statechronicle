@@ -521,3 +521,36 @@ tokens, +1 branch and +1 crate-restricted helper (no exported consumer API).
 This is a checkpoint reduction, not the final hotspot target. The repeated
 stale-head observation improves to +12 ns versus original, with substantial
 noise and final performance qualification still open.
+
+## Hosted typed transition evaluation
+
+Original-release instrumentation confirms that adjacent `TypedProfile::check`
+and `apply` decode both native inputs twice and validate the command twice.
+The executor now uses a compatible `ProfileRules::evaluate` default method;
+existing implementations still run their original check then apply. The typed
+override owns decoded values locally and shares them through validation and
+reduction. Current and resulting state invariants, signed operation binding,
+canonical roundtrips and bounds remain checked. Check and reduction failures
+retain their distinct executor mappings through a typed stage error.
+
+Five profile fixtures cover counts, original behavior, 224 differential cases
+and default-method refusal order; one executor fixture covers structured check
+errors and transition-error rendering. The Rust 1.85 workspace run passes 837
+tests in 66 binaries; a subsequent targeted run passes all six profile/executor
+fixtures, including the newly added executor test. Five doctests, strict stable
+Clippy and rustdoc pass. The initial strict lint failure was test indexing and
+was repaired using checked access without changing expectations.
+
+Pinned-parser metrics at `d1550a9` report 1,403,910 tracked source bytes, 15,083
+syntax lines, 111,210 tokens, 1,796 branches and 1,305 public syntax items:
++2,544 bytes, +40 lines, +270 tokens, +4 branches and +2 public syntax items
+versus `abd7245`. This adds a compatible default trait method and stage error
+to remove actual runtime repetition; it is not a source-shrink claim. Native
+`StateProfile`, dependencies, portable execution and wire schemas are unchanged.
+Timing/allocation qualification and the rest of F2/F3–F8 remain open. See
+[typed evaluation contract](typed-evaluation.md) and its F3 evidence directory.
+
+Exact candidate `d1550a9` passes all five external hosted/portable/bare-metal
+checks on Rust 1.100 and independently on Rust 1.85, including frozen legacy
+consumers and canonical overlays. Manifests: `evidence/compat/20261116T045523Z-3083571/`
+and `evidence/compat/20261116T045532Z-3089968/`.

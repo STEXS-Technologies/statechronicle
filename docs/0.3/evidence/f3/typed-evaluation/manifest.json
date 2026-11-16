@@ -1,0 +1,95 @@
+{
+  "candidate_commit": "d1550a9fd430edbd3e850811335c70cb74465bd5",
+  "baseline_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "toolchains": {
+    "1.85.0": "rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-linux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n",
+    "stable": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n"
+  },
+  "source_sha256": {
+    "Cargo.lock": "9c551a66b5698d08a0d5eb1d6364d98107e573e4d6b464da6d83742b8932b86f",
+    "crates/statechronicle-profiles/src/registry.rs": "84eed02ee174ae0f71af3cf866f830dc0f72c5cb71f22388ebcbfd9cf8db8c44",
+    "crates/statechronicle-profiles/src/error.rs": "4fa7ced73207684bc2574649d49d15e7bc4f945ee33a49a78179d4286cfd401f",
+    "crates/statechronicle-profiles/src/custom.rs": "bde264753d66d7a7207ca41b9a6fbefda13635334c59a0b7a564c63a6eee8c41",
+    "crates/statechronicle-executor/src/pipeline.rs": "8e40f958f19365fb0e6fc5d5cec49738abe4217d295f62f7adae214671033725",
+    "crates/statechronicle-profiles/tests/typed_evaluation.rs": "fa86087c1aaa60d500b13c18aa01b5b6e5426e64cb40d658f94103d2fe125dde",
+    "crates/statechronicle-executor/tests/profile_evaluation.rs": "b11a26c1f5ba50f3f4d4e834f51503816317e3c06ef20f923f4abd41070d5695"
+  },
+  "checks": [
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo +1.85.0 test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked --offline",
+      "log": "typed-workspace.log.gz",
+      "exit_code": 0,
+      "passed": 837,
+      "binaries": 66
+    },
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo +1.85.0 test -p statechronicle-executor --test profile_evaluation -p statechronicle-profiles --test typed_evaluation --locked --offline",
+      "log": "typed-stage-qualified.log.gz",
+      "exit_code": 0,
+      "passed": 6,
+      "binaries": 2
+    },
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo +1.85.0 test --workspace --exclude statechronicle-fuzz --doc --all-features --locked --offline",
+      "log": "typed-doctests.log.gz",
+      "exit_code": 0,
+      "passed": 5,
+      "binaries": 13
+    },
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo clippy --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked --offline -- -D warnings",
+      "log": "typed-clippy-final.log.gz",
+      "exit_code": 0,
+      "passed": null,
+      "binaries": null
+    },
+    {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 RUSTDOCFLAGS=\"-D warnings\" cargo doc --workspace --exclude statechronicle-fuzz --no-deps --all-features --locked --offline",
+      "log": "typed-doc.log.gz",
+      "exit_code": 0,
+      "passed": null,
+      "binaries": null
+    },
+    {
+      "command": "graphify update .",
+      "log": "typed-graph-final.log.gz",
+      "exit_code": 0,
+      "passed": null,
+      "binaries": null
+    }
+  ],
+  "external_manifests": [
+    "../../compat/20261116T045523Z-3083571/manifest.json",
+    "../../compat/20261116T045532Z-3089968/manifest.json"
+  ],
+  "metrics_sha256": "2ad44ee38c6ef7dd5058569338ad722c76fc3a494c470148cd8a8336d617cbc7",
+  "artifacts_sha256": {
+    "typed-after.log.gz": "67a95c3c0ccd2be81ec126873d8702649072d28d62c9c958369196597512d436",
+    "typed-workspace.log.gz": "136fac21799aca2cad21a75fdf9385628ed3fa620576c50d631313aef2184cd7",
+    "typed-stage-qualified.log.gz": "c66f49c191bee40dbfaa943dfb6ad91fb3e55216f240d4a0f2b386a95fc3d758",
+    "typed-doctests.log.gz": "4449126e4dc10cfcf27d2bf1800aee2edec8f2f2b49c4f96ec1aa2f86fb9f28c",
+    "typed-clippy.log.gz": "d7d8b92fb3219fc480f8ace5d64b681f367263c9f789e75237dbc8e53ebb5865",
+    "typed-clippy-qualified.log.gz": "1af718ad0c4d470e0228313de68ede23d68ce5db74263327b5ec8a118f1fa393",
+    "typed-clippy-final.log.gz": "d32216698f0caa7d73851dcd11b0034d4dd08a784d44c47fcbfc019dab670a09",
+    "typed-doc.log.gz": "642b8a7531d5f975bfaf0101e9fbd2c5178595cf28721c39751695cc21f59603",
+    "typed-graph.log.gz": "4f570d822272be7c8f95a457a3a4e9c1152819183a9a090510f67797253a259a",
+    "typed-graph-final.log.gz": "005b83d7acd72f55cd75f8afdda9e8246021ac7ee0e60342f54413a947d9f275",
+    "typed-external.log.gz": "5932ea9eb941602e31a393fc9eac6b51b4af295068fe695df109d5316d6429d4",
+    "typed-external-msrv.log.gz": "5932ea9eb941602e31a393fc9eac6b51b4af295068fe695df109d5316d6429d4",
+    "typed-metrics.log.gz": "0bc92fbcb6c1731d83505659df9d208c99859c2afa19f6cb6c5d2fb50e3fbfc0"
+  },
+  "unqualified_attempts": [
+    {
+      "log": "typed-clippy.log.gz",
+      "exit_code": 101,
+      "reason": "Test fixture indexing lint; replaced indexing with first().unwrap(), retaining original assertions and archived pre-change fixture."
+    }
+  ],
+  "limitations": [
+    "837-test workspace campaign preceded the additional executor mapping fixture; the subsequent targeted six-test run includes that new fixture and recompiles final test sources. Production source unchanged between runs.",
+    "Five doctests cover 13 crates.",
+    "Counts prove one input interpretation on typed evaluate, not measured latency or allocations; matched new-path performance campaign remains required.",
+    "Default ProfileRules evaluation deliberately retains existing check/apply behavior; portable StateProfile and execution are unchanged.",
+    "Graph update is AST-only; Cargo.toml zero-node and community-label warnings retained."
+  ]
+}
