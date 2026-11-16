@@ -907,3 +907,20 @@ on Rust 1.100.0. Removing OS locking in an archive makes the unchanged process
 test fail at live-owner exclusion. [Source, logs and scoped evidence](evidence/conformance/file-process-restart/README.md)
 advance F5 without claiming power-loss safety, arbitrary backend qualification or
 completion of F5/F8. Library source, dependencies and lockfiles are unchanged.
+
+## Growing history across single and batch writes
+
+Dev-only source `2c446ec` adds `batch::history::check` over one shared per-tenant
+chain with alternating singles and complete batches. The signed reference has
+22 transactions, 32 identities, two interleaved tenants, 224 rollback prefixes
+and 368 cumulative original identity checks. Independent snapshots retain raw
+effects, actual heads and every complete original batch member record.
+
+Two new broken adapters pass the existing single-only history and genesis batch
+visibility/replay checks but discard receipt authority when switching APIs. The
+mixed harness rejects both at named original-lookup/membership checks. Six setup
+errors refuse without resetting existing data. All 22 archived conformance tests,
+formatting, strict Clippy and rustdoc pass on Rust 1.100.0; no production source,
+dependency or lockfile changes occur. [Exact evidence and remaining scope](evidence/conformance/mixed-single-batch-2c446ec/README.md)
+advance F5 without claiming randomized concurrency, database crash safety or
+completion of the release gates.
