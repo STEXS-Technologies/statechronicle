@@ -15,6 +15,7 @@ use std::collections::BTreeMap;
 
 use ed25519_dalek::VerifyingKey;
 use statechronicle_domain::commit::Commit;
+use statechronicle_domain::ids::CommitId;
 use statechronicle_domain::proof::ResourceStateProof;
 use statechronicle_domain::signed::Signed;
 use statechronicle_domain::tenant::TenantId;
@@ -82,7 +83,10 @@ pub fn build_trade_proof(
 /// Verifies a trade proof fail-closed.
 ///
 /// `commits_by_id` maps each commit id string to the signed settle commit and
-/// verifying key for the tenant that produced it. Each state proof is resolved
+/// verifying key for the tenant that produced it. This compatibility form
+/// cannot represent coincident commit identifiers from different tenants; use
+/// [`verify_trade_proof_scoped`] for a multi-tenant verification context.
+/// Each state proof is resolved
 /// against **the commit its own `commit_ref` names** (a tenant may settle two
 /// assets of one trade in two different commits, so each leg's proofs may pin
 /// distinct commits), then verified through the existing [`verify_bundle`]
@@ -113,6 +117,34 @@ pub fn build_trade_proof(
 pub fn verify_trade_proof(
     proof: &TradeProof,
     commits_by_id: &BTreeMap<String, (Signed<Commit>, VerifyingKey)>,
+) -> Result<(), ProofError> {
+    verify_trade_proof_with(proof, |_, commit| commits_by_id.get(commit.as_str()))
+}
+
+/// Verifies a trade's settled asset states with tenant-scoped trusted commits.
+///
+/// Map keys are `(tenant_id, commit_id)`, matching the commit store's identity
+/// scope. Every state proof must belong to its declared trade leg's tenant.
+/// Signer keys must be independently trusted by the caller. This verifies
+/// signed asset state, not the authenticity of unsigned summary, operation or
+/// previous-owner metadata, nor current canonicality or atomic settlement.
+///
+/// # Errors
+///
+/// Returns the same failures as [`verify_trade_proof`], including
+/// [`ProofError::TenantMismatch`] for a proof moved between tenant legs.
+pub fn verify_trade_proof_scoped(
+    proof: &TradeProof,
+    commits: &BTreeMap<(String, String), (Signed<Commit>, VerifyingKey)>,
+) -> Result<(), ProofError> {
+    verify_trade_proof_with(proof, |tenant, commit| {
+        commits.get(&(tenant.0.clone(), commit.0.clone()))
+    })
+}
+
+fn verify_trade_proof_with<'context>(
+    proof: &TradeProof,
+    resolve: impl Fn(&TenantId, &CommitId) -> Option<&'context (Signed<Commit>, VerifyingKey)>,
 ) -> Result<(), ProofError> {
     if proof.schema != TRADE_PROOF_SCHEMA {
         return Err(ProofError::UnsupportedSchema(proof.schema.clone()));
@@ -166,11 +198,17 @@ pub fn verify_trade_proof(
         };
 
         for state_proof in &leg.state_proofs {
+            if state_proof.tenant_id != leg.tenant {
+                return Err(ProofError::TenantMismatch {
+                    expected: leg.tenant.0.clone(),
+                    actual: state_proof.tenant_id.0.clone(),
+                });
+            }
             // Resolve this proof against the commit its OWN commit_ref names,
             // not the leg's representative commit: a tenant may settle two
             // assets of one trade in two different commits, so each proof must
             // be verified under the commit that pinned it.
-            let Some((signed, verifying_key)) = commits_by_id.get(&state_proof.commit.commit_id.0)
+            let Some((signed, verifying_key)) = resolve(&leg.tenant, &state_proof.commit.commit_id)
             else {
                 return Err(ProofError::KeyNotFound(String::from(
                     state_proof.commit.commit_id.as_str(),

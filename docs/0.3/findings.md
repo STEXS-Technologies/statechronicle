@@ -1,7 +1,8 @@
 # Baseline trust-boundary findings
 
-Status: reproduced on original production source, not yet fixed. These are
-release-blocking inputs to F1. No deployed consumer or real database was tested.
+Status: reproduced on original production source. The trade tenant/cache fix
+is implemented; the independent-claim and durable-success routes remain open.
+These are release-blocking inputs to F1. No deployed consumer or real database was tested.
 The probes use deterministic local fixtures and consumer-owned in-memory ports.
 
 ## H1: absence verification confirms the supplied key, without current freshness
@@ -67,5 +68,30 @@ release archive. Its manifest identifies their hashes separately from the
 original archive; production source and the original lockfile remain unchanged.
 The original-release probe run passed in
 `evidence/baseline/20261116T021414Z-2990104/`. Passing here means the documented
-old behavior was reproduced. It does not mean that behavior is safe. The trade
-probe must become a rejection test when the production fix is implemented.
+old behavior was reproduced. It does not mean that behavior is safe. The root trade probe is now a rejection regression; original acceptance
+characterization remains pinned to the pre-fix probe revision `bc76ce4`. The
+runner reads that revision rather than current tests. The frozen probes were
+rerun successfully in `evidence/baseline/20261116T024515Z-3522012/`.
+
+## F1 trade tenant/cache fix
+
+Both pure verification and the service now reject a state proof whose tenant
+differs from its trade leg. The service loads and resolves commits/signers under
+`(tenant_id, commit_id)` and delegates to `verify_trade_proof_scoped`. The old
+`verify_trade_proof` signature remains available through the same verification
+implementation, but its commit-ID-only input cannot express coincident IDs in
+different tenants; multi-tenant callers should use the scoped entry point.
+No wire schema, signed bytes, old error variants or valid historical semantics
+changed. Previously accepted tenant substitution intentionally fails.
+
+`trade_service_resolves_coincident_commit_ids_in_each_tenant` verifies genuine
+signed state for two tenants sharing an ID with different roots and signing
+keys. Both tenant policies are consulted. Swapped keys, swapped signed commits,
+and missing scoped entries fail; the old global map fails closed when it cannot
+represent both commits. The substitution probe rejects in pure and service
+routes, including the formerly cache-priming alpha leg.
+
+This closes the tenant/cache finding only. Unsigned operation/summary provenance,
+distinct side/resource coverage and independent expected trade claims still
+need their F1 audit. These APIs do not prove current canonicality, settlement
+history authenticity, or durable cross-tenant atomicity from signed asset state.

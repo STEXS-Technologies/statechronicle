@@ -33,7 +33,7 @@ use statechronicle_ports::state_index::StateIndex;
 
 use crate::bundle::{SnapshotProof, build_snapshot_proof, derive_state_key};
 use crate::error::ProofError;
-use crate::trade::verify_trade_proof;
+use crate::trade::verify_trade_proof_scoped;
 use crate::verify::{verify_bundle, verify_non_membership_bundle};
 
 /// Backend-agnostic store set used by [`ProofService`].
@@ -392,7 +392,7 @@ impl ProofService {
     /// Loads every distinct signed settle commit each leg's state proofs pin
     /// (a tenant may settle two assets of one trade in two different commits)
     /// through the [`CommitStore`] port, resolves each leg's tenant verifying
-    /// key through `key_for_tenant`, and runs the pure [`verify_trade_proof`]
+    /// key through `key_for_tenant`, and runs the pure [`verify_trade_proof_scoped`]
     /// pipeline, which resolves each proof against the commit its own
     /// `commit_ref` names.
     ///
@@ -401,16 +401,22 @@ impl ProofService {
     /// Returns [`ProofError::Store`] when the commit store cannot be reached,
     /// [`ProofError::NotFound`] when a state proof's own commit is not stored,
     /// [`ProofError::KeyNotFound`] when `key_for_tenant` resolves no key for a
-    /// leg's tenant, and every [`ProofError`] variant of [`verify_trade_proof`].
+    /// leg's tenant, and every [`ProofError`] variant of [`verify_trade_proof_scoped`].
     pub async fn verify_trade(
         &self,
         proof: &TradeProof,
         key_for_tenant: &dyn Fn(&TenantId) -> Option<VerifyingKey>,
     ) -> Result<(), ProofError> {
-        let mut commits_by_id: BTreeMap<String, (Signed<Commit>, VerifyingKey)> = BTreeMap::new();
+        let mut commits_by_id = BTreeMap::new();
         for leg in &proof.legs {
             for state_proof in &leg.state_proofs {
-                let commit_id = state_proof.commit.commit_id.0.clone();
+                if state_proof.tenant_id != leg.tenant {
+                    return Err(ProofError::TenantMismatch {
+                        expected: leg.tenant.0.clone(),
+                        actual: state_proof.tenant_id.0.clone(),
+                    });
+                }
+                let commit_id = (leg.tenant.0.clone(), state_proof.commit.commit_id.0.clone());
                 if commits_by_id.contains_key(&commit_id) {
                     continue;
                 }
@@ -428,6 +434,6 @@ impl ProofService {
                 commits_by_id.insert(commit_id, (signed, verifying_key));
             }
         }
-        verify_trade_proof(proof, &commits_by_id)
+        verify_trade_proof_scoped(proof, &commits_by_id)
     }
 }

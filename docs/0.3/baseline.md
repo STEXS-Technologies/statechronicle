@@ -55,9 +55,11 @@ This does not establish doctest, lint, coverage, fuzz or performance gates.
 - [x] Workload-specific latency/allocation baseline and initial variance/dependency-control measurements.
 
 F0 baseline capture is complete, with the explicitly recorded original advisory
-failures and measurement limitations below. F1–F8 remain pending. This is not
+failures and measurement limitations below. F1 is in progress; F2–F8 remain
+pending. This is not
 release qualification: final paired performance disposition and exact-candidate
-gates remain required. No production refactor or security fix is claimed yet.
+gates remain required. The first F1 change binds trade proofs and commit/key
+lookup to tenant scope; see [findings](findings.md) for remaining work.
 
 ## Additional local baseline evidence
 

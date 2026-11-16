@@ -17,6 +17,8 @@ import tarfile
 import time
 
 BASELINE = 'c418e98b91720188158c531cd5c2c4b8ab71cbcf'
+# Freeze characterization probes before F1 changes their expected behavior.
+AUDIT_PROBES = 'bc76ce4f07afd240eff5ffd48db01f181774ddfc'
 
 
 def output(*args, cwd=None):
@@ -36,7 +38,7 @@ def main():
     parser.add_argument('--qualification', action='store_true',
                         help='run remaining coverage, doctest, MSRV and benchmark baseline checks')
     parser.add_argument('--audit', action='store_true',
-                        help='run new trust-boundary probes on original library source')
+                        help='run frozen pre-fix trust-boundary probes on original library source')
     parser.add_argument('--api-inventory', action='store_true',
                         help='snapshot complete rustdoc JSON for every library crate')
     args = parser.parse_args()
@@ -60,7 +62,7 @@ def main():
             'crates/statechronicle-proof/tests/non_membership.rs',
             'crates/statechronicle-proof/tests/verification_pipeline.rs',
         ]:
-            data = (root / name).read_bytes()
+            data = subprocess.check_output(['git', 'show', f'{AUDIT_PROBES}:{name}'], cwd=root)
             (source / name).write_bytes(data)
             overlays[name] = digest(data)
     # git diff --check in the original release script needs a repository.
@@ -75,6 +77,7 @@ def main():
     manifest = {
         'baseline_commit': BASELINE,
         'test_overlays': overlays,
+        'test_overlay_revision': AUDIT_PROBES if args.audit else None,
         'candidate_commit': output('git', 'rev-parse', 'HEAD', cwd=root),
         'archive_sha256': digest(archive),
         'runner_sha256': digest(Path(__file__).read_bytes()),

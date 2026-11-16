@@ -148,7 +148,11 @@ struct Fixture {
 }
 
 fn fixture() -> Fixture {
-    let key = state_key();
+    fixture_for(tenant(), &fixed_key())
+}
+
+fn fixture_for(scope: TenantId, signing_key: &SigningKey) -> Fixture {
+    let key = StateKey::for_resource(&scope.0, &resource().0);
     let mut acc = StateAccumulator::empty();
     acc.insert_batch(&[StateUpdate::new(key, *state_hash().as_bytes())])
         .unwrap();
@@ -156,7 +160,7 @@ fn fixture() -> Fixture {
     let inclusion = acc.prove_inclusion(&key).unwrap();
 
     let commit = Commit::new(
-        CommitScope::tenant(tenant()),
+        CommitScope::tenant(scope.clone()),
         commit_id(),
         None,
         1,
@@ -168,10 +172,10 @@ fn fixture() -> Fixture {
         executor(),
         profile(),
     );
-    let signed = sign_commit(&commit, &fixed_key(), key_id()).unwrap();
+    let signed = sign_commit(&commit, signing_key, key_id()).unwrap();
 
     let projection = StateProjection {
-        tenant_id: tenant(),
+        tenant_id: scope,
         resource_id: resource(),
         state_type: StateType::UniqueAsset,
         version: 42,
@@ -199,7 +203,10 @@ fn build_proof(fixture: &Fixture) -> ResourceStateProof {
         &fixture.inclusion,
         &operation(),
         None,
-        state_key(),
+        StateKey::for_resource(
+            &fixture.projection.tenant_id.0,
+            &fixture.projection.resource_id.0,
+        ),
     )
     .unwrap()
 }
@@ -822,11 +829,9 @@ fn bundle_roundtrips_through_json_and_bcs() {
     assert_eq!(sig_back, proof.commit.signature.sig);
 }
 
-/// Baseline characterization for the trade trust-boundary audit. A state proof
-/// carries signed state, but the old trade verifier does not bind its tenant to
-/// the summary's tenant. F1 must turn this into a rejection regression test.
+/// A genuine state proof must not establish a different tenant's trade leg.
 #[tokio::test]
-async fn legacy_trade_verifier_accepts_state_proof_under_a_different_leg_tenant() {
+async fn trade_verifier_rejects_state_proof_under_a_different_leg_tenant() {
     use statechronicle_domain::trade::TradeSide;
     use std::collections::BTreeMap;
     let fixture = fixture();
@@ -861,7 +866,10 @@ async fn legacy_trade_verifier_accepts_state_proof_under_a_different_leg_tenant(
         fixture.signed.body.commit_id.0.clone(),
         (fixture.signed.clone(), fixed_key().verifying_key()),
     )]);
-    statechronicle_proof::trade::verify_trade_proof(&trade, &commits).unwrap();
+    assert!(matches!(
+        statechronicle_proof::trade::verify_trade_proof(&trade, &commits),
+        Err(ProofError::TenantMismatch { .. })
+    ));
     // A genuine alpha leg primes the service's commit-id-only cache. The beta
     // leg reuses it without loading a beta commit or resolving a beta signer.
     let mut alpha_side = trade.summary.sides[0].clone();
@@ -872,12 +880,132 @@ async fn legacy_trade_verifier_accepts_state_proof_under_a_different_leg_tenant(
     trade.legs.insert(0, alpha_leg);
     let service = service(trade.legs[0].state_proofs[0].clone(), &fixture).await;
     let resolved = Mutex::new(Vec::new());
-    service
+    let result = service
         .verify_trade(&trade, &|requested| {
             resolved.lock().unwrap().push(requested.clone());
             (requested == &tenant()).then(|| fixed_key().verifying_key())
         })
+        .await;
+    assert!(matches!(result, Err(ProofError::TenantMismatch { .. })));
+    assert_eq!(*resolved.lock().unwrap(), vec![tenant()]);
+}
+
+/// Tenant-local commit identifiers can coincide while roots and signers differ.
+#[tokio::test]
+async fn trade_service_resolves_coincident_commit_ids_in_each_tenant() {
+    use statechronicle_domain::trade::TradeSide;
+    use statechronicle_proof::trade::{verify_trade_proof, verify_trade_proof_scoped};
+    use std::collections::BTreeMap;
+
+    let alpha = fixture();
+    let beta_tenant = TenantId(String::from("acme.game.beta"));
+    let beta_key = SigningKey::from_bytes(&[43; 32]);
+    let beta = fixture_for(beta_tenant.clone(), &beta_key);
+    assert_eq!(alpha.signed.body.commit_id, beta.signed.body.commit_id);
+    assert_ne!(
+        alpha.signed.body.next_state_root,
+        beta.signed.body.next_state_root
+    );
+
+    let mut trade = TradeProof {
+        schema: String::from(TRADE_PROOF_SCHEMA),
+        trade_id: String::from("trade_scoped"),
+        summary: TradeSummary {
+            trade_id: String::from("trade_scoped"),
+            status: TradeStatus::Settled,
+            sides: Vec::new(),
+            value_legs: Vec::new(),
+        },
+        legs: Vec::new(),
+    };
+    let commits = FakeCommitStore::default();
+    let mut scoped = BTreeMap::new();
+    for (fixture, signer) in [(&alpha, fixed_key()), (&beta, beta_key.clone())] {
+        let mut proof = build_proof(fixture);
+        // This test establishes tenant-bound signed state only. Operation
+        // metadata is unsigned; it is not evidence of actual settlement.
+        proof.latest_event.operation = Operation::from_static("trade.settle");
+        let scope = proof.tenant_id.clone();
+        trade.summary.sides.push(TradeSide {
+            tenant: scope.clone(),
+            settle_assets: vec![resource()],
+            from_owner: String::from("unverified_previous_owner"),
+            to_owner: owner(),
+            settle_commit: proof.commit.clone(),
+            settle_commits_by_asset: BTreeMap::from([(resource(), proof.commit.clone())]),
+            settle_event_ids: vec![proof.latest_event.event_id.clone()],
+        });
+        trade.legs.push(TradeProofLeg {
+            tenant: scope.clone(),
+            commit: proof.commit.clone(),
+            state_proofs: vec![proof],
+        });
+        commits.put_commit(&scope, &fixture.signed).await.unwrap();
+        scoped.insert(
+            (scope.0, fixture.signed.body.commit_id.0.clone()),
+            (fixture.signed.clone(), signer.verifying_key()),
+        );
+    }
+    verify_trade_proof_scoped(&trade, &scoped).unwrap();
+    let legacy = BTreeMap::from([(
+        alpha.signed.body.commit_id.0.clone(),
+        (alpha.signed.clone(), fixed_key().verifying_key()),
+    )]);
+    assert!(matches!(
+        verify_trade_proof(&trade, &legacy),
+        Err(ProofError::TenantMismatch { .. })
+    ));
+    let beta_scope = (beta_tenant.0.clone(), beta.signed.body.commit_id.0.clone());
+    let mut swapped = scoped.clone();
+    swapped.get_mut(&beta_scope).unwrap().1 = fixed_key().verifying_key();
+    assert!(matches!(
+        verify_trade_proof_scoped(&trade, &swapped),
+        Err(ProofError::CommitSignature(_))
+    ));
+    swapped.insert(
+        beta_scope.clone(),
+        (alpha.signed.clone(), fixed_key().verifying_key()),
+    );
+    assert!(matches!(
+        verify_trade_proof_scoped(&trade, &swapped),
+        Err(ProofError::TenantMismatch { .. })
+    ));
+    swapped.remove(&beta_scope);
+    assert!(matches!(
+        verify_trade_proof_scoped(&trade, &swapped),
+        Err(ProofError::KeyNotFound(_))
+    ));
+
+    let service = ProofService::new(ProofPorts {
+        proof_index: Box::new(FakeProofIndex::default()),
+        state_index: Box::new(FakeStateIndex::default()),
+        commit_store: Box::new(commits),
+        snapshot_store: Box::new(FakeSnapshotStore::default()),
+    });
+    let resolved = Mutex::new(Vec::new());
+    service
+        .verify_trade(&trade, &|requested| {
+            resolved.lock().unwrap().push(requested.clone());
+            if requested == &tenant() {
+                Some(fixed_key().verifying_key())
+            } else if requested == &beta_tenant {
+                Some(beta_key.verifying_key())
+            } else {
+                None
+            }
+        })
         .await
         .unwrap();
-    assert_eq!(*resolved.lock().unwrap(), vec![tenant()]);
+    assert_eq!(
+        *resolved.lock().unwrap(),
+        vec![tenant(), beta_tenant.clone()]
+    );
+    assert!(matches!(
+        service
+            .verify_trade(&trade, &|requested| {
+                (requested == &tenant()).then(|| fixed_key().verifying_key())
+            })
+            .await,
+        Err(ProofError::KeyNotFound(_))
+    ));
 }
