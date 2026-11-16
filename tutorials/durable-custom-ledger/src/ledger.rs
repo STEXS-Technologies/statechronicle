@@ -485,16 +485,14 @@ struct Transaction {
 }
 impl Drop for Transaction {
     fn drop(&mut self) {
-        if let Some((intent, _, attempt)) = &self.claim {
-            if let Ok(mut state) = self.ledger.owner.state.lock() {
-                if state
-                    .reservations
-                    .get(&intent.intent_id)
-                    .is_some_and(|(_, owner)| owner == attempt)
-                {
-                    state.reservations.remove(&intent.intent_id);
-                }
-            }
+        if let Some((intent, _, attempt)) = &self.claim
+            && let Ok(mut state) = self.ledger.owner.state.lock()
+            && state
+                .reservations
+                .get(&intent.intent_id)
+                .is_some_and(|(_, owner)| owner == attempt)
+        {
+            state.reservations.remove(&intent.intent_id);
         }
     }
 }
