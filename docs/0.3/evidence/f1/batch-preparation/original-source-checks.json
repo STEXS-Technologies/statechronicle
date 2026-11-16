@@ -1,0 +1,14 @@
+{
+  "crates/statechronicle-executor/src/pipeline.rs": {
+    "matches_original": true,
+    "sha256": "686bbc473ef9306114fb155a43e0185283c3ebb7be90ce59ee4a329d61d6de19"
+  },
+  "crates/statechronicle-executor/tests/common/harness.rs": {
+    "matches_original": true,
+    "sha256": "2802ffc5909f43d4d8de14f122abce513460f6e0f87a30f97b39c1b3d4b0cac8"
+  },
+  "Cargo.lock": {
+    "matches_original": true,
+    "sha256": "76837efdc48c4b33fb007b5ed9fe38ac1c903d389a2adfefc7643977732c7b82"
+  }
+}

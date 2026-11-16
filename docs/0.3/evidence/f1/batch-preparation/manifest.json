@@ -1,0 +1,60 @@
+{
+  "candidate_commit": "30db096fd1391dd24909646deaca9f0db1ed8ec3",
+  "baseline_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "source_sha256": {
+    "crates/statechronicle-executor/src/pipeline.rs": "d6755daac773607231dbb1ed66ffb97acd8f80b524a0b4b59e5f5d5ef5e7d684",
+    "crates/statechronicle-executor/src/preparation.rs": "6e5d75e4196f0791cf5e2c325401f39613113ec706d36df9017b4a610b1ad4c2",
+    "crates/statechronicle-executor/tests/batch_preparation.rs": "77bcc1f077438efebab10223226951cea13e11c5888159c2126a2d6a729e50de",
+    "crates/statechronicle/src/lib.rs": "48e70e961a85cceb80a61a6ff8f20c43f0f4825ffbf0caabb418968a346ab321",
+    "crates/statechronicle/src/mutation.rs": "efb105460318dfc2f7bfe09a45fe6a4c2f6ec8b1529fd97d89bd7a9542691a34",
+    "ci/canonical-0.3/preparation.rs": "29101a8bfd45b4b38eecacc9d42df22c5d8c0ea4ef6f5bd3243a8e9926a1f886",
+    "Cargo.lock": "9c551a66b5698d08a0d5eb1d6364d98107e573e4d6b464da6d83742b8932b86f"
+  },
+  "checks": {
+    "original_characterization": "passed on original production and Cargo.lock; see original-source-checks.json",
+    "stable_clippy": "passed cargo clippy -p statechronicle-executor -p statechronicle --all-targets --locked --offline -- -D warnings; RUSTC_WRAPPER= CARGO_BUILD_JOBS=8",
+    "rustdoc": "passed RUSTDOCFLAGS=-D warnings cargo doc -p statechronicle-executor -p statechronicle --no-deps --locked --offline",
+    "graph": "graphify update . passed",
+    "candidate_external_MSRV": "passed Rust 1.85.0: ../compat/20261116T053426Z-4090546/manifest.json",
+    "workspace_MSRV": {
+      "command": "RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo +1.85.0 test --workspace --locked --offline",
+      "exit_code": 0,
+      "test_result_groups": 66,
+      "passed_including_doctests": 855,
+      "failed": 0,
+      "scope": "workspace default features; excludes isolated ci/conformance workspace; no all-features claim"
+    }
+  },
+  "unqualified_attempts": [
+    "tests.log.gz: initial compile error from incorrect Signature::from_bytes test call; corrected before candidate commit",
+    "clippy.log.gz: Rust 1.85.0 strict Clippy failed on unchanged atomicity.rs, persist.rs, durable.rs warnings; not claimed passing",
+    "Initial candidate runtime attempt: six tests passed, two assertion expectations failed (unprefixed fixture intent ID and missing-resource error); both corrected. That intermediate attempt was not a passing qualification."
+  ],
+  "limitations": [
+    "Preparation only; protected durable batch commit and recovery remain open.",
+    "No per-batch performance qualification; source growth reported in metrics.json.",
+    "Not physical crash/power-loss or independent database qualification.",
+    "No release completeness claim.",
+    "Rust 1.85 strict Clippy remains failed on existing warnings; stable strict Clippy passed."
+  ],
+  "source_delta_vs_parent": {
+    "tracked_bytes": 5754,
+    "syntax_lines": 94,
+    "lexical_tokens": 716,
+    "branch_nodes": 20,
+    "public_syntax_items": 5
+  },
+  "artifacts": {
+    "original-characterization.rs": "ff0535c74f7b66130698e6ca5231f89376a863d90f1dbda5f806804e4e240c39",
+    "original-source-checks.json": "39605a3ea449eab0220e7b1264a0ea2afacc796dc1fe9b25e0e02138db75f9a5",
+    "original-probe.log.gz": "e70a550bff330cb4fc7b4620f4142c495294deb2accd065ed9e143c735a34e5b",
+    "original.log.gz": "7e7dfffc1d5ebdc0afe6fc43df8d1d45b199061c1c10bc025a7006fd56ffaad7",
+    "tests.log.gz": "558f948a8ce38aecf4ee0a0bab6010a8a8352aced96b931ef9a1b638784eada0",
+    "clippy.log.gz": "5749ebee0543cf3d0e881c9edca17cae7c47b092676d780f997c23fdd193ed35",
+    "clippy-stable.log.gz": "6aa6b38b7bec60f1764f0a85f3ca35511efb6219566994d2328dbe7e4527d14f",
+    "doc.log.gz": "95041c271f5efdc2d664b9d54965e681707704ee52a0f8a4f6ea8314dc266084",
+    "graph.log.gz": "34788bf9ea88dcb76a1904bbaa6ed6b594698feb9073133f5b73f67129738d2c",
+    "metrics.json": "a6cb854ce57d3e2f3a2954a1d0eead654726ba4a807973a7b9014929790c6544",
+    "workspace-msrv.log.gz": "e7a66de720cbc343b45464dd41691c12a3e20c39be65c738c161c85afd4ed29b"
+  }
+}
