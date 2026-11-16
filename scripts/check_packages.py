@@ -24,7 +24,7 @@ def registry_packages(path):
 
 def main():
     root = Path(__file__).resolve().parents[1]
-    guarded = ['Cargo.toml', 'Cargo.lock', 'crates', 'fuzz', 'scripts/check_packages.py']
+    guarded = ['Cargo.toml', 'Cargo.lock', 'clippy.toml', 'crates', 'fuzz', 'scripts/check_packages.py']
     if subprocess.check_output(['git', 'status', '--porcelain', '--', *guarded], cwd=root):
         raise SystemExit('Commit library/package-checker changes before qualification')
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
@@ -78,7 +78,7 @@ def main():
             source = sandbox / 'source'
             source.mkdir()
             archive = subprocess.check_output(['git', 'archive', revision, 'Cargo.toml', 'Cargo.lock',
-                                               'rust-toolchain.toml', 'crates', 'fuzz',
+                                               'rust-toolchain.toml', 'clippy.toml', 'crates', 'fuzz',
                                                'LICENSE-APACHE', 'LICENSE-MIT'], cwd=root)
             tarfile.open(fileobj=io.BytesIO(archive)).extractall(source, filter='data')
             metadata = json.loads(check('metadata', ['metadata', '--no-deps', '--format-version', '1',
@@ -103,6 +103,9 @@ def main():
                 patches.append(json.dumps(package['name']) + ' = { path = ' + json.dumps(name) + ' }')
             (unpacked / 'Cargo.toml').write_text('[workspace]\nresolver = "3"\nmembers = ' + json.dumps(members)
                                                 + '\n\n[patch.crates-io]\n' + '\n'.join(patches) + '\n')
+            # Preserve the existing lint policy (not Clippy's different defaults).
+            (unpacked / 'clippy.toml').write_bytes((source / 'clippy.toml').read_bytes())
+            manifest['clippy_configuration_sha256'] = sha((unpacked / 'clippy.toml').read_bytes())
             manifest['isolated_workspace_manifest'] = (unpacked / 'Cargo.toml').read_text()
             manifest['isolation'] = {'source': str(source), 'unpacked': str(unpacked),
                                      'dependency_rule': 'All StateChronicle dependencies resolve to unpacked .crate content; no source paths'}
@@ -123,7 +126,7 @@ def main():
             if (unpacked / 'Cargo.lock').read_bytes() != lock:
                 raise RuntimeError('Unpacked lock changed during checks')
             for name in tracked:
-                if name.startswith(('crates/', 'fuzz/')) or name in {'Cargo.toml', 'Cargo.lock'}:
+                if name.startswith(('crates/', 'fuzz/')) or name in {'Cargo.toml', 'Cargo.lock', 'clippy.toml'}:
                     if sha((source / name).read_bytes()) != manifest['source_sha256'][name]:
                         raise RuntimeError('Archived source changed: ' + name)
             if subprocess.check_output(['git', 'diff', revision, '--', *guarded], cwd=root):
