@@ -1,7 +1,7 @@
 //! Protected mutation composition: prepare single requests through
-//! [`Preparer::prepare_player`], bind and sign with [`crate::mutation::SignedMutation`],
+//! [`crate::mutation::Preparer::prepare_player`], bind and sign with [`crate::mutation::SignedMutation`],
 //! commit atomically, and resolve retries through [`crate::mutation::recover`].
-//! Batches use [`Preparer::prepare_player_batch`] and [`crate::mutation::SignedBatch`];
+//! Batches use [`crate::mutation::Preparer::prepare_player_batch`] and [`crate::mutation::SignedBatch`];
 //! every member is retained and recovered as one complete atomic group.
 //!
 //! Signing is not durable success. Only the independently verified ledger
