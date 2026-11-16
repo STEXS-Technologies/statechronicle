@@ -283,3 +283,14 @@ The canonical facade must still bind protected prepared events to signing and
 storage; canonical batches, independent adapter conformance/crash/restart gates,
 trade coverage/provenance and F2–F8 remain open. The new readback/verification cost
 requires its own matched measurements; legacy timings are not equivalent work.
+
+Exact durable implementation `ea988b6` passed all ten original/candidate external
+hosted, portable and bare-metal checks in
+`evidence/compat/20261116T035133Z-1254026/`. The candidate log confirms all eleven
+new recovery scenarios run through only the public umbrella dependency, using
+exact archived candidate sources. Original fixtures and wire provenance remain
+unchanged. `evidence/f1/durable-recovery/metrics.json` records +454 production
+syntax lines, +2,537 lexical tokens, +50 branch nodes and +38 public syntax items
+relative to preparation checkpoint `0fb6179`. The delta owns typed uncertainty,
+authoritative retained-record validation and private receipt construction; it
+is a justified safety addition, not a net source-reduction or performance claim.
