@@ -77,7 +77,9 @@ fuzz_target!(|data: &[u8]| {
             ));
         }
         let arbitrary: Vec<PathStep> = data
-            .chunks_exact(33)
+            .as_chunks::<33>()
+            .0
+            .iter()
             .take(256)
             .map(|chunk| PathStep {
                 level: chunk[0],

@@ -64,13 +64,13 @@ This is selected downstream coverage, not a claim that every possible consumer
 was compiled. See [API inventory](api-inventory.md) and exact
 [compatibility evidence](evidence/compat/) for scope.
 
-A concrete dependency source boundary requires attention: the original checkout
-used Ed25519 major version 3; this branch uses major version 2. Types from those
-versions are distinct Rust types. Downstream code passing version-3 key objects
-must align its dependency with this branch or convert through validated key bytes
-at its own trust boundary. The frozen consumer permits `>=2, <4` so it can build
-both revisions; that does not make version-3-only callers source compatible.
-See the inventory and lockfiles for provenance and original-build limitations.
+The original checkout and the current branch use Ed25519 Dalek major version 3.
+Earlier refactor checkpoints used major version 2; those remain exact historical
+evidence. Downstream consumers of those checkpoints must align their Dalek
+major version with the current public key types. Types from different major
+versions are distinct Rust types; byte conversion belongs at a validated trust
+boundary. The current dependency refresh also adopts Base64 0.23 and SHA-2 0.11.
+Independent frozen signing/root/proof vectors remain the compatibility oracle.
 
 Original intent/event/commit/proof encodings, enum indices, signing bytes,
 cryptographic roots and old schema meaning are intended to remain unchanged.
@@ -87,7 +87,8 @@ bytes with a new model. Rebuild from independently pinned verified history,
 retain scoped checkpoints, compare final roots and promote only validated
 projections. Storage schema migration/backup/restore is the adapter owner's job.
 
-MSRV remains Rust 1.85 and the supported portable path remains allocation-free
+The requested toolchain refresh raises MSRV from Rust 1.85 to Rust 1.100.
+The supported portable path remains allocation-free
 and `no_std`. The library manifests currently declare no package-defined feature
 matrix. Do not infer that hosted types or async storage are available on bare
 metal; the external portable consumer qualifies that separate boundary.

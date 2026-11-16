@@ -17,6 +17,7 @@ runs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
+        toolchain: 1.100.0
         components: ${{ inputs.rust-components }}
 
     - name: Cache Cargo artifacts

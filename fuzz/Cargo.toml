@@ -24,7 +24,7 @@ redundant_clone = "allow"
 
 [dependencies]
 statechronicle-portable.workspace = true
-libfuzzer-sys = "0.4"
+libfuzzer-sys = "0.4.13"
 hex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

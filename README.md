@@ -41,7 +41,7 @@ published `0.3.0`. Final release qualification is incomplete.
    commit pin and asserts no freshness. A valid signature alone proves neither
    current state nor authorization. See [proof claims](docs/0.3/proof-claims.md).
 
-With Rust 1.85 or newer, run from this checkout:
+With Rust 1.100 or newer, run from this checkout:
 
 ```sh
 cargo run --manifest-path tutorials/minimal-native-domain/Cargo.toml --locked

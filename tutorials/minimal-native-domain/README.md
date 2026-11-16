@@ -13,7 +13,7 @@ before accepting external requests. Nothing here proves physical equipment state
 
 ## Run it
 
-From the repository root, using Rust 1.85 or newer:
+From the repository root, using Rust 1.100 or newer:
 
 ```sh
 cargo run --manifest-path tutorials/minimal-native-domain/Cargo.toml --locked
@@ -109,7 +109,7 @@ cached, after committing the source, run from the repository root:
 
 ```sh
 python3 scripts/check_tutorials.py --toolchain stable
-python3 scripts/check_tutorials.py --toolchain 1.85.0
+python3 scripts/check_tutorials.py --toolchain 1.100.0
 ```
 
 The runner extracts the committed library and application, copies the application

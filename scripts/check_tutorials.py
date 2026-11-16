@@ -26,7 +26,7 @@ def registry_packages(lock):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--toolchain', default='stable')
+    parser.add_argument('--toolchain', default='1.100.0')
     parser.add_argument('--tutorial', default='minimal-native-domain',
                         help='directory under tutorials/; no path separators')
     args = parser.parse_args()

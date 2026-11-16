@@ -8,7 +8,7 @@ Its own workspace and lockfile permit building outside the repository.
 
 ## Run
 
-With Rust 1.85 or newer, from the repository root:
+With Rust 1.100 or newer, from the repository root:
 
 ```sh
 cargo run --manifest-path tutorials/durable-custom-ledger/Cargo.toml --locked
@@ -113,7 +113,7 @@ After committing source, with Python 3.12+, cached dependencies and both toolcha
 
 ```sh
 python3 scripts/check_tutorials.py --tutorial durable-custom-ledger --toolchain stable
-python3 scripts/check_tutorials.py --tutorial durable-custom-ledger --toolchain 1.85.0
+python3 scripts/check_tutorials.py --tutorial durable-custom-ledger --toolchain 1.100.0
 ```
 
 The runner extracts committed sources, copies this application outside the
