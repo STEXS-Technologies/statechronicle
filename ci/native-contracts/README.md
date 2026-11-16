@@ -50,6 +50,7 @@ python3 scripts/check_native_contracts.py --negative-control-valid-program
 ```
 
 This demonstrates that acceptance is not silently treated as a successful
-compile-fail case. It changes the generated external probe only; source archives,
+compile-fail case. Validation guards also remain active under optimized Python.
+The manifest records the interpreter version and optimization setting. It changes the generated external probe only; source archives,
 fixtures and production code remain intact. Neither command creates a PR,
 triggers a GitHub workflow, changes dependencies or publishes a package.

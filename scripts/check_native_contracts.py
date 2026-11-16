@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tarfile
 import tempfile
 import time
@@ -49,6 +50,7 @@ def main():
     for key in ['RUSTFLAGS', 'CARGO_ENCODED_RUSTFLAGS', 'RUSTDOCFLAGS']:
         env.pop(key, None)
     manifest = dict(candidate_commit=revision, archive_paths=paths, archive_sha256=sha(archive),
+                    invocation=sys.argv, python=dict(executable=sys.executable, version=sys.version, optimization=sys.flags.optimize),
                     runner_sha256=sha(Path(__file__).read_bytes()), checks=[], status='running',
                     negative_control_valid_program=args.negative_control_valid_program,
                     environment={key: env[key] for key in ['RUSTC_WRAPPER', 'CARGO_BUILD_JOBS', 'CARGO_TARGET_DIR']},
