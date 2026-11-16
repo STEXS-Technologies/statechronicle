@@ -8,10 +8,11 @@ new `ports::ledger_store::LedgerRecovery` extension until adopting this path.
 
 This is a commit/recovery boundary, not a replacement for authenticated ingress.
 First bind an independently authenticated principal, trusted intent key and
-explicit policy through `Executor::prepare_player`. Sign a commit covering that
-protected event set and derive its projections. The current advanced composition
-still assembles `DurableCommitRequest`; the coherent facade and batch path remain
-roadmap work. A signed arbitrary event set is not proof that an application
+explicit policy through `mutation::Preparer::prepare_player`. Sign a commit covering that
+protected event set and derive its projections. The advanced composition
+assembles `DurableCommitRequest`; prefer the protected
+[SignedMutation](signed-mutation.md) wrapper for ordinary single writes and
+[SignedBatch](durable-batches.md) for supported single-tenant groups. A signed arbitrary event set is not proof that an application
 command was correctly reduced.
 
 `commit_verified` validates signer trust, intent/digest, principal/policy, event
@@ -84,7 +85,9 @@ outbox absence, database atomicity, power-loss durability or physical truth.
 
 The retained tests use an in-memory transactional adapter and logical fault
 injection/reopening over shared committed state. They do not qualify process
-crashes, disk recovery or a production database. Independent conformance,
-negative adapters, multi-intent/cross-tenant durable composition and final
-performance/MSRV/crash gates remain open. This path adds readback and verification
+crashes, disk recovery or a production database. The separate
+[conformance harness](adapter-contract.md), protected batch path
+and [file tutorial](../../tutorials/durable-custom-ledger/README.md) add scoped
+evidence; full adapter/crash, cross-tenant composition and final exact-candidate
+qualification gates remain open. This path adds readback and verification
 work, so legacy persistence timings do not establish equal-work performance.

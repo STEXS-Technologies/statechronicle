@@ -115,5 +115,7 @@ sixteen expectation/head combinations, including a head advance during lookup,
 and checks that historical verification performs no head read.
 
 This closes the minimum claim-verifier composition obstacle. It does not
-complete coherent proof serving, the durable custom-ledger tutorial, full
-history/current authorization policy or final performance/release qualification.
+complete coherent proof serving, full history/current authorization policy or
+final performance/release qualification. The
+[durable tutorial](../../tutorials/durable-custom-ledger/README.md) now demonstrates
+the supplied-claim path with actual file reopen and independently chosen pins.

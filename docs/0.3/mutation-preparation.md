@@ -77,5 +77,7 @@ not a durable storage tutorial or production key-management implementation.
 `preparation_parity.rs` separately compares the new and compatibility surfaces.
 
 This change establishes the minimum preparation composition, not the entire
-F4 facade or the two F7 durable/native tutorials. No performance equivalence or
+F4 facade. The [native](../../tutorials/minimal-native-domain/README.md) and
+[durable](../../tutorials/durable-custom-ledger/README.md) standalone tutorials
+now demonstrate the consumer journey. No performance equivalence or
 whole-workspace source reduction is inferred from moving evaluation code.

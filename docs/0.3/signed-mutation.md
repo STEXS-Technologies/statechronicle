@@ -28,9 +28,10 @@ intent or plan to resolve uncertainty. Verified replay returns the original
 committed outcome. A point-in-time absent lookup alone does not grant retry
 permission. Dispatch belongs after authoritative receipt verification.
 
-This is a single-intent F1 composition prototype. It does not complete the F4
-facade, protected batch composition, the F2 shared pipeline or F5 independent
-adapter conformance. Preparation-time state and authorization facts are not
+This is the protected single-intent composition. The separate
+[batch path](durable-batches.md) supplies complete-group signing and recovery, and
+[read-only preparation](mutation-preparation.md) shares internal evaluation.
+These checkpoints do not complete the broader F4 facade or all F5 adapter gates. Preparation-time state and authorization facts are not
 forever-fresh snapshots. See [preparation](mutation-preparation.md) and
 [durable outcomes](durable-outcomes.md) for authority and adapter limitations.
 

@@ -17,27 +17,50 @@ composition root. What you get instead is a deterministic, fully testable core;
 durability and atomicity guarantees apply only when the consumer supplies an
 adapter satisfying the durable `LedgerStore` contract.
 
-## Consumer-defined domains
+## Define a model, commit a mutation, verify a claim
 
-Version 0.2.0 lets consumers define native state models, legal commands, validation
-and authority requirements through `StateProfile` and `TypedProfile`. Custom
-configuration and equipment lifecycles reuse the existing execution, persistence,
-commit, replay and proof APIs without economic fields.
+This branch contains the proposed coherence refactor. Workspace package versions
+remain `0.2.0`; the APIs below are checkout APIs, not an announcement of a
+published `0.3.0`. Final release qualification is incomplete.
 
-See the [domain extension and migration guide](docs/DESIGN/DOMAIN_EXTENSIONS.md)
-and run `cargo run -p statechronicle --example custom_domains`. The portable
-`statechronicle-profile` contract is allocation-free and `no_std`.
-`statechronicle-portable` adds bounded transitions, caller-owned canonical
-encoding buffers and compatible integrity verification. The standard adapter
-and complete runtime currently require `std`.
+1. **Define your model.** Implement `StateProfile` with native state/command types,
+   deterministic validation/reduction, domain identity and schema version.
+   `TypedProfile` supplies hosted encoding and registration;
+   `command_operations!` keeps operation mapping in one place. Start with the
+   [standalone native-domain tutorial](tutorials/minimal-native-domain/README.md).
+2. **Make an authenticated durable mutation.** Use `mutation::Preparer` with
+   read-only state/tenant ports, independent authentication, key verification and
+   default-deny policy. Build and sign a `mutation::SignedMutation`, then call its
+   `commit` against a qualified `LedgerStore` with `LedgerRecovery`. Only checked
+   `Committed`/`Replay` receipts establish success. Preserve the original identity
+   and resolve `Unknown` with `mutation::recover` before any retry decision.
+   Follow the [durable custom-ledger tutorial](tutorials/durable-custom-ledger/README.md).
+3. **Verify the requested claim.** Use `proof::claim::ClaimVerifier` with an
+   independent `ExpectedClaim` and trusted signer key. `verify_current` requires
+   the authoritative canonical head; `verify_historical` requires an independent
+   commit pin and asserts no freshness. A valid signature alone proves neither
+   current state nor authorization. See [proof claims](docs/0.3/proof-claims.md).
 
-On this refactoring branch, the [standalone native-domain tutorial](tutorials/minimal-native-domain/README.md)
-shows signed, authenticated preparation for both domains using the public
-`mutation::Preparer` surface and read-only adapters. It has its own manifest and
-lockfile. Its development credentials and uncommitted results are explicit;
-preparation alone is not durable success. Continue with the
-[durable custom-ledger tutorial](tutorials/durable-custom-ledger/README.md) for
-file-backed commits, unknown-acknowledgement recovery and current/historical proofs.
+With Rust 1.85 or newer, run from this checkout:
+
+```sh
+cargo run --manifest-path tutorials/minimal-native-domain/Cargo.toml --locked
+cargo run --manifest-path tutorials/durable-custom-ledger/Cargo.toml --locked
+```
+
+Both applications have their own manifests and lockfiles and use the umbrella
+crate without workspace test helpers. Their fixed development credentials,
+clock and identity generators require replacement for external requests. The
+second example writes a bounded temporary file journal and demonstrates reopen;
+it does not qualify a production database or hardware crash durability.
+
+The [consumer API map](docs/0.3/consumer-guide.md),
+[migration guide](docs/0.3/migration.md) and
+[recovery decisions](docs/OPERATIONS/RECOVERY.md) describe the boundaries.
+Existing APIs remain available for compatibility and specialized composition.
+The portable `StateProfile` contract is allocation-free and `no_std`;
+`portable::` supplies bounded canonical transitions and integrity verification.
+The hosted adapter and full engine require `std`.
 
 ## Use cases
 
@@ -84,25 +107,14 @@ file-backed commits, unknown-acknowledgement recovery and current/historical pro
 - **Portable proofs**: state, ownership, and non-membership proofs anyone can
   verify against a signed commit, without the full history (a balance is proven
   as a state proof over a balance projection).
-- **Atomic settlement planning**: `execute_batch` and
-  `execute_cross_tenant` validate multi-resource (and multi-tenant) work
-  all-or-nothing in memory. To make the result durable, route the events
-  through `statechronicle_commit::persist_durable_verified` and a
-  `LedgerStore`; the legacy executor methods alone do not provide a durable
-  commit boundary.
-  Player-facing code should use `Executor::execute_player_durable` with a
-  `DurableMutationSink`, which refuses success until the composition root has
-  completed the verified durable write.
-  Player-driven shared-inventory, marketplace, and settlement batches should
-  use `Executor::execute_player_batch_durable_with_key_registry`, which binds
-  a principal and registered key to every item. `execute_batch_durable` is for
-  explicitly trusted service jobs; plain batch methods remain planning-only.
-  Value-leg settlements have the equivalent `execute_settle_durable` route for
-  trusted service jobs.
-  Generic cross-tenant batches should use `Executor::execute_cross_tenant_durable`
-  with the same single-database sink; the plain method remains planning-only.
-  Cross-tenant trades use `execute_cross_tenant_trade_durable`; the sink must
-  persist all tenant legs in one supported database transaction.
+- **Atomic settlement planning**: legacy batch and cross-tenant execution
+  validate complete plans. Protected single-tenant player batches use
+  `Preparer::prepare_player_batch` → `mutation::SignedBatch` with an adapter
+  supporting complete batch retention and recovery. Cross-tenant settlement
+  remains specialized advanced composition: every leg must share one supported
+  atomic ledger transaction. Unsupported topology must refuse without partial
+  effects. See [batch contracts](docs/0.3/durable-batches.md) and the
+  [consumer API map](docs/0.3/consumer-guide.md).
 - **Delegated authority**: the executor checks, per operation, whether a
   delegated third party may act on a resource. The evaluator behind this check
   is a pluggable trait (TrustGrant is one option; your own policy engine is
@@ -146,24 +158,20 @@ the intent section below.
 
 ## The flow
 
-1. **Submit**: a transition request (intent) arrives, either as raw bytes or as
-   already-typed data.
-2. **Validate** (`statechronicle-intent`): turn it into a validated intent with
-   a canonical body, an idempotency key, and an optional signature. You can
-   skip parsing entirely if your data is already typed.
-3. **Execute** (`statechronicle-executor`): the intent runs through the
-   validation pipeline (conflict gates, version checks, delegated-authority
-   evaluation, profile rules), producing a deterministic after-state and one
-   or more events.
-4. **Commit** (`statechronicle-commit`): events are batched, event and state
-   Merkle roots are computed, and the commit is signed.
-5. **Persist** (consumer adapter): verified durable APIs commit events, the signed
-   commit, projections, idempotency and outbox records atomically. Commit formation
-   or plain execution alone does not establish durability.
-6. **Prove** (`statechronicle-proof`): state, ownership, and non-membership
-   proofs are served from committed state and verified against the signed
-   commit chain (a balance is proven as a state proof over a balance
-   projection).
+1. Construct or parse an intent, retaining its original identity and body.
+   Structural validation does not authenticate the actor or verify a signature.
+2. Authenticate the host session independently. Protected preparation verifies
+   signed ingress, principal/key/policy scope, expected state and domain rules.
+   The resulting event plan is uncommitted.
+3. Build and sign a commit plan from the complete events and independently
+   obtained state/history context. Signing does not make that context authoritative.
+4. Commit through one qualified ledger transaction. It atomically binds
+   idempotency, events, signed commit, head, projections and outbox; the protected
+   API checks retained original readback before returning a receipt.
+5. Resolve unknown acknowledgements by original-identity recovery. Dispatch from
+   the post-commit outbox with delivery-key deduplication.
+6. Verify proofs against independently expected tenant/resource/holder and
+   signer trust. Choose current-head or independently pinned historical semantics.
 
 ## Two ways to construct a validated intent
 
@@ -207,23 +215,26 @@ use statechronicle::intent::parse::parse_intent;
 use statechronicle::intent::validate::validate;
 
 let raw = parse_intent(&bytes)?;      // cheap structural check + size limit
-let validated = validate(&raw)?;      // schema, newtypes, expiry, signature
+let validated = validate(&raw)?;      // structural fields and signature-block parsing
 ```
 
-Both paths produce the same `ValidatedIntent` and feed the same executor. The
-executor is a planning/validation layer; persistence is an explicit subsequent
-step through the durable commit API.
+Both paths produce `ValidatedIntent`. This is structural validation, not an
+authenticated principal or cryptographic signature verdict. The protected
+preparer rechecks structure, key policy, signature and authorization using the
+injected trusted services. Durable success requires the subsequent ledger path.
 
 ## Example: a full lifecycle
 
-The fastest way to see the whole pipeline wired is
+A specialized legacy planning demonstration is
 `cargo run -p statechronicle --example inventory` (unique asset: mint →
 transfer → lock → unlock → restrict → restore → burn, with fail-closed
 rejections). For the tamper and non-membership proof variants, see the end-to-end
 test in `crates/statechronicle/tests/e2e.rs` (run with `cargo test -p
 statechronicle`). These examples demonstrate deterministic planning and commit
 formation; production deployments must add authenticated ingress and the
-durable adapter/recovery controls described in `TODO.md`.
+durable adapter/recovery controls in the
+[consumer guide](docs/0.3/consumer-guide.md). Start with the standalone tutorials
+above for the recommended protected consumer journey.
 
 ## Crate map
 
@@ -268,24 +279,27 @@ StateChronicle separates two distinct concerns:
 
 | Port trait | What the consumer must provide |
 |---|---|
-| `IntentStore` | Dedup + idempotency storage for intents |
+| `IntentStore` | Legacy planning markers; not authoritative durable receipts |
 | `EventStore` | Append-only storage of validated events |
-| `CommitStore` | Storage of signed commits (and snapshots) |
+| `CommitStore` | Broader signed-commit storage; existing adapters bridge to `CommitReader` |
+| `CommitReader` | Immutable commit reads and linearizable canonical heads for supplied claim verification |
 | `StateIndex` | Read access to current derived state projections |
 | `ProofIndex` | Storage/query of served state, ownership, and inclusion proofs |
 | `SnapshotStore` | Storage of opaque snapshot payloads |
 | `TenantStore` | Tenant scope existence resolution |
 | `TrustGrantEvaluator` | Delegated-authority evaluation and freshness checks (trait-only; TrustGrant is one option) |
-| `TransactionManager` | Atomic multi-store transaction coordination |
+| `TransactionManager` | Legacy planning lifecycle; cannot enlist separate authoritative stores by itself |
 | `LedgerStore` / `LedgerTransaction` | One durable mutation boundary for idempotency, events, signed commits, projections, and outbox |
 | `Authorizer` | Authenticated principal binding and default-deny policy |
 | `OutboxStore` | Lease-based post-commit delivery and retry |
 | `EventPublisher` | Delivery of committed events and signed commits |
 | `TradeIndex` | Keyed read access to accumulated trade records (`trade_id` → `TradeRecord`) |
 
-Implement these traits against your storage, authority, and transport
-backends (no implementations live inside the `statechronicle-ports` crate),
-then wire them into `Executor::new` and `ProofService`. The composition root
+Implement only the capabilities your workflow requires. Preparation needs
+read ports; supplied-proof verification needs `CommitReader`; durable writes
+need one atomic ledger authority and recovery. The table is a capability
+catalogue, not a requirement to implement every trait. Legacy `Executor` and
+proof-serving compositions retain their broader port sets. The composition root
 (where port adapters, key resolution, the wall clock, and the event-id
 generator are assembled) is owned by the consuming platform, not by
 StateChronicle.
@@ -297,9 +311,10 @@ adapter. Implement `LedgerStore`, `LedgerTransaction`, projection sinks, and
 outbox delivery in the application composition root. The application owns
 transaction boundaries, migrations, backup and restore, connection management,
 integrity verification, and provider-specific failure handling.
-Proof endpoints should use `ProofService::verify_canonical` (or
-`verify_with_key_canonical`) so verification fails closed when the requested
-commit is not the tenant's current canonical head.
+For supplied proof evidence, use `ClaimVerifier::verify_current` with an
+independent expectation and trusted signer key, or `verify_historical` with an
+independent commit pin. Compatibility `ProofService::verify_canonical` helpers
+retain their contracts but do not require the new independent expected claim.
 
 The `statechronicle_ports::outbox::dispatch_once` helper supplies a bounded
 worker pass: it claims leased rows, verifies payload digests, publishes through
@@ -308,8 +323,11 @@ Operators should follow [the recovery runbook](docs/OPERATIONS/RECOVERY.md)
 for startup integrity checks, restore promotion, projection rebuilds, outbox
 incidents, and signer compromise.
 
-For derived read models, `statechronicle_index::rebuild_projections` replays a
-verified `(event, commit_id)` stream, selects the latest version per scoped
+For provider-supplied signed history, prefer
+[`index::rebuild::verified`](docs/0.3/verified-rebuild.md) with an independently
+retained history pin and historical signer policy. The compatibility
+`statechronicle_index::rebuild_projections` function assumes its caller already
+verified the `(event, commit_id)` stream; it selects the latest version per scoped
 resource, rejects conflicting equal versions, and writes through an injected
 projection sink.
 Large histories can use `rebuild_projections_chunk` and persist its returned
@@ -352,9 +370,10 @@ below maps every section to its owning crate README.
 
 ## Verification
 
-The workspace is fully test-locked (workspace test suite; check/test/clippy/fmt gates),
-and every protocol decision is recorded in `docs/DESIGN/ADR/`, with ADR-006
-resolving the open protocol questions.
+Protocol decisions are recorded in `docs/DESIGN/ADR/`. Original release evidence
+is retained in `docs/DESIGN/0.2.0_ACCEPTANCE.md`; exact candidate refactor checks
+and their limitations are retained in `docs/0.3/evidence/`. Neither historical
+evidence nor a tutorial pass establishes full candidate release qualification.
 Run `scripts/run_release_checks.sh` to execute the finite workspace, security,
 dependency, and bounded fuzz gates in one reproducible command.
 
