@@ -847,6 +847,7 @@ dependencies = [
 name = "statechronicle-fuzz"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "bcs",
  "chrono",
  "ed25519-dalek",
@@ -865,6 +866,7 @@ dependencies = [
  "statechronicle-portable",
  "statechronicle-profiles",
  "statechronicle-proof",
+ "tokio",
 ]
 
 [[package]]

@@ -23,6 +23,8 @@ wildcard_enum_match_arm = "allow"
 redundant_clone = "allow"
 
 [dependencies]
+async-trait.workspace = true
+tokio = { workspace = true, features = ["rt"] }
 statechronicle-portable.workspace = true
 libfuzzer-sys = "0.4.13"
 hex = { workspace = true }
@@ -215,5 +217,11 @@ doc = false
 [[bin]]
 name = "fuzz_claim_verifier"
 path = "fuzz_targets/fuzz_claim_verifier.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_durable_recovery"
+path = "fuzz_targets/fuzz_durable_recovery.rs"
 test = false
 doc = false
