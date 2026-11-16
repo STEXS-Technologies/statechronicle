@@ -1,0 +1,9 @@
+{
+  "candidate": "f5b922fffcf9248b4ce0002c8103089b37b6139e",
+  "rows": 23544,
+  "positive_controls": 54,
+  "rollback_failure_injected_with_rollback_callback": 113,
+  "expiry_control_outcome_changes": 1410,
+  "all_expiry_control_differences_are_expired": true,
+  "artifact_hashes_verified": true
+}

@@ -836,3 +836,20 @@ and strict rustdoc pass at the exact retained candidate. All failures, prototype
 results, actual-original trace and dependency-patched diagnostic difference are
 in [the evidence](evidence/maintenance/proof-service/README.md). Broader F2/F6/F8
 requirements remain open.
+
+
+## Broader original executor gate and effect parity
+
+Candidate `f5b922f` matches the actual original release across 23,544 external
+legacy execution traces: six templates, nine entry points, 29 faults individually
+and in every pair. Full errors, canonical events, marker claims, callbacks and
+consumed IDs agree. All 54 positive controls emit events. A clock-preserving
+expiry-refusal deletion in a temporary candidate archive changes 1,410 outcomes
+and fails exact comparison. Both real lanes pass strict Clippy and locked offline
+builds; the proof-service runner mode also retains its 2,352-row original parity.
+
+[All results and interrupted attempts](evidence/f2/executor-order/README.md) are
+retained. This development-only addition qualifies bounded legacy semantics;
+canonical protected settlement, real durable adapters, arbitrary faults and
+concurrency remain separate work. No production code/API/dependency changes or
+performance claim are included. Full F2/F8 remain open.

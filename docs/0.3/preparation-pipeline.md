@@ -45,10 +45,10 @@ in-memory adapters; they qualify event semantics, not authenticated ingress or
 physical durability. Existing protected-ingress and ledger tests cover their
 separate boundaries.
 
-This is the first F2 extraction. Remaining work includes the broader typed
-preparation stages, independently frozen multi-fault gate/error traces,
-protected batch composition and F3 native decode-once execution. Neither the
-full F2 phase nor release qualification is complete.
+The shared preparation stages and native decode-once execution have since been
+implemented. The broader multi-fault legacy matrix below extends the original
+ingress and emission fixtures. Protected batch/settlement composition and full
+F2/release qualification remain separate open work.
 
 
 ## Shared player ingress decisions
@@ -84,3 +84,17 @@ The event emitter's documentation and lint scope are attached to their intended
 methods again; the prior extraction had left the execution-core comment and
 allowance on the new emitter. This correction changes no runtime behavior.
 Full F2 gate decomposition and the remaining release phases are still open.
+
+
+## Execution-core multi-fault characterization
+
+An external 23,544-row consumer now matches the actual original release and
+`f5b922f` exactly on complete errors, canonical events, marker effects and ordered
+callbacks. Six native/built-in templates exercise nine legacy entry points with
+zero, single and pairwise faults. All 54 positive controls emit events. A temporary
+archive mutation that preserves the clock but removes expiry refusal changes
+1,410 expired-case outcomes and fails comparison. See [the complete manifests,
+negative controls and limitations](evidence/f2/executor-order/README.md).
+
+These are sentinel compatibility hosts and sinks. They do not qualify protected
+canonical settlement, real transaction rollback or physical crash recovery.
