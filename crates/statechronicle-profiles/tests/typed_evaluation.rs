@@ -330,3 +330,65 @@ fn default_evaluation_preserves_custom_rule_order_and_refusal() {
     );
     assert_eq!(trace(), vec!["legacy check", "legacy apply"]);
 }
+
+#[test]
+fn native_command_encoding_matches_legacy_envelope_without_claiming_validation() {
+    let adapter = profile();
+    for value in [23, 98, 99, 101, u64::MAX] {
+        let (encoded_operation, envelope) = adapter.encode_command(&Command(value)).unwrap();
+        assert_eq!(&encoded_operation, operation());
+        assert_eq!(envelope, inputs(value));
+    }
+    // Encoding has no current-state context; command refusals still happen at evaluation.
+    let (encoded_operation, envelope) = adapter.encode_command(&Command(99)).unwrap();
+    assert!(
+        adapter
+            .evaluate(None, &encoded_operation, &envelope)
+            .is_err()
+    );
+    let unregistered = TypedProfile::new(Model, &[]);
+    assert_eq!(
+        unregistered.encode_command(&Command(23)).unwrap_err(),
+        statechronicle_profiles::error::ProfileError::UnknownOperation("evaluation.set".into())
+    );
+}
+
+#[test]
+fn native_command_encoding_enforces_serialized_payload_bounds() {
+    struct Limited<const LIMIT: usize>;
+    impl<const LIMIT: usize> StateProfile for Limited<LIMIT> {
+        type State = State;
+        type Command = Command;
+        type Error = &'static str;
+        const DOMAIN_ID: &'static str = Model::DOMAIN_ID;
+        const SCHEMA_VERSION: u32 = 1;
+        const MAX_PAYLOAD_BYTES: usize = LIMIT;
+        fn operation(&self, command: &Command) -> &'static str {
+            Model.operation(command)
+        }
+        fn validate(&self, state: Option<&State>, command: &Command) -> Result<(), Self::Error> {
+            Model.validate(state, command)
+        }
+        fn apply(&self, state: Option<&State>, command: &Command) -> Result<State, Self::Error> {
+            Model.apply(state, command)
+        }
+        fn validate_state(&self, state: &State) -> Result<(), Self::Error> {
+            Model.validate_state(state)
+        }
+    }
+    assert!(
+        TypedProfile::new(Limited::<0>, &OPERATIONS)
+            .encode_command(&Command(23))
+            .is_err()
+    );
+    assert!(
+        TypedProfile::new(Limited::<7>, &OPERATIONS)
+            .encode_command(&Command(23))
+            .is_err()
+    );
+    assert!(
+        TypedProfile::new(Limited::<8>, &OPERATIONS)
+            .encode_command(&Command(23))
+            .is_ok()
+    );
+}

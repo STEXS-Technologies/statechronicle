@@ -85,6 +85,40 @@ where
         Ok(buffer.bytes)
     }
 
+    /// Encodes a native command into its operation and canonical intent inputs.
+    ///
+    /// Domain/schema metadata and the operation come from this registered
+    /// adapter. The returned values are unsigned inputs: callers must still
+    /// authenticate, authorize and evaluate the enclosing intent. This cannot
+    /// validate a transition without its current state.
+    /// # Errors
+    /// Rejects invalid identity/schema/limits, unregistered operations and
+    /// commands that cannot be encoded within the profile's payload bound.
+    pub fn encode_command(
+        &self,
+        command: &P::Command,
+    ) -> Result<(Operation, BTreeMap<String, Value>), ProfileError> {
+        let identity = self.identity()?;
+        let operation =
+            Operation::new(String::from(self.profile.operation(command))).map_err(invalid)?;
+        if !self.operations.contains(&operation) {
+            return Err(ProfileError::UnknownOperation(operation.0));
+        }
+        let bytes = self.encode(command)?;
+        let inputs = BTreeMap::from([
+            (String::from("profile"), Value::String(identity.0)),
+            (
+                String::from("schema_version"),
+                Value::from(P::SCHEMA_VERSION),
+            ),
+            (
+                String::from("command"),
+                serde_json::to_value(bytes).map_err(invalid)?,
+            ),
+        ]);
+        Ok((operation, inputs))
+    }
+
     /// Decodes and validates state after checking domain, schema, size and canonicality.
     /// This checks domain semantics; callers must also authenticate the enclosing
     /// proof or commit before trusting the supplied state.
