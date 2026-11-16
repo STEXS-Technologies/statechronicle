@@ -1,0 +1,203 @@
+{
+  "candidate_commit": "4adb296f006816ea74d9659fdebbaa5efcd51ab0",
+  "compilers": {
+    "stable": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+    "1.85.0": "rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-linux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n"
+  },
+  "checks": [
+    {
+      "label": "stable-tests",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--workspace",
+        "--exclude",
+        "statechronicle-fuzz",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/worktree"
+      },
+      "exit_code": 0,
+      "seconds": 51.64616035699146,
+      "log": "stable-tests.log",
+      "sha256": "0cdeb1177b7af3b870258dde96389dae3a7d86e655e262f85a93ff6740e81d41"
+    },
+    {
+      "label": "stable-doctests",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--workspace",
+        "--exclude",
+        "statechronicle-fuzz",
+        "--doc",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/worktree"
+      },
+      "exit_code": 0,
+      "seconds": 1.149697761007701,
+      "log": "stable-doctests.log",
+      "sha256": "e53925121b7acf3b8b423413249ada253b46bb86007347a110860e1bbf630af2"
+    },
+    {
+      "label": "stable-clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--keep-going",
+        "--workspace",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/worktree"
+      },
+      "exit_code": 0,
+      "seconds": 1.5501529570028652,
+      "log": "stable-clippy.log",
+      "sha256": "34e8377bfec80bd81056d60986652ccf5ecf46222b60f4136848886600b69845"
+    },
+    {
+      "label": "stable-rustdoc",
+      "command": [
+        "cargo",
+        "+stable",
+        "doc",
+        "--workspace",
+        "--all-features",
+        "--no-deps",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/worktree",
+        "RUSTDOCFLAGS": "-D warnings"
+      },
+      "exit_code": 101,
+      "seconds": 0.4590187559952028,
+      "log": "stable-rustdoc.log",
+      "sha256": "38e98b173e5cf7de4e67623677fad67f001deecfe37745336e1c304ef9eaec89"
+    },
+    {
+      "label": "1.85.0-tests",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--workspace",
+        "--exclude",
+        "statechronicle-fuzz",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/msrv"
+      },
+      "exit_code": 0,
+      "seconds": 88.12931044099969,
+      "log": "1.85.0-tests.log",
+      "sha256": "c1f31f82dd94db826d0b7a1a806f995bd6ed99fec0f70eda54fbff4e0117429f"
+    },
+    {
+      "label": "1.85.0-doctests",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--workspace",
+        "--exclude",
+        "statechronicle-fuzz",
+        "--doc",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/msrv"
+      },
+      "exit_code": 0,
+      "seconds": 1.2858267260016873,
+      "log": "1.85.0-doctests.log",
+      "sha256": "dad793e7383d525c20fad06d54cb1c54a638efa6719939be3521ac156921d616"
+    },
+    {
+      "label": "1.85.0-clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--keep-going",
+        "--workspace",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/msrv"
+      },
+      "exit_code": 0,
+      "seconds": 1.8349612830061233,
+      "log": "1.85.0-clippy.log",
+      "sha256": "18d7f4a973eca651aed068fc93b392307f800d8a790d4e47af82273eae018a1d"
+    },
+    {
+      "label": "1.85.0-rustdoc",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "doc",
+        "--workspace",
+        "--all-features",
+        "--no-deps",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/msrv",
+        "RUSTDOCFLAGS": "-D warnings"
+      },
+      "exit_code": 101,
+      "seconds": 0.6871232379926369,
+      "log": "1.85.0-rustdoc.log",
+      "sha256": "6b680530bdfaf4cfc63834954a93fb10a5e568d145c52cba55073a831345bef6"
+    }
+  ]
+}
