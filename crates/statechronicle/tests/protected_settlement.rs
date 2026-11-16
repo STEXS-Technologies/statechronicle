@@ -430,3 +430,6 @@ mod statechronicle_test_allow {
         }
     }
 }
+
+#[path = "support/settlement_contenders.rs"]
+mod contenders;

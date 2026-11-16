@@ -19,6 +19,18 @@ use std::collections::BTreeMap;
 use std::future::pending;
 use std::sync::{Arc, Mutex};
 
+// Baseline typed resource addressing. This fixture does not model policies that
+// relocate an existing subject-held row to a different subject in one event.
+fn projection_key(row: &StateProjection) -> StateKey {
+    statechronicle::profiles::transition::state_key_for(
+        row.state_type,
+        &row.tenant_id,
+        row.state.subject(),
+        &row.resource_id,
+    )
+    .unwrap()
+}
+
 /// Every asynchronous boundary exposed by the durable mutation path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Step {
@@ -239,10 +251,14 @@ impl LedgerTransaction for Transaction {
             }
             let mut projections = data.projections.clone();
             for event in &self.staged.events {
-                let prior = projections.iter().find(|projection| {
-                    projection.tenant_id == event.tenant_id
-                        && projection.resource_id == event.resource_id
-                });
+                let target = statechronicle::commit::roots::state_key_for(
+                    event,
+                    event.after.state.state_type(),
+                )
+                .unwrap();
+                let prior = projections
+                    .iter()
+                    .find(|projection| projection_key(projection) == target);
                 if event.before.version != prior.map_or(0, |projection| projection.version)
                     || prior
                         .is_some_and(|projection| projection.state_hash != event.before.state_hash)
@@ -257,21 +273,13 @@ impl LedgerTransaction for Transaction {
                     .iter()
                     .find(|projection| projection.last_event_id == event.event_id)
                     .unwrap();
-                projections.retain(|row| {
-                    row.tenant_id != projection.tenant_id
-                        || row.resource_id != projection.resource_id
-                });
+                projections.retain(|row| projection_key(row) != target);
                 projections.push(projection.clone());
             }
             let updates: Vec<StateUpdate> = projections
                 .iter()
                 .filter(|row| Some(&row.tenant_id) == prepared.body.scope.tenant_id.as_ref())
-                .map(|row| {
-                    StateUpdate::new(
-                        StateKey::for_resource(&row.tenant_id.0, &row.resource_id.0),
-                        *row.state_hash.as_bytes(),
-                    )
-                })
+                .map(|row| StateUpdate::new(projection_key(row), *row.state_hash.as_bytes()))
                 .collect();
             let mut accumulator = StateAccumulator::empty();
             accumulator.insert_batch(&updates).unwrap();
