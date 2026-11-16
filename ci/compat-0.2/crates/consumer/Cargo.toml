@@ -1,0 +1,19 @@
+[package]
+name = "statechronicle-legacy-consumer"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+resolver = "3"
+
+[dependencies]
+statechronicle = { path = "../../../../crates/statechronicle" }
+serde = { version = "1.0", features = ["derive"] }
+bcs = "0.2.1"
+proptest = "1"
+async-trait = "0.1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+ed25519-dalek = { version = ">=2, <4", features = ["pem", "pkcs8"] }
+serde_json = "1.0"
+tokio = { version = "1.48.0", features = ["macros", "rt"] }

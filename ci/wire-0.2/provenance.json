@@ -1,0 +1,7 @@
+{
+  "producer_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "producer_sha256": "674ef508408c96cbd75e1c4a5025e6d92404139572d3d28ac1ff449a6007744b",
+  "history_sha256": "fdccce8e4ce783c27bd0239151930d1e51dc82c7704884731254b8199e991fff",
+  "evidence_manifest": "docs/0.3/evidence/compat/20261116T015951Z-2814374/manifest.json",
+  "producer_source_artifact": "docs/0.3/evidence/compat/20261116T015951Z-2814374/wire_producer.rs"
+}

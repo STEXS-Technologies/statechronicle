@@ -31,7 +31,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--release-checks', action='store_true',
                         help='also run original release script (includes instrumented fuzz)')
+    parser.add_argument('--fuzz-seconds', type=int, default=0,
+                        help='run only the original parallel fuzz campaign for this many seconds per target')
     args = parser.parse_args()
+    if args.fuzz_seconds < 0 or (args.release_checks and args.fuzz_seconds):
+        parser.error('Choose one nonnegative fuzz duration or release checks')
     root = Path(__file__).resolve().parents[1]
     resolved = output('git', 'rev-parse', 'v0.2.0^{commit}', cwd=root)
     if resolved != BASELINE:
@@ -85,6 +89,13 @@ def main():
     ]
     if args.release_checks:
         commands = [['bash', 'scripts/run_release_checks.sh']]
+    environment = os.environ.copy()
+    if args.fuzz_seconds:
+        commands = [['bash', 'scripts/run_fuzz_parallel.sh']]
+        environment['STATECHRONICLE_FUZZ_SECONDS'] = str(args.fuzz_seconds)
+        environment['STATECHRONICLE_FUZZ_LOGS'] = str(source / 'fuzz-logs')
+        manifest['fuzz_seconds_per_target'] = args.fuzz_seconds
+        manifest['nightly_toolchain'] = output('rustc', '+nightly', '-Vv')
     try:
         for index, command in enumerate(commands):
             log = run / f'check-{index}.log'
@@ -96,7 +107,7 @@ def main():
             try:
                 with log.open('wb') as handle:
                     result = subprocess.run(command, cwd=source, stdout=handle,
-                                            stderr=subprocess.STDOUT)
+                                            stderr=subprocess.STDOUT, env=environment)
                 record.update(exit_code=result.returncode,
                               status='passed' if result.returncode == 0 else 'failed')
             finally:
@@ -115,6 +126,19 @@ def main():
         manifest['status'] = 'interrupted'
         raise
     finally:
+        changed = [name for name, expected in hashes.items()
+                   if not (source / name).exists() or digest((source / name).read_bytes()) != expected]
+        manifest['modified_original_files'] = changed
+        if changed:
+            manifest['status'] = 'failed'
+        if (source / 'fuzz-logs').exists():
+            artifact = evidence / 'fuzz-campaign.tar.gz'
+            with tarfile.open(artifact, 'w:gz') as tar:
+                tar.add(source / 'fuzz-logs', arcname='logs')
+                if (source / 'fuzz/corpus').exists():
+                    tar.add(source / 'fuzz/corpus', arcname='corpus')
+            manifest['fuzz_artifact'] = {'path': artifact.name,
+                                         'sha256': digest(artifact.read_bytes())}
         save()
     raise SystemExit(0 if manifest['status'] == 'passed' else 1)
 

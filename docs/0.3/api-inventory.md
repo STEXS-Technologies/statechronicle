@@ -22,3 +22,18 @@ A new curated facade must preserve promised imports while documenting authority
 boundaries. This map does not yet inventory all signatures, enum variants,
 feature combinations or exhaustive matches. F0 remains open until those are
 captured and the external consumer matrix executes independently.
+
+The baseline [metrics.json](metrics.json) now includes a parser-derived syntax
+inventory of public declarations and trait member signatures, with source file,
+line and source hash. It does not resolve re-export reachability or macros.
+Frozen external exhaustive matches cover `StateType`, `ProofType`, `DomainError`,
+`IntentError`, `ExecutorError`, `CommitError`, `ProofError`, and `ProfileError`.
+A new variant in these enums will require an explicit source-compatibility
+decision instead of silently passing a wildcard match.
+
+The pre-refactor starting point also changes the public Ed25519 dependency
+major version from 3 to 2. The external consumer declares `>=2, <4` and uses each
+revision's existing lockfile; exact package-version/checksum checks forbid
+unrecorded drift. The original signature corpus is verified across this change.
+This does not promise that downstream crates declaring only major version 3
+can directly exchange key objects with major version 2.
