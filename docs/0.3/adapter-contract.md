@@ -334,3 +334,21 @@ roots, monotonic replay and source-specific checkpoint namespaces are checked.
 Five deliberate bypasses fail runtime oracles. This extends the bounded
 historical scenario without qualifying physical database restarts, global event
 identity enforcement, live source read dependencies or arbitrary native domains.
+
+### Seeded concurrent mixed-history qualification
+
+The reusable dev harness now accepts waves of independent tenant transactions
+through `batch::history::check_concurrent`. It shares signed single/batch chain
+validation and write staging with the deterministic history checks, varies
+cooperative scheduling at each staged boundary, independently observes staged
+and committed authority, and rechecks every original identity after each wave.
+Eight reference seeds vary tenant lead/lag over the existing 22-transaction
+signed fixture. A serialized-writer reference also passes: the harness releases
+each inspected writer without waiting for all other writers to stage. Broken
+early publication, receipt loss, membership loss and duplicate projection modes
+fail their specific named checks; invalid setup preserves pre-existing authority.
+
+This advances the randomized logical-history requirement. It does not replace
+2/8/32 same-tenant CAS/identity races, real database connections/process restart,
+physical crash/power-loss tests, or a proof of every possible interleaving.
+[Consumer contract](../../ci/conformance/README.md#seeded-concurrent-mixed-histories).

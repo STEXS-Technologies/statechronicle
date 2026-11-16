@@ -45,6 +45,7 @@ type Identity = (String, String);
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Mode {
     Correct,
+    SerializedWriter,
     EagerEvents,
     DuplicateReservation,
     IgnoreHead,
@@ -93,6 +94,7 @@ struct Database {
 struct Backend {
     db: Arc<Mutex<Database>>,
     mode: Mode,
+    writer_gate: Arc<tokio::sync::Semaphore>,
 }
 #[derive(Clone)]
 struct Connection(Backend);
@@ -103,12 +105,14 @@ struct Transaction {
     batch: Option<LedgerBatch>,
     staged: Snapshot,
     finalized: bool,
+    _writer_guard: Option<tokio::sync::OwnedSemaphorePermit>,
 }
 impl Backend {
     fn new(mode: Mode) -> Self {
         Self {
             db: Arc::default(),
             mode,
+            writer_gate: Arc::new(tokio::sync::Semaphore::new(1)),
         }
     }
     fn key(&self, tenant: &TenantId, intent: &IntentId) -> Identity {
@@ -211,7 +215,20 @@ impl LedgerStore for Connection {
         &self,
         tenant: &TenantId,
     ) -> Result<Box<dyn LedgerTransaction>, LedgerStoreError> {
+        let writer_guard = if self.0.mode == Mode::SerializedWriter {
+            Some(
+                self.0
+                    .writer_gate
+                    .clone()
+                    .acquire_owned()
+                    .await
+                    .map_err(|_| invariant("writer gate closed"))?,
+            )
+        } else {
+            None
+        };
         Ok(Box::new(Transaction {
+            _writer_guard: writer_guard,
             connection: self.clone(),
             tenant: tenant.clone(),
             reservations: Vec::new(),
@@ -2304,4 +2321,225 @@ async fn mixed_history_setup_refuses_before_resetting_existing_data() {
             &anchor.intent.tenant_id, &anchor.intent.intent_id).await.unwrap(),
             LedgerLookup::Committed(record) if *record == anchor));
     }
+}
+
+fn seeded_mixed_waves(
+    seed: u64,
+) -> (
+    Vec<Vec<statechronicle_conformance::batch::history::HistoryEntry>>,
+    Vec<Snapshot>,
+) {
+    use statechronicle_conformance::batch::history::HistoryEntry;
+    let (entries, snapshots) = alternating_single_batch_history();
+    let mut lanes: [Vec<(HistoryEntry, Snapshot)>; 2] = Default::default();
+    for (index, (entry, snapshot)) in entries.into_iter().zip(snapshots).enumerate() {
+        lanes[index % 2].push((entry, snapshot));
+    }
+    let mut offsets = [0usize; 2];
+    let mut latest: [Option<Snapshot>; 2] = Default::default();
+    let mut waves = Vec::new();
+    let mut expected = Vec::new();
+    let mut state = seed;
+    while offsets[0] < lanes[0].len() || offsets[1] < lanes[1].len() {
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        let mut chosen: Vec<_> = (0..2)
+            .filter(|&lane| offsets[lane] < lanes[lane].len())
+            .collect();
+        if state >> 63 != 0 {
+            chosen.reverse();
+        }
+        // Start with concurrent genesis; then vary lead/lag while preserving chains.
+        if !waves.is_empty() && chosen.len() == 2 && (state >> 61) & 1 != 0 {
+            chosen.truncate(1);
+        }
+        let mut wave = Vec::new();
+        for lane in chosen {
+            let (entry, snapshot) = &lanes[lane][offsets[lane]];
+            offsets[lane] += 1;
+            latest[lane] = Some(snapshot.clone());
+            wave.push(entry.clone());
+        }
+        // Build expected authority exclusively from pre-adapter signed fixtures.
+        // Each source snapshot contains another tenant too; select only this lane.
+        let mut view = Snapshot::default();
+        for (lane, tenant) in ["acme.game.alpha", "acme.game.beta"].iter().enumerate() {
+            if let Some(source) = &latest[lane] {
+                view.events.extend(
+                    source
+                        .events
+                        .iter()
+                        .filter(|x| x.tenant_id.0 == *tenant)
+                        .cloned(),
+                );
+                view.commits.extend(
+                    source
+                        .commits
+                        .iter()
+                        .filter(|x| x.body.scope.tenant_id.as_ref().unwrap().0 == *tenant)
+                        .cloned(),
+                );
+                view.projections.extend(
+                    source
+                        .projections
+                        .iter()
+                        .filter(|x| x.tenant_id.0 == *tenant)
+                        .cloned(),
+                );
+                view.outbox.extend(
+                    source
+                        .outbox
+                        .iter()
+                        .filter(|x| x.tenant.0 == *tenant)
+                        .cloned(),
+                );
+                view.finalized.extend(
+                    source
+                        .finalized
+                        .iter()
+                        .filter(|x| x.0.0 == *tenant)
+                        .cloned(),
+                );
+                view.heads
+                    .extend(source.heads.iter().filter(|x| x.0.0 == *tenant).cloned());
+            }
+        }
+        waves.push(wave);
+        expected.push(view);
+    }
+    println!(
+        "mixed concurrent seed={seed} waves={} widths={:?}",
+        waves.len(),
+        waves.iter().map(Vec::len).collect::<Vec<_>>()
+    );
+    assert_eq!(offsets, [11, 11]);
+    assert_eq!(expected.last().unwrap().events.len(), 32);
+    (waves, expected)
+}
+
+#[tokio::test]
+async fn seeded_concurrent_mixed_histories_preserve_each_tenant_and_original_identity() {
+    for seed in [0, 1, 7, 42, 7331, 65537, u64::MAX - 1, u64::MAX] {
+        let (waves, snapshots) = seeded_mixed_waves(seed);
+        tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            statechronicle_conformance::batch::history::check_concurrent(
+                &Backend::new(Mode::Correct),
+                &waves,
+                &snapshots,
+                seed,
+            ),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    }
+}
+
+#[tokio::test]
+async fn seeded_concurrent_mixed_histories_detect_broken_backends() {
+    for (mode, oracle) in [
+        (Mode::EagerEvents, "mixed.concurrent.staged_effects"),
+        (Mode::LoseSinglesOnBatch, "lookup.original"),
+        (Mode::LoseBatchesOnSingle, "mixed.membership"),
+        (Mode::AppendProjections, "mixed.concurrent.visibility"),
+    ] {
+        let (waves, snapshots) = seeded_mixed_waves(7331);
+        let error = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            statechronicle_conformance::batch::history::check_concurrent(
+                &Backend::new(mode),
+                &waves,
+                &snapshots,
+                7331,
+            ),
+        )
+        .await
+        .unwrap()
+        .unwrap_err();
+        println!("mixed concurrent negative {mode:?}: {error}");
+        assert_eq!(error.check, oracle);
+    }
+}
+
+#[tokio::test]
+async fn concurrent_history_setup_refuses_before_destructive_reset() {
+    use statechronicle_conformance::batch::history;
+    let (waves, snapshots) = seeded_mixed_waves(7331);
+    let backend = Backend::new(Mode::Correct);
+    let anchor = fixture("acme.game.anchor", 1901);
+    statechronicle_conformance::write(&backend.connect().await.unwrap(), &anchor)
+        .await
+        .unwrap();
+    let before = backend.inspect().await.unwrap();
+    assert!(backend.inspect_batches().await.unwrap().is_empty());
+    let (entries, _) = alternating_single_batch_history();
+    // Consecutive valid per-tenant chains, but two alpha entries in one wave.
+    let mut competing = vec![
+        vec![entries[0].clone(), entries[2].clone()],
+        vec![entries[1].clone()],
+    ];
+    competing.extend(entries[3..].iter().cloned().map(|entry| vec![entry]));
+    let competing_expected = vec![Snapshot::default(); competing.len()];
+    let mut duplicate = waves.clone();
+    let repeated = duplicate[0][0].clone();
+    duplicate[0].push(repeated);
+    for (input, expected, oracle) in [
+        (
+            waves.clone(),
+            snapshots[..snapshots.len() - 1].to_vec(),
+            "setup.mixed_concurrent",
+        ),
+        (vec![], vec![], "setup.mixed_concurrent"),
+        (duplicate, snapshots.clone(), "setup.mixed_chain"),
+        (
+            competing,
+            competing_expected,
+            "setup.mixed_concurrent_scope",
+        ),
+    ] {
+        let error = history::check_concurrent(&backend, &input, &expected, 7331)
+            .await
+            .unwrap_err();
+        println!("mixed concurrent setup: {error}");
+        assert_eq!(error.check, oracle);
+        let after = backend.inspect().await.unwrap();
+        assert_eq!(
+            canonicalize_and_digest(&before.events).unwrap(),
+            canonicalize_and_digest(&after.events).unwrap()
+        );
+        assert_eq!(
+            canonicalize_and_digest(&before.commits).unwrap(),
+            canonicalize_and_digest(&after.commits).unwrap()
+        );
+        assert_eq!(
+            canonicalize_and_digest(&before.projections).unwrap(),
+            canonicalize_and_digest(&after.projections).unwrap()
+        );
+        assert_eq!(before.outbox, after.outbox);
+        assert_eq!(before.finalized, after.finalized);
+        assert_eq!(before.heads, after.heads);
+        assert!(backend.inspect_batches().await.unwrap().is_empty());
+        assert!(
+            matches!(backend.connect().await.unwrap().lookup_mutation(&anchor.intent.tenant_id, &anchor.intent.intent_id).await.unwrap(), LedgerLookup::Committed(original) if *original == anchor)
+        );
+    }
+}
+
+#[tokio::test]
+async fn concurrent_history_allows_a_serialized_writer_without_staging_deadlock() {
+    let (waves, snapshots) = seeded_mixed_waves(7331);
+    tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        statechronicle_conformance::batch::history::check_concurrent(
+            &Backend::new(Mode::SerializedWriter),
+            &waves,
+            &snapshots,
+            7331,
+        ),
+    )
+    .await
+    .unwrap()
+    .unwrap();
 }

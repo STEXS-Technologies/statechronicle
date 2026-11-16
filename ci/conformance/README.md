@@ -342,3 +342,42 @@ mixed harness rejects both. Setup-negative cases preserve pre-existing data.
 These are deterministic logical histories. They do not replace randomized
 concurrency, independent database process restart, projection rebuild/proof
 serving, physical crash or power-loss qualification.
+
+## Seeded concurrent mixed histories
+
+`batch::history::check_concurrent(backend, waves, expected_snapshots, seed)`
+accepts the same signed `HistoryEntry` fixtures grouped into concurrent waves.
+Each wave has at most one next transaction per tenant; chains remain consecutive
+across waves. Supply one independently built complete raw snapshot after each
+wave, both singles and batches, and at least one multi-tenant wave. Invalid
+shape/chain/scope input refuses before destructive reset. Keep using the separate
+2/8/32 same-tenant head and idempotency contention checks.
+
+The harness starts each wave through a barrier on independent connections. A
+fixed portable PRNG injects cooperative yields after claims and every staged
+write boundary. Each completed staged writer is independently inspected and
+released to commit: it never waits for all writers to stage, so a storage engine
+that serializes writers can progress. A staged tenant must retain its prior raw
+state, issue no committed receipt in either namespace, and publish no group
+membership. Reader observations after commit completions allow independently
+linearized tenants, but every tenant's complete row set must be wholly before or
+wholly after its current transaction. Foreign rows and partial publication
+refuse. Wave completion checks the full independent snapshot, all raw retained
+membership, and every prior exact/conflicting retry and namespace boundary.
+
+The reference runs eight recorded seeds (including zero and both maximum-edge
+values) over 22 transactions, 32 intents/events, 64 outbox rows and two tenant
+chains. Seeded wave composition varies tenant lead/lag and transaction-kind
+coincidence. A separate single-writer semaphore adapter passes the same schedule;
+this guards against a harness-induced deadlock. Four broken modes fail named
+oracles: early event visibility, discarded single receipts, discarded batch
+membership, and appended duplicate current projections. Four malformed schedule
+cases preserve a pre-existing independent anchor across all raw row classes.
+
+Seeds reproduce fixture grouping and cooperative yield counts, not an exact
+Tokio/OS/database schedule. The reference uses asynchronous tasks and independently
+opened handles over one in-memory authority, with consistent raw snapshot reads.
+These bounded campaigns supplement deterministic rollback/cancellation, lease,
+ACK-loss and same-identity races; they do not establish database process reopen,
+physical power-loss behavior, all interleavings, or production signer policy.
+Wrap the complete check in a backend-appropriate timeout and retain seeds and logs.

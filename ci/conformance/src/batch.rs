@@ -171,6 +171,14 @@ async fn stage<S: LedgerBatchRecovery>(
     batch: &LedgerBatch,
     prefix: usize,
 ) -> Result<Box<dyn LedgerTransaction>, Violation> {
+    stage_scheduled(store, batch, prefix, None).await
+}
+async fn stage_scheduled<S: LedgerBatchRecovery>(
+    store: &S,
+    batch: &LedgerBatch,
+    prefix: usize,
+    mut schedule: Option<u64>,
+) -> Result<Box<dyn LedgerTransaction>, Violation> {
     let mut tx = store.begin(tenant(batch)?).await.map_err(operation)?;
     let mut attempts = Vec::new();
     for step in steps(batch).into_iter().take(prefix) {
@@ -217,6 +225,7 @@ async fn stage<S: LedgerBatchRecovery>(
             tx.rollback().await.map_err(operation)?;
             return Err(operation(error));
         }
+        history::scheduled_yield(&mut schedule).await;
     }
     Ok(tx)
 }
