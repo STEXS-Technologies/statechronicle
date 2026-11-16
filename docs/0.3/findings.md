@@ -676,3 +676,9 @@ This is partial F5 progress: batch-member expiry, broader interleavings, real
 backend clocks/transactions, physical crash qualification, non-genesis generic
 rebuild, expected trade/history claims and the other F2–F8 requirements remain
 open. It does not establish release readiness.
+
+Exact archived `e85121b` qualification passes nine integration functions on Rust
+1.85.0 and 1.100.0, formatting, strict Clippy and strict rustdoc. Reproducible
+commands, hashes, compressed logs and limitations are retained in
+[evidence/conformance/lease-e85121b](evidence/conformance/lease-e85121b/README.md).
+Production crates and both manifests/locks match the parent unchanged.
