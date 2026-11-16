@@ -18,9 +18,7 @@ use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 
 use crate::error::ProfileError;
-use crate::execution::ExecutionPolicy;
 use crate::registry::{ProfileRules, input_str, require_from, require_unborn, single_from};
-use crate::resource;
 
 /// Typed wire status names for a listing.
 pub mod listing_status {
@@ -111,9 +109,6 @@ pub struct ListingRules;
 pub struct EscrowRules;
 
 impl ProfileRules for ListingRules {
-    fn execution_policy(&self) -> &'static dyn ExecutionPolicy {
-        resource::policy(self.state_type())
-    }
     fn state_type(&self) -> StateType {
         StateType::Listing
     }
@@ -162,9 +157,6 @@ impl ProfileRules for ListingRules {
 }
 
 impl ProfileRules for EscrowRules {
-    fn execution_policy(&self) -> &'static dyn ExecutionPolicy {
-        resource::policy(self.state_type())
-    }
     fn state_type(&self) -> StateType {
         StateType::Escrow
     }

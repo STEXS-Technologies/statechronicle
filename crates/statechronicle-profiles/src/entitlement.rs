@@ -11,11 +11,9 @@ use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 
 use crate::error::ProfileError;
-use crate::execution::ExecutionPolicy;
 use crate::registry::{
     ProfileRules, input_str, require_from, require_unborn, single_from, state_bool,
 };
-use crate::resource;
 
 /// Typed wire status names for an entitlement.
 pub mod status {
@@ -78,9 +76,6 @@ pub mod op {
 pub struct EntitlementRules;
 
 impl ProfileRules for EntitlementRules {
-    fn execution_policy(&self) -> &'static dyn ExecutionPolicy {
-        resource::policy(self.state_type())
-    }
     fn state_type(&self) -> StateType {
         StateType::Entitlement
     }

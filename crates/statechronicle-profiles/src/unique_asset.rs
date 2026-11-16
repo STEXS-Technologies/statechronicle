@@ -12,12 +12,10 @@ use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 
 use crate::error::ProfileError;
-use crate::execution::ExecutionPolicy;
 use crate::keys;
 use crate::registry::{
     ProfileRules, input_amount, input_str, require_from, single_from, state_str, state_trade_id,
 };
-use crate::resource;
 
 /// Typed wire status names for a unique asset.
 pub mod status {
@@ -131,9 +129,6 @@ pub mod op {
 pub struct UniqueAssetRules;
 
 impl ProfileRules for UniqueAssetRules {
-    fn execution_policy(&self) -> &'static dyn ExecutionPolicy {
-        resource::policy(self.state_type())
-    }
     fn state_type(&self) -> StateType {
         StateType::UniqueAsset
     }
