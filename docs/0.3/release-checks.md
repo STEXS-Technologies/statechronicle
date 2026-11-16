@@ -84,3 +84,9 @@ cannot satisfy these controls. Sources/locks must remain unchanged or be exactly
 restored after deliberate mutation. Raw logs, final corpora, seeds, budgets,
 actual counts and hashes are retained. This exercises read-side verification;
 it does not qualify durable storage, arbitrary histories or all interleavings.
+
+The [first canonical claim campaign](evidence/fuzz/claim-verifier-c8ff305/README.md)
+passes 12,669 executions across the two seeds. Both insecure-source controls
+build and then fail at the intended runtime assertion. Stable formatting and
+strict target Clippy pass. The checkpoint retains its limited read-side scope;
+protected durable receipt fuzzing remains a separate gate.

@@ -1,0 +1,39 @@
+{
+  "candidate_commit": "c8ff30543fe4070e09bac611b567a152ed665f17",
+  "source_matches_campaign": true,
+  "checks": [
+    {
+      "label": "stable-fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0,
+      "artifact": "stable-fmt.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "label": "stable-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "-p",
+        "statechronicle-fuzz",
+        "--bin",
+        "fuzz_claim_verifier",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "artifact": "stable-clippy.log.gz",
+      "sha256": "e4b9fc5a3f66cf63f801231487b3b2ed774056a69d089e9b7d6d8f8071eb87e8"
+    }
+  ],
+  "status": "passed"
+}
