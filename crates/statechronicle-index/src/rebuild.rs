@@ -445,9 +445,9 @@ mod tests {
             .find(|p| p.state.subject().unwrap().0 == "bob")
             .unwrap();
         assert_eq!(alice.version, 2);
-        assert_eq!(alice.last_event_id, events[2].0.event_id);
+        assert_eq!(alice.last_event_id, events.get(2).unwrap().0.event_id);
         assert_eq!(bob.version, 1);
-        assert_eq!(bob.last_event_id, events[1].0.event_id);
+        assert_eq!(bob.last_event_id, events.get(1).unwrap().0.event_id);
     }
     #[tokio::test]
     async fn rebuild_event_identity_is_scoped_by_tenant() {
@@ -470,11 +470,11 @@ mod tests {
             held_event(2, "alice", "evt_alice_2"),
         ];
         let mut bad_before = source.clone();
-        bad_before[2].0.before = source[1].0.after.clone();
+        bad_before.get_mut(2).unwrap().0.before = source.get(1).unwrap().0.after.clone();
         let mut reordered = source.clone();
         reordered.swap(0, 2);
         let mut duplicate = source.clone();
-        duplicate[1].0.event_id = source[0].0.event_id.clone();
+        duplicate.get_mut(1).unwrap().0.event_id = source.first().unwrap().0.event_id.clone();
         for invalid in [bad_before, reordered, duplicate] {
             let sink = RecordingSink(std::sync::Mutex::new(Vec::new()));
             assert!(matches!(
@@ -574,9 +574,9 @@ mod tests {
                         .find(|p| p.state.subject().unwrap().0 == subject)
                         .unwrap();
                     assert_eq!(row.version, 2);
-                    assert_eq!(row.last_event_id, source[index].0.event_id);
-                    assert_eq!(row.last_commit_id, source[index].1);
-                    assert_eq!(row.state, source[index].0.after.state);
+                    assert_eq!(row.last_event_id, source.get(index).unwrap().0.event_id);
+                    assert_eq!(row.last_commit_id, source.get(index).unwrap().1);
+                    assert_eq!(row.state, source.get(index).unwrap().0.after.state);
                 }
             }
         }
