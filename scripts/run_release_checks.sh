@@ -5,6 +5,11 @@ workspace_root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "${workspace_root}"
 
 cargo fmt --all -- --check
+# Dev-only adapter harness is an isolated workspace; root --workspace omits it.
+cargo fmt --manifest-path ci/conformance/Cargo.toml --all -- --check
+cargo test --manifest-path ci/conformance/Cargo.toml --all-targets --locked
+cargo clippy --manifest-path ci/conformance/Cargo.toml --all-targets --locked -- -D warnings
+RUSTDOCFLAGS='-D warnings' cargo doc --manifest-path ci/conformance/Cargo.toml --no-deps --locked
 cargo test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo check --workspace --all-targets --all-features --locked
