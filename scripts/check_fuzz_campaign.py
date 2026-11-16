@@ -70,6 +70,11 @@ def main():
         with tempfile.TemporaryDirectory(prefix='statechronicle-claim-fuzz-') as temp:
             source = Path(temp) / 'source'
             source.mkdir()
+            # Archived mtimes can predate a prior insecure-source build. Never
+            # trust a shared Cargo cache to distinguish revisited revisions.
+            env['CARGO_TARGET_DIR'] = str(Path(temp) / 'target')
+            manifest['environment']['CARGO_TARGET_DIR'] = env['CARGO_TARGET_DIR']
+            manifest['build_isolation'] = 'fresh per-archive target directory'
             with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
                 tar.extractall(source, filter='data')
             def inputs():
@@ -130,6 +135,9 @@ def main():
                 claim.write_text(original.replace(before, after))
                 manifest[label + '_mutated_source_sha256'] = sha(claim.read_bytes())
                 run('negative-' + label + '-build', build, source)
+                manifest[label + '_binary_sha256'] = sha(binary.read_bytes())
+                if manifest[label + '_binary_sha256'] == manifest['binary_sha256']:
+                    raise RuntimeError('negative build reused positive binary')
                 probe = Path(temp) / ('probe-' + label)
                 probe.write_bytes(bytes([choice]))
                 run('negative-' + label, [str(binary), str(probe), '-runs=1', '-seed=7331'], source,
