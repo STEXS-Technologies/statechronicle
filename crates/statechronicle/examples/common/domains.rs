@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use statechronicle::portable::codec::{CanonicalCodec, CodecError, Decoder, Encoder};
 use statechronicle::profiles::error::ProfileError;
 use statechronicle::profiles::registry::ProfileRules;
-use statechronicle::{Operation, ProfileRegistry, StateProfile, TypedProfile};
+use statechronicle::{Operation, ProfileRegistry, StateProfile, TypedProfile, command_operations};
 use std::sync::LazyLock;
 
 impl CanonicalCodec for ConfigurationState {
@@ -107,10 +107,7 @@ impl StateProfile for Configuration {
     const SCHEMA_VERSION: u32 = 1;
     const MAX_PAYLOAD_BYTES: usize = 64;
     fn operation(&self, command: &Self::Command) -> &'static str {
-        match command {
-            ConfigurationCommand::Create { .. } => "configuration.create",
-            ConfigurationCommand::SetEnabled { .. } => "configuration.set_enabled",
-        }
+        configuration_operation(command)
     }
     fn validate(
         &self,
@@ -176,13 +173,7 @@ impl StateProfile for Equipment {
     const SCHEMA_VERSION: u32 = 1;
     const MAX_PAYLOAD_BYTES: usize = 64;
     fn operation(&self, command: &Self::Command) -> &'static str {
-        match command {
-            EquipmentCommand::Install => "equipment.install",
-            EquipmentCommand::Start => "equipment.start",
-            EquipmentCommand::Stop => "equipment.stop",
-            EquipmentCommand::Fail => "equipment.fail",
-            EquipmentCommand::Recover => "equipment.recover",
-        }
+        equipment_operation(command)
     }
     fn validate(
         &self,
@@ -224,21 +215,21 @@ impl StateProfile for Equipment {
         }
     }
 }
-static CONFIG_OPERATIONS: LazyLock<[Operation; 2]> = LazyLock::new(|| {
-    [
-        Operation::from_static("configuration.create"),
-        Operation::from_static("configuration.set_enabled"),
-    ]
-});
-static EQUIPMENT_OPERATIONS: LazyLock<[Operation; 5]> = LazyLock::new(|| {
-    [
-        Operation::from_static("equipment.install"),
-        Operation::from_static("equipment.start"),
-        Operation::from_static("equipment.stop"),
-        Operation::from_static("equipment.fail"),
-        Operation::from_static("equipment.recover"),
-    ]
-});
+command_operations! {
+    fn configuration_operation(command: &ConfigurationCommand);
+    static CONFIG_OPERATIONS: Operation;
+    ConfigurationCommand::Create { .. } => "configuration.create",
+    ConfigurationCommand::SetEnabled { .. } => "configuration.set_enabled",
+}
+command_operations! {
+    fn equipment_operation(command: &EquipmentCommand);
+    static EQUIPMENT_OPERATIONS: Operation;
+    EquipmentCommand::Install => "equipment.install",
+    EquipmentCommand::Start => "equipment.start",
+    EquipmentCommand::Stop => "equipment.stop",
+    EquipmentCommand::Fail => "equipment.fail",
+    EquipmentCommand::Recover => "equipment.recover",
+}
 pub static CONFIGURATION: LazyLock<TypedProfile<Configuration>> =
     LazyLock::new(|| TypedProfile::new(Configuration, &*CONFIG_OPERATIONS));
 pub static EQUIPMENT: LazyLock<TypedProfile<Equipment>> =

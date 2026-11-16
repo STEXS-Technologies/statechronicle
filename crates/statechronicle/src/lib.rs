@@ -170,3 +170,6 @@ pub use statechronicle_profile as profile;
 pub use statechronicle_profile::StateProfile;
 /// Typed adapter for domain registration.
 pub use statechronicle_profiles::custom::TypedProfile;
+
+/// Define a command discriminator and static operation list from one mapping.
+pub use statechronicle_profiles::command_operations;
