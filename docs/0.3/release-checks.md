@@ -90,3 +90,19 @@ passes 12,669 executions across the two seeds. Both insecure-source controls
 build and then fail at the intended runtime assertion. Stable formatting and
 strict target Clippy pass. The checkpoint retains its limited read-side scope;
 protected durable receipt fuzzing remains a separate gate.
+
+
+Protected durable commit/recovery fuzzing uses the shared immutable-source driver:
+
+```sh
+python3 scripts/check_fuzz_campaign.py --candidate <commit> --target fuzz_durable_recovery --output <new-directory>
+```
+
+The [isolated `a3b57a2` checkpoint](evidence/fuzz/durable-recovery-current/README.md)
+passes 15,136 instrumented executions across two independent seeds, both intended
+runtime controls, stable formatting/Clippy and dependency policy. Each archive
+builds in a fresh target directory to prevent cached insecure-control binaries
+from contaminating later positive runs. The retained verifier checks source and
+artifact provenance. Earlier failed and superseded attempts remain documented.
+This tests protected single-mutation receipt/recovery against an in-memory fake;
+physical durability and full exact-candidate release qualification remain open.

@@ -52,7 +52,7 @@ traceable without implying new fuzz coverage from those tests.
 Reproduce from the repository root:
 
 ```sh
-python3 scripts/check_claim_fuzz.py --candidate c8ff30543fe4070e09bac611b567a152ed665f17 --output <new-directory>
+python3 docs/0.3/evidence/fuzz/claim-verifier-c8ff305/runner.py --candidate c8ff30543fe4070e09bac611b567a152ed665f17 --output <new-directory>
 python3 docs/0.3/evidence/fuzz/claim-verifier-c8ff305/verify.py
 ```
 

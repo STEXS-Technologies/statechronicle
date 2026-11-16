@@ -1071,3 +1071,17 @@ termination campaign without implying power-loss durability. Earlier checkpoint
 notes in this log remain historical; the 0.2 architecture overview links to the
 current ownership map. No runtime, dependency, protocol or workflow files change
 in this documentation/evidence checkpoint. Full final qualification remains open.
+
+
+## Protected durable API fuzz checkpoint
+
+The immutable `a3b57a2` campaign passes 15,136 executions across two ASAN seeds,
+with exact signed receipt/recovery checks, transaction and acknowledgement
+faults, bounded conflicting payloads and six corrupt-record classes. Both
+insecure-source controls compile and fail their intended runtime assertion.
+Stable formatting, strict fuzz-bin Clippy and dependency policy also pass.
+Fresh per-archive build isolation prevents archived mtimes from reusing cached
+insecure binaries. [Evidence and unsuccessful earlier attempts](evidence/fuzz/durable-recovery-current/README.md)
+retain provenance and the runner's failure-artifact control. This advances
+bounded single-mutation logical coverage; physical adapters, broader randomized
+histories and full final qualification remain open.
