@@ -102,3 +102,15 @@ and coincident cross-tenant IDs were previously refused. Existing digest,
 schema, version, continuity and same-tenant duplicate checks remain. The public
 API, dependencies, canonical bytes and cryptography are unchanged. Full
 verified-source/checkpoint composition remains a separate boundary.
+
+The verified-history composition adds a private-construction owned source to
+prevent unverified event slices and unbound numeric checkpoints from being
+advertised as authenticated recovery. It reuses commit signature policy,
+chain continuity, event-root and replay-root implementations. Existing
+`validate_committed_events` becomes a documented public event-local integrity
+helper so durable writes and verified histories share the same schema/type/
+version/digest/custom-domain owner. This adds API/source to enforce a concrete
+trust boundary; it is not counted as a deletion or footprint reduction. Legacy
+rebuild validation remains intentionally narrower for compatibility. Full
+history verification retains accumulated updates and recomputes roots; no
+constant-memory, throughput improvement or final release claim is made.

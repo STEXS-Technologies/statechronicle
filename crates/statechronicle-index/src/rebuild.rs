@@ -16,6 +16,9 @@ use statechronicle_domain::ids::CommitId;
 use statechronicle_domain::state::StateProjection;
 use thiserror::Error;
 
+/// Opt-in signed historical sources and source-bound resumption.
+pub mod verified;
+
 /// Errors raised while rebuilding projections.
 #[derive(Debug, Error)]
 pub enum RebuildError {
@@ -578,6 +581,330 @@ mod tests {
                     assert_eq!(row.last_commit_id, source.get(index).unwrap().1);
                     assert_eq!(row.state, source.get(index).unwrap().0.after.state);
                 }
+            }
+        }
+    }
+
+    type SignedBatch = (
+        statechronicle_domain::signed::Signed<statechronicle_domain::commit::Commit>,
+        Vec<Event>,
+    );
+    fn signed_source() -> Vec<SignedBatch> {
+        use statechronicle_commit::{
+            batch::CommitBatch,
+            builder::CommitBuilder,
+            roots::{compute_state_root, state_root_updates},
+            sign::sign_commit,
+        };
+        use statechronicle_domain::{
+            commit::{CommitScope, ProfileId},
+            intent::KeyId,
+        };
+        let mut source: Vec<SignedBatch> = Vec::new();
+        let mut prior = Vec::new();
+        for version in [1, 2] {
+            let events = vec![
+                held_event(version, "alice", &format!("evt_alice_{version}")).0,
+                held_event(version, "bob", &format!("evt_bob_{version}")).0,
+            ];
+            let mut batch = CommitBatch::new(CommitScope::tenant(TenantId("game".into())));
+            for event in &events {
+                batch.add_event(event.clone()).unwrap();
+            }
+            let first = events.first().unwrap();
+            let body = CommitBuilder::builder()
+                .scope(batch.scope().clone())
+                .sequence(version)
+                .parent(
+                    source
+                        .last()
+                        .map(|(commit, _)| commit.body.commit_id.clone()),
+                )
+                .executor(first.executor.clone())
+                .profile(ProfileId::new("statechronicle.profile.resource.v0".into()).unwrap())
+                .created_at(first.created_at)
+                .build(
+                    &batch,
+                    source.last().map_or_else(
+                        || ContentDigest::new(*compute_state_root(&[]).unwrap().as_bytes()),
+                        |(commit, _)| commit.body.next_state_root.clone(),
+                    ),
+                    &prior,
+                    || Ok(CommitId::new(format!("cmt_history_{version}")).unwrap()),
+                )
+                .unwrap();
+            let commit = sign_commit(
+                &body,
+                &ed25519_dalek::SigningKey::from_bytes(&[77; 32]),
+                KeyId::new("test:history".into()).unwrap(),
+            )
+            .unwrap();
+            prior.extend(state_root_updates(&events).unwrap());
+            source.push((commit, events));
+        }
+        source
+    }
+    struct HistoricalVerifier;
+    impl statechronicle_commit::persist::SignedCommitVerifier for HistoricalVerifier {
+        fn verify(
+            &self,
+            commit: &statechronicle_domain::signed::Signed<statechronicle_domain::commit::Commit>,
+        ) -> Result<(), String> {
+            if commit.body.scope.tenant_id != Some(TenantId("game".into()))
+                || commit.signature.key_id.as_str() != "test:history"
+            {
+                return Err("untrusted historical signer scope".into());
+            }
+            statechronicle_commit::sign::verify_commit(
+                commit,
+                &ed25519_dalek::SigningKey::from_bytes(&[77; 32]).verifying_key(),
+            )
+            .map_err(|e| e.to_string())
+        }
+    }
+    fn pinned_source(source: &[SignedBatch]) -> Result<verified::VerifiedHistory, RebuildError> {
+        let pin = verified::HistoryPin {
+            tenant: TenantId("game".into()),
+            tip_digest: canonicalize_and_digest(
+                &source
+                    .last()
+                    .ok_or_else(|| RebuildError::Invariant("empty fixture".into()))?
+                    .0
+                    .body,
+            )
+            .map_err(|error| RebuildError::Invariant(error.to_string()))?,
+        };
+        let witnesses: Vec<_> = source
+            .iter()
+            .map(|(commit, events)| verified::HistoryWitness { commit, events })
+            .collect();
+        verified::verify_history(&witnesses, &pin, &HistoricalVerifier)
+    }
+    #[derive(Default)]
+    struct KeyedCheckpoints(std::sync::Mutex<BTreeMap<String, usize>>);
+    #[async_trait]
+    impl CheckpointStore for KeyedCheckpoints {
+        async fn load(&self, key: &str) -> Result<Option<usize>, String> {
+            Ok(self.0.lock().unwrap().get(key).copied())
+        }
+        async fn save(&self, key: &str, offset: usize) -> Result<(), String> {
+            self.0.lock().unwrap().insert(key.into(), offset);
+            Ok(())
+        }
+    }
+    #[tokio::test]
+    async fn verified_history_owns_source_and_binds_checkpoints_to_job_and_history() {
+        let mut source = signed_source();
+        let full = pinned_source(&source).unwrap();
+        let short = pinned_source(source.get(..1).unwrap()).unwrap();
+        assert_ne!(full.source_digest(), short.source_digest());
+        assert_ne!(
+            full.checkpoint_key("job").unwrap(),
+            short.checkpoint_key("job").unwrap()
+        );
+        assert_ne!(
+            full.checkpoint_key("job").unwrap(),
+            full.checkpoint_key("other").unwrap()
+        );
+        assert!(full.checkpoint_key("").is_err());
+        // Mutating the provider's original buffer cannot change an owned receipt.
+        source.first_mut().unwrap().1.clear();
+        let checkpoints = KeyedCheckpoints::default();
+        let sink = RestartableRebuild::default();
+        full.rebuild_resumable("job", 1, &sink, &checkpoints)
+            .await
+            .unwrap();
+        assert_eq!(sink.rows.lock().unwrap().len(), 2);
+        assert!(sink.rows.lock().unwrap().iter().all(|row| row.version == 2));
+        let fresh_sink = RestartableRebuild::default();
+        short
+            .rebuild_resumable("job", 1, &fresh_sink, &checkpoints)
+            .await
+            .unwrap();
+        assert_eq!(fresh_sink.rows.lock().unwrap().len(), 2);
+        assert!(
+            fresh_sink
+                .rows
+                .lock()
+                .unwrap()
+                .iter()
+                .all(|row| row.version == 1)
+        );
+        assert_eq!(
+            checkpoints
+                .load(&full.checkpoint_key("job").unwrap())
+                .await
+                .unwrap(),
+            Some(4)
+        );
+        assert_eq!(
+            checkpoints
+                .load(&short.checkpoint_key("job").unwrap())
+                .await
+                .unwrap(),
+            Some(2)
+        );
+    }
+    #[tokio::test]
+    async fn verified_history_refuses_incomplete_corrupt_untrusted_and_mispinned_sources() {
+        let source = signed_source();
+        let pin = verified::HistoryPin {
+            tenant: TenantId("game".into()),
+            tip_digest: canonicalize_and_digest(&source.last().unwrap().0.body).unwrap(),
+        };
+        let mut missing_prefix = source.clone();
+        missing_prefix.remove(0);
+        let mut missing_event = source.clone();
+        missing_event.first_mut().unwrap().1.pop();
+        let mut reordered = source.clone();
+        reordered.first_mut().unwrap().1.reverse();
+        let mut rewritten = source.clone();
+        rewritten
+            .first_mut()
+            .unwrap()
+            .1
+            .first_mut()
+            .unwrap()
+            .after
+            .version = 99;
+        let mut untrusted = source.clone();
+        untrusted.first_mut().unwrap().0.signature.key_id =
+            statechronicle_domain::intent::KeyId::new("untrusted:key".into()).unwrap();
+        let mut missing_tip = source.clone();
+        missing_tip.pop();
+        let mut duplicate_commit = source.clone();
+        duplicate_commit.insert(1, source.first().unwrap().clone());
+        let mut bad_signature = source.clone();
+        let forged_commit = &mut bad_signature.first_mut().unwrap().0;
+        *forged_commit = statechronicle_commit::sign::sign_commit(
+            &forged_commit.body,
+            &ed25519_dalek::SigningKey::from_bytes(&[88; 32]),
+            forged_commit.signature.key_id.clone(),
+        )
+        .unwrap();
+        assert!(verified::verify_history(&[], &pin, &HistoricalVerifier).is_err());
+        for invalid in [
+            missing_prefix,
+            missing_event,
+            reordered,
+            rewritten,
+            untrusted,
+            missing_tip,
+            duplicate_commit,
+            bad_signature,
+        ] {
+            let witnesses: Vec<_> = invalid
+                .iter()
+                .map(|(commit, events)| verified::HistoryWitness { commit, events })
+                .collect();
+            assert!(matches!(
+                verified::verify_history(&witnesses, &pin, &HistoricalVerifier),
+                Err(RebuildError::Invariant(_))
+            ));
+        }
+        let witnesses: Vec<_> = source
+            .iter()
+            .map(|(commit, events)| verified::HistoryWitness { commit, events })
+            .collect();
+        let wrong_pin = verified::HistoryPin {
+            tenant: pin.tenant.clone(),
+            tip_digest: statechronicle_core::digest::hash_bytes(b"wrong pin"),
+        };
+        assert!(verified::verify_history(&witnesses, &wrong_pin, &HistoricalVerifier).is_err());
+        let wrong_tenant = verified::HistoryPin {
+            tenant: TenantId("other".into()),
+            tip_digest: pin.tip_digest,
+        };
+        assert!(verified::verify_history(&witnesses, &wrong_tenant, &HistoricalVerifier).is_err());
+    }
+    #[test]
+    fn verified_history_checks_structural_invariants_even_under_valid_signatures() {
+        use statechronicle_commit::{
+            persist::SignedCommitVerifier, roots::event_root, sign::sign_commit,
+        };
+        use statechronicle_domain::intent::KeyId;
+        for case in 0..9 {
+            let mut source = signed_source();
+            match case {
+                0 => source.first_mut().unwrap().0.body.sequence = 2,
+                1 => {
+                    source.last_mut().unwrap().0.body.parent_commit_id =
+                        Some(CommitId::new("cmt_wrong_parent".into()).unwrap())
+                }
+                2 => source.last_mut().unwrap().0.body.sequence = 3,
+                3 => {
+                    source.last_mut().unwrap().0.body.previous_state_root =
+                        statechronicle_core::digest::hash_bytes(b"wrong prior")
+                }
+                4 => {
+                    source.last_mut().unwrap().0.body.next_state_root =
+                        statechronicle_core::digest::hash_bytes(b"wrong next")
+                }
+                5 => source.last_mut().unwrap().0.body.event_count = 99,
+                6 => {
+                    source.last_mut().unwrap().0.body.event_merkle_root =
+                        statechronicle_core::digest::hash_bytes(b"wrong event root")
+                }
+                7 => {
+                    let (commit, events) = source.first_mut().unwrap();
+                    events.first_mut().unwrap().before.state_hash =
+                        statechronicle_core::digest::hash_bytes(b"false state hash");
+                    commit.body.event_merkle_root = event_root(events).unwrap();
+                }
+                _ => {
+                    source.truncate(1);
+                    let (commit, events) = source.first_mut().unwrap();
+                    let event = events.first_mut().unwrap();
+                    event.before.version = 20;
+                    event.after.version = 21;
+                    commit.body.event_merkle_root = event_root(events).unwrap();
+                }
+            }
+            for (commit, _) in &mut source {
+                *commit = sign_commit(
+                    &commit.body,
+                    &ed25519_dalek::SigningKey::from_bytes(&[77; 32]),
+                    KeyId::new("test:history".into()).unwrap(),
+                )
+                .unwrap();
+                HistoricalVerifier.verify(commit).unwrap();
+            }
+            assert!(
+                matches!(pinned_source(&source), Err(RebuildError::Invariant(_))),
+                "case {case}"
+            );
+        }
+    }
+    #[tokio::test]
+    async fn verified_history_resumption_preserves_each_interrupted_checkpoint() {
+        let source = signed_source();
+        let history = pinned_source(&source).unwrap();
+        for width in [1, 2, 3] {
+            for fail_save in 1..=4usize.div_ceil(width) {
+                let store = RestartableRebuild {
+                    fail_save,
+                    ..Default::default()
+                };
+                assert!(matches!(
+                    history
+                        .rebuild_resumable("job", width, &store, &store)
+                        .await,
+                    Err(RebuildError::Sink(_))
+                ));
+                history
+                    .rebuild_resumable("job", width, &store, &store)
+                    .await
+                    .unwrap();
+                assert_eq!(*store.offset.lock().unwrap(), Some(4));
+                assert_eq!(store.rows.lock().unwrap().len(), 2);
+                assert!(
+                    store
+                        .rows
+                        .lock()
+                        .unwrap()
+                        .iter()
+                        .all(|row| row.version == 2)
+                );
             }
         }
     }

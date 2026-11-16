@@ -245,3 +245,16 @@ verify signatures, signer authorization, complete canonical order and roots
 before rebuilding. Numeric checkpoint keys must remain pinned by the caller to
 the same source. There is no new physical-crash, schema migration, arbitrary
 missing-prefix or changed-source checkpoint guarantee.
+
+## Verified source and checkpoint binding
+
+The opt-in `index::rebuild::verified` path now composes existing commit signature,
+chain-link, event-integrity and replay-root owners before exposing an owned
+`VerifiedHistory`. It requires an independently selected historical tip digest
+and signer policy. Its resumable method derives checkpoint keys from the entire
+verified signed source plus job name; changed sources do not reuse an old offset.
+The event-only APIs retain their caller-verified-source contracts. See
+[verified rebuild](verified-rebuild.md) for the external consumer, sink/key
+requirements, historical trust boundaries and remaining physical/performance
+limits. This does not close arbitrary history, database crash or full F5/F8
+qualification.

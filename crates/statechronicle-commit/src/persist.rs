@@ -423,8 +423,15 @@ pub(crate) async fn write_transaction<S: LedgerStore + ?Sized>(
     Ok(TransactionDecision::Committed)
 }
 
-/// Validates every event and rejects duplicate identities before persistence.
-fn validate_committed_events(entries: &[CommittedEvent<'_>]) -> Result<(), CommitError> {
+/// Validates event-local schemas, identities, types, versions, custom domain/
+/// schema continuity and state digests, rejecting duplicate event IDs in a batch.
+/// Shared by durable persistence and signed historical replay verification.
+/// This does not verify a commit signature/root, canonical chain, intent binding,
+/// authorization, resource policy, or serialized size limits.
+///
+/// # Errors
+/// Returns the existing commit validation error for malformed or duplicate events.
+pub fn validate_committed_events(entries: &[CommittedEvent<'_>]) -> Result<(), CommitError> {
     let mut event_ids = BTreeSet::new();
     for entry in entries {
         validate_committed_event(entry)?;
