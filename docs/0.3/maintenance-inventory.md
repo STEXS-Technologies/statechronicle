@@ -89,3 +89,16 @@ syntax lines, 118,417 tokens and 1,951 parsed branch nodes. Parser counts do not
 expand macros. This is 299 tokens below the pre-guard-extraction checkpoint,
 but still above the original release; the broader footprint target remains open.
 No source-reduction credit is assigned to the macro or MSRV tooling corrections.
+
+
+Projection rebuild addressing now has one private `projection_address` owner
+shared by continuity validation and latest-row selection. It preserves the
+existing tenant/resource order for resource-keyed state and adds the subject
+for subject-held state, using the typed `ResourceState::subject` contract.
+Mutable owner values never enter the key. Event uniqueness is tenant-scoped.
+This is a correctness fix for two retained failing valid-history regressions,
+not a claim of equivalent acceptance or a source shrink: independent holders
+and coincident cross-tenant IDs were previously refused. Existing digest,
+schema, version, continuity and same-tenant duplicate checks remain. The public
+API, dependencies, canonical bytes and cryptography are unchanged. Full
+verified-source/checkpoint composition remains a separate boundary.

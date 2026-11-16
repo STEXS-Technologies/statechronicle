@@ -93,10 +93,21 @@ pub fn rebuild_progress(
     })
 }
 
+// Owner-based state addresses exclude its mutable owner; subject-held state
+// addresses include the holder, matching ResourceState and canonical state keys.
+type ProjectionAddress = (String, String, Option<String>);
+fn projection_address(event: &Event) -> ProjectionAddress {
+    (
+        event.tenant_id.0.clone(),
+        event.resource_id.0.clone(),
+        event.after.state.subject().map(|subject| subject.0.clone()),
+    )
+}
+
 /// Rebuilds latest projections from events in canonical commit order.
 ///
-/// Events are grouped by `(tenant, resource)` and the highest version is
-/// selected. Equal versions with different event/state hashes are rejected;
+/// Events are grouped by tenant/resource and, for subject-held state, subject.
+/// The highest version is selected. Equal versions with different event/state hashes are rejected;
 /// this prevents a reordered or forked stream from silently overwriting a
 /// projection. The caller must supply events in verified canonical order.
 ///
@@ -110,7 +121,7 @@ pub async fn rebuild_projections(
     sink: &dyn ProjectionSink,
 ) -> Result<u64, RebuildError> {
     validate_rebuild_stream(events)?;
-    let mut latest: BTreeMap<(String, String), StateProjection> = BTreeMap::new();
+    let mut latest: BTreeMap<ProjectionAddress, StateProjection> = BTreeMap::new();
     for (event, commit_id) in events {
         if event.tenant_id.0.is_empty() || event.resource_id.0.is_empty() {
             return Err(RebuildError::Invariant(String::from(
@@ -127,10 +138,7 @@ pub async fn rebuild_projections(
             state_hash: event.after.state_hash.clone(),
             state: event.after.state.clone(),
         };
-        let key = (
-            projection.tenant_id.0.clone(),
-            projection.resource_id.0.clone(),
-        );
+        let key = projection_address(event);
         match latest.get(&key) {
             Some(existing) if projection.version < existing.version => {}
             Some(existing)
@@ -157,13 +165,13 @@ pub async fn rebuild_projections(
 }
 
 /// Validates the complete source stream before any projection is written.
-/// Continuity is keyed by tenant/resource because canonical commits may
-/// interleave independent resources. This check is intentionally separate
-/// from chunk execution so a duplicate or fork split across chunks cannot be
+/// Continuity uses the full projection address because canonical commits may
+/// interleave independent resources and holders. This check is intentionally
+/// separate from chunk execution so a duplicate or fork split across chunks cannot be
 /// hidden by resumable processing.
 fn validate_rebuild_stream(events: &[(Event, CommitId)]) -> Result<(), RebuildError> {
     let mut event_ids = BTreeSet::new();
-    let mut previous: BTreeMap<(String, String), (u64, ContentDigest)> = BTreeMap::new();
+    let mut previous: BTreeMap<ProjectionAddress, (u64, ContentDigest)> = BTreeMap::new();
     for (event, commit_id) in events {
         validate_event_for_rebuild(event, commit_id)?;
         if event.tenant_id.0.is_empty() || event.resource_id.0.is_empty() {
@@ -171,13 +179,13 @@ fn validate_rebuild_stream(events: &[(Event, CommitId)]) -> Result<(), RebuildEr
                 "event tenant/resource scope must not be empty",
             )));
         }
-        if !event_ids.insert(event.event_id.clone()) {
+        if !event_ids.insert((event.tenant_id.0.clone(), event.event_id.clone())) {
             return Err(RebuildError::Invariant(format!(
                 "duplicate event id `{}` in rebuild stream",
                 event.event_id
             )));
         }
-        let key = (event.tenant_id.0.clone(), event.resource_id.0.clone());
+        let key = projection_address(event);
         if previous.get(&key).is_some_and(|(version, state_hash)| {
             event.before.version != *version || event.before.state_hash != *state_hash
         }) {
@@ -396,6 +404,182 @@ mod tests {
                 .with_timezone(&Utc),
         );
         (event, CommitId::new(format!("cmt_{event_id}")).unwrap())
+    }
+
+    fn held_event(version: u64, subject: &str, id: &str) -> (Event, CommitId) {
+        use statechronicle_core::amount::Amount;
+        use statechronicle_domain::resource_state::FungibleBalanceState;
+        let (mut event, commit) = event(version, subject, id);
+        event.resource_id = ResourceId(String::from("currency:coin"));
+        event.operation = Operation::from_static("balance.credit");
+        let state = |balance| {
+            ResourceState::FungibleBalance(FungibleBalanceState {
+                subject: SubjectId(subject.into()),
+                balance: Amount::try_from_str(balance).unwrap(),
+                unit: "COIN".into(),
+            })
+        };
+        event.before.state = state(if version == 1 { "0" } else { "10" });
+        event.before.state_hash = canonicalize_and_digest(&event.before.state).unwrap();
+        event.after.state = state(if version == 1 { "10" } else { "20" });
+        event.after.state_hash = canonicalize_and_digest(&event.after.state).unwrap();
+        (event, commit)
+    }
+    #[tokio::test]
+    async fn rebuild_keeps_independent_holders_and_their_own_continuity() {
+        let events = vec![
+            held_event(1, "alice", "evt_alice_1"),
+            held_event(1, "bob", "evt_bob_1"),
+            held_event(2, "alice", "evt_alice_2"),
+        ];
+        let sink = RecordingSink(std::sync::Mutex::new(Vec::new()));
+        assert_eq!(rebuild_projections(&events, &sink).await.unwrap(), 2);
+        let rows = sink.0.lock().unwrap();
+        assert_eq!(rows.len(), 2);
+        let alice = rows
+            .iter()
+            .find(|p| p.state.subject().unwrap().0 == "alice")
+            .unwrap();
+        let bob = rows
+            .iter()
+            .find(|p| p.state.subject().unwrap().0 == "bob")
+            .unwrap();
+        assert_eq!(alice.version, 2);
+        assert_eq!(alice.last_event_id, events[2].0.event_id);
+        assert_eq!(bob.version, 1);
+        assert_eq!(bob.last_event_id, events[1].0.event_id);
+    }
+    #[tokio::test]
+    async fn rebuild_event_identity_is_scoped_by_tenant() {
+        let first = event(1, "alice", "evt_shared");
+        let mut second = first.clone();
+        second.0.tenant_id = TenantId("other".into());
+        let sink = RecordingSink(std::sync::Mutex::new(Vec::new()));
+        assert_eq!(
+            rebuild_projections(&[first, second], &sink).await.unwrap(),
+            2
+        );
+        assert_eq!(sink.0.lock().unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn holder_continuity_and_same_tenant_duplicate_checks_fail_before_writes() {
+        let source = vec![
+            held_event(1, "alice", "evt_alice_1"),
+            held_event(1, "bob", "evt_bob_1"),
+            held_event(2, "alice", "evt_alice_2"),
+        ];
+        let mut bad_before = source.clone();
+        bad_before[2].0.before = source[1].0.after.clone();
+        let mut reordered = source.clone();
+        reordered.swap(0, 2);
+        let mut duplicate = source.clone();
+        duplicate[1].0.event_id = source[0].0.event_id.clone();
+        for invalid in [bad_before, reordered, duplicate] {
+            let sink = RecordingSink(std::sync::Mutex::new(Vec::new()));
+            assert!(matches!(
+                rebuild_projections(&invalid, &sink).await,
+                Err(RebuildError::Invariant(_))
+            ));
+            assert!(sink.0.lock().unwrap().is_empty());
+            assert!(matches!(
+                rebuild_projections_resumable(&invalid, "test", 1, &sink, &NoopCheckpoint).await,
+                Err(RebuildError::Invariant(_))
+            ));
+            assert!(sink.0.lock().unwrap().is_empty());
+        }
+    }
+
+    #[derive(Default)]
+    struct RestartableRebuild {
+        rows: std::sync::Mutex<Vec<StateProjection>>,
+        offset: std::sync::Mutex<Option<usize>>,
+        saves: std::sync::atomic::AtomicUsize,
+        fail_save: usize,
+    }
+    #[async_trait]
+    impl ProjectionSink for RestartableRebuild {
+        async fn upsert_projection(&self, projection: &StateProjection) -> Result<(), String> {
+            let mut rows = self.rows.lock().unwrap();
+            if let Some(old) = rows.iter_mut().find(|old| {
+                old.tenant_id == projection.tenant_id
+                    && old.resource_id == projection.resource_id
+                    && old.state.subject() == projection.state.subject()
+            }) {
+                if old.version > projection.version {
+                    return Ok(());
+                }
+                if old.version == projection.version && old != projection {
+                    return Err("conflicting equal version".into());
+                }
+                *old = projection.clone();
+            } else {
+                rows.push(projection.clone());
+            }
+            Ok(())
+        }
+    }
+    #[async_trait]
+    impl CheckpointStore for RestartableRebuild {
+        async fn load(&self, _key: &str) -> Result<Option<usize>, String> {
+            Ok(*self.offset.lock().unwrap())
+        }
+        async fn save(&self, _key: &str, offset: usize) -> Result<(), String> {
+            let count = self.saves.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+            if count == self.fail_save {
+                return Err("injected checkpoint failure after projection writes".into());
+            }
+            *self.offset.lock().unwrap() = Some(offset);
+            Ok(())
+        }
+    }
+    #[tokio::test]
+    async fn holder_rebuild_resumes_after_each_checkpoint_failure() {
+        let source = vec![
+            held_event(1, "alice", "evt_alice_1"),
+            held_event(1, "bob", "evt_bob_1"),
+            held_event(2, "alice", "evt_alice_2"),
+            held_event(2, "bob", "evt_bob_2"),
+        ];
+        for width in [1, 2, 3] {
+            for fail_save in 1..=source.len().div_ceil(width) {
+                let durable = RestartableRebuild {
+                    fail_save,
+                    ..Default::default()
+                };
+                assert!(matches!(
+                    rebuild_projections_resumable(
+                        &source,
+                        "pinned-history",
+                        width,
+                        &durable,
+                        &durable
+                    )
+                    .await,
+                    Err(RebuildError::Sink(_))
+                ));
+                assert_eq!(
+                    durable.offset.lock().unwrap().unwrap_or(0),
+                    (fail_save - 1) * width
+                );
+                rebuild_projections_resumable(&source, "pinned-history", width, &durable, &durable)
+                    .await
+                    .unwrap();
+                assert_eq!(*durable.offset.lock().unwrap(), Some(4));
+                let rows = durable.rows.lock().unwrap();
+                assert_eq!(rows.len(), 2);
+                for (subject, index) in [("alice", 2), ("bob", 3)] {
+                    let row = rows
+                        .iter()
+                        .find(|p| p.state.subject().unwrap().0 == subject)
+                        .unwrap();
+                    assert_eq!(row.version, 2);
+                    assert_eq!(row.last_event_id, source[index].0.event_id);
+                    assert_eq!(row.last_commit_id, source[index].1);
+                    assert_eq!(row.state, source[index].0.after.state);
+                }
+            }
+        }
     }
 
     #[tokio::test]

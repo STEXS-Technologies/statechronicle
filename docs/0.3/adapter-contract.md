@@ -222,3 +222,26 @@ single/batch histories, interrupted/corrupt replay, verified projection rebuild,
 real database reopen/process-kill/power-loss behavior and broader F5/F8 gates
 remain open. Fixture signature validity is checked during reference generation;
 consumer ingress and signer authorization remain separate authorities.
+
+## Projection rebuild addressing correction
+
+The canonical `index::rebuild` implementation now keys projection selection and
+continuity by tenant/resource plus subject for subject-held state. Owner-based
+state retains its resource key across owner changes. Duplicate event detection
+uses tenant/event identity, matching scoped event storage. No wire format,
+cryptographic computation, public signature or dependency changes.
+
+The prior implementation demonstrably rejected valid independent balance
+holders as a continuity mismatch and coincident event IDs in distinct tenants
+as duplicates. Retained failing regressions reproduce both. New negative
+controls still reject wrong-holder continuity, reordered same-holder history
+and same-tenant duplicates before any projection write. Logical restart tests
+inject a checkpoint save failure after projection writes at each checkpoint for
+chunk sizes one, two and three, then resume the same pinned four-event source
+against an idempotent monotonic sink and verify both exact final holder rows.
+
+This correction does not authenticate an untrusted event stream: callers must
+verify signatures, signer authorization, complete canonical order and roots
+before rebuilding. Numeric checkpoint keys must remain pinned by the caller to
+the same source. There is no new physical-crash, schema migration, arbitrary
+missing-prefix or changed-source checkpoint guarantee.
