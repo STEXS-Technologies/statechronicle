@@ -611,6 +611,31 @@ impl Executor {
             .await
     }
 
+    /// Prepare one authenticated single-tenant settlement as an owned batch.
+    ///
+    /// Every member passes the same ingress and preparation gates as
+    /// [`Self::prepare_player_batch`], with coordinated baseline resource routes
+    /// enabled. The complete event set must additionally pass the existing
+    /// settlement validator: declared value legs and bundle membership cannot
+    /// escape as a successful subset. No claim, transaction or sink is invoked.
+    ///
+    /// Bind the result with `SignedBatch` in the public facade and commit it
+    /// through one supported ledger transaction. Preparation alone supplies no
+    /// durable authority, freshness guarantee or cross-tenant atomicity.
+    /// Reads/callbacks obey [`Self::prepare_player`]'s effect restrictions.
+    /// # Errors
+    /// Refuses ingress, scope, profile, transfer, value-leg or bundle failures.
+    pub async fn prepare_player_settlement(
+        &self,
+        items: &[PlayerBatchItem<'_>],
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+    ) -> Result<PreparedBatch, ExecutorError> {
+        self.evaluation()
+            .prepare_player_settlement(items, authorizer, key_registry)
+            .await
+    }
+
     /// Executes a player-originated mutation with the strict public-ingress
     /// policy: a detached signature is mandatory, the authenticated principal
     /// must match the intent actor/tenant, and the injected authorizer must
@@ -1399,6 +1424,31 @@ impl Preparer {
     ) -> Result<PreparedBatch, ExecutorError> {
         self.evaluation()
             .prepare_player_batch(items, authorizer, key_registry)
+            .await
+    }
+
+    /// Prepare one authenticated single-tenant settlement as an owned batch.
+    ///
+    /// Every member passes the same ingress and preparation gates as
+    /// [`Self::prepare_player_batch`], with coordinated baseline resource routes
+    /// enabled. The complete event set must additionally pass the existing
+    /// settlement validator: declared value legs and bundle membership cannot
+    /// escape as a successful subset. No claim, transaction or sink is invoked.
+    ///
+    /// Bind the result with `SignedBatch` in the public facade and commit it
+    /// through one supported ledger transaction. Preparation alone supplies no
+    /// durable authority, freshness guarantee or cross-tenant atomicity.
+    /// Reads/callbacks obey [`Self::prepare_player`]'s effect restrictions.
+    /// # Errors
+    /// Refuses ingress, scope, profile, transfer, value-leg or bundle failures.
+    pub async fn prepare_player_settlement(
+        &self,
+        items: &[PlayerBatchItem<'_>],
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+    ) -> Result<PreparedBatch, ExecutorError> {
+        self.evaluation()
+            .prepare_player_settlement(items, authorizer, key_registry)
             .await
     }
 }

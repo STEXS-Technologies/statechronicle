@@ -1,0 +1,38 @@
+{
+  "baseline_commit": "c2010eab486a3c7ad6ed33f848214b8c47c02f32",
+  "fixture_sha256": "5dcf81eaad70047dc43194b36d16a18e25b7551dcb76a9f1d20bee6a583820a9",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "statechronicle",
+    "--test",
+    "protected_settlement",
+    "--locked",
+    "--offline"
+  ],
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8"
+  },
+  "exit_code": 101,
+  "seconds": 0.17213863800861873,
+  "expected_failures": {
+    "cargo_exit_101": true,
+    "valid_sale_refused_by_route": true,
+    "incomplete_bundle_single_accepted": true,
+    "incomplete_bundle_batch_accepted": true,
+    "two_tests_fail": true
+  },
+  "status": "expected_regressions_observed",
+  "limitations": [
+    "New uncommitted fixture applied to unchanged tracked production; first setup attempt had incorrectly unscoped actor keys and proves no product failure.",
+    "Source for the first key-scope setup attempt was not retained; its log is excluded from conclusions."
+  ],
+  "artifacts_sha256": {
+    "protected_settlement.rs": "5dcf81eaad70047dc43194b36d16a18e25b7551dcb76a9f1d20bee6a583820a9",
+    "runner.py": "e5b3ded1c79f0caf31078644051eb1e9eba216c6334604e5d7b3573b33f946c3",
+    "regressions.log.gz": "60d244ce07e43a299dbd39c6137b854b9c87c859c795d0d5c5b408d7dcd414a4",
+    "setup-key-scope-error.log.gz": "541efd2ab2cb39aa0ed6fc3c9b55ad74d506e9f0ccde602c93ad2ba62d976a7c"
+  }
+}

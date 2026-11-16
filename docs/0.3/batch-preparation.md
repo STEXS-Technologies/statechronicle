@@ -42,3 +42,17 @@ scope refusal, missing signatures, size bounds, duplicate event IDs, and a
 store that panics on either access. A candidate-only external consumer uses the
 public facade to prepare and inspect both legs. None of these tests qualifies
 physical database crashes or durable group atomicity.
+
+## Protected settlement preparation
+
+`Preparer::prepare_player_settlement` (also forwarded by `Executor`) returns the
+same `PreparedBatch`, with the same per-member authentication and read-only
+restrictions. It enables coordinated resource routes and applies the existing
+settlement validator to the complete group, including declared payment pairs
+and bundle cardinality. Bind its result through `SignedBatch` using a qualified
+atomic ledger adapter. Preparation alone does not reserve ownership or money.
+
+Ordinary single and batch preparation refuse declared value legs and bundles;
+use the settlement coordinator for those declarations. The protected coordinator
+shares settlement validation with legacy `execute_settle`. It does not provide
+cross-tenant settlement or a sequential overlay of earlier group effects.

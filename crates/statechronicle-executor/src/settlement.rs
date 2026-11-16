@@ -57,12 +57,7 @@ impl Executor {
         // `allow_value_legs` is `true`: the settle batch's value legs are
         // validated by [`atomicity::validate_settle_batch`] below.
         let result = match self.run_batch(intents, true, sink.is_some()).await {
-            Ok(events) => {
-                let settle_intents = settle_requests(intents);
-                atomicity::validate_batch_consistency(&events)
-                    .and_then(|()| atomicity::validate_settle_batch(&events, &settle_intents))
-                    .map(|()| events)
-            }
+            Ok(events) => validate_settle(&events, intents.iter()).map(|()| events),
             Err(error) => Err(error),
         };
         match result {
@@ -254,7 +249,7 @@ impl Executor {
             .await
         {
             Ok(groups) => {
-                let settle_intents = settle_requests(intents);
+                let settle_intents = settle_requests(intents.iter());
                 atomicity::validate_cross_tenant_trade(&groups, manifest, &settle_intents)
                     .map(|()| groups)
             }
@@ -313,9 +308,20 @@ fn partition_tenants(
     (by_name, sorted_tenants)
 }
 
-fn settle_requests(intents: &[ValidatedIntent]) -> Vec<statechronicle_domain::intent::Intent> {
+pub(super) fn validate_settle<'intent>(
+    events: &[Event],
+    intents: impl IntoIterator<Item = &'intent ValidatedIntent>,
+) -> Result<(), ExecutorError> {
+    let settle_intents = settle_requests(intents);
+    atomicity::validate_batch_consistency(events)
+        .and_then(|()| atomicity::validate_settle_batch(events, &settle_intents))
+}
+
+fn settle_requests<'intent>(
+    intents: impl IntoIterator<Item = &'intent ValidatedIntent>,
+) -> Vec<statechronicle_domain::intent::Intent> {
     intents
-        .iter()
+        .into_iter()
         .filter(|validated| &validated.intent.operation == asset_op::trade_settle())
         .map(|validated| validated.intent.clone())
         .collect()

@@ -43,6 +43,27 @@ impl Evaluation<'_> {
         authorizer: &dyn Authorizer,
         key_registry: &dyn KeyRegistry,
     ) -> Result<PreparedBatch, ExecutorError> {
+        self.prepare_batch(items, authorizer, key_registry, false)
+            .await
+    }
+
+    pub(super) async fn prepare_player_settlement(
+        &self,
+        items: &[PlayerBatchItem<'_>],
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+    ) -> Result<PreparedBatch, ExecutorError> {
+        self.prepare_batch(items, authorizer, key_registry, true)
+            .await
+    }
+
+    async fn prepare_batch(
+        &self,
+        items: &[PlayerBatchItem<'_>],
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+        settlement: bool,
+    ) -> Result<PreparedBatch, ExecutorError> {
         if items.is_empty() {
             return Err(ExecutorError::AtomicityViolation(String::from(
                 "empty batch",
@@ -76,7 +97,7 @@ impl Evaluation<'_> {
         let mut mutations = Vec::with_capacity(requests.len());
         for (request, item) in requests.into_iter().zip(items) {
             let events = self
-                .execute_inner(&request, false, IntentHandling::Prepare)
+                .execute_inner(&request, settlement, IntentHandling::Prepare)
                 .await?;
             mutations.push(PreparedMutation::new(request, item.principal, events)?);
         }
@@ -91,6 +112,15 @@ impl Evaluation<'_> {
             },
             prepared.events(),
         )?;
+        if settlement {
+            // Existing validators consume flat slices. Keep this bounded copy
+            // local to the explicit coordinator; ordinary batches do not pay it.
+            let events: Vec<_> = prepared.events().cloned().collect();
+            settlement::validate_settle(
+                &events,
+                prepared.mutations().iter().map(PreparedMutation::validated),
+            )?;
+        }
         Ok(prepared)
     }
 

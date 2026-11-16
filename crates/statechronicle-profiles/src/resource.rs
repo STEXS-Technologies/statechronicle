@@ -382,6 +382,15 @@ impl ExecutionPolicy for ResourceExecution {
                 intent_id: intent.intent_id.0.clone(),
             });
         }
+        if !coordinated
+            && intent.operation == *asset_op::trade_settle()
+            && atomicity::declares_bundle(intent)
+        {
+            return Err(ProfileError::AtomicityViolation(format!(
+                "bundle settle intent `{}` requires the settlement coordinator",
+                intent.intent_id.as_str()
+            )));
+        }
         Ok(())
     }
     fn unborn_state(&self, _after: &ResourceState) -> Result<ResourceState, ProfileError> {

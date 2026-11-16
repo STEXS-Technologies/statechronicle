@@ -71,8 +71,9 @@ impl PreparedMutation {
 
 /// One owned, authenticated, uncommitted single-tenant batch.
 ///
-/// Produced only by [`Preparer::prepare_player_batch`] or the compatibility
-/// [`crate::pipeline::Executor::prepare_player_batch`]. A
+/// Produced by [`Preparer::prepare_player_batch`] or
+/// [`Preparer::prepare_player_settlement`], including their compatibility
+/// [`crate::pipeline::Executor`] forwarding methods. A
 /// failure returns no successful subset. Borrowed leg access cannot extract
 /// owned single-mutation plans for separate commits. This is not a receipt,
 /// and carries no promise of current state or durable batch atomicity.

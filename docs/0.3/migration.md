@@ -92,3 +92,14 @@ The supported portable path remains allocation-free
 and `no_std`. The library manifests currently declare no package-defined feature
 matrix. Do not infer that hosted types or async storage are available on bare
 metal; the external portable consumer qualifies that separate boundary.
+
+## Settlement route tightening
+
+Resource-profile `trade.settle` intents declaring bundle metadata now require a
+settlement coordinator. Previously, ordinary single/batch routes could accept
+an incomplete bundle without checking its declared cardinality. Use legacy
+`execute_settle` for its existing specialized workflow, or
+`Preparer::prepare_player_settlement` followed by `SignedBatch` for protected
+canonical composition. Ordinary value-leg routing retains its existing refusal
+precedence. This is an intentional validation tightening; wire encodings and
+native custom-domain execution policies are unchanged.

@@ -245,7 +245,7 @@ pub fn validate_settle_batch(
 /// The `trade_id` is required by the profile for every settle; the bundle shape
 /// check ([`check_bundle_shape`]) requires all settle intents in a bundle to
 /// declare the same `bundle_size` and `trade_id`.
-fn declares_bundle(intent: &Intent) -> bool {
+pub(crate) fn declares_bundle(intent: &Intent) -> bool {
     intent.inputs.contains_key(keys::BUNDLE_SIZE)
 }
 
