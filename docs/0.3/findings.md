@@ -2,7 +2,8 @@
 
 Status: reproduced on original production source. The trade tenant/cache fix
 is implemented, and independent current/historical claims are implemented.
-The authoritative durable-success route and remaining trade audit remain open.
+Protected single-intent durability and structural trade coverage are implemented.
+Batch composition and independent expected trade/history claims remain open.
 These are release-blocking inputs to F1. No deployed consumer or real database was tested.
 The probes use deterministic local fixtures and consumer-owned in-memory ports.
 
@@ -378,3 +379,48 @@ The corrected-runner repetition
 `evidence/compat/20261116T041204Z-1800235/` also passes all five checks against
 the same exact production candidate. Bare-metal evidence is compilation only,
 not target execution or power-loss qualification.
+
+
+## Trade proof distinct coverage and unsigned metadata audit
+
+Genuine signed trade fixtures reproduced four structural failures before the
+fix: repeating an alpha leg could omit beta while preserving leg count;
+duplicate tenant sides passed; duplicate declared assets passed; and repeating
+one asset proof twice could omit the other asset while preserving proof count.
+`evidence/f1/trade-coverage/trade-coverage-before.log.gz` retains both failing
+end-to-end cases against unchanged production source at `208abd8`.
+
+A shared private uniqueness check now rejects duplicate summary tenants,
+summary assets, proof-leg tenants and proof resources. Existing orphan/count
+checks retain precedence; uniqueness runs before cryptographic lookup. With
+existing per-leg membership checks, count equality now proves structural
+coverage against the supplied summary. Both compatibility and scoped verifiers
+share this implementation, preserve valid distinct per-asset commits and accept
+proof-order permutations. No new error variant, schema or signed-byte change:
+malformed duplicate coverage intentionally changes from acceptance to the
+existing `InvalidState` failure. Borrowed identifier sets add validation work;
+this is not a speedup or source-reduction claim.
+
+The same genuine signed fixtures explicitly retain the separate limitation:
+changing both trade IDs, previous owner, representative commit references,
+clearing per-asset summary references/event IDs and dropping value declarations
+still passes signed-state verification. These fields are not authenticated
+settlement witnesses. Earlier probes also prove operation metadata is unsigned.
+The actual state proof's commit reference is still independently resolved and
+verified; the summary's representative and per-asset references are not an
+additional authority. Neither structural coverage nor trusted state signatures
+prove a caller's expected trade, settlement history, payment or cross-tenant
+atomicity. Public verifier docs now state these boundaries. Full expected
+trade/history verification remains an explicit open contract, not a wire-format
+change smuggled into a cleanup.
+
+`ci/canonical-0.3/trade_coverage.rs` executes the archived candidate's public
+umbrella trade integration tests externally without copying fixtures or changing
+the frozen original consumers. These are real executor/commit/signature/Merkle
+fixtures with local in-memory adapters; they do not qualify production storage.
+
+Rust 1.85 passes all 827 workspace tests in 63 binaries; the final five-test
+trade integration separately passes after expanded metadata characterizations.
+Rust 1.100 strict workspace Clippy/rustdoc, formatting and whitespace checks
+pass. Manifests retain failures, exact source hashes and execution limitations.
+Exact committed external qualification and source metrics follow separately.

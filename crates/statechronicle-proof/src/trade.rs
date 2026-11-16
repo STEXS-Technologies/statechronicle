@@ -11,7 +11,7 @@
 //! [`build_trade_proof`](crate::trade::build_trade_proof) is pure and assembling; [`verify_trade_proof`](crate::trade::verify_trade_proof) is pure
 //! and fail-closed.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use ed25519_dalek::VerifyingKey;
 use statechronicle_domain::commit::Commit;
@@ -98,11 +98,20 @@ pub fn build_trade_proof(
 /// * the proof carries exactly as many legs as the summary declares sides, and
 ///   each leg exactly as many state proofs as that side declares settled assets
 ///   ([`ProofError::TradeProofTruncated`] otherwise);
+/// * summary tenants/assets and proof tenants/resources are unique, so equal
+///   counts and per-resource membership establish complete structural coverage;
 /// * each proven resource is one of the summary's settled assets for that
 ///   tenant;
 /// * each settle proof's claimed owner equals the summary's `to_owner` for
 ///   that tenant;
 /// * each settle proof's `latest_event.operation` is `trade.settle`.
+///
+/// The summary and event-operation metadata are not authenticated by these
+/// state proofs. Equal trade IDs only establish internal agreement, not the
+/// caller's expected trade. Previous owner, value legs, settle event IDs and
+/// representative/per-asset summary commit references are not settlement
+/// witnesses. Callers must establish that linkage independently. This API does
+/// not establish current canonicality or cross-tenant atomic settlement.
 ///
 /// # Errors
 ///
@@ -111,6 +120,7 @@ pub fn build_trade_proof(
 /// [`ProofError::TradeMissingSide`] when a leg has no summary side,
 /// [`ProofError::TradeProofTruncated`] when the proof carries fewer legs than
 /// sides or fewer state proofs than a side's settle assets,
+/// [`ProofError::InvalidState`] for duplicate tenants/assets/resources,
 /// [`ProofError::TradeIdMismatch`], [`ProofError::TradeOperation`],
 /// [`ProofError::ResourceMismatch`], [`ProofError::SubjectMismatch`], or every
 /// [`ProofError`] variant of [`verify_bundle`], in fail-closed order.
@@ -187,6 +197,8 @@ fn verify_trade_proof_with<'context>(
         });
     }
 
+    validate_unique_coverage(proof)?;
+
     for leg in &proof.legs {
         let Some(side) = proof
             .summary
@@ -238,6 +250,44 @@ fn verify_trade_proof_with<'context>(
             if state_proof.latest_event.operation.as_str() != "trade.settle" {
                 return Err(ProofError::TradeOperation(String::from(
                     state_proof.latest_event.operation.as_str(),
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Count equality plus membership only proves coverage when both declarations
+/// and supplied witnesses are unique. Borrow keys to avoid cloning identifiers.
+fn validate_unique_coverage(proof: &TradeProof) -> Result<(), ProofError> {
+    let mut tenants = BTreeSet::new();
+    for side in &proof.summary.sides {
+        if !tenants.insert(side.tenant.0.as_str()) {
+            return Err(ProofError::InvalidState(String::from(
+                "duplicate trade summary tenant",
+            )));
+        }
+        let mut assets = BTreeSet::new();
+        for asset in &side.settle_assets {
+            if !assets.insert(asset) {
+                return Err(ProofError::InvalidState(String::from(
+                    "duplicate trade summary asset",
+                )));
+            }
+        }
+    }
+    tenants.clear();
+    for leg in &proof.legs {
+        if !tenants.insert(leg.tenant.0.as_str()) {
+            return Err(ProofError::InvalidState(String::from(
+                "duplicate trade proof tenant",
+            )));
+        }
+        let mut resources = BTreeSet::new();
+        for witness in &leg.state_proofs {
+            if !resources.insert(&witness.resource_id) {
+                return Err(ProofError::InvalidState(String::from(
+                    "duplicate trade proof resource",
                 )));
             }
         }

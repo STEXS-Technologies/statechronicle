@@ -707,6 +707,7 @@ async fn history_and_proof_for_a_settled_two_tenant_trade() {
         (signed_alpha.clone(), fixed_key().verifying_key()),
     );
     assert!(verify_trade_proof(&proof, &commits_by_id).is_ok());
+    assert_trade_coverage(&proof, &commits_by_id);
 
     // --- a tampered proof fails closed ---
     let mut tampered = proof.clone();
@@ -1114,4 +1115,105 @@ async fn get_proof_uses_per_asset_commit_for_two_commit_settle() {
         ]),
     )
     .expect("two-commit proof must verify");
+    assert_trade_coverage(
+        &proof,
+        &BTreeMap::from([
+            (
+                signed_c1.body.commit_id.0.clone(),
+                (signed_c1, fixed_key().verifying_key()),
+            ),
+            (
+                signed_c2.body.commit_id.0.clone(),
+                (signed_c2, fixed_key().verifying_key()),
+            ),
+        ]),
+    );
+}
+
+/// Genuine signed state proofs must not be counted twice to cover missing
+/// tenants/assets. This checks structural coverage, not summary authenticity.
+fn assert_trade_coverage(
+    proof: &statechronicle::domain::trade::TradeProof,
+    commits: &BTreeMap<String, (Signed<Commit>, ed25519_dalek::VerifyingKey)>,
+) {
+    let mut missing_tenant = proof.clone();
+    let mut second_side = missing_tenant.summary.sides[0].clone();
+    second_side.tenant = beta();
+    missing_tenant.summary.sides.push(second_side);
+    missing_tenant.legs.push(missing_tenant.legs[0].clone());
+
+    let mut duplicate_side = proof.clone();
+    duplicate_side
+        .summary
+        .sides
+        .push(duplicate_side.summary.sides[0].clone());
+    duplicate_side.legs.push(duplicate_side.legs[0].clone());
+
+    let mut duplicate_asset = proof.clone();
+    duplicate_asset.summary.sides[0]
+        .settle_assets
+        .push(proof.summary.sides[0].settle_assets[0].clone());
+    duplicate_asset.legs[0]
+        .state_proofs
+        .push(proof.legs[0].state_proofs[0].clone());
+    let mut cases = vec![
+        ("missing tenant", missing_tenant),
+        ("duplicate side", duplicate_side),
+        ("duplicate declared asset", duplicate_asset),
+    ];
+    if proof.legs[0].state_proofs.len() == 2 {
+        let mut missing_asset = proof.clone();
+        missing_asset.legs[0].state_proofs[1] = missing_asset.legs[0].state_proofs[0].clone();
+        cases.push(("missing asset", missing_asset));
+    }
+    let scoped = commits
+        .iter()
+        .map(|(id, (signed, key))| {
+            (
+                (
+                    signed.body.scope.tenant_id.as_ref().unwrap().0.clone(),
+                    id.clone(),
+                ),
+                (signed.clone(), *key),
+            )
+        })
+        .collect();
+    use statechronicle::proof::trade::verify_trade_proof_scoped;
+    verify_trade_proof_scoped(proof, &scoped).unwrap();
+    let mut reordered = proof.clone();
+    reordered.legs[0].state_proofs.reverse();
+    verify_trade_proof_scoped(&reordered, &scoped).unwrap();
+    for (name, candidate) in cases {
+        assert!(
+            matches!(
+                verify_trade_proof(&candidate, commits),
+                Err(ProofError::InvalidState(_))
+            ),
+            "legacy verifier: {name}"
+        );
+        assert!(
+            matches!(
+                verify_trade_proof_scoped(&candidate, &scoped),
+                Err(ProofError::InvalidState(_))
+            ),
+            "scoped verifier: {name}"
+        );
+    }
+
+    // These fields are not authenticated by state inclusion/signatures.
+    // Keep this limitation executable: this API does not prove settlement.
+    let mut unsigned_metadata = proof.clone();
+    unsigned_metadata.trade_id = String::from("another_unverified_trade");
+    unsigned_metadata.summary.trade_id = unsigned_metadata.trade_id.clone();
+    unsigned_metadata.summary.sides[0].from_owner = String::from("unverified_previous_owner");
+    unsigned_metadata.summary.sides[0].settle_event_ids.clear();
+    unsigned_metadata.summary.sides[0]
+        .settle_commits_by_asset
+        .clear();
+    unsigned_metadata.summary.value_legs.clear();
+    unsigned_metadata.summary.sides[0].settle_commit.commit_id =
+        CommitId::new(String::from("cmt_unverified_summary")).unwrap();
+    unsigned_metadata.legs[0].commit.commit_id =
+        CommitId::new(String::from("cmt_unverified_representative")).unwrap();
+    verify_trade_proof_scoped(&unsigned_metadata, &scoped).unwrap();
 }
