@@ -57,3 +57,10 @@ campaigns, coverage ratchets, matched performance/source-cost measurements,
 API review remain separate gates.
 Publishing/tagging still requires separate authorization. See [the roadmap](ROADMAP.md)
 and retained exact-candidate manifests under `evidence/` for scope and limits.
+
+A [complete local run on `f5e9b2c`](evidence/qualification/local-release-f5e9b2c/README.md)
+passes with immutable input guards and independently checked nested evidence:
+939 Rust test executions, both tutorial applications, native contracts, strict
+static/portable checks, four lock audits, dependency policy and all 25 fuzz smoke
+targets. The checkpoint explicitly records the remaining canonical API fuzz and
+other full-roadmap gates; it is not a release-completion assertion.
