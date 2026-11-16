@@ -1,5 +1,6 @@
 //! Logical fault injection outside the adapter; not a database crash simulator.
 use async_trait::async_trait;
+use statechronicle::ports::ledger_batch::{LedgerBatch, LedgerBatchLookup, LedgerBatchRecovery};
 use statechronicle::ports::ledger_store::{
     IdempotencyClaim, LedgerLookup, LedgerRecovery, LedgerStore, LedgerStoreError,
     LedgerTransaction, OutboxRecord,
@@ -33,6 +34,16 @@ impl<S: LedgerRecovery> LedgerRecovery for LoseCommitAck<S> {
         intent: &IntentId,
     ) -> Result<LedgerLookup, LedgerStoreError> {
         self.0.lookup_mutation(tenant, intent).await
+    }
+}
+#[async_trait]
+impl<S: LedgerBatchRecovery> LedgerBatchRecovery for LoseCommitAck<S> {
+    async fn lookup_batch(
+        &self,
+        tenant: &TenantId,
+        intent: &IntentId,
+    ) -> Result<LedgerBatchLookup, LedgerStoreError> {
+        self.0.lookup_batch(tenant, intent).await
     }
 }
 #[async_trait]
@@ -70,6 +81,9 @@ impl LedgerTransaction for Transaction {
         self.0
             .finalize_idempotency(tenant, intent, attempt, commit)
             .await
+    }
+    async fn retain_batch(&mut self, batch: &LedgerBatch) -> Result<(), LedgerStoreError> {
+        self.0.retain_batch(batch).await
     }
     async fn commit(self: Box<Self>) -> Result<(), LedgerStoreError> {
         self.0.commit().await?;

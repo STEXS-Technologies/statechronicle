@@ -93,9 +93,13 @@ consumer. Existing single-mutation recovery tests run unchanged against the
 extended fixture.
 
 These are logical atomicity tests, not database restart, process-kill or
-power-loss qualification. The reusable `ci/conformance` harness still covers
-single mutations; its batch scenarios and independently broken batch adapters
-remain to be added. This path does not support multi-tenant group commits or
+power-loss qualification. The reusable `ci/conformance::batch` module now
+checks staged visibility, rollback/cancellation, replay, lost ACK and distinct
+group head contention against a separate reference adapter, with nine broken
+batch controls. Its raw inspection includes original group membership, not just
+lookup results. Batch-specific tenant isolation, cross-lane collisions, lease
+expiry/races and non-genesis retention/rebuild still need generic qualification.
+This path does not support multi-tenant group commits or
 sequential preparation overlays. Specialized companion/economic event binding
 and cross-tenant settlement require separate authority review and tests; do
 not infer that every legacy batch operation is supported by this protected

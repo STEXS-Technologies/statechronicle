@@ -15,6 +15,7 @@ use statechronicle::domain::{
     resource_state::{ResourceState, UniqueAssetState},
     status::Status,
 };
+use statechronicle::ports::ledger_batch::{LedgerBatch, LedgerBatchLookup, LedgerBatchRecovery};
 use statechronicle::ports::ledger_store::{
     IdempotencyClaim, LedgerLookup, LedgerMutation, LedgerRecovery, LedgerStore, LedgerStoreError,
     LedgerTransaction, OutboxRecord,
@@ -23,6 +24,7 @@ use statechronicle::{
     Commit, CommitId, ContentDigest, Event, EventId, Intent, IntentId, Operation, ProfileId,
     ResourceId, Signed, StateProjection, StateType, SubjectId, TenantId,
 };
+use statechronicle_conformance::batch::{LedgerBatchTestBackend, RetainedBatch};
 use statechronicle_conformance::{
     LedgerTestBackend, Snapshot, check_atomic_visibility, check_head_contention, check_replay,
     check_rollback, check_tenant_isolation,
@@ -44,11 +46,16 @@ enum Mode {
     CorruptLookup,
     IgnoreAttempt,
     DiscardCommit,
+    EagerRetention,
+    ForgetMember,
+    SplitGroupLookup,
+    ForgetFinalization,
 }
 #[derive(Default)]
 struct Database {
     visible: Snapshot,
     records: BTreeMap<Identity, LedgerMutation>,
+    batches: BTreeMap<Identity, LedgerBatch>,
     leases: BTreeMap<Identity, (ContentDigest, String)>,
     attempt: u64,
 }
@@ -62,7 +69,8 @@ struct Connection(Backend);
 struct Transaction {
     connection: Connection,
     tenant: TenantId,
-    reservation: Option<(Identity, ContentDigest, String, Intent)>,
+    reservations: Vec<(Identity, ContentDigest, String, Intent)>,
+    batch: Option<LedgerBatch>,
     staged: Snapshot,
     finalized: bool,
 }
@@ -100,6 +108,23 @@ impl LedgerTestBackend for Backend {
     }
 }
 #[async_trait]
+impl LedgerBatchTestBackend for Backend {
+    async fn inspect_batches(&self) -> Result<Vec<RetainedBatch>, String> {
+        Ok(self
+            .db
+            .lock()
+            .unwrap()
+            .batches
+            .iter()
+            .map(|((tenant, intent), batch)| RetainedBatch {
+                tenant: TenantId(tenant.clone()),
+                intent_id: IntentId::new(intent.clone()).unwrap(),
+                batch: batch.clone(),
+            })
+            .collect())
+    }
+}
+#[async_trait]
 impl LedgerStore for Connection {
     async fn begin(
         &self,
@@ -108,7 +133,8 @@ impl LedgerStore for Connection {
         Ok(Box::new(Transaction {
             connection: self.clone(),
             tenant: tenant.clone(),
-            reservation: None,
+            reservations: Vec::new(),
+            batch: None,
             staged: Snapshot::default(),
             finalized: false,
         }))
@@ -131,6 +157,9 @@ impl LedgerRecovery for Connection {
     ) -> Result<LedgerLookup, LedgerStoreError> {
         let db = self.0.db.lock().unwrap();
         let key = self.0.key(tenant, intent);
+        if db.batches.contains_key(&key) {
+            return Err(invariant("batch member is not a standalone mutation"));
+        }
         if let Some(record) = db.records.get(&key) {
             let mut record = record.clone();
             if self.0.mode == Mode::CorruptLookup {
@@ -148,6 +177,42 @@ impl LedgerRecovery for Connection {
         Ok(LedgerLookup::NotFound)
     }
 }
+#[async_trait]
+impl LedgerBatchRecovery for Connection {
+    async fn lookup_batch(
+        &self,
+        tenant: &TenantId,
+        intent: &IntentId,
+    ) -> Result<LedgerBatchLookup, LedgerStoreError> {
+        let db = self.0.db.lock().unwrap();
+        let key = self.0.key(tenant, intent);
+        if let Some(batch) = db.batches.get(&key) {
+            let mut batch = batch.clone();
+            if self.0.mode == Mode::SplitGroupLookup {
+                batch.intents.retain(|member| member.intent_id == *intent);
+                batch.events.retain(|event| event.intent_id == *intent);
+            }
+            return Ok(LedgerBatchLookup::Committed(Box::new(batch)));
+        }
+        if db.records.contains_key(&key)
+            || db
+                .visible
+                .finalized
+                .iter()
+                .any(|(scope, id, ..)| scope == tenant && id == intent)
+        {
+            return Err(invariant("finalized member lacks original batch"));
+        }
+        if let Some((payload_digest, attempt_id)) = db.leases.get(&key) {
+            return Ok(LedgerBatchLookup::InProgress {
+                payload_digest: payload_digest.clone(),
+                attempt_id: attempt_id.clone(),
+                lease_expires_at_unix: i64::MAX,
+            });
+        }
+        Ok(LedgerBatchLookup::NotFound)
+    }
+}
 fn invariant(detail: &str) -> LedgerStoreError {
     LedgerStoreError::Invariant(detail.into())
 }
@@ -162,7 +227,7 @@ impl Transaction {
 }
 impl Drop for Transaction {
     fn drop(&mut self) {
-        if let Some((key, digest, attempt, _)) = &self.reservation {
+        for (key, digest, attempt, _) in &self.reservations {
             let mut db = self.connection.0.db.lock().unwrap();
             if db.leases.get(key) == Some(&(digest.clone(), attempt.clone())) {
                 db.leases.remove(key);
@@ -181,12 +246,32 @@ impl LedgerTransaction for Transaction {
         tokio::task::yield_now().await;
         self.tenant(tenant)?;
         self.tenant(&intent.tenant_id)?;
-        if self.reservation.is_some() {
-            return Err(invariant("transaction already reserved"));
-        }
         let key = self.connection.0.key(tenant, &intent.intent_id);
+        if self
+            .reservations
+            .iter()
+            .any(|(reserved, ..)| reserved == &key)
+        {
+            return Err(invariant("member already reserved"));
+        }
+
         let mut db = self.connection.0.db.lock().unwrap();
         if self.connection.0.mode != Mode::DuplicateReservation {
+            if let Some(batch) = db.batches.get(&key) {
+                let original = batch
+                    .intents
+                    .iter()
+                    .find(|member| member.intent_id == intent.intent_id)
+                    .ok_or_else(|| invariant("missing retained member"))?;
+                return Ok(if canonicalize_and_digest(original).unwrap() == *digest {
+                    IdempotencyClaim::Committed {
+                        commit_id: batch.commit.body.commit_id.clone(),
+                    }
+                } else {
+                    IdempotencyClaim::ConflictDifferentPayload
+                });
+            }
+
             if let Some(record) = db.records.get(&key) {
                 return Ok(if record.payload_digest == *digest {
                     IdempotencyClaim::Committed {
@@ -211,7 +296,8 @@ impl LedgerTransaction for Transaction {
         let attempt = format!("attempt-{}", db.attempt);
         db.leases
             .insert(key.clone(), (digest.clone(), attempt.clone()));
-        self.reservation = Some((key, digest.clone(), attempt.clone(), intent.clone()));
+        self.reservations
+            .push((key, digest.clone(), attempt.clone(), intent.clone()));
         Ok(IdempotencyClaim::NewReservation {
             attempt_id: attempt,
         })
@@ -269,7 +355,11 @@ impl LedgerTransaction for Transaction {
     ) -> Result<(), LedgerStoreError> {
         tokio::task::yield_now().await;
         self.tenant(tenant)?;
-        let Some((key, digest, token, intent)) = &self.reservation else {
+        let Some((key, digest, token, intent)) = self
+            .reservations
+            .iter()
+            .find(|(key, ..)| key == &self.connection.0.key(tenant, intent_id))
+        else {
             return Err(invariant("no reservation"));
         };
         if key != &self.connection.0.key(tenant, intent_id)
@@ -288,9 +378,34 @@ impl LedgerTransaction for Transaction {
         self.finalized = true;
         Ok(())
     }
+    async fn retain_batch(&mut self, batch: &LedgerBatch) -> Result<(), LedgerStoreError> {
+        self.tenant(
+            batch
+                .commit
+                .body
+                .scope
+                .tenant_id
+                .as_ref()
+                .ok_or_else(|| invariant("missing tenant"))?,
+        )?;
+        if self.batch.is_some() {
+            return Err(invariant("batch already retained"));
+        }
+        self.batch = Some(batch.clone());
+        if self.connection.0.mode == Mode::EagerRetention {
+            let mut db = self.connection.0.db.lock().unwrap();
+            for intent in &batch.intents {
+                db.batches.insert(
+                    self.connection.0.key(&intent.tenant_id, &intent.intent_id),
+                    batch.clone(),
+                );
+            }
+        }
+        Ok(())
+    }
     async fn commit(mut self: Box<Self>) -> Result<(), LedgerStoreError> {
         tokio::task::yield_now().await;
-        let Some((key, digest, token, intent)) = &self.reservation else {
+        let Some((key, digest, token, intent)) = self.reservations.first() else {
             return Err(invariant("no reservation"));
         };
         let Some(commit) = self.staged.commits.first().cloned() else {
@@ -302,6 +417,47 @@ impl LedgerTransaction for Transaction {
         let mut db = self.connection.0.db.lock().unwrap();
         if db.leases.get(key) != Some(&(digest.clone(), token.clone())) {
             return Err(invariant("reservation fenced"));
+        }
+        if self.reservations.len() != self.staged.finalized.len()
+            || self
+                .reservations
+                .iter()
+                .any(|(key, digest, token, intent)| {
+                    db.leases.get(key) != Some(&(digest.clone(), token.clone()))
+                        || !self.staged.finalized.contains(&(
+                            intent.tenant_id.clone(),
+                            intent.intent_id.clone(),
+                            digest.clone(),
+                            commit.body.commit_id.clone(),
+                        ))
+                })
+        {
+            return Err(invariant("not every fenced member finalized"));
+        }
+        if let Some(batch) = &self.batch {
+            let original: BTreeMap<_, _> = batch
+                .intents
+                .iter()
+                .map(|intent| (&intent.intent_id, intent))
+                .collect();
+            let reserved: BTreeMap<_, _> = self
+                .reservations
+                .iter()
+                .map(|(_, _, _, intent)| (&intent.intent_id, intent))
+                .collect();
+            if original != reserved
+                || batch.intents.len() != reserved.len()
+                || batch.commit != commit
+                || batch.events != self.staged.events
+                || batch.projections != self.staged.projections
+                || batch.outbox != self.staged.outbox
+            {
+                return Err(invariant(
+                    "batch retention differs from complete staged mutation",
+                ));
+            }
+        } else if self.reservations.len() != 1 {
+            return Err(invariant("multiple members without group retention"));
         }
         let head = db
             .visible
@@ -327,15 +483,32 @@ impl LedgerTransaction for Transaction {
         if self.connection.0.mode == Mode::ForgetOutbox {
             self.staged.outbox.clear();
         }
-        let record = LedgerMutation {
-            intent: intent.clone(),
-            payload_digest: digest.clone(),
-            commit: commit.clone(),
-            events: self.staged.events.clone(),
-            projections: self.staged.projections.clone(),
-            outbox: self.staged.outbox.clone(),
-        };
-        db.records.insert(key.clone(), record);
+        if self.connection.0.mode == Mode::ForgetFinalization {
+            self.staged.finalized.pop();
+        }
+        if let Some(batch) = &self.batch {
+            let count = if self.connection.0.mode == Mode::ForgetMember {
+                batch.intents.len().saturating_sub(1)
+            } else {
+                batch.intents.len()
+            };
+            for intent in batch.intents.iter().take(count) {
+                db.batches.insert(
+                    self.connection.0.key(&intent.tenant_id, &intent.intent_id),
+                    batch.clone(),
+                );
+            }
+        } else {
+            let record = LedgerMutation {
+                intent: intent.clone(),
+                payload_digest: digest.clone(),
+                commit: commit.clone(),
+                events: self.staged.events.clone(),
+                projections: self.staged.projections.clone(),
+                outbox: self.staged.outbox.clone(),
+            };
+            db.records.insert(key.clone(), record);
+        }
         if self.connection.0.mode != Mode::EagerEvents {
             db.visible.events.append(&mut self.staged.events);
         }
@@ -612,4 +785,151 @@ async fn token_fencing_and_unsupported_multi_tenant_scope_are_enforced() {
     )
     .await
     .unwrap();
+}
+
+fn batch_fixture(suffix: usize) -> LedgerBatch {
+    let left = fixture("acme.game.alpha", suffix * 2);
+    let right = fixture("acme.game.alpha", suffix * 2 + 1);
+    let events: Vec<_> = left.events.iter().chain(&right.events).cloned().collect();
+    let mut group = CommitBatch::new(left.commit.body.scope.clone());
+    for event in &events {
+        group.add_event(event.clone()).unwrap();
+    }
+    let body = CommitBuilder::builder()
+        .scope(left.commit.body.scope.clone())
+        .sequence(1)
+        .executor(left.commit.body.executor.clone())
+        .profile(left.commit.body.profile.clone())
+        .created_at(left.commit.body.created_at)
+        .build(
+            &group,
+            left.commit.body.previous_state_root.clone(),
+            &[],
+            || Ok(CommitId::new(format!("cmt_batch_{suffix}")).unwrap()),
+        )
+        .unwrap();
+    let commit = sign_commit(
+        &body,
+        &ed25519_dalek::SigningKey::from_bytes(&[77; 32]),
+        KeyId::new("test:conformance-key".into()).unwrap(),
+    )
+    .unwrap();
+    let entries: Vec<_> = events
+        .iter()
+        .map(|event| CommittedEvent {
+            event,
+            state_type: StateType::UniqueAsset,
+        })
+        .collect();
+    let projections = projections_for(&commit.body.commit_id, &entries);
+    let mut outbox: Vec<_> = left.outbox.into_iter().chain(right.outbox).collect();
+    for row in &mut outbox {
+        row.commit_id = commit.body.commit_id.clone();
+    }
+    LedgerBatch {
+        intents: vec![left.intent, right.intent],
+        commit,
+        events,
+        projections,
+        outbox,
+    }
+}
+#[tokio::test]
+async fn reference_passes_optional_batch_contract() {
+    use statechronicle_conformance::batch;
+    let backend = Backend::new(Mode::Correct);
+    let group = batch_fixture(0);
+    batch::check_atomic_visibility(&backend, &group)
+        .await
+        .unwrap();
+    batch::check_rollback(&backend, &group).await.unwrap();
+    batch::check_cancellation(&backend, &group).await.unwrap();
+    batch::check_replay(&backend, &group).await.unwrap();
+    let mut nonce_collision_fixture = group.clone();
+    for intent in &mut nonce_collision_fixture.intents {
+        intent.nonce = Nonce::from_bytes(vec![0x97, 0x23]).unwrap();
+    }
+    batch::check_replay(&backend, &nonce_collision_fixture)
+        .await
+        .unwrap();
+    let principals: Vec<_> = group
+        .intents
+        .iter()
+        .map(
+            |intent| statechronicle::ports::authorization::AuthenticatedPrincipal {
+                tenant: intent.tenant_id.clone(),
+                subject: intent.actor.clone(),
+                credential_id: "test-session".into(),
+            },
+        )
+        .collect();
+    batch::check_lost_ack(
+        &backend,
+        &group,
+        &principals,
+        &FixturePolicy,
+        &FixtureVerifier,
+    )
+    .await
+    .unwrap();
+    for clients in [2, 8, 32] {
+        let contenders: Vec<_> = (0..clients).map(batch_fixture).collect();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            batch::check_head_contention(&backend, &contenders),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    }
+}
+#[tokio::test]
+async fn independently_broken_batch_adapters_fail_the_intended_oracles() {
+    use statechronicle_conformance::batch;
+    let group = batch_fixture(0);
+    for (mode, check) in [
+        (Mode::EagerEvents, "batch.atomic.visibility"),
+        (Mode::EagerRetention, "batch.atomic.visibility"),
+        (Mode::ForgetOutbox, "batch.atomic.completeness"),
+        (Mode::ForgetMember, "batch.atomic.completeness"),
+        (Mode::ForgetFinalization, "batch.atomic.completeness"),
+        (Mode::SplitGroupLookup, "batch.lookup.original"),
+    ] {
+        let error = batch::check_atomic_visibility(&Backend::new(mode), &group)
+            .await
+            .unwrap_err();
+        assert_eq!(error.check, check, "{mode:?}: {error}");
+    }
+    let error = batch::check_replay(&Backend::new(Mode::DuplicateReservation), &group)
+        .await
+        .unwrap_err();
+    assert_eq!(error.check, "batch.replay.identity");
+    let error = batch::check_head_contention(
+        &Backend::new(Mode::IgnoreHead),
+        &[batch_fixture(0), batch_fixture(1)],
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.check, "batch.head.single_winner");
+    let principals: Vec<_> = group
+        .intents
+        .iter()
+        .map(
+            |intent| statechronicle::ports::authorization::AuthenticatedPrincipal {
+                tenant: intent.tenant_id.clone(),
+                subject: intent.actor.clone(),
+                credential_id: "test-session".into(),
+            },
+        )
+        .collect();
+    let error = batch::check_lost_ack(
+        &Backend::new(Mode::DiscardCommit),
+        &group,
+        &principals,
+        &FixturePolicy,
+        &FixtureVerifier,
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.check, "batch.ack.original");
 }

@@ -697,3 +697,6 @@ pub async fn check_cancellation<B: LedgerTestBackend>(
     }
     Ok(())
 }
+
+/// Optional complete-group adapter contract checks.
+pub mod batch;

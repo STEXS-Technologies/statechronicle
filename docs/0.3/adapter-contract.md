@@ -79,6 +79,12 @@ by default. Every member claim must finalize atomically with one commit and the
 complete immutable original group. Single and batch claims share the same
 identity namespace; neither lookup may reinterpret the other's records as
 independently committed subsets. See [durable-batches.md](durable-batches.md).
-The reusable conformance functions currently qualify single mutations only;
-batch-specific generic scenarios and independent broken implementations remain
-open, and an adapter must separately qualify this new capability.
+The optional `ci/conformance::batch` module checks complete atomic visibility,
+rollback/cancellation, replay, lost-ACK recovery and distinct-group head CAS
+through independent raw effects and retained membership observations. Its
+separate reference adapter includes nine broken batch controls. The existing
+single-mutation suite still runs. Batch-specific tenant isolation, cross-lane
+collisions, same-group generic contention, lease expiry/takeover and non-genesis
+retention/rebuild remain to be added; backend-specific crash and physical
+persistence qualification are still required. See the consumer instructions for
+exact capability and fixture requirements.
