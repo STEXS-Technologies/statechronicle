@@ -17,6 +17,11 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def require(value, detail):
+    if not value:
+        raise RuntimeError(detail)
+
+
 def application_span(span):
     """Follow call-site expansion spans, never definition-site or child notes."""
     while span:
@@ -70,7 +75,7 @@ def main():
                                        expected_exit_code=expected, seconds=time.monotonic()-start,
                                        artifact=artifact, sha256=sha(compressed)))
         save()
-        assert code == expected, (label, code, data.decode(errors='replace'))
+        require(code == expected, f'{label}: expected exit {expected}, got {code}; see {artifact}')
         return data
 
     save()
@@ -110,7 +115,7 @@ ed25519-dalek = "3"
             def packages(data):
                 return {(p['name'], p['version'], p.get('source'))
                         for p in tomllib.loads(data.decode())['package'] if p.get('source')}
-            assert not packages(lock) - packages((source / 'Cargo.lock').read_bytes())
+            require(not packages(lock) - packages((source / 'Cargo.lock').read_bytes()), 'native contract invariant failed at source line 113')
             manifest.update(resolved_lock_sha256=sha(lock), domains_sha256=sha(domains),
                             positive_sha256=sha(positive), consumer_manifest_sha256=sha((consumer / 'Cargo.toml').read_bytes()),
                             registry_packages=sorted(packages(lock)))
@@ -119,16 +124,16 @@ ed25519-dalek = "3"
             common = ['--locked', '--offline']
             run('positive-check', cargo + ['check', *common], consumer)
             output = run('runtime-schema-domain-operation', cargo + ['run', '--quiet', *common], consumer)
-            assert output.strip() == b'native contracts: typed domains, operation refusal and schema isolation verified'
+            require(output.strip() == b'native contracts: typed domains, operation refusal and schema isolation verified', 'native contract invariant failed at source line 122')
             run('positive-clippy', cargo + ['clippy', *common, '--', '-D', 'warnings'], consumer)
             cases = json.loads((source / 'ci/native-contracts/cases.json').read_text())
-            assert len(cases) == 7 and len({case['name'] for case in cases}) == len(cases)
+            require(len(cases) == 7 and len({case['name'] for case in cases}) == len(cases), 'native contract invariant failed at source line 125')
             manifest['negative_probes'] = []
             for case in cases:
                 if args.negative_control_valid_program:
                     case = dict(case, with_text=case['replace'])
                 text = positive.decode()
-                assert text.count(case['replace']) == 1, case['name']
+                require(text.count(case['replace']) == 1, case['name'])
                 changed = text.replace(case['replace'], case['with_text'])
                 probe.write_text(changed)
                 raw = run(case['name'], cargo + ['check', *common, '--message-format=json'], consumer, 101)
@@ -140,10 +145,8 @@ ed25519-dalek = "3"
                         continue
                     if message.get('reason') == 'compiler-message' and message['message']['level'] == 'error':
                         messages.append(message['message'])
-                assert messages and all(message.get('code', {}).get('code') == case['error_code'] for message in messages), case['name']
-                assert any(case['diagnostic_contains'] in message.get('rendered', '')
-                           and any(span['is_primary'] and application_span(span)
-                                   for span in message['spans']) for message in messages), case['name']
+                require(messages and all((message.get('code', {}).get('code') == case['error_code'] for message in messages)), case['name'])
+                require(any((case['diagnostic_contains'] in message.get('rendered', '') and any((span['is_primary'] and application_span(span) for span in message['spans'])) for message in messages)), case['name'])
                 manifest['negative_probes'].append(dict(name=case['name'], error_code=case['error_code'],
                     source_sha256=sha(changed.encode()), diagnostic_contains=case['diagnostic_contains']))
                 # Restore the exact positive application after each deliberate
@@ -151,11 +154,11 @@ ed25519-dalek = "3"
                 # from masquerading as an accepted negative probe.
                 probe.write_bytes(positive)
                 run(case['name'] + '-restored', cargo + ['check', *common], consumer)
-                assert (consumer / 'Cargo.lock').read_bytes() == lock
+                require((consumer / 'Cargo.lock').read_bytes() == lock, 'native contract invariant failed at source line 154')
                 print(case['name'], case['error_code'], 'verified', flush=True)
-            assert all(sha((source / path).read_bytes()) == value for path, value in hashes.items())
-            assert sha((consumer / 'src/domains.rs').read_bytes()) == sha(domains)
-            assert probe.read_bytes() == positive
+            require(all((sha((source / path).read_bytes()) == value for path, value in hashes.items())), 'native contract invariant failed at source line 156')
+            require(sha((consumer / 'src/domains.rs').read_bytes()) == sha(domains), 'native contract invariant failed at source line 157')
+            require(probe.read_bytes() == positive, 'native contract invariant failed at source line 158')
             manifest['status'] = 'passed'
     except BaseException as error:
         manifest['status'] = 'failed_or_interrupted'
