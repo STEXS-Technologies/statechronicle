@@ -1,0 +1,223 @@
+{
+  "baseline_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "candidate_commit": "45b61aac7c8971410c746f3457541225bfd90162",
+  "runner_sha256": "2ff5c6a611800486d645d5997a680635aae8572ca89ff3a759bf8788b4adee77",
+  "fixture_sha256": {
+    "README.md": "03007c2f4dc025058e641f523ec7f641331b44f57f3dd6ab1b23f6f596a3c2a0",
+    "crates/consumer/Cargo.toml": "b4c0bb93c2b465366b2d38ff6b586596aa30c804d6b04f17a43fe8a7cb43e0f9",
+    "crates/consumer/examples/common/batch_bench.rs": "3f675f27d5d8be4a6f7a24b14b8d098831c36c2c9dc07bd9717fad24f0f9bcc7",
+    "crates/consumer/examples/common/domains.rs": "438023bd9d376015ee4621ecffd093e1101c38247e154328592878050cb7625d",
+    "crates/consumer/examples/common/proof_bench.rs": "ba941ffb2baf419696ec62aa32936836da831429cd39ed734a8c14dee1a9fbd3",
+    "crates/consumer/examples/common/rebuild_bench.rs": "4496285de2e5d71acd00e56e0867b4e0540ec8c420f344d0435ebf96645ef6af",
+    "crates/consumer/examples/common/trade_bench.rs": "b6d1d82ac4a9a33ee95db7f4341e0efc5e7700a7cb04a950e83f23c9d729284b",
+    "crates/consumer/examples/refactor_bench.rs": "cf46d97b8defa2aa32401d380e6f59ba8403cb2f8511a6b6753fbea36d6a435c",
+    "crates/consumer/examples/wire_producer.rs": "c98efa59c1782001f466de120648a69e5e5c45639d6265f6235875e2811ad062",
+    "crates/consumer/tests/common/harness.rs": "147cf5faacb99121b6889232301657927548cbf163580a2a14e8ffb32e12faa2",
+    "crates/consumer/tests/common/mod.rs": "ab644075bcbcecfe7dddf3f9eb6bae8bbdd4caa5b9fec99474e5063b7238f540",
+    "crates/consumer/tests/custom_domains.rs": "c0dd7b2dc78bda2a9954ac7faecff27ea3413e4684c2a085b9c39de8b6bba5e4",
+    "crates/consumer/tests/e2e.rs": "466071f1a29420bfe2a1a734d4d43249c00f97ec3d5e7e07f09b76a2d521d717",
+    "crates/consumer/tests/exhaustive.rs": "a0e86a86fa4d600986cece07fc12ea5adcc2addb008fbb784e2ad35e9e41b216",
+    "crates/consumer/tests/smoke.rs": "ff2a898b8750728171377647e9dfa4e5fc85566394cbeb386fde9d3cc756b008",
+    "crates/consumer/tests/support/durable.rs": "e40e00836bf1b288ee0848d1e29ac0d8a57441f61ca46f8bcb8dc39dcf688a84",
+    "crates/consumer/tests/support/versioned_recovery.rs": "764eebf0dc13c62819dcf7a9d45add3d8bbcadaf122a17a49f60120cf4e0b963",
+    "crates/consumer/tests/trade_3tenant.rs": "25e990452f75c8d7c1ec30f9a0ad510f7c2aa5e37bded85aada96b09a7a4341e",
+    "crates/consumer/tests/trade_bundle.rs": "877d740e5ee1961a91331bb904757a6d5674b953e14260937a5f58b595112544",
+    "crates/consumer/tests/trade_cross_tenant.rs": "5c394087df7893c5ad4691448f674042abf033a353b77ac2155be3072a3fe238",
+    "crates/consumer/tests/trade_history_proof.rs": "6e7305fb98f610db5c94bed974d7e714dd76923cff690688fa4c6fbf3ca323dc",
+    "crates/consumer/tests/trade_value.rs": "dccaeb29c233f007d0111c0801576cf293ad0820a6fbc409ebc262542f7f54b4",
+    "crates/consumer/tests/wire_compat.rs": "388fe8a4d320d1a9164d72cb139547bfaed8d8439de2d5d38e28febad1b318a5",
+    "crates/portable/Cargo.toml": "4c73e5ee0c2889adbe61750a6a526bb0de942744796033dd1209f46af0dd32d0",
+    "crates/portable/src/lib.rs": "092b945ac09a4e9481bdcca76dbbdf06412ce17104b2baa0e9edd67cb997b3ab",
+    "docs/CONFORMANCE/custom_domains.json": "8dcc8f2cbc705f8c5d126291610913eb8c19cf60039e236a317b9bae0815dd10",
+    "provenance.json": "40a41bffd97557889887a963d66506f8ef56c02ffa1283645d61343414eeb97c"
+  },
+  "toolchain": {
+    "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5",
+    "cargo": "cargo 1.100.0 (3acc79c0c 2026-11-05)"
+  },
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8"
+  },
+  "limitations": [
+    "Frozen released tests, not an independent semantic model.",
+    "Only recorded checks qualify; no fuzz or exhaustive API qualification.",
+    "Bare-metal compilation requires --portable; benchmark measurements require --measure."
+  ],
+  "checks": [
+    {
+      "label": "baseline-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1",
+        "--all-features",
+        "--filter-platform",
+        "x86_64-unknown-linux-gnu"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.13360318699415075,
+      "artifact": "baseline-resolve.log.gz",
+      "sha256": "a3968d4e1e8743970cfe93c548f144991b72757a570812e3f20183eda6c9ad2a"
+    },
+    {
+      "label": "baseline-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 20.068154533997586,
+      "artifact": "baseline-tests.log.gz",
+      "sha256": "0d5d71ffc3f04a3a2d1a5cf0466dfc4a57065259dd330d5a526ceb978484cded"
+    },
+    {
+      "label": "baseline-portable-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1",
+        "--filter-platform",
+        "riscv32imafc-unknown-none-elf"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.09555970100336708,
+      "artifact": "baseline-portable-resolve.log.gz",
+      "sha256": "4ad2fba9077886ece70010f18fb2578dc09ded9bb00315daec3bd2926a71c1e4"
+    },
+    {
+      "label": "baseline-portable-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 2.2869364649959607,
+      "artifact": "baseline-portable-tests.log.gz",
+      "sha256": "d02146fcaf15fe957e40630e3312e975d34ea4d28133061ae3e4f8b7a5d64335"
+    },
+    {
+      "label": "baseline-bare-metal",
+      "command": [
+        "cargo",
+        "check",
+        "--target",
+        "riscv32imafc-unknown-none-elf",
+        "--locked",
+        "--offline"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 1.3129356970021036,
+      "artifact": "baseline-bare-metal.log.gz",
+      "sha256": "4c1a27ab167708974823faa2c47b480db5b6604cd843f0c475867ccb2c2c853c"
+    },
+    {
+      "label": "candidate-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1",
+        "--all-features",
+        "--filter-platform",
+        "x86_64-unknown-linux-gnu"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.11471476700535277,
+      "artifact": "candidate-resolve.log.gz",
+      "sha256": "c9c7575acd34cb5499c5968c480f62ee5f8e4e60d550fed17a6d7f6fa936e013"
+    },
+    {
+      "label": "candidate-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 21.798800028998812,
+      "artifact": "candidate-tests.log.gz",
+      "sha256": "ba70fa0e3236647d81b51ad53668d69799bd16175515284ef24e06bd239932bc"
+    },
+    {
+      "label": "candidate-portable-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1",
+        "--filter-platform",
+        "riscv32imafc-unknown-none-elf"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.09031732600124087,
+      "artifact": "candidate-portable-resolve.log.gz",
+      "sha256": "2b6a0409973fd5a4d5f4ef8c78655bbaf574417b532ec070ed0f913f80349c3e"
+    },
+    {
+      "label": "candidate-portable-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 2.1908123629982583,
+      "artifact": "candidate-portable-tests.log.gz",
+      "sha256": "76e86d7bdae0f217e11b8984960347e31d1fa736870be64375ed4d31329a7dbc"
+    },
+    {
+      "label": "candidate-bare-metal",
+      "command": [
+        "cargo",
+        "check",
+        "--target",
+        "riscv32imafc-unknown-none-elf",
+        "--locked",
+        "--offline"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.9371772699960275,
+      "artifact": "candidate-bare-metal.log.gz",
+      "sha256": "d366438e7652b207ed5e2b73022bb3c4f690788b4804fcacb92b86b1e9831c69"
+    }
+  ],
+  "status": "passed",
+  "baseline_lock_sha256": "0abd34258d8aefcda2a8eea260d7175de70c13dcc07ae52014711a504160f679",
+  "wire_sha256": "fdccce8e4ce783c27bd0239151930d1e51dc82c7704884731254b8199e991fff",
+  "baseline_portable_lock_sha256": "478342b5a5bd6cef4d4e1c4671a97b9ef0dbe874fa8fd4c4234349f25dc193e0",
+  "canonical_consumer_overlays": {
+    "ci/canonical-0.3/durable_recovery.rs": "0b16988b1f759b33e12112aa0082f2583beb0770be2351d63cf710ef5ca0259f",
+    "ci/canonical-0.3/preparation.rs": "71beb2aaab9044f857ebbc16505ac98adaafb92f3022bc7af3c636623f02435e",
+    "ci/canonical-0.3/proof_claims.rs": "df9e0937dbccec47666dca94660378289d2840c8032e21ded7eadd5d7f40b364",
+    "ci/canonical-0.3/trade_coverage.rs": "d69b9829b55507102e7e55d9b49b12070aac07aa2581618e9d188338d99941ce"
+  },
+  "candidate_lock_sha256": "7d0dade64a108d1d2e480908b149ffc279a00f09d3f812f816d07d36437a1539",
+  "candidate_portable_lock_sha256": "7b18dd54aeaed20d413eaeb3449e9a0e76785fe3917a653d6ba076a654397cd5"
+}

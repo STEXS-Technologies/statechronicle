@@ -424,3 +424,19 @@ trade integration separately passes after expanded metadata characterizations.
 Rust 1.100 strict workspace Clippy/rustdoc, formatting and whitespace checks
 pass. Manifests retain failures, exact source hashes and execution limitations.
 Exact committed external qualification and source metrics follow separately.
+
+Pinned-parser source metrics at `45b61aa` record 1,403,060 tracked source
+bytes, 15,079 production syntax lines, 111,154 lexical tokens, 1,795 branch
+nodes and 1,302 public syntax items. Relative to `fc641fe`, this is +2,115
+bytes, +36 lines, +242 tokens, +9 branch nodes and no public syntax growth.
+This is a measured safety-check addition. Borrowed sets avoid identifier clones
+but still allocate nodes; matched runtime/allocation qualification remains due
+before final release and no performance improvement is claimed here.
+
+Exact candidate `45b61aa` and frozen original release pass all ten hosted,
+portable and bare-metal checks on Rust 1.100 in
+`evidence/compat/20261116T041727Z-1926425/`. The new external trade overlay
+executes all five public-API integration scenarios, including the before-fix
+coverage reproducers and unsigned-metadata characterizations. Frozen producer
+history, legacy exhaustive imports and dependency provenance remain unchanged.
+Bare-metal checks qualify compilation, not execution on target hardware.
