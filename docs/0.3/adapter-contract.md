@@ -352,3 +352,11 @@ This advances the randomized logical-history requirement. It does not replace
 2/8/32 same-tenant CAS/identity races, real database connections/process restart,
 physical crash/power-loss tests, or a proof of every possible interleaving.
 [Consumer contract](../../ci/conformance/README.md#seeded-concurrent-mixed-histories).
+
+The [retained campaign](evidence/conformance/concurrent-mixed-04a1bcd/README.md)
+records all 26 conformance tests/static checks, the eight seeded schedules and
+serialized-writer pass, four backend counterexamples, setup refusal checks, and
+both the initially ineffective and corrected harness-deadlock controls. The
+failed initial negative-control campaign remains explicitly failed; the scoped
+checkpoint verifier evaluates its passing positive checks alongside the corrected
+isolated negative result.

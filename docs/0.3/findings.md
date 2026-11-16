@@ -1026,3 +1026,14 @@ requiring all three fields is a detected runtime regression. Pair attribution
 and atomicity validation remain distinct. This removes a duplicate owner and
 37 production tokens; no runtime improvement or broad gate completion is claimed.
 [Evidence](evidence/maintenance/index-value-declaration/README.md).
+
+Seeded concurrent mixed histories now run through the reusable dev-only adapter
+harness: eight varied two-tenant schedules plus a serialized-writer schedule,
+with independent raw state/membership/identity checks. All 26 conformance tests
+and strict static checks passed on source `04a1bcd`. Four broken backend modes
+fail named oracles. An initially ineffective harness-deadlock mutation was
+rejected by its driver and is retained; the corrected commit-barrier mutation
+fails at runtime through the serialized-writer timeout. No library or root-lock
+changes occur in this checkpoint. This advances bounded logical F5 coverage;
+physical backend and complete F8 qualification remain open.
+[Evidence](evidence/conformance/concurrent-mixed-04a1bcd/README.md).

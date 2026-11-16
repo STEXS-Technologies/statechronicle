@@ -1,0 +1,3 @@
+result = jobs.join_next(), if !jobs.is_empty() =>
+REPLACED WITH
+result = jobs.join_next(), if !jobs.is_empty() && staging.is_empty() =>

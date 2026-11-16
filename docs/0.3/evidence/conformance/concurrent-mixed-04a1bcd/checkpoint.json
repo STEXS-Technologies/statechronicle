@@ -1,0 +1,26 @@
+{
+  "status": "passed_with_scoped_limits",
+  "candidate": "04a1bcd59c57478cdf2673be3ed8facbc5a61088",
+  "qualification": "first five immutable-archive checks passed; initial ineffective negative rejected; corrected runtime deadlock control rejected as expected",
+  "limitations": [
+    "logical async reference only",
+    "no complete F5/F8 or physical backend qualification"
+  ],
+  "artifacts_sha256": {
+    "README.md": "61d90a907e65566dbe695e31be7b7ed4ea061bb5b7c610f8576583431607621c",
+    "all-tests.log.gz": "8dbad738ccfdfe5cd59d7fba7131010d602964fc1ee8d24240d88a87ecf46ac8",
+    "deadlock-control/deadlock.patch": "cde148adc61fab0b744a1fe514d0cf9a9e1b9047a1096319de43dd9aa470d73a",
+    "deadlock-control/manifest.json": "06f1ca04d433896e3d610053e4e154fe7c62e70cd7d64b947c9317bd86d76311",
+    "deadlock-control/runner.py": "caaa749a8fa61d01dcf9dd90e543464cc6de6248af1b36bdd1b6c27e9af4b607",
+    "deadlock-control/test.log.gz": "0b96129d771a781f598b4f22d31e716d26517d5966aa91921039018917f99ce5",
+    "deadlock.patch": "f1aad49e40702149911026237120176c70136f9e0ce5565d9f5f13c8409a20d8",
+    "doctests.log.gz": "0cec3183fcf033071bf220429850b552563d519bbd07bb9b675c8d780e869dea",
+    "fmt.log.gz": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "manifest.json": "796b4b8cbed80b0119589543d1523fd2abe024b0d975d2ff1c3d6b51b95dc2d8",
+    "negative-harness-deadlock.log.gz": "5d1b208e09ba416ba7f85bd96ae55217e0c9eec60c8f1922b14b28ca10276e8a",
+    "runner.py": "a07dde8a2f634226546c4ad7daa1d998e1d8567a04226968bc0642f17f14b352",
+    "strict-clippy.log.gz": "f41cd7db13d08d65e53d98db252c4934b0c140fc58222a6cf9f64e0693e35d8d",
+    "strict-rustdoc.log.gz": "67346592473152f1ca68d09821246629b1640f795ce485c890f40d5eca34d983",
+    "verify-checkpoint.py": "733e3a74950f476fdc9e46957083060d8412ab5c0d1addbfed1ff2915b43da98"
+  }
+}
