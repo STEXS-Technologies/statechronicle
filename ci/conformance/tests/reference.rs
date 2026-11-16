@@ -74,6 +74,9 @@ enum Mode {
     PruneBatchMemberAfterHead,
     ReplayLatestHead,
     CorruptOldSecondMemberLookup,
+    PruneAfterFourthHead,
+    LatestReceiptAfterFourthHead,
+    RollbackForgetsHistory,
 }
 #[derive(Default)]
 struct Database {
@@ -254,6 +257,22 @@ impl LedgerRecovery for Connection {
         }
         if let Some(record) = db.records.get(&key) {
             let mut record = record.clone();
+            if self.0.mode == Mode::LatestReceiptAfterFourthHead
+                && let Some((_, head, _, sequence)) =
+                    db.visible.heads.iter().find(|(scope, ..)| scope == tenant)
+                && *sequence >= 4
+            {
+                record.commit = db
+                    .visible
+                    .commits
+                    .iter()
+                    .find(|signed| {
+                        signed.body.commit_id == *head
+                            && signed.body.scope == record.commit.body.scope
+                    })
+                    .unwrap()
+                    .clone();
+            }
             if self.0.mode == Mode::CorruptLookup {
                 record.outbox.clear();
             }
@@ -677,6 +696,9 @@ impl LedgerTransaction for Transaction {
         if self.connection.0.mode == Mode::ForgetFinalization {
             self.staged.finalized.pop();
         }
+        if self.connection.0.mode == Mode::PruneAfterFourthHead && commit.body.sequence >= 4 {
+            db.records.retain(|(tenant, _), _| tenant != &self.tenant.0);
+        }
         if self.connection.0.mode == Mode::PruneOriginal {
             db.records.clear();
             db.batches.clear();
@@ -739,6 +761,9 @@ impl LedgerTransaction for Transaction {
     }
     async fn rollback(self: Box<Self>) -> Result<(), LedgerStoreError> {
         tokio::task::yield_now().await;
+        if self.connection.0.mode == Mode::RollbackForgetsHistory && !self.reservations.is_empty() {
+            self.connection.0.db.lock().unwrap().visible.events.clear();
+        }
         Ok(())
     }
 }
@@ -1306,19 +1331,24 @@ async fn batch_member_expiry_fences_nonfirst_member_and_stale_cleanup() {
 }
 
 fn seal_after(mutation: &mut LedgerMutation, previous: Option<&LedgerMutation>) {
+    // Keep the existing two-commit fixture contract explicit.
+    if let Some(previous) = previous {
+        assert_eq!(previous.commit.body.sequence, 1);
+    }
+    seal_after_history(mutation, &previous.into_iter().collect::<Vec<_>>());
+}
+fn seal_after_history(mutation: &mut LedgerMutation, history: &[&LedgerMutation]) {
     use statechronicle::commit::roots::state_root_updates;
+    let previous = history.last().copied();
     let scope = CommitScope::tenant(mutation.intent.tenant_id.clone());
     let mut batch = CommitBatch::new(scope.clone());
     for event in &mutation.events {
         batch.add_event(event.clone()).unwrap();
     }
-    // This fixture builder deliberately supports only genesis plus one child.
-    if let Some(previous) = previous {
-        assert_eq!(previous.commit.body.sequence, 1);
-    }
-    let prior = previous
-        .map(|m| state_root_updates(&m.events).unwrap())
-        .unwrap_or_default();
+    let prior: Vec<_> = history
+        .iter()
+        .flat_map(|m| state_root_updates(&m.events).unwrap())
+        .collect();
     let old = &mutation.commit.body;
     let body = CommitBuilder::builder()
         .scope(scope)
@@ -1735,5 +1765,296 @@ async fn complete_original_batches_survive_replaced_projections_and_delivery() {
         } else {
             result.unwrap();
         }
+    }
+}
+
+// Fixture history and raw expectations are constructed before opening the backend.
+// No receipt/lookup/adapter key helper supplies expected rows or state.
+fn mixed_history() -> (Vec<LedgerMutation>, Vec<Snapshot>) {
+    use statechronicle::profiles::{
+        fungible_balance::FungibleBalanceRules, registry::ProfileRules,
+        unique_asset::UniqueAssetRules,
+    };
+    let mut mutations: Vec<LedgerMutation> = Vec::new();
+    let mut expected = Vec::new();
+    let mut view = Snapshot::default();
+    for index in 0..32 {
+        let tenant = if index % 2 == 0 {
+            "acme.game.alpha"
+        } else {
+            "acme.game.beta"
+        };
+        let turn = index / 2;
+        let slot = turn % 4;
+        // Cross-tenant textual intent/event/commit IDs deliberately coincide.
+        let mut mutation = fixture(tenant, 1200 + turn);
+        let resource = if slot < 2 {
+            format!("asset:history-{slot}")
+        } else {
+            "currency:history".into()
+        };
+        let subject = if slot == 2 {
+            "account:alice"
+        } else {
+            "account:bob"
+        };
+        let key = (
+            tenant.to_owned(),
+            resource.clone(),
+            (slot >= 2).then(|| subject.to_owned()),
+        );
+        let current = view.projections.iter().find(|row| {
+            (
+                row.tenant_id.0.clone(),
+                row.resource_id.0.clone(),
+                row.state.subject().map(|s| s.0.clone()),
+            ) == key
+        });
+        mutation.intent.resource_id = ResourceId(resource);
+        let rules: &dyn ProfileRules = if slot < 2 {
+            &UniqueAssetRules
+        } else {
+            &FungibleBalanceRules
+        };
+        mutation.intent.state_type = Some(if slot < 2 {
+            StateType::UniqueAsset
+        } else {
+            StateType::FungibleBalance
+        });
+        mutation.intent.expected_version = current.map_or(0, |row| row.version);
+        if slot < 2 {
+            mutation.intent.operation = Operation::from_static(if current.is_some() {
+                "asset.transfer"
+            } else {
+                "asset.mint"
+            });
+            let to = if (turn / 4) % 2 == 0 {
+                "account:alice"
+            } else {
+                "account:bob"
+            };
+            mutation.intent.inputs = [("to_owner".into(), serde_json::json!(to))].into();
+            if let Some(row) = current {
+                let ResourceState::UniqueAsset(state) = &row.state else {
+                    panic!("asset fixture state")
+                };
+                mutation
+                    .intent
+                    .inputs
+                    .insert("from_owner".into(), serde_json::json!(state.owner.0));
+            }
+        } else {
+            mutation.intent.operation = Operation::from_static(if current.is_some() {
+                "balance.credit"
+            } else {
+                "balance.create"
+            });
+            mutation.intent.inputs = if current.is_some() {
+                [("amount".into(), serde_json::json!("3"))].into()
+            } else {
+                [
+                    ("subject".into(), serde_json::json!(subject)),
+                    ("unit".into(), serde_json::json!("COIN")),
+                    ("balance".into(), serde_json::json!("10")),
+                ]
+                .into()
+            };
+        }
+        rules
+            .check(&mutation.intent.operation, current, &mutation.intent.inputs)
+            .unwrap();
+        let state = rules
+            .apply(current, &mutation.intent.operation, &mutation.intent.inputs)
+            .unwrap();
+        let event = &mut mutation.events[0];
+        event.resource_id = mutation.intent.resource_id.clone();
+        event.operation = mutation.intent.operation.clone();
+        if let Some(row) = current {
+            event.before = StateCommitment {
+                version: row.version,
+                state_hash: row.state_hash.clone(),
+                state: row.state.clone(),
+            };
+        } else if slot >= 2 {
+            let mut unborn = state.clone();
+            let ResourceState::FungibleBalance(balance) = &mut unborn else {
+                panic!("balance fixture state")
+            };
+            balance.balance = statechronicle::core::amount::Amount::ZERO;
+            event.before = StateCommitment {
+                version: 0,
+                state_hash: canonicalize_and_digest(&unborn).unwrap(),
+                state: unborn,
+            };
+        }
+        event.after = StateCommitment {
+            version: mutation.intent.expected_version + 1,
+            state_hash: canonicalize_and_digest(&state).unwrap(),
+            state,
+        };
+        let history: Vec<_> = mutations
+            .iter()
+            .filter(|m| m.intent.tenant_id == mutation.intent.tenant_id)
+            .collect();
+        seal_after_history(&mut mutation, &history);
+        view.events.extend(mutation.events.clone());
+        view.commits.push(mutation.commit.clone());
+        view.projections.retain(|row| {
+            (
+                row.tenant_id.0.clone(),
+                row.resource_id.0.clone(),
+                row.state.subject().map(|s| s.0.clone()),
+            ) != key
+        });
+        view.projections.extend(mutation.projections.clone());
+        view.outbox.extend(mutation.outbox.clone());
+        view.finalized.push((
+            mutation.intent.tenant_id.clone(),
+            mutation.intent.intent_id.clone(),
+            mutation.payload_digest.clone(),
+            mutation.commit.body.commit_id.clone(),
+        ));
+        view.heads
+            .retain(|(scope, ..)| scope != &mutation.intent.tenant_id);
+        view.heads.push((
+            mutation.intent.tenant_id.clone(),
+            mutation.commit.body.commit_id.clone(),
+            mutation.commit.body.next_state_root.clone(),
+            mutation.commit.body.sequence,
+        ));
+        mutations.push(mutation);
+        expected.push(view.clone());
+    }
+    // Reject invalid test histories independently of the storage under test.
+    use statechronicle::index::rebuild::verified::{HistoryPin, HistoryWitness, verify_history};
+    for tenant in ["acme.game.alpha", "acme.game.beta"] {
+        let chain: Vec<_> = mutations
+            .iter()
+            .filter(|m| m.intent.tenant_id.0 == tenant)
+            .collect();
+        let witnesses: Vec<_> = chain
+            .iter()
+            .map(|m| HistoryWitness {
+                commit: &m.commit,
+                events: &m.events,
+            })
+            .collect();
+        verify_history(
+            &witnesses,
+            &HistoryPin {
+                tenant: TenantId(tenant.into()),
+                tip_digest: canonicalize_and_digest(&chain.last().unwrap().commit.body).unwrap(),
+            },
+            &FixtureVerifier,
+        )
+        .unwrap();
+    }
+    assert_eq!(view.commits.len(), 32);
+    assert_eq!(view.projections.len(), 8);
+    assert_eq!(view.heads.len(), 2);
+    (mutations, expected)
+}
+
+#[tokio::test]
+async fn mixed_history_retains_originals_across_rollback_retry_and_tenants() {
+    let (mutations, expected) = mixed_history();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        statechronicle_conformance::check_history(
+            &Backend::new(Mode::Correct),
+            &mutations,
+            &expected,
+        ),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+}
+
+#[tokio::test]
+async fn history_detects_faults_that_pass_smaller_schedules() {
+    let (mutations, expected) = mixed_history();
+    for (mode, oracle) in [
+        (Mode::PruneAfterFourthHead, "lookup.original"),
+        (Mode::LatestReceiptAfterFourthHead, "lookup.original"),
+        (Mode::RollbackForgetsHistory, "history.rollback_effects"),
+    ] {
+        let backend = Backend::new(mode);
+        // Existing genesis rollback and two-commit retention schedules do not
+        // expose these delayed/history-dependent faults.
+        check_rollback(&backend, &mutations[0]).await.unwrap();
+        let pair = expected_pair(
+            &mutations[0],
+            &mutations[2],
+            vec![
+                mutations[0].projections[0].clone(),
+                mutations[2].projections[0].clone(),
+            ],
+        );
+        statechronicle_conformance::check_later_head_retention(
+            &backend,
+            &mutations[0],
+            &mutations[2],
+            &pair,
+        )
+        .await
+        .unwrap();
+        let error = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            statechronicle_conformance::check_history(&backend, &mutations, &expected),
+        )
+        .await
+        .unwrap()
+        .unwrap_err();
+        println!("mixed-history {mode:?}: {error}");
+        assert_eq!(error.check, oracle);
+    }
+}
+
+#[tokio::test]
+async fn history_rejects_invalid_setup_before_destructive_reset() {
+    let (mutations, expected) = mixed_history();
+    let backend = Backend::new(Mode::Correct);
+    let store = backend.connect().await.unwrap();
+    statechronicle_conformance::write(&store, &mutations[0])
+        .await
+        .unwrap();
+    for (input, snapshots, check) in [
+        (
+            mutations[..2].to_vec(),
+            expected[..2].to_vec(),
+            "setup.history",
+        ),
+        (mutations.clone(), expected[..31].to_vec(), "setup.history"),
+        (
+            {
+                let mut broken = mutations.clone();
+                broken[4].commit.body.sequence += 1;
+                broken
+            },
+            expected.clone(),
+            "setup.history_chain",
+        ),
+        (
+            {
+                let mut broken = mutations.clone();
+                broken[4].intent.intent_id = broken[0].intent.intent_id.clone();
+                broken
+            },
+            expected.clone(),
+            "setup.history_chain",
+        ),
+    ] {
+        let error = statechronicle_conformance::check_history(&backend, &input, &snapshots)
+            .await
+            .unwrap_err();
+        assert_eq!(error.check, check);
+        // A fixture mistake must not erase even the isolated test database.
+        let observation = backend.inspect().await.unwrap();
+        assert_eq!(observation.events, mutations[0].events);
+        assert_eq!(observation.commits, vec![mutations[0].commit.clone()]);
+        assert!(
+            matches!(store.lookup_mutation(&mutations[0].intent.tenant_id, &mutations[0].intent.intent_id).await.unwrap(), LedgerLookup::Committed(record) if *record == mutations[0])
+        );
     }
 }

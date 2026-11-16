@@ -258,3 +258,30 @@ The event-only APIs retain their caller-verified-source contracts. See
 requirements, historical trust boundaries and remaining physical/performance
 limits. This does not close arbitrary history, database crash or full F5/F8
 qualification.
+
+
+## Mixed ordered history qualification
+
+The dev harness additionally exposes `check_history` for a supplied sequence and
+an independent raw snapshot at every committed prefix. It resets once, checks
+every staged/rolled-back write prefix against the preceding history, commits
+through fresh connections, and then verifies every original receipt, original
+retry commit and changed-payload conflict. Incorrect setup is refused before
+resetting the test database. This extends the two-commit retention checks; their
+scope limits remain applicable.
+
+The reference's 32 signed mutations interleave two tenants with coincident
+textual IDs, update two owner-based asset keys and two subject-held balance
+keys per tenant, and independently verify both complete signed histories.
+Delayed receipt pruning and latest-commit substitution at the fourth head, and
+rollback that deletes existing history, pass the previous smaller schedules but
+fail named oracles in this one. The reference checks 224 rollback prefixes and
+528 retained original identities across the growing history. The input snapshots
+are constructed before backend use; no lookup or adapter key helper supplies
+the expected rows.
+
+Use backend-specific history fixtures and an outer timeout. This does not add
+production dependencies or change ledger authority. Mixed single/batch history,
+randomized concurrent histories, process/database reopen, proof serving and
+physical crash/power-loss qualification remain separate requirements. See the
+[conformance instructions](../../ci/conformance/README.md#ordered-mixed-histories).

@@ -7,7 +7,7 @@ and is never linked into the normal StateChronicle facade.
 Run the reference and negative controls locally:
 
 ```sh
-RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo +1.85.0 test \
+RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo +1.100.0 test \
   --manifest-path ci/conformance/Cargo.toml --all-targets --locked --offline
 ```
 
@@ -62,8 +62,8 @@ active oracle rather than merely compiling a mock.
 
 The fixed signing key, fixture authorizer and storage code in `tests/reference.rs`
 are test-only. They are not deployment adapters or trust-policy examples. The
-reference supports bounded single-tenant genesis transactions, not a general
-storage engine. `faults::LoseCommitAck` injects response loss after an underlying
+reference supports bounded single-tenant transactions and retained history, not
+a general storage engine. `faults::LoseCommitAck` injects response loss after an underlying
 successful commit; it does not kill a process or simulate disk flush behavior.
 
 The [adapter contract and remaining qualification](../../docs/0.3/adapter-contract.md)
@@ -277,3 +277,37 @@ single/batch histories, interrupted/corrupt replay, verified projection rebuild,
 real database reopen/process-kill/power-loss behavior and broader F5/F8 gates
 remain open. Fixture signature validity is checked during reference generation;
 consumer ingress and signer authorization remain separate authorities.
+
+
+## Ordered mixed histories
+
+Run `check_history(backend, mutations, expected_snapshots)` with at least three
+valid signed mutations and one independently constructed raw `Snapshot` after
+each mutation. Each tenant starts at genesis and advances by one linked commit;
+scoped intent and commit identities must be distinct. Interleave tenants,
+update existing resource keys, and include separate holders at the same resource.
+Do not derive expected rows from the adapter's lookup/inspection implementation.
+Malformed length/chain/identity setup refuses before destructive reset.
+
+The check resets once. Before each mutation it stages and rolls back every
+completed write prefix, checking prior effects and the absence of a committed
+receipt. Rollback must remove that reservation. It then commits on a fresh
+connection and compares the complete prefix against its independent snapshot.
+Every previous mutation must still have its exact original record; exact retry
+must return its original commit, changed-payload retry must conflict, and these
+checks must leave all committed effects unchanged. Connection handles are fresh;
+this does not restart the database or application process.
+
+The reference uses 32 commits across two interleaved tenants, with coincident
+textual IDs, two repeatedly transferred assets and two independently credited
+balance holders per tenant. All signed chains, event roots, state roots and
+continuity are verified before the backend is opened. There are 224 rollback
+prefixes and 528 original-identity replay/conflict checks in the passing schedule.
+Three faulty modes pass the older genesis-rollback/two-commit schedules but
+fail this one: pruning receipts after head four, substituting the latest commit
+after head four, and clearing existing event history during rollback.
+
+This is a bounded single-mutation history schedule. It does not qualify mixed
+single/batch histories, randomized interleavings, cross-tenant transactions,
+real database reopen, physical crash/power loss or production signer policy.
+Keep the existing race, batch, lease, lost-ACK and delivery checks as well.

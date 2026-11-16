@@ -308,6 +308,20 @@ pub async fn check_replay<B: LedgerTestBackend>(
     let store = fresh(backend).await?;
     write(&store, mutation).await.map_err(operation)?;
     let reader = backend.connect().await.map_err(operation)?;
+    retry_identity(&reader, mutation).await?;
+    compare(
+        backend,
+        &Snapshot::from_mutations(&[mutation]),
+        "replay.effects",
+    )
+    .await?;
+    original(&reader, mutation).await
+}
+// Shared oracle for an original idempotency key, including its payload conflict.
+async fn retry_identity<S: LedgerRecovery>(
+    reader: &S,
+    mutation: &LedgerMutation,
+) -> Result<(), Violation> {
     let mut retry = reader
         .begin(&mutation.intent.tenant_id)
         .await
@@ -330,7 +344,12 @@ pub async fn check_replay<B: LedgerTestBackend>(
     )?;
     retry.rollback().await.map_err(operation)?;
     let mut changed = mutation.intent.clone();
-    changed.nonce = Nonce::from_bytes(vec![211, 17]).map_err(operation)?;
+    let suffix = if changed.nonce.as_bytes() == [211, 17] {
+        18
+    } else {
+        17
+    };
+    changed.nonce = Nonce::from_bytes(vec![211, suffix]).map_err(operation)?;
     let digest = canonicalize_and_digest(&changed).map_err(operation)?;
     require(
         "setup.conflict",
@@ -351,14 +370,113 @@ pub async fn check_replay<B: LedgerTestBackend>(
         "different payload accepted under original key",
     )?;
     conflict.rollback().await.map_err(operation)?;
-    compare(
-        backend,
-        &Snapshot::from_mutations(&[mutation]),
-        "replay.effects",
-    )
-    .await?;
-    original(&reader, mutation).await
+    Ok(())
 }
+
+/// Exercise an ordered history without resetting between commits.
+///
+/// Supply at least three well-formed mutations and an independently constructed
+/// raw snapshot after each one. Histories may interleave tenants, reuse textual
+/// IDs across tenants, and overwrite resource/holder projections. Each tenant
+/// starts at genesis and advances consecutively. Before each commit, every
+/// completed write prefix is rolled back and must leave all prior history and
+/// effects unchanged. Afterward, every prior original record, exact retry and
+/// payload conflict is checked through a fresh connection.
+///
+/// This is a bounded logical schedule, not randomized concurrency, authenticated
+/// ingress, batch mixing, process restart or physical power-loss qualification.
+/// Wrap the entire call in a backend-appropriate timeout.
+pub async fn check_history<B: LedgerTestBackend>(
+    backend: &B,
+    mutations: &[LedgerMutation],
+    expected: &[Snapshot],
+) -> Result<(), Violation> {
+    require(
+        "setup.history",
+        mutations.len() >= 3 && mutations.len() == expected.len(),
+        "requires at least three mutations and one independent snapshot per prefix",
+    )?;
+    let mut tips = std::collections::BTreeMap::<&str, &LedgerMutation>::new();
+    let mut identities = std::collections::BTreeSet::new();
+    let mut commits = std::collections::BTreeSet::new();
+    let genesis_root =
+        ContentDigest::new(*statechronicle::StateAccumulator::empty().root().as_bytes());
+    for mutation in mutations {
+        let tenant = &mutation.intent.tenant_id;
+        let body = &mutation.commit.body;
+        let linked = tips.get(tenant.0.as_str()).map_or_else(
+            || {
+                body.sequence == 1
+                    && body.parent_commit_id.is_none()
+                    && body.previous_state_root == genesis_root
+            },
+            |previous| {
+                body.parent_commit_id.as_ref() == Some(&previous.commit.body.commit_id)
+                    && previous.commit.body.sequence.checked_add(1) == Some(body.sequence)
+                    && body.previous_state_root == previous.commit.body.next_state_root
+            },
+        );
+        require(
+            "setup.history_chain",
+            linked
+                && statechronicle::commit::persist::validate_tenant_commit(body).ok()
+                    == Some(tenant)
+                && identities.insert((tenant.0.as_str(), &mutation.intent.intent_id))
+                && commits.insert((tenant.0.as_str(), &body.commit_id)),
+            "requires distinct scoped identities and consecutive per-tenant history",
+        )?;
+        tips.insert(tenant.0.as_str(), mutation);
+    }
+    let _ = fresh(backend).await?;
+    let empty = Snapshot::default();
+    for (position, mutation) in mutations.iter().enumerate() {
+        let before = position.checked_sub(1).map_or(&empty, |i| &expected[i]);
+        for prefix in 0..=step_count(mutation) {
+            let writer = backend.connect().await.map_err(operation)?;
+            let mut tx = writer
+                .begin(&mutation.intent.tenant_id)
+                .await
+                .map_err(operation)?;
+            let attempt = claim(&mut *tx, mutation).await.map_err(operation)?;
+            for index in 0..prefix {
+                step(&mut *tx, mutation, &attempt, index)
+                    .await
+                    .map_err(operation)?;
+            }
+            compare(backend, before, "history.staged_effects").await?;
+            let reader = backend.connect().await.map_err(operation)?;
+            require(
+                "history.staged_receipt",
+                !matches!(lookup(&reader, mutation).await?, LedgerLookup::Committed(_)),
+                "uncommitted history prefix issued a committed receipt",
+            )?;
+            tx.rollback().await.map_err(operation)?;
+            compare(backend, before, "history.rollback_effects").await?;
+            require(
+                "history.rollback_claim",
+                matches!(lookup(&reader, mutation).await?, LedgerLookup::NotFound),
+                "rolled-back history reservation survived",
+            )?;
+        }
+        write(&backend.connect().await.map_err(operation)?, mutation)
+            .await
+            .map_err(operation)?;
+        compare(backend, &expected[position], "history.effects").await?;
+        for original_mutation in &mutations[..=position] {
+            let reader = backend.connect().await.map_err(operation)?;
+            original(&reader, original_mutation).await?;
+            retry_identity(&reader, original_mutation).await?;
+            original(
+                &backend.connect().await.map_err(operation)?,
+                original_mutation,
+            )
+            .await?;
+            compare(backend, &expected[position], "history.retry_effects").await?;
+        }
+    }
+    Ok(())
+}
+
 /// Advancing a tenant head must preserve exact original receipts and retry identity.
 /// Supply two independently constructed, valid sequential commits and the expected
 /// final raw database view (including current projections and pending outbox rows).
