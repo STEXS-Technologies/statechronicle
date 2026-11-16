@@ -1,0 +1,377 @@
+{
+  "baseline_commit": "316099b2e003425f7b386edc82834d8c181737e7",
+  "candidate_commit": "e407af6d5ac55b08f3659235fd6a3fe8a2b04218",
+  "benchmark_sha256": "e504233407b650b7033cccf3acebc87072e8934ffc12a938a284e90ba332bef2",
+  "cpu": 0,
+  "toolchain": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8"
+  },
+  "builds": [
+    {
+      "lane": "baseline",
+      "command": [
+        "cargo",
+        "build",
+        "--release",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/baseline/Cargo.toml",
+        "--offline"
+      ],
+      "exit_code": 0,
+      "log_sha256": "fce95587c4041174938bd92ddabc52d3963ce9af7e37458d349aa6ee946b9b63",
+      "resolved_lock_sha256": "b91614506e3d9ab0bd99003825a8f1a4dff4aaffba6ccf60ed7028a84a7f8789",
+      "binary_sha256": "253d2edf20fe62216660de343152475f9dca4b542aa4412ccd6bf90aa84009f4"
+    },
+    {
+      "lane": "candidate",
+      "command": [
+        "cargo",
+        "build",
+        "--release",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/candidate/Cargo.toml",
+        "--offline"
+      ],
+      "exit_code": 0,
+      "log_sha256": "9d1009dcd6d439093d0ecf77a06c7482f49840be4352d95eff1920f74b9c8026",
+      "resolved_lock_sha256": "2f85aca5b2688094b424bc6d14e9b9e725aee63fc3baed4e43e6f1783067cade",
+      "binary_sha256": "e32275329348666f4fba4befa349f1a51919902a487669f10c83d41a40ce39b6"
+    }
+  ],
+  "runs": [
+    {
+      "pair": 0,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/baseline/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "64f95e84280179f7187b2d520478caa9c3cb0477cc64ef8906550c4ac1ae4f32"
+    },
+    {
+      "pair": 0,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/candidate/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "8522832d64bfea75256b7f80304839c50bfab068bf35f66ece2a2252980f10dc"
+    },
+    {
+      "pair": 1,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/candidate/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "b5b8f0ac25ad5f55de3a93816590cc7a4f01d93c2fb9f53272624d9a91484a0d"
+    },
+    {
+      "pair": 1,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/baseline/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "9827672ecd001ac7f566c95c44277c709aeb305c2f0d848644ac11a83807331c"
+    },
+    {
+      "pair": 2,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/baseline/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "8a1d1a122c04a80be1ffe141c128db744be3d5605659519f0f91f706dab8c01e"
+    },
+    {
+      "pair": 2,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/candidate/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "88b80b4102c4cc15d2fd850aca54a49b104c5b79a8401658afdfe5e67eb6d5a4"
+    },
+    {
+      "pair": 3,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/candidate/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "bd936c95c8d32d9e6a629f9ecfe48813bdbe581c58ff339abbf0a9a7762a6b1c"
+    },
+    {
+      "pair": 3,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/baseline/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "be59a8028e5aea892d5893656a41dbb7e794f8206ff572ff598400d420a3070f"
+    },
+    {
+      "pair": 4,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/baseline/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "9655c45fff8ef9f1688feefbc64a2889eb2e9a3b30b264ffda1906e9f02afd0d"
+    },
+    {
+      "pair": 4,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/candidate/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e61732d188d9b7409fe160351883e854e66a22106c4c64471787345a3a5643a7"
+    },
+    {
+      "pair": 5,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/candidate/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "469f431fdccb6c3512ddd15dc3b681c6f2006288855fcbe6d75e934210200441"
+    },
+    {
+      "pair": 5,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/baseline/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "f5739a0b42fabf1679a5ca97547300793b56159b223944e167fa71f22ca396f1"
+    },
+    {
+      "pair": 6,
+      "lane": "baseline",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/baseline/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "31d59fbecc23911efa2f7ae04512f9297ee779c8be3510e5c8dbe22e0af92ad2"
+    },
+    {
+      "pair": 6,
+      "lane": "candidate",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/candidate/target/release/event-root-cost"
+      ],
+      "exit_code": 0,
+      "log_sha256": "1eafba6eb5fa875df0d86f09e5b3deb618348faadb8c521ba19983dd9889f743"
+    }
+  ],
+  "allocations": {
+    "baseline-0": {
+      "command": [
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/baseline/target/release/event-root-cost",
+        "000"
+      ],
+      "exit_code": 0,
+      "log": "matched-argv-alloc-baseline-0.log.gz",
+      "log_sha256": "72e34293dad075e6c7470ef89d799748153c0604fcfb25a22e74f02557350cd3",
+      "allocations": 3605,
+      "bytes": 245430
+    },
+    "baseline-1": {
+      "command": [
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/baseline/target/release/event-root-cost",
+        "001"
+      ],
+      "exit_code": 0,
+      "log": "matched-argv-alloc-baseline-1.log.gz",
+      "log_sha256": "9e2e04c0fd8eec6faee373161b09cbe7a2fad6be9d02267130403cd8342f65e5",
+      "allocations": 19605,
+      "bytes": 1371430
+    },
+    "baseline-3": {
+      "command": [
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/baseline/target/release/event-root-cost",
+        "003"
+      ],
+      "exit_code": 0,
+      "log": "matched-argv-alloc-baseline-3.log.gz",
+      "log_sha256": "a86419dff522e3ef1d24491d80d5f108d11d190d707552b9e461c74623a8bed6",
+      "allocations": 45605,
+      "bytes": 3433430
+    },
+    "baseline-256": {
+      "command": [
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/baseline/target/release/event-root-cost",
+        "256"
+      ],
+      "exit_code": 0,
+      "log": "matched-argv-alloc-baseline-256.log.gz",
+      "log_sha256": "ca80f0c6ad5fb0e1cc55cfec5332c2c77962c7be94dbc52013cad4ad4b8c2c00",
+      "allocations": 3087605,
+      "bytes": 260196430
+    },
+    "candidate-0": {
+      "command": [
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/candidate/target/release/event-root-cost",
+        "000"
+      ],
+      "exit_code": 0,
+      "log": "matched-argv-alloc-candidate-0.log.gz",
+      "log_sha256": "0e6ac0c9d204fb5eb772d8e2854c3eb8e637c4cb5ec6a71f44d8aabca91684bd",
+      "allocations": 3605,
+      "bytes": 245431
+    },
+    "candidate-1": {
+      "command": [
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/candidate/target/release/event-root-cost",
+        "001"
+      ],
+      "exit_code": 0,
+      "log": "matched-argv-alloc-candidate-1.log.gz",
+      "log_sha256": "d007520338b5959ab503760126ad6f143eb7dc959141e527a92ba84d6ffbdd54",
+      "allocations": 19605,
+      "bytes": 1371431
+    },
+    "candidate-3": {
+      "command": [
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/candidate/target/release/event-root-cost",
+        "003"
+      ],
+      "exit_code": 0,
+      "log": "matched-argv-alloc-candidate-3.log.gz",
+      "log_sha256": "791358d46f70c52bdc8b9288c8b6c65d1dc467ea4ac9e60676c21a682687841d",
+      "allocations": 45605,
+      "bytes": 3433431
+    },
+    "candidate-256": {
+      "command": [
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "/home/ac/projects/statechronicle/target/settlement-history/root-bench/candidate/target/release/event-root-cost",
+        "256"
+      ],
+      "exit_code": 0,
+      "log": "matched-argv-alloc-candidate-256.log.gz",
+      "log_sha256": "eb01e555e3981dc1242181d23b8c320db74e1f313d0ad0ec43a1117635e5fff5",
+      "allocations": 3087605,
+      "bytes": 260196431
+    }
+  },
+  "limitations": [
+    "Shared host, seven alternating paired processes; not final isolated F8 performance",
+    "31 sample averages; tails are not individual-request p95",
+    "Measures only existing event-root function on fixed synthetic events, not new settlement verification or full mutation",
+    "Same compiler, manifests and third-party versions; control is immediate parent, not original release"
+  ],
+  "runner_sha256": "b6bc62a77934a00e506ee91151f7d872d6fcf86b9de5c813d61b013cdb082a7a",
+  "summary_sha256": "18aa48a9d71ac5a2444c44c39f1872acc98ce70bb1d70ada48b46637c39e1f54",
+  "status": "passed",
+  "third_party_versions_sources_checksums_identical": true,
+  "cargo_config_sha256": "8416594c108be336f09b4754fee9ee1c4673d65dc62f6319b93e81c6f85ec489",
+  "cargo_rustflags_from_config": [
+    "-C",
+    "force-frame-pointers=y"
+  ],
+  "allocation_control_subtracted_per_1000": {
+    "1": {
+      "baseline": {
+        "allocations": 16000,
+        "bytes": 1126000
+      },
+      "candidate": {
+        "allocations": 16000,
+        "bytes": 1126000
+      }
+    },
+    "3": {
+      "baseline": {
+        "allocations": 42000,
+        "bytes": 3188000
+      },
+      "candidate": {
+        "allocations": 42000,
+        "bytes": 3188000
+      }
+    },
+    "256": {
+      "baseline": {
+        "allocations": 3084000,
+        "bytes": 259951000
+      },
+      "candidate": {
+        "allocations": 3084000,
+        "bytes": 259951000
+      }
+    }
+  },
+  "initial_allocation_attempt": "initial-unmatched-argv-manifest.json (retained; argument lengths differed across counts; superseded by padded arguments below)",
+  "allocation_profiler": "valgrind-3.27.1",
+  "allocation_recheck_runner_sha256": "feb37c074420d1110ef8d42e0735aadb326d4e005246b4cf0c06d73bef3a056b"
+}

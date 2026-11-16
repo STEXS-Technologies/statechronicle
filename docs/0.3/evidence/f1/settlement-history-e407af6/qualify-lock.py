@@ -1,0 +1,10 @@
+import pathlib,subprocess,io,tarfile,json,gzip,hashlib,os,re
+root=pathlib.Path.cwd();sha=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();out=root/'docs/0.3/evidence/f1/settlement-history-e407af6';source=root/'target/settlement-history'/sha/'source';source.mkdir(parents=True,exist_ok=True);data=subprocess.check_output(['git','archive',sha])
+with tarfile.open(fileobj=io.BytesIO(data)) as t:t.extractall(source,filter='data')
+m={'candidate_commit':sha,'source_archive_sha256':hashlib.sha256(data).hexdigest(),'production_crates_tree':subprocess.check_output(['git','rev-parse',sha+':crates'],text=True).strip(),'production_unchanged_from_e407af6':subprocess.check_output(['git','rev-parse',sha+':crates'])==subprocess.check_output(['git','rev-parse','e407af6:crates']),'conformance_lock_sha256':hashlib.sha256((source/'ci/conformance/Cargo.lock').read_bytes()).hexdigest(),'commands':[],'scope':'Only conformance lock edge changes; stable/MSRV production qualification retained at e407af6. Not final F8 qualification.'}
+env=dict(os.environ,RUSTC_WRAPPER='',CARGO_BUILD_JOBS='8',CARGO_TARGET_DIR=str(root/'target/settlement-history/conformance-isolated'))
+for label,tool,verb,args in [('stable',[],'test',[]),('msrv',['+1.85.0'],'test',[]),('clippy',[],'clippy',['--','-D','warnings'])]:
+ cmd=['cargo']+tool+[verb,'--manifest-path','ci/conformance/Cargo.toml','--all-targets','--locked','--offline']+args
+ result=subprocess.run(cmd,cwd=source,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT);dest=out/('lock-correction-'+label+'.log.gz');dest.write_bytes(gzip.compress(result.stdout,mtime=0));counts=[int(v) for v in re.findall(rb'test result: ok\. (\d+) passed',result.stdout)]
+ m['commands'].append({'command':cmd,'exit_code':result.returncode,'passed_tests':sum(counts),'log_sha256':hashlib.sha256(dest.read_bytes()).hexdigest()});(out/'lock-correction-manifest.json').write_text(json.dumps(m,indent=2)+'\n');print(label,result.returncode,sum(counts),flush=True)
+ if result.returncode:print(result.stdout.decode()[-4000:]);raise SystemExit(result.returncode)

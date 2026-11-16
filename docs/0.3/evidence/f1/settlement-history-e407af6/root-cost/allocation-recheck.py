@@ -1,0 +1,10 @@
+import pathlib,json,subprocess,gzip,hashlib,re
+root=pathlib.Path.cwd();out=root/'docs/0.3/evidence/f1/settlement-history-e407af6/root-cost';m=json.loads((out/'manifest.json').read_text());(out/'initial-unmatched-argv-manifest.json').write_text(json.dumps(m,indent=2)+'\n');m['initial_allocation_attempt']='initial-unmatched-argv-manifest.json (retained; argument lengths differed across counts; superseded by padded arguments below)';m['allocations']={};m['allocation_profiler']=subprocess.check_output(['valgrind','--version'],text=True).strip()
+for build in m['builds']:
+ lane=build['lane'];cmd=build['command'];binary=pathlib.Path(cmd[cmd.index('--manifest-path')+1]).parent/'target/release/event-root-cost';assert hashlib.sha256(binary.read_bytes()).hexdigest()==build['binary_sha256']
+ for count in [0,1,3,256]:
+  command=['valgrind','--tool=memcheck','--leak-check=no',str(binary),f'{count:03}'];r=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT);dest=out/f'matched-argv-alloc-{lane}-{count}.log.gz';dest.write_bytes(gzip.compress(r.stdout,mtime=0));assert r.returncode==0;match=re.search(rb'total heap usage: ([\d,]+) allocs, ([\d,]+) frees, ([\d,]+) bytes allocated',r.stdout);assert match;m['allocations'][f'{lane}-{count}']={'command':command,'exit_code':r.returncode,'log':dest.name,'log_sha256':hashlib.sha256(dest.read_bytes()).hexdigest(),'allocations':int(match[1].replace(b',',b'')),'bytes':int(match[3].replace(b',',b''))}
+m['allocation_control_subtracted_per_1000']={}
+for n in [1,3,256]:
+ values={lane:{metric:m['allocations'][f'{lane}-{n}'][metric]-m['allocations'][f'{lane}-0'][metric] for metric in ['allocations','bytes']} for lane in ['baseline','candidate']};assert values['baseline']==values['candidate'];m['allocation_control_subtracted_per_1000'][str(n)]=values;print(n,values,flush=True)
+m['allocation_recheck_runner_sha256']=hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest();(out/'allocation-recheck.py').write_bytes(pathlib.Path(__file__).read_bytes());(out/'manifest.json').write_text(json.dumps(m,indent=2)+'\n')

@@ -705,3 +705,17 @@ all broader malformed properties and final F8 performance/qualification remain
 open. Payment declarations are not signed into events; independently requested
 payment facts do not prove a declaration or distributed atomicity. See
 [the precise settlement contract](settlement-history.md).
+
+Archived `e407af6` passes 862 finite workspace tests plus nine doctests on both
+stable and MSRV, strict Clippy/rustdoc, and the MSRV external consumer/wire and
+portable/bare-metal matrix. A stale isolated conformance lock is corrected in
+`b5257af`; its nine checks pass on stable/MSRV with strict Clippy. Failed and
+unqualified attempts remain in
+[evidence/f1/settlement-history-e407af6](evidence/f1/settlement-history-e407af6/README.md).
+
+The production delta is +15,466 bytes, +305 syntax lines, +2,073 tokens,
++54 branch nodes and +30 public syntax items against the exact parent. A matched
+seven-pair event-root benchmark retains identical roots/allocations and median
+latency increases of +1.69%, +2.04% and +1.01% for 1/3/256 events on this host.
+This is added safety validation and shared ownership, not a shrink or speedup;
+the new settlement contract's full cost and final F8 gates remain open.
