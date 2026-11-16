@@ -584,3 +584,30 @@ Configuration and Equipment models; the frozen consumer is unchanged. Evidence:
 +1,432 bytes, +24 lines, +193 tokens, +5 branches and +1 public method versus
 `d1550a9`. This is an explicit authoring addition, not a production shrink claim.
 Full roadmap qualification is incomplete.
+
+## Independent adapter conformance checkpoint
+
+The unpublished, isolated `ci/conformance` support package now exposes
+`LedgerTestBackend` and reusable checks with independent raw snapshots and
+separate recovery reads. A separately implemented in-memory reference passes
+staging visibility, seven rollback/drop prefixes, exact replay/conflict, tenant
+scope, barrier-started head and identity contention at 2/8/32 clients, reservation
+attempt fencing, unsupported multi-tenant refusal, and unknown-ACK recovery plus
+verified exact replay. Eight deliberately broken variants fail their intended
+oracles, including data loss after acknowledgement. See the
+[contract, usage and remaining scope](adapter-contract.md).
+
+Exact archived `ac892fe` passes four integration tests on Rust 1.85 and stable,
+strict Clippy/rustdoc, formatting and release-script syntax. Qualification and
+unqualified development attempts are retained in
+`evidence/conformance/20261116T051938Z-3696481/`. The root production source,
+public ports, protocol schemas, root manifest and lockfile are unchanged; the
+test-support lock adds no third-party package/version/checksum tuple. The local
+release script explicitly includes this isolated workspace. No CI workflow is
+modified or dispatched.
+
+F5 is still incomplete: actual database process-kill/power-loss tests,
+internal-statement faults, lease expiry/fencing races, non-genesis immutable
+retention, corruption/replay/checkpoints/schema evolution and supported
+multi-tenant atomicity remain open. This bounded reference and logical response
+loss wrapper do not establish those guarantees or final F8 qualification.

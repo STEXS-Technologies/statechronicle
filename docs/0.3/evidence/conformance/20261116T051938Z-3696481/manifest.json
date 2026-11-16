@@ -1,0 +1,207 @@
+{
+  "candidate_commit": "ac892feedc5511e2f632150145c27951aec17855",
+  "archive_command": [
+    "git",
+    "archive",
+    "ac892feedc5511e2f632150145c27951aec17855"
+  ],
+  "toolchains": {
+    "1.85.0": "rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-linux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n",
+    "stable": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n"
+  },
+  "source_sha256": {
+    "ci/conformance/Cargo.lock": "7cb5e651298ca39dfe9afe8727edb86da24979150d449d89a2f52921ff121cf7",
+    "ci/conformance/Cargo.toml": "9c29dda775395286d8430213e555112fccb8f2eb42d200416b94406e44c03670",
+    "ci/conformance/README.md": "e4dfddd5dca4d4fa59194a2b49d15b5c4e20be9a5d7de7fd22c57c4779237b66",
+    "ci/conformance/src/faults.rs": "8f038a154263a1b383709978477211a1a639c872e6b9280de5d05daf6d7d56f6",
+    "ci/conformance/src/lib.rs": "5d1cf489e0a8f22a4ea2a6a2c4ff75affb78bc54770765045e706a7495dcbebf",
+    "ci/conformance/tests/reference.rs": "b28253595b8225840972f186a8ca4a58612349d134903281150e48f13cdf48c2",
+    "scripts/run_release_checks.sh": "713dfd00f896f44badbbc786240368aa7f277739bc8199031a6367b8c197bf81"
+  },
+  "status": "passed",
+  "checks": [
+    {
+      "label": "msrv-tests",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/conformance-qualification/20261116T051938Z-3696481/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/conformance-qualification/20261116T051938Z-3696481/source",
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/ci/conformance/target"
+      },
+      "rustdocflags": null,
+      "exit_code": 0,
+      "seconds": 7.095696421994944,
+      "log": "msrv-tests.log.gz",
+      "sha256": "abad50a45c21e05b82e544ddb686c02cd66c083eb38e37f7d10711ceb58acd2e"
+    },
+    {
+      "label": "stable-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/conformance-qualification/20261116T051938Z-3696481/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/conformance-qualification/20261116T051938Z-3696481/source",
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/ci/conformance/target"
+      },
+      "rustdocflags": null,
+      "exit_code": 0,
+      "seconds": 5.5921255629946245,
+      "log": "stable-tests.log.gz",
+      "sha256": "48587d441de77b5dec5d36c588f305b081d1b9b2c2c3677d0b9ff0a6e131d55c"
+    },
+    {
+      "label": "strict-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/conformance-qualification/20261116T051938Z-3696481/source/ci/conformance/Cargo.toml",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/conformance-qualification/20261116T051938Z-3696481/source",
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/ci/conformance/target"
+      },
+      "rustdocflags": null,
+      "exit_code": 0,
+      "seconds": 2.6534121869990486,
+      "log": "strict-clippy.log.gz",
+      "sha256": "7f0a6f5db5a89fc9c10f4e2566db4892d16cb23ac16b9676bbc73e14f0f3395d"
+    },
+    {
+      "label": "strict-rustdoc",
+      "command": [
+        "cargo",
+        "doc",
+        "--manifest-path",
+        "/home/ac/projects/statechronicle/target/conformance-qualification/20261116T051938Z-3696481/source/ci/conformance/Cargo.toml",
+        "--no-deps",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/conformance-qualification/20261116T051938Z-3696481/source",
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/ci/conformance/target"
+      },
+      "rustdocflags": "-D warnings",
+      "exit_code": 0,
+      "seconds": 1.5220981460006442,
+      "log": "strict-rustdoc.log.gz",
+      "sha256": "104d17073d9e714c503c4f53391c95d3df2dc86228e86a1f862fd81a6b8f662e"
+    }
+  ],
+  "limitations": [
+    "Bounded in-memory logical contract tests, not database process-kill or power-loss qualification.",
+    "Reference handles share in-memory storage; real adapter owners must supply genuinely independent database connections and readers.",
+    "No root production source, port signatures, default dependencies or protocol wire types changed."
+  ],
+  "development_artifacts_sha256": {
+    "conformance-check.log.gz": "2389da5b8faf16dfca0d48dfe057b0c737bd8be808b944e65e7232a0b102e03f",
+    "conformance-tests.log.gz": "fabfbb800fe811b0d6f03c3cba167568e80c7bb51e7abf219b787e9291debca9",
+    "conformance-tests-qualified.log.gz": "1540cc0eb0771624e25f623bdd2835e22fc67e628c03ced4a185a49d8b4a57a3",
+    "conformance-tests-final.log.gz": "afbe30fe7fe84c6add90ca8c47ef0ac9a83799d76173c9e3c3325f897a4538e2",
+    "conformance-expanded.log.gz": "933bda1450e647042298f8eb946b1bf9760c7dd2c46b337c95ce92f7db1371cc",
+    "conformance-recovery.log.gz": "40d5738f23ee5d3cc99b7734289c93dd7c198779a743675fb1f862f75ca07de5",
+    "conformance-contention.log.gz": "db199b9376badc09387d793314dffb850c1bbda57290b3b7665cca077007dd1b",
+    "conformance-cancellation.log.gz": "6d4c40e80d2d257bfcd7f5a77a239600769773d5b7592299148acad8dd7d487d",
+    "conformance-clippy.log.gz": "8e47b8f8ff77edccd07981d9a47fb6841efb80e8958695ecf60c3d56ce4ffb2b",
+    "conformance-clippy-final.log.gz": "24c5f605e766bd9cf89e70eb7b23fdb0748fa4186e035fcfecc374952bede05f",
+    "conformance-doc.log.gz": "61839f415caf9474ca3120aeba6515e0adf96810057f15d6f50510ca129cd866",
+    "conformance-graph.log.gz": "e556073c0eb1a51b87d7382b979d861e479558eb909fa99c98a3839e96bb3a95",
+    "conformance-exact-runner.log.gz": "ebf741d0aacc5f91791cf809fecbd0c83cbbfceca6af3100cc39bad670d39daf",
+    "conformance-exact-format.log.gz": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "conformance-release-syntax.log.gz": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  "unqualified_attempts": [
+    {
+      "logs": [
+        "conformance-check.log.gz",
+        "conformance-tests.log.gz"
+      ],
+      "exit_code": 101,
+      "reason": "New harness omitted LedgerStore trait import required for concrete associated connection method resolution."
+    },
+    {
+      "logs": [
+        "conformance-tests-qualified.log.gz"
+      ],
+      "exit_code": 101,
+      "reason": "Reference fixture initially passed signer arguments in the wrong order; corrected to the public function signature."
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "cargo fmt --manifest-path target/conformance-qualification/20261116T051938Z-3696481/source/ci/conformance/Cargo.toml --all -- --check",
+      "exit_code": 0,
+      "log": "conformance-exact-format.log.gz"
+    },
+    {
+      "command": "bash -n target/conformance-qualification/20261116T051938Z-3696481/source/scripts/run_release_checks.sh",
+      "exit_code": 0,
+      "log": "conformance-release-syntax.log.gz"
+    },
+    {
+      "command": "graphify update .",
+      "exit_code": 0,
+      "log": "conformance-graph.log.gz",
+      "scope": "AST only; graph warnings retained."
+    }
+  ],
+  "dependency_control": {
+    "new_third_party_package_version_checksum_tuples": [],
+    "removed_third_party_tuples_count": 30,
+    "scope": "Isolated test-support workspace only; root Cargo.toml/Cargo.lock unchanged."
+  },
+  "production_control": {
+    "baseline_commit": "25901789bfb93197c237b50661b0964674a14da4",
+    "diff_command": "git diff 2590178 ac892fe -- crates Cargo.toml Cargo.lock",
+    "diff_empty": true
+  },
+  "qualified_scenarios": {
+    "integration_tests": 4,
+    "negative_control_behaviors": 8,
+    "head_contention_clients": [
+      2,
+      8,
+      32
+    ],
+    "exact_identity_contention_clients": [
+      2,
+      8,
+      32
+    ],
+    "pre_commit_write_prefixes": 7,
+    "notes": [
+      "Seven prefixes after reservation include zero effects through finalization, with one projection and two individually staged outbox rows.",
+      "Eight negative-control variants must fail their specific named oracle; expected failures make those test cases pass.",
+      "Intermediate development logs are provenance only; exact-archive command results are the qualification evidence."
+    ]
+  }
+}
