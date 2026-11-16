@@ -848,10 +848,8 @@ async fn custom_domain_uses_atomic_ledger_port_with_rollback_and_replay() {
 
 #[test]
 fn custom_domain_conformance_vectors() {
-    let fixture: Value = serde_json::from_str(include_str!(
-        "../../../docs/CONFORMANCE/custom_domains.json"
-    ))
-    .unwrap();
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/custom_domains.json")).unwrap();
     let natives = [
         canonicalize(&domains::ConfigurationState {
             revision: 1,

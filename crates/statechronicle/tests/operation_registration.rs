@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::panic, dead_code)]
-#[path = "../../../ci/compat-0.2/crates/consumer/examples/common/domains.rs"]
+#[path = "fixtures/original_domains.rs"]
 mod original;
 
 #[path = "../examples/common/domains.rs"]

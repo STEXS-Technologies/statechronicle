@@ -19,7 +19,7 @@ struct Corpus {
     absence_proof: NonMembershipProofBundle,
 }
 fn corpus() -> Corpus {
-    serde_json::from_str(include_str!("../../../ci/wire-0.2/history.json")).unwrap()
+    serde_json::from_str(include_str!("fixtures/history.json")).unwrap()
 }
 fn expected() -> ExpectedClaim {
     ExpectedClaim::ownership(
