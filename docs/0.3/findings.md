@@ -791,3 +791,26 @@ preflights and limits are retained in
 Real database clocks/transactions, larger groups, broader fencing interleavings,
 physical crash/power-loss qualification, later-head retention/rebuild and other
 remaining F1–F8 requirements stay open. This is partial F5 progress.
+
+
+## Growing mixed-tenant history conformance
+
+`c99333a` adds reusable `check_history` in the isolated dev package. It compares
+independent raw snapshots after every committed prefix, rolls back every write
+prefix without erasing previous history, and rechecks every original receipt,
+original retry commit and payload conflict as the history grows. Invalid fixture
+setup refuses before destructive reset. The existing replay oracle is shared;
+all earlier conformance functions remain exercised.
+
+The reference supplies 32 signed mutations across two interleaved tenants with
+coincident IDs, repeated owner-based transfers and separate subject-held balance
+updates. Both full histories verify before backend use. Three delayed/history-
+dependent fault modes pass the smaller genesis/two-commit schedules and fail
+the new named oracles. Exact archived source passes all 19 conformance integration
+functions, formatting, strict Clippy/rustdoc; the doctest command has zero examples.
+See [retained evidence](evidence/conformance/mixed-history-c99333a/README.md).
+
+Production code, manifests, locks and frozen historical fixtures are unchanged.
+This closes a bounded growing single-mutation history test gap. Mixed single/
+batch and randomized histories, real database/process reopen and physical crash
+qualification remain open; it is not completed F5/F8 or release readiness.
