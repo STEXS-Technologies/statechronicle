@@ -1,7 +1,7 @@
 //! Protected mutation composition: prepare single requests through
-//! [`crate::Executor::prepare_player`], bind and sign with [`crate::mutation::SignedMutation`],
+//! [`Preparer::prepare_player`], bind and sign with [`crate::mutation::SignedMutation`],
 //! commit atomically, and resolve retries through [`crate::mutation::recover`].
-//! Batches use [`crate::Executor::prepare_player_batch`] and [`crate::mutation::SignedBatch`];
+//! Batches use [`Preparer::prepare_player_batch`] and [`crate::mutation::SignedBatch`];
 //! every member is retained and recovered as one complete atomic group.
 //!
 //! Signing is not durable success. Only the independently verified ledger
@@ -11,7 +11,9 @@
 pub use statechronicle_commit::durable::{
     CommittedMutation, DurableError, DurableOutcome, MutationIdentity, RecoveryOutcome, recover,
 };
-pub use statechronicle_executor::preparation::{PreparedBatch, PreparedMutation};
+pub use statechronicle_executor::preparation::{
+    PreparationConfig, PreparationPorts, PreparedBatch, PreparedMutation, Preparer,
+};
 
 use statechronicle_commit::durable::commit_verified;
 use statechronicle_commit::error::CommitError;

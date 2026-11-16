@@ -114,3 +114,17 @@ trust boundary; it is not counted as a deletion or footprint reduction. Legacy
 rebuild validation remains intentionally narrower for compatibility. Full
 history verification retains accumulated updates and recomputes roots; no
 constant-memory, throughput improvement or final release claim is made.
+
+
+Protected preparation now has a read-only `Preparer` composition with named
+`PreparationPorts` and `PreparationConfig`. Compatibility `Executor` retains
+its existing builder and write-capable ports for legacy operations, and stores
+the same preparation configuration type. Both surfaces borrow the same private
+evaluation core; ingress, profile selection, reduction, event formation and
+batch-group validation have no second implementation. Legacy marker lookup and
+claim receive an explicit private enum capability, absent in preparation.
+The new public declarations prevent requiring unrelated marker/transaction
+adapters in preparation consumers; they do not grant durable authority. The
+module extraction is given no deletion credit. Generic host read/callback
+purity remains a deployment contract; no sandbox is implied. Full durable/read
+composition and fresh tutorials remain open.

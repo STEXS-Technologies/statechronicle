@@ -1,6 +1,6 @@
 # Authenticated mutation preparation
 
-`Executor::prepare_player` accepts a signed `ValidatedIntent`, an independently
+`statechronicle::mutation::Preparer::prepare_player` accepts a signed `ValidatedIntent`, an independently
 authenticated principal, an explicit authorizer and a trusted key registry. The
 injected intent verifier must resolve the same signature key id to independently
 trusted public-key material and verify the canonical intent body. Key metadata
@@ -25,8 +25,9 @@ change after preparation. A durable composition must recheck authorization and
 concurrency and atomically bind idempotency, events, signed commit, canonical
 head, projections and outbox. Unknown acknowledgements must be resolved against
 that ledger using the original intent identity and payload digest before retry.
-The canonical receipt/lookup path is still pending; preparation alone does not
-complete the roadmap's durability requirement.
+The protected signed-plan and receipt/lookup path is described in
+[signed mutation](signed-mutation.md); preparation alone does not complete the
+roadmap's durability requirement.
 
 Legacy `execute*` signatures and marker/error ordering remain compatible. In
 particular, the old sink lane can return empty events from a planning marker;
@@ -36,3 +37,45 @@ No protocol wire representation, dependency or portable feature changes here.
 The owned plan and extra structural/digest checks have a cost not measured by
 the legacy execution benchmark. Benchmark the new path separately before final
 release qualification; do not infer equal-work performance from old wrappers.
+
+## Minimal read-capability composition
+
+Use `statechronicle::mutation::{Preparer, PreparationPorts, PreparationConfig}`
+for protected preparation. `PreparationPorts` requires only `StateIndex`,
+`TenantStore` and the configured delegated-authority evaluators. It has no
+`IntentStore`, `TransactionManager`, ledger writer, outbox writer or dispatch
+sink. `PreparationConfig` names required profile registry, executor identity,
+clock, event-id generator and trusted intent-signature verifier. All are
+required fields; no permissive default verifier/authorizer is installed.
+Each call still requires an independently authenticated principal, authorizer
+and key registry. Read adapters and callbacks can have arbitrary host behavior;
+the type surface limits supplied capabilities, not the internals of host code.
+
+`Preparer::prepare_player_batch` returns one owned `PreparedBatch`, applying
+all ingress checks before state reads, then all transition/group checks. Single
+preparation retains key-before-principal/policy order; batch retains
+principal/policy-before-key order. Both reconstruct public request fields.
+Failed batches return no successful subset, but callbacks for earlier evaluated
+legs may already have advanced. A successful plan is not a replay receipt.
+
+The compatibility `Executor` builder and public method signatures are retained.
+Its protected preparation methods and `Preparer` delegate to the same private
+`pipeline::evaluation::Evaluation` implementation. That borrowed context holds
+only read ports and configuration. Legacy marker handling receives an explicit
+intent-store reference through a private enum; the preparation lane supplies no
+marker capability. Transaction coordination remains outside evaluation.
+The unchanged legacy builder validation order still reports missing ports,
+executor, clock, event-id generator and verifier in that order.
+
+A self-contained public consumer is exercised in
+`crates/statechronicle/tests/readonly_preparation.rs` and
+`tests/support/readonly.rs`, also compiled through the isolated candidate
+consumer. It implements read, key-policy and authorization ports, with no
+intent-store or transaction-manager implementation. It uses fixed fixture keys
+and an empty-state read adapter for unique-asset mint; it is a test fixture,
+not a durable storage tutorial or production key-management implementation.
+`preparation_parity.rs` separately compares the new and compatibility surfaces.
+
+This change establishes the minimum preparation composition, not the entire
+F4 facade or the two F7 durable/native tutorials. No performance equivalence or
+whole-workspace source reduction is inferred from moving evaluation code.

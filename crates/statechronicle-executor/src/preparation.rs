@@ -1,5 +1,7 @@
 //! Authenticated, uncommitted mutation plans.
 
+pub use crate::pipeline::{PreparationConfig, PreparationPorts, Preparer};
+
 use statechronicle_core::canonicalize::{canonicalize, canonicalize_and_digest};
 use statechronicle_core::digest::ContentDigest;
 use statechronicle_core::error::StateChronicleError;
@@ -10,7 +12,8 @@ use statechronicle_domain::event::Event;
 use statechronicle_intent::validated::ValidatedIntent;
 use statechronicle_ports::authorization::AuthenticatedPrincipal;
 
-/// An owned event plan produced by [`crate::pipeline::Executor::prepare_player`].
+/// An owned event plan produced by [`Preparer::prepare_player`] or
+/// [`crate::pipeline::Executor::prepare_player`].
 ///
 /// This is not a signed commit, durable receipt or replay result. Its private
 /// fields bind the authenticated inputs, canonical body digest and constructed
@@ -68,7 +71,8 @@ impl PreparedMutation {
 
 /// One owned, authenticated, uncommitted single-tenant batch.
 ///
-/// Produced only by [`crate::pipeline::Executor::prepare_player_batch`]. A
+/// Produced only by [`Preparer::prepare_player_batch`] or the compatibility
+/// [`crate::pipeline::Executor::prepare_player_batch`]. A
 /// failure returns no successful subset. Borrowed leg access cannot extract
 /// owned single-mutation plans for separate commits. This is not a receipt,
 /// and carries no promise of current state or durable batch atomicity.
