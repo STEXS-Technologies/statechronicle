@@ -1,0 +1,69 @@
+{
+  "base_commit": "cd5ef4bd3afbb84e2ecdd2677a00af9ca7b14088",
+  "candidate": "Worktree source hashes below; exact-commit external qualification follows.",
+  "toolchain": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8"
+  },
+  "source_sha256": {
+    "crates/statechronicle-executor/src/lib.rs": "7e6e36a46cb842b3738f3d1607c0f7dc406a5e57ab08e403ea63e60dcafbb505",
+    "crates/statechronicle-executor/src/pipeline.rs": "daeb133871ef4fe4e1126a0f9b530b7e29ecdb9aa3f3b4d91433b0ab478a9fa1",
+    "crates/statechronicle-executor/tests/pipeline.rs": "21065615369544e2038e1a745e89587b0a4ab0cd2600eebe8e3a8c8d07aa07f0",
+    "crates/statechronicle/src/lib.rs": "ab2bb6c831437356706bd6ce77f891fece3780c272f7688744b5e9a4119a0917",
+    "crates/statechronicle-executor/src/preparation.rs": "06af5be047bdb185eb88e931dffb0c152d9af0d5ca74e12e81634fa6d692858f",
+    "ci/canonical-0.3/preparation.rs": "71beb2aaab9044f857ebbc16505ac98adaafb92f3022bc7af3c636623f02435e",
+    "Cargo.lock": "9c551a66b5698d08a0d5eb1d6364d98107e573e4d6b464da6d83742b8932b86f"
+  },
+  "checks": [
+    {
+      "command": "cargo test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked --offline",
+      "exit_code": 0,
+      "passed": 811,
+      "binaries": 62,
+      "log": "workspace.log.gz"
+    },
+    {
+      "command": "cargo clippy --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked --offline -- -D warnings",
+      "exit_code": 0,
+      "log": "workspace-clippy.log.gz"
+    },
+    {
+      "command": "cargo doc -p statechronicle-executor -p statechronicle --all-features --no-deps --locked --offline",
+      "environment": {
+        "RUSTDOCFLAGS": "-D warnings"
+      },
+      "exit_code": 0,
+      "log": "docs.log.gz"
+    },
+    {
+      "command": "cargo test -p statechronicle-executor --doc --locked --offline",
+      "exit_code": 0,
+      "passed": 1,
+      "log": "doctest.log.gz"
+    }
+  ],
+  "development_attempts": {
+    "before.log.gz": "Expected failure: preparation API absent. Initial fixture also used an unavailable transaction-count accessor; corrected to existing log accessor.",
+    "after.log.gz": "Unqualified failed build: missed bool-to-policy conversion.",
+    "tests.log.gz": "Unqualified failed build: SubjectId fixture used an unavailable getter; corrected to public tuple field."
+  },
+  "artifacts_sha256": {
+    "after.log.gz": "1bc33c4b58bffe35fa7fa24a88a5908052b1e96dc1d3770fbd051a13aba26294",
+    "before.log.gz": "ddac061f8248a3ed8b00ef2228ad6ac1e4e0e099b9feb591429660e80de8656d",
+    "clippy.log.gz": "28632829e5d67839e29652556fea0c942973413e3a5466f27960d46d7095120c",
+    "docs.log.gz": "dad95cb74ab0bbc5b40c540699eb17d62ad36c318d77aa119b7c42b4a1d829f6",
+    "doctest.log.gz": "7c238b876f3517fc36c20f875809d5331a287e2a832f2dd2914562238ead6369",
+    "tests-complete.log.gz": "20306effa94171b918e492922f8d5725fe4b935634894aa4a2559b1f7b9729df",
+    "tests-fixed.log.gz": "1a368959e96b63a4bcd4c3ea43e45c7df27a07997f72c1f353c9890bb02783e3",
+    "tests.log.gz": "671045fe30d4b40a6cd166c665870f2d2a0b268f46648dae95b265798371a38d",
+    "workspace-clippy.log.gz": "387399b13ee8c071a9164d23ababcf320351a89d9f688912141e7147ed379edf",
+    "workspace.log.gz": "72775281ecea32d21da70355c8698b77cc6187bfa8d530bf72d10b074649f9d0"
+  },
+  "limitations": [
+    "Preparation only; canonical durable receipt, authoritative lookup and unknown-ACK handling remain pending.",
+    "Injected readers, policy, signature verifier and id/clock callbacks remain trusted and must not dispatch external effects.",
+    "New path cost and hosted MSRV are not qualified here. Existing hosted Rust 1.85 let-chain incompatibility remains open.",
+    "Old wire/portable fixtures unchanged; exact-commit external lane follows separately."
+  ]
+}

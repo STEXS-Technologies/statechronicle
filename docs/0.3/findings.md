@@ -196,3 +196,32 @@ external hosted/portable lane in `evidence/compat/20261116T031940Z-496125/`,
 including the canonical consumer's `verified.state()` assertion and bare-metal
 compilation. `evidence/f1/verified-state-payload/metrics.json` reports its exact
 source footprint. Hosted Rust 1.85 remains explicitly unqualified as noted above.
+
+## Authenticated preparation without replay markers
+
+`Executor::prepare_player` now provides the uncommitted part of the canonical
+flow. It reuses the existing execution core under a typed intent-handling mode
+that bypasses both lookup and writes in the independent intent store. Legacy
+lanes preserve their marker behavior and error order. `PreparedMutation` owns
+its request, principal, body digest and complete event set behind private fields;
+it cannot be publicly constructed or deserialized. Public `ValidatedIntent`
+fields are structurally rechecked and its cached idempotency tuple reconstructed
+by the existing checked constructor.
+
+Six new integration tests cover legacy-marker isolation, signature revalidation,
+owned input isolation, malformed public request fields, refused policy/key/scope,
+and no intent-store calls, claims, projection writes or symbolic transaction.
+The original false-durable-success characterization remains active for legacy
+compatibility. The new canonical external consumer uses real signature checking
+and the umbrella API; it does not change frozen original consumer sources.
+
+Worktree evidence in `evidence/f1/mutation-preparation/` records 811 passing
+workspace tests in 62 binaries, strict workspace Clippy, strict package rustdoc
+and the private-constructor compile-fail test. Failed development builds are
+retained and explicitly unqualified. See `mutation-preparation.md` for callback
+trust, local id-counter effects, stale-state/policy caveats and retry identity.
+The plan adds owned data and structural/digest checks; its cost is not established
+by the legacy benchmark. No protocol bytes or dependency versions change.
+This prepares the durability work but does not yet implement authoritative
+receipt lookup, structured unknown acknowledgements or atomic durable replay.
+F1 remains incomplete; the remaining F2–F8 gates are also open.

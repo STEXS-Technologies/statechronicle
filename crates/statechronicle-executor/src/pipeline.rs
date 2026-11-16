@@ -57,6 +57,7 @@ use statechronicle_profiles::registry::ProfileRegistry;
 use crate::atomicity;
 use crate::conflict;
 use crate::error::{ExecutorBuildError, ExecutorError, PortsBuildError};
+use crate::preparation::PreparedMutation;
 #[cfg(test)]
 use statechronicle_profiles::resource::{
     destination_holder, holder_for, is_transfer_operation, subject_for,
@@ -263,6 +264,25 @@ pub struct Executor {
     intent_verifier: IntentVerifier,
 }
 
+// Legacy lanes retain their historical marker lookup and optional write.
+// Preparation neither observes nor creates non-authoritative replay markers.
+#[derive(Clone, Copy)]
+enum IntentHandling {
+    LegacyClaim,
+    LegacyReadOnly,
+    Prepare,
+}
+
+impl IntentHandling {
+    const fn legacy(persist_marker: bool) -> Self {
+        if persist_marker {
+            Self::LegacyClaim
+        } else {
+            Self::LegacyReadOnly
+        }
+    }
+}
+
 /// Persistence boundary for player-facing execution.
 ///
 /// The executor owns validation and deterministic event construction; the
@@ -395,7 +415,8 @@ impl Executor {
     /// Returns every [`ExecutorError`] variant in fail-closed order above. No
     /// event is emitted when any check fails.
     pub async fn execute(&self, validated: &ValidatedIntent) -> Result<Vec<Event>, ExecutorError> {
-        self.execute_inner(validated, false, true).await
+        self.execute_inner(validated, false, IntentHandling::LegacyClaim)
+            .await
     }
 
     /// Executes only after an authenticated principal is explicitly bound to
@@ -416,8 +437,13 @@ impl Executor {
         principal: &AuthenticatedPrincipal,
         authorizer: &dyn Authorizer,
     ) -> Result<Vec<Event>, ExecutorError> {
-        self.execute_authenticated_inner(validated, principal, authorizer, true)
-            .await
+        self.execute_authenticated_inner(
+            validated,
+            principal,
+            authorizer,
+            IntentHandling::LegacyClaim,
+        )
+        .await
     }
 
     async fn execute_authenticated_inner(
@@ -425,7 +451,7 @@ impl Executor {
         validated: &ValidatedIntent,
         principal: &AuthenticatedPrincipal,
         authorizer: &dyn Authorizer,
-        persist_intent: bool,
+        intent_handling: IntentHandling,
     ) -> Result<Vec<Event>, ExecutorError> {
         if principal.tenant != validated.intent.tenant_id
             || principal.subject != validated.intent.actor
@@ -443,7 +469,60 @@ impl Executor {
             })
             .await
             .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
-        self.execute_inner(validated, false, persist_intent).await
+        self.execute_inner(validated, false, intent_handling).await
+    }
+
+    /// Authenticates and prepares a player mutation without persistence.
+    ///
+    /// Requires a detached signature, trusted key metadata, a matching
+    /// principal and explicit authorization. Uses the ordinary single-intent
+    /// profile gates, but never reads or writes the independent intent store,
+    /// begins a transaction, or dispatches a persistence sink. A legacy marker
+    /// cannot suppress authentication or become an empty-event replay.
+    ///
+    /// Reads and injected callbacks must not perform durable writes or external
+    /// effect dispatch. The clock and event-id generator are still invoked;
+    /// a local id counter may advance. Repeated preparation may produce new
+    /// event ids, so this is neither a durable retry nor a replay receipt.
+    /// Resolve durable retries by the original intent identity and digest.
+    /// State can change after preparation: commit must enforce concurrency,
+    /// current authorization and the complete atomic ledger boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns authentication/key-policy failures or normal profile/transition
+    /// errors. Returns no committed outcome, including on success.
+    pub async fn prepare_player(
+        &self,
+        validated: &ValidatedIntent,
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+    ) -> Result<PreparedMutation, ExecutorError> {
+        let signature = validated.signature.as_ref().ok_or_else(|| {
+            ExecutorError::ActorAuthenticationFailed(String::from(
+                "player mutation requires a detached intent signature",
+            ))
+        })?;
+        key_registry
+            .resolve_intent_key(
+                &validated.intent.tenant_id,
+                &principal.subject,
+                &signature.key_id,
+                &validated.intent.operation,
+                validated.intent.created_at,
+            )
+            .await
+            .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+        // Public compatibility fields are not a structural-validation seal.
+        let request = ValidatedIntent::try_from_intent(
+            validated.intent.clone(),
+            validated.signature.clone(),
+        )?;
+        let events = self
+            .execute_authenticated_inner(&request, principal, authorizer, IntentHandling::Prepare)
+            .await?;
+        Ok(PreparedMutation::new(request, principal, events)?)
     }
 
     /// Executes a player-originated mutation with the strict public-ingress
@@ -477,14 +556,16 @@ impl Executor {
     /// Executes a signed player mutation and hands its events to the required
     /// durable persistence boundary before returning success.
     ///
-    /// This is the recommended public-ingress route. It preserves the strict
+    /// This is a compatibility sink route. It preserves the strict
     /// authentication and authorization checks of [`Self::execute_player`],
     /// then invokes the deployment's sink exactly once for the constructed
     /// event set. The sink is responsible for calling the commit crate's
     /// `persist_durable_verified` (or metrics variant) with an atomic ledger
     /// transaction. No events are returned when persistence fails.
     /// Idempotent replays (an empty event set) are returned without invoking
-    /// the sink.
+    /// the sink. An empty result is not evidence of a committed mutation;
+    /// the independent intent store may contain a planning marker only.
+    /// Use [`Self::prepare_player`] to prepare without those markers.
     ///
     /// # Errors
     ///
@@ -504,7 +585,12 @@ impl Executor {
             )));
         }
         let events = self
-            .execute_authenticated_inner(validated, principal, authorizer, false)
+            .execute_authenticated_inner(
+                validated,
+                principal,
+                authorizer,
+                IntentHandling::LegacyReadOnly,
+            )
             .await?;
         // An empty event set is the executor's idempotent replay signal. Do
         // not rebuild or hand a replay to the persistence sink.
@@ -659,7 +745,7 @@ impl Executor {
         &self,
         validated: &ValidatedIntent,
         allow_coordinated: bool,
-        persist_intent: bool,
+        intent_handling: IntentHandling,
     ) -> Result<Vec<Event>, ExecutorError> {
         let intent = &validated.intent;
         let tenant = &intent.tenant_id;
@@ -675,17 +761,21 @@ impl Executor {
         // claim is recorded or any authority evaluated.
         conflict::check_expiry(intent, (self.now)())?;
 
-        // §18.1 step 3: idempotency. Replays succeed; conflicting intents fail.
-        let existing = self
-            .ports
-            .intent_store
-            .get_intent(tenant, &intent.intent_id)
-            .await
-            .map_err(|err| map_intent_store_error(err, &intent.intent_id.0))?;
-        if let Some(existing) = existing {
-            conflict::check_idempotency_existing(&existing, intent)?;
-            tracing::debug!(intent_id = %intent.intent_id.as_str(), "idempotent replay");
-            return Ok(Vec::new());
+        // Legacy idempotency is a compatibility behavior. Preparation cannot
+        // treat an independent intent marker as a committed ledger result.
+        if !matches!(intent_handling, IntentHandling::Prepare) {
+            // §18.1 step 3: idempotency. Replays succeed; conflicting intents fail.
+            let existing = self
+                .ports
+                .intent_store
+                .get_intent(tenant, &intent.intent_id)
+                .await
+                .map_err(|err| map_intent_store_error(err, &intent.intent_id.0))?;
+            if let Some(existing) = existing {
+                conflict::check_idempotency_existing(&existing, intent)?;
+                tracing::debug!(intent_id = %intent.intent_id.as_str(), "idempotent replay");
+                return Ok(Vec::new());
+            }
         }
         // §18.1 step 4: actor authentication. Signature presence is the
         // platform's submission policy; the executor verifies a present
@@ -1010,7 +1100,7 @@ impl Executor {
             // Claim only after both profile mutations have been fully validated and
             // constructed. Durable implementations must make this claim
             // atomic with persistence of both events and their commit.
-            if persist_intent {
+            if matches!(intent_handling, IntentHandling::LegacyClaim) {
                 self.ports
                     .intent_store
                     .put_intent(tenant, intent)
@@ -1025,7 +1115,7 @@ impl Executor {
         // unauthorized requests from poisoning the idempotency namespace.
         // Durable implementations must still make this claim atomic with the
         // event/commit write (see TODO.md P0-1/P0-2).
-        if persist_intent {
+        if matches!(intent_handling, IntentHandling::LegacyClaim) {
             self.ports
                 .intent_store
                 .put_intent(tenant, intent)
@@ -1203,8 +1293,12 @@ impl Executor {
         let mut events = Vec::new();
         for validated in intents {
             events.extend(
-                self.execute_inner(validated, allow_coordinated, persist_intent)
-                    .await?,
+                self.execute_inner(
+                    validated,
+                    allow_coordinated,
+                    IntentHandling::legacy(persist_intent),
+                )
+                .await?,
             );
         }
         Ok(events)
@@ -1233,7 +1327,9 @@ impl Executor {
     ) -> Result<Vec<Event>, ExecutorError> {
         let mut events = Vec::new();
         for validated in intents {
-            let produced = self.execute_inner(validated, false, persist_intent).await?;
+            let produced = self
+                .execute_inner(validated, false, IntentHandling::legacy(persist_intent))
+                .await?;
             if produced.is_empty() {
                 return Err(ExecutorError::AtomicityViolation(format!(
                     "partial replay detected in batch: intent `{}` was already claimed and replayed idempotently; the batch fails closed so no partial results escape",
