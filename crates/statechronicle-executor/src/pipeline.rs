@@ -16,7 +16,6 @@
     reason = "async_trait emits redundant must_use attributes"
 )]
 
-use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -832,14 +831,13 @@ impl Executor {
                 .map(|()| events),
             Err(error) => Err(error),
         };
-        completion
-            .finish(
-                result,
-                intents,
-                |events| Cow::Borrowed(events.as_slice()),
-                "batch rollback failed",
-            )
-            .await
+        match result {
+            Ok(events) => {
+                completion.succeed(intents, &events).await?;
+                Ok(events)
+            }
+            Err(error) => Err(completion.refuse(error, "batch rollback failed").await),
+        }
     }
 
     /// Executes a batch and returns success only after the deployment's

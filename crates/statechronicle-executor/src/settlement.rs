@@ -5,7 +5,6 @@ use super::{
 };
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_profiles::unique_asset::op as asset_op;
-use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 impl Executor {
@@ -66,14 +65,13 @@ impl Executor {
             }
             Err(error) => Err(error),
         };
-        completion
-            .finish(
-                result,
-                intents,
-                |events| Cow::Borrowed(events.as_slice()),
-                "settle rollback failed",
-            )
-            .await
+        match result {
+            Ok(events) => {
+                completion.succeed(intents, &events).await?;
+                Ok(events)
+            }
+            Err(error) => Err(completion.refuse(error, "settle rollback failed").await),
+        }
     }
 
     /// Executes a value-leg settlement and persists it through the required
@@ -159,21 +157,19 @@ impl Executor {
             Ok(groups) => atomicity::validate_cross_tenant_consistency(&groups).map(|()| groups),
             Err(error) => Err(error),
         };
-        completion
-            .finish(
-                result,
-                intents,
-                |groups| {
-                    Cow::Owned(
-                        groups
-                            .iter()
-                            .flat_map(|group| group.events.iter().cloned())
-                            .collect(),
-                    )
-                },
-                "cross-tenant rollback failed",
-            )
-            .await
+        match result {
+            Ok(groups) => {
+                let events: Vec<Event> = groups
+                    .iter()
+                    .flat_map(|group| group.events.iter().cloned())
+                    .collect();
+                completion.succeed(intents, &events).await?;
+                Ok(groups)
+            }
+            Err(error) => Err(completion
+                .refuse(error, "cross-tenant rollback failed")
+                .await),
+        }
     }
 
     /// Executes a validated cross-tenant batch through the required durable
@@ -264,21 +260,19 @@ impl Executor {
             }
             Err(error) => Err(error),
         };
-        completion
-            .finish(
-                result,
-                intents,
-                |groups| {
-                    Cow::Owned(
-                        groups
-                            .iter()
-                            .flat_map(|group| group.events.iter().cloned())
-                            .collect(),
-                    )
-                },
-                "cross-tenant trade rollback failed",
-            )
-            .await
+        match result {
+            Ok(groups) => {
+                let events: Vec<Event> = groups
+                    .iter()
+                    .flat_map(|group| group.events.iter().cloned())
+                    .collect();
+                completion.succeed(intents, &events).await?;
+                Ok(groups)
+            }
+            Err(error) => Err(completion
+                .refuse(error, "cross-tenant trade rollback failed")
+                .await),
+        }
     }
 
     /// Executes a manifest-validated cross-tenant trade and persists every
