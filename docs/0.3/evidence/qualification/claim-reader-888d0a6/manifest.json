@@ -1,0 +1,676 @@
+{
+  "candidate_commit": "888d0a67b6951527c1b0b9f457ed0b8ca93687ee",
+  "compilers": {
+    "stable": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+    "1.85.0": "rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-linux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n"
+  },
+  "checks": [
+    {
+      "label": "stable-tests",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--workspace",
+        "--exclude",
+        "statechronicle-fuzz",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/worktree"
+      },
+      "exit_code": 0,
+      "seconds": 57.30074016599974,
+      "log": "stable-tests.log",
+      "sha256": "3135fe0d5adfe01d0e5dacc1be629e7953f80aa8332971f387d1314aac00f228"
+    },
+    {
+      "label": "stable-doctests",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--workspace",
+        "--exclude",
+        "statechronicle-fuzz",
+        "--doc",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/worktree"
+      },
+      "exit_code": 0,
+      "seconds": 1.3523127539956477,
+      "log": "stable-doctests.log",
+      "sha256": "840c00651c9e25f803dbd7db52f20b6103f88b48ece6ec912f74c16d9b61e32a"
+    },
+    {
+      "label": "stable-clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--keep-going",
+        "--workspace",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/worktree"
+      },
+      "exit_code": 0,
+      "seconds": 2.287669083001674,
+      "log": "stable-clippy.log",
+      "sha256": "87f16856db508850a53c50d1b31ec1f5f01685e9cf124df5911d380f394ccceb"
+    },
+    {
+      "label": "stable-rustdoc",
+      "command": [
+        "cargo",
+        "+stable",
+        "doc",
+        "--workspace",
+        "--all-features",
+        "--no-deps",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/worktree",
+        "RUSTDOCFLAGS": "-D warnings"
+      },
+      "exit_code": 0,
+      "seconds": 1.298020247995737,
+      "log": "stable-rustdoc.log",
+      "sha256": "da00c8d87b6a090e5fbe06fb655fc66287aed8994e98a272c504b80db7a3097c"
+    },
+    {
+      "label": "stable-format",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/worktree"
+      },
+      "exit_code": 0,
+      "seconds": 0.3948703610076336,
+      "log": "stable-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "stable-example",
+      "command": [
+        "cargo",
+        "+stable",
+        "run",
+        "-p",
+        "statechronicle",
+        "--example",
+        "custom_domains",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/worktree"
+      },
+      "exit_code": 0,
+      "seconds": 0.34982776299875695,
+      "log": "stable-example.log",
+      "sha256": "2b59d5d3b70115de94b5601eb3c93cfedbcab5dffdf79b3e7d580c240880dd7b"
+    },
+    {
+      "label": "1.85.0-tests",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--workspace",
+        "--exclude",
+        "statechronicle-fuzz",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/msrv"
+      },
+      "exit_code": 0,
+      "seconds": 94.08542597999622,
+      "log": "1.85.0-tests.log",
+      "sha256": "58dd891ef9bc16eeb7aec17d051317a43566797145851f789d7750a84bc0cfb6"
+    },
+    {
+      "label": "1.85.0-doctests",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--workspace",
+        "--exclude",
+        "statechronicle-fuzz",
+        "--doc",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/msrv"
+      },
+      "exit_code": 0,
+      "seconds": 1.4274141130008502,
+      "log": "1.85.0-doctests.log",
+      "sha256": "2b0831a82c9f65b90998cd74af7d6f06c0f455f1deb104d4943c8a008deb28f7"
+    },
+    {
+      "label": "1.85.0-clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--keep-going",
+        "--workspace",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/msrv"
+      },
+      "exit_code": 0,
+      "seconds": 2.5461505919956835,
+      "log": "1.85.0-clippy.log",
+      "sha256": "efb55151d69022885562a1e56b8ceace74abbd3b2406e2551f62d867be8c809e"
+    },
+    {
+      "label": "1.85.0-rustdoc",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "doc",
+        "--workspace",
+        "--all-features",
+        "--no-deps",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/msrv",
+        "RUSTDOCFLAGS": "-D warnings"
+      },
+      "exit_code": 0,
+      "seconds": 1.109685065006488,
+      "log": "1.85.0-rustdoc.log",
+      "sha256": "5cf76879996c1ab1cf98e6117fed487a62854b1fd64f9e4d0a5164907cd4b2c4"
+    },
+    {
+      "label": "1.85.0-format",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/msrv"
+      },
+      "exit_code": 0,
+      "seconds": 0.407593618001556,
+      "log": "1.85.0-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "1.85.0-example",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "run",
+        "-p",
+        "statechronicle",
+        "--example",
+        "custom_domains",
+        "--locked",
+        "--offline"
+      ],
+      "environment": {
+        "RUSTC_WRAPPER": "",
+        "CARGO_BUILD_JOBS": "8",
+        "CARGO_TARGET_DIR": "/home/ac/projects/statechronicle/target/profile-guards/msrv"
+      },
+      "exit_code": 0,
+      "seconds": 0.6180731650092639,
+      "log": "1.85.0-example.log",
+      "sha256": "b27807789f8f857f74bfd632c18938d45a54a3926d2c341cf65e5d4546627661"
+    }
+  ],
+  "status": "passed",
+  "source_sha256": {
+    "Cargo.lock": "9c551a66b5698d08a0d5eb1d6364d98107e573e4d6b464da6d83742b8932b86f",
+    "Cargo.toml": "19a53af0626663837c232ae6dbb3df6079f234e93fcc60f0158aa35085f99aa0",
+    "ci/canonical-0.3/claims_readonly.rs": "7dee7c00c4b57a264fa69ff3061fb73d58e41f588a02b78d747ba08da502054e",
+    "ci/canonical-0.3/durable_batch.rs": "78d40c1c11dd0f77ac9afc03c1b531ffc58002c007694d3655af07d85f05d08f",
+    "ci/canonical-0.3/durable_recovery.rs": "0b16988b1f759b33e12112aa0082f2583beb0770be2351d63cf710ef5ca0259f",
+    "ci/canonical-0.3/operation_registration.rs": "f9f5706f8bb218a52a15ff94b1ed79b59a76758abddcc06e74c93a4103eb6fcb",
+    "ci/canonical-0.3/preparation.rs": "29101a8bfd45b4b38eecacc9d42df22c5d8c0ea4ef6f5bd3243a8e9926a1f886",
+    "ci/canonical-0.3/profile_guards.rs": "f0076badc4495d5d19e6ec57185537518834a57ce0f31caf853eafa9e2f93c68",
+    "ci/canonical-0.3/proof_claims.rs": "df9e0937dbccec47666dca94660378289d2840c8032e21ded7eadd5d7f40b364",
+    "ci/canonical-0.3/readonly_preparation.rs": "31437b90210a68335180acd498dcefe34a34342dc088134bad9769b8d447291d",
+    "ci/canonical-0.3/trade_coverage.rs": "d69b9829b55507102e7e55d9b49b12070aac07aa2581618e9d188338d99941ce",
+    "ci/canonical-0.3/typed_commands.rs": "7e2503687c26a99e311d2465b9fa7bfb641c06c03304a15a191e0195da194e66",
+    "ci/canonical-0.3/verified_rebuild.rs": "4281d241c2309af29d4ec038ca2def993cd18268d4ecc21121f90440b5e58ecc",
+    "crates/statechronicle-accumulator/Cargo.toml": "71b915efb19e31db591b1602c5350c1bff9f7e6e4194441e170f5c749e14c226",
+    "crates/statechronicle-accumulator/README.md": "28a2c7b91ad237aa784ceb5326ea9e541cdc5383b19888a937dcadf0991fe959",
+    "crates/statechronicle-accumulator/src/checkpoint.rs": "4bf3b1f26bd60b87c09cdd5ddce0b1eded43c4a50905d8e15c6b96095656b95f",
+    "crates/statechronicle-accumulator/src/error.rs": "c5b9b97ed56873692ab0c66c8a19ac8f9896a5543ec4e790a104579714ce4ad0",
+    "crates/statechronicle-accumulator/src/event_tree.rs": "1028d00b9d870158a2c6bb917b5eb63791b6f8270d817f6356ef80af223cc021",
+    "crates/statechronicle-accumulator/src/key.rs": "a75fa7fc53291366e8ba1231be93e6223a43eb6deee14dc3cea1f57dec303674",
+    "crates/statechronicle-accumulator/src/lib.rs": "9923503f63467c6782507f32589147248c522a2628d501ae2d537a020b5597c0",
+    "crates/statechronicle-accumulator/src/proof.rs": "85313fdb7c055661615970fe1733b50720cfcad8e44e44b17f7deb70db266231",
+    "crates/statechronicle-accumulator/src/sparse_merkle.rs": "af71a8fc4c96537003023afee9d2413c203b50158a6ec259df4ddc30899ae3c2",
+    "crates/statechronicle-accumulator/tests/accumulator.rs": "ad09efb99215e3d5514a0b7a8ece077e8a812133ceb977345cf6f95c171909e2",
+    "crates/statechronicle-accumulator/tests/known_answers.rs": "638dc173fa6eac48ef6b07f94f7dfaba883e0c7ec922d8639e70284312f638a4",
+    "crates/statechronicle-accumulator/tests/property.rs": "1323716c5348192b6b7268e08cb501adf140ef73efc4b0c3c27c7e933ff3d4ee",
+    "crates/statechronicle-commit/Cargo.toml": "c9ddec096b5aaa445a7ebbe76c8c022f8951674f4479a1faca6087b20f61a0d1",
+    "crates/statechronicle-commit/README.md": "8166148f7cc586b2c5d110563e2bbbb2b72892920250eb084ac7ccb5077ef04b",
+    "crates/statechronicle-commit/src/batch.rs": "e60325a456964e73e9bc6bd666d8285a84bc0446c9f591e06a9abe0f37fce5c6",
+    "crates/statechronicle-commit/src/builder.rs": "6c006533c24fc3ae001403dfc34fe58560238b5a34eb34767e2bee0549a972d9",
+    "crates/statechronicle-commit/src/checkpoint.rs": "52c354cff08b2fdce5c31d38821ac756159b44d71c3415a2ccd7386153155f65",
+    "crates/statechronicle-commit/src/durable.rs": "e9ad7cfcbcd2ac3f0d355dc68f6e50fce3434df167bca88188cd8dd7703b0f6a",
+    "crates/statechronicle-commit/src/durable_batch.rs": "ecb1f8fa8d9c8f500aba8195601d63ce7e6c76cbcd9135fff27fedef87c13896",
+    "crates/statechronicle-commit/src/error.rs": "34852a7d61e2dfbd11bd37000b5ede086649a3d17d21df62a8491dc547f6357e",
+    "crates/statechronicle-commit/src/fork.rs": "259229fbff2fced96df6ab95d301e85770f3e34f50d2dc49c70ead5885c590a8",
+    "crates/statechronicle-commit/src/lib.rs": "4cdcb1fe813409e8402dbae0ac7368de2922bfcf6cbfa8003230917aee6d41a8",
+    "crates/statechronicle-commit/src/ordering.rs": "df0fd203dc8e3f99aec2de33d519637298bfcbda8870a70fa565874d9d0c2025",
+    "crates/statechronicle-commit/src/persist.rs": "00824de5a225afa42fd441c3f88576aebfbaf72c288b92c9a25b48a90cb28ab7",
+    "crates/statechronicle-commit/src/roots.rs": "622beb288a141011256cc745d3502522f5926296b56a9d6781c7df96b177f164",
+    "crates/statechronicle-commit/src/sign.rs": "f8e3e43a7be41a7c0620d4fedb1083ede6aa5f31842956c775dc7be5c88c7f2f",
+    "crates/statechronicle-commit/tests/commit_pipeline.rs": "61148b6b0ace0d84d2290f1b6f21139c3c44707bba41ff645819a9f38b95f073",
+    "crates/statechronicle-commit/tests/ordering_checkpoint_fork.rs": "3e06f0df7344377235618f3c502ec3564a6d13900f00db3afb41e3d6e543d261",
+    "crates/statechronicle-commit/tests/property.rs": "6e4231308e14435fadb3d0dc421f62666525b782ebed4423c97566d2e8f9bb09",
+    "crates/statechronicle-core/Cargo.toml": "e334c7ea2f8e41143c18e7d856e8ecaa38cb7bf9938d27af02535c945908c460",
+    "crates/statechronicle-core/README.md": "466b87e529f7f450f1d9ad2776e63f015623cf57cab7565ce0b92e1f0a68978b",
+    "crates/statechronicle-core/src/amount.rs": "14e77879bd32496369e48ff4cefe98d221e2bc9808cb431167a4636dbd1d08ea",
+    "crates/statechronicle-core/src/canonicalize.rs": "36ebe11258310d95a6d5680fbd4c50b59cb7dfd03ffe26f0f5c402658771f67c",
+    "crates/statechronicle-core/src/digest.rs": "7ce4fe3b20a6cc82ef3ee036593229d08e2a0fce5e8dad8f9da478aaf271f2a9",
+    "crates/statechronicle-core/src/error.rs": "d455827b673872e8f97daefaf0bfe18313f3f0dc833e0f019110ba9ccc91e2e3",
+    "crates/statechronicle-core/src/lib.rs": "0e9f5cc229d8eace7ff2924cc76a65382b9ed5b666f404ad950e843261b60905",
+    "crates/statechronicle-core/src/limits.rs": "16de6c9b6942320c6805acdc839ca33f6fc61dc3b3bf2686eed282dbc6bf9bd2",
+    "crates/statechronicle-core/src/rate_limit.rs": "ae5b47daba00a40723a3866c0a3acbb192f4ca1756ca2ea7f933dc940242f793",
+    "crates/statechronicle-core/src/signature.rs": "eeb1849e4c6a31de31e23a02345c8d73ee90aa94165bd97ba6a82749fc6f7fe7",
+    "crates/statechronicle-core/tests/amount_property.rs": "217aee5d08f71e7a8c9cbcec660511490720056f0f8b53fd553726bd5878b727",
+    "crates/statechronicle-core/tests/canonicalize.rs": "4e9b1e6814fdf8809f07ca1a3371fc0a13cc0218af219554c2efb29e8ed91e94",
+    "crates/statechronicle-core/tests/digest.rs": "35950dd3f1eeee8e4588ae2c63f3cefe269a3ace24760c75a3f2ec26e9578575",
+    "crates/statechronicle-core/tests/limits.rs": "6fb18483d9959190a26351eda3edb58f09f4a50bcc8dee5e4e8ba6cd6520db41",
+    "crates/statechronicle-core/tests/property.rs": "accc797c1242d798cb8f09e83cbca806990dd090cda63e2816150108dda0cbb3",
+    "crates/statechronicle-core/tests/signature.rs": "4956ee0a2f1eb33ceb67aa3da1b03c4e9c793c63b1848f91cc6ec11764380175",
+    "crates/statechronicle-domain/Cargo.toml": "98add959868798abc1530c5c943b3d1a46abfa80fbede14d058266a3c5b9f544",
+    "crates/statechronicle-domain/README.md": "e164fe6d321bd5d63eaf6b1338b6029744ec4cc5d2bf20d99517aa5d2f7820fb",
+    "crates/statechronicle-domain/src/authority.rs": "926fb67eeb1fa6d95dc9bf4577a8c0bafec0babacba17734ef12f5d01a474f04",
+    "crates/statechronicle-domain/src/commit.rs": "b25e6482ff67cec12e5c84894ace80b4e1ac2f8e28cc0e346b623ec9ad9ff67c",
+    "crates/statechronicle-domain/src/custom.rs": "8c1748ec70c98a62c77a5bc763d5787daf8356759d38b1a2aeb55a499867bb4f",
+    "crates/statechronicle-domain/src/error.rs": "ac60892f284ff94bc3cda5d22d8e30a971da0ba95a7640b873f9b544b8490e12",
+    "crates/statechronicle-domain/src/event.rs": "cc2c6b8e2a790fe1b5bc136af069f8cc29cfc6e68138aec50c0da909a26d7f88",
+    "crates/statechronicle-domain/src/ids.rs": "59eebee42e5ed3045bbaae00d633d7a5532cb8a3fb73c23a20bebd9f65a7f058",
+    "crates/statechronicle-domain/src/intent.rs": "d9ca277a9b26b4e4c2068a172d85da6656d6b08fb51fffafb597f36ff72ea027",
+    "crates/statechronicle-domain/src/lib.rs": "eebfb844959af65adafc6136c764dc43f7c354ac2ed1ac9cb19ca1661fc05a44",
+    "crates/statechronicle-domain/src/proof.rs": "f2817165bb861750e595145ccd811aae45814b03e08e6cfd8763d857332d5378",
+    "crates/statechronicle-domain/src/resource.rs": "c44bb9b9df68d049c4cbae1848906a711cf3d900a355c505e2413fec3be5edc1",
+    "crates/statechronicle-domain/src/resource_state.rs": "e6c3db6032949012eae7ab7367b07c2d7a9b7d535940cd4da447de97a7002fc4",
+    "crates/statechronicle-domain/src/signed.rs": "0d386ad26df2332862c3f43975ec5d0c51ec0c705d7ff1716c9ba1cc8164dc5f",
+    "crates/statechronicle-domain/src/state.rs": "6b249c8f306bb5127b6b1be016078b9088c1fd32fd78b915a4572eaea2466c3f",
+    "crates/statechronicle-domain/src/state_type.rs": "bab9d7169cf6bdd414e7f98f7c67ea22bd46608639921fc5aa3c29897118bf6b",
+    "crates/statechronicle-domain/src/status.rs": "0ec31d875628b64c8608ecfcfc6df58fc1b0679441f10e78889887f7d9e57100",
+    "crates/statechronicle-domain/src/subject.rs": "84ddff047c0ba141328d70f50916af98da0e3f9c9ef588add2da0ea8618b37e9",
+    "crates/statechronicle-domain/src/tenant.rs": "034161be1473ccc3d2d2a1f223c2c5e410ace4e13edfe09d67fc032645c39741",
+    "crates/statechronicle-domain/src/trade.rs": "66a6d7c15a4b4afd3843cb1b10f11ef23f8adbfe38a6ea829ac16d5e0e1ae0d1",
+    "crates/statechronicle-domain/tests/envelope.rs": "19dc5bd36b4ff5f4d69f675403b65b38e16670028f5ea4964a9af1e6c2272bc6",
+    "crates/statechronicle-domain/tests/property.rs": "0b1c1c209f574e5aeb996568c8ca3ef0c071fc8497bdb49de19e1a4d3f4aeade",
+    "crates/statechronicle-executor/Cargo.toml": "b4513b8ff4ecfcb4baee9b56fb41ef43cfcba3f9881421f5a54de4f49fd17d81",
+    "crates/statechronicle-executor/README.md": "8fe1a840aee983db2ff090bf2ed9e98b5aeabb9b9631a205943670bcd2cb1b07",
+    "crates/statechronicle-executor/src/atomicity.rs": "3c29cc409dfc9537a74f2d8bb5e9feed6cb567f86af9934f91ff930369c77c2a",
+    "crates/statechronicle-executor/src/conflict.rs": "f0b73fa09cd61d390e464116a5fea46dfe2a15b20bdea7dbaf9312e12182d313",
+    "crates/statechronicle-executor/src/error.rs": "e5e08df2b55293a9b224fd273d0f9d40b17d118ea332372e093d6754057eb50c",
+    "crates/statechronicle-executor/src/evaluation.rs": "efda17227c94c3aea9cd4e1a41d371713d0b46d60b037dacd0b151605c6c71d6",
+    "crates/statechronicle-executor/src/lib.rs": "7e6e36a46cb842b3738f3d1607c0f7dc406a5e57ab08e403ea63e60dcafbb505",
+    "crates/statechronicle-executor/src/pipeline.rs": "6a564f00fd377b1bef3ae082cb678a78f9fabfa5dad289d37f12062dffad7b91",
+    "crates/statechronicle-executor/src/preparation.rs": "4fc366e7b735b17b6b46477560bbffbc7b3d372ccbb5c84ba610eb9cca5bdb0a",
+    "crates/statechronicle-executor/src/settlement.rs": "89a41d27d34bb5c213c53050b4b310a4e2336688f3086424a0e29ba2ce2827ab",
+    "crates/statechronicle-executor/src/transition.rs": "b1b5341f4709eab3bfdae62c27bf5141d7d0135e8f3252dd7091eecd5a51bb25",
+    "crates/statechronicle-executor/tests/batch_preparation.rs": "77bcc1f077438efebab10223226951cea13e11c5888159c2126a2d6a729e50de",
+    "crates/statechronicle-executor/tests/common/harness.rs": "2802ffc5909f43d4d8de14f122abce513460f6e0f87a30f97b39c1b3d4b0cac8",
+    "crates/statechronicle-executor/tests/common/mod.rs": "ab644075bcbcecfe7dddf3f9eb6bae8bbdd4caa5b9fec99474e5063b7238f540",
+    "crates/statechronicle-executor/tests/cross_tenant.rs": "e8669b48da7488820e0d8d70926081d0ec4442892780c8b28f687599c28f05bf",
+    "crates/statechronicle-executor/tests/emission_contract.rs": "5c3ba61fd645a97ef2762ce809bb358294a2687e554213490c96c3223d71ef95",
+    "crates/statechronicle-executor/tests/ingress_order.rs": "f5defe181e35a5a652d8b3fcbff6edf8c3fad9e3d90b3932078dbdc2b7cba691",
+    "crates/statechronicle-executor/tests/pipeline.rs": "21065615369544e2038e1a745e89587b0a4ab0cd2600eebe8e3a8c8d07aa07f0",
+    "crates/statechronicle-executor/tests/profile_evaluation.rs": "b11a26c1f5ba50f3f4d4e834f51503816317e3c06ef20f923f4abd41070d5695",
+    "crates/statechronicle-executor/tests/property.rs": "2f111a8396184faa7d8e5db8cc1f01b8033f057916e30d32803441475c0e17d3",
+    "crates/statechronicle-index/Cargo.toml": "a8bc067b0df5a3a152f271b8aecbcb7dac7bfa382dd754897beac727ef9c4099",
+    "crates/statechronicle-index/README.md": "133268183e94d75c1cd1753472f6d12dff0b572a976ffba577a7c1375bbf4ee8",
+    "crates/statechronicle-index/src/build.rs": "7ed90e1cc4dc139eb26e2f61ae0975b136b84060e126414a152df84c73e82417",
+    "crates/statechronicle-index/src/error.rs": "a77df073ccc205f031a1ca182838dc2b70f06ab60873d82b6860c2a19b4f9c94",
+    "crates/statechronicle-index/src/history.rs": "52c02ba2c4b525ce2bba0bb202f6099c2863dc88e7152c8d92a0f6bfb820f5f0",
+    "crates/statechronicle-index/src/lib.rs": "28dcf69a9472910c74afc949a93446f41b82014c89f7dce55fda4de9db5849a5",
+    "crates/statechronicle-index/src/rebuild.rs": "b62ad38959e8203f85184e03bee6d75630a1b7425532bac8951e0db0bd0501c8",
+    "crates/statechronicle-index/src/rebuild/verified.rs": "7f3280290ebec0260e05ce667c586db5eaf9533c3136b1c021ede0880a50a946",
+    "crates/statechronicle-index/src/service.rs": "e5a7f1a7e8c18cba0f35cb69b5837896a5919f6e8a3177e21e9a14c3c4837d25",
+    "crates/statechronicle-intent/Cargo.toml": "59c2c922f3ed5df28627597b3a819b7cd1928a8b7af4288809dfb5fa606a2dcb",
+    "crates/statechronicle-intent/README.md": "1ff1834c61333933aee11a6472fb1c5124c686f65e58faf9ba3e3599a54be2e2",
+    "crates/statechronicle-intent/src/error.rs": "0f5244ff23c3f8286604532cf490532c49227e5c0e9f1cad9f0e07d06a70a78f",
+    "crates/statechronicle-intent/src/lib.rs": "d219567b8b77d2d9bd00c72d2a0050549284565650e8a6d3ac0183c2dda0a7cf",
+    "crates/statechronicle-intent/src/parse.rs": "bb85194bdec9bb3ae8e8dfac5c9b2313780d1f47db1d487d8294b95f0f034407",
+    "crates/statechronicle-intent/src/raw.rs": "f3fbaa38d79e73322423e78d0c3e7dbe102e970eaa70ed253ddf86afce658581",
+    "crates/statechronicle-intent/src/validate.rs": "01f7f3ce93f10413eda1d4d883a9605ecd2faebc822904fdc1d2969975413759",
+    "crates/statechronicle-intent/src/validated.rs": "479058f391defabb334ddefaa0c66e5910710607153e62cbabb567923f3fa274",
+    "crates/statechronicle-intent/tests/pipeline.rs": "41dafbe11f6d34bf9d6da18611c47cd43e8b6f4e567ba48d04eddcc7ad45808c",
+    "crates/statechronicle-intent/tests/property.rs": "f7cd7cd679231faed1123c709bc0f845948684b41e9d8595ed16f8231457713a",
+    "crates/statechronicle-portable/Cargo.toml": "5a4e7290eacb61e7ca164d6fc5cd51b275b1563f2914a73113fd7253708c43c7",
+    "crates/statechronicle-portable/README.md": "994b9df1cdcfe377a1546804abe631f3963869aa31d423b0c1f13ab9db41415d",
+    "crates/statechronicle-portable/src/codec.rs": "0aa9056ac4fa04b8e230f4099f61407fc5d6a6bfcbc569f572fd1e402784a468",
+    "crates/statechronicle-portable/src/integrity.rs": "5d532627b15b4de1bf2ceb794a5b919984969bf99ae9e37ce1a121f82a5d4af3",
+    "crates/statechronicle-portable/src/lib.rs": "8e9d0ccac0401dedc791b0ddfe6f639071aafa8e7f7a2146e2a698eed9995179",
+    "crates/statechronicle-portable/src/transition.rs": "d1b84274b33de7a7091f52df4291ab60a84841e062078cebf19864dd3ef730f4",
+    "crates/statechronicle-portable/tests/interoperability.rs": "72ffe0f530e77c81446243f4b5b5ca29041e481118cf1951fa96c2c36b844c71",
+    "crates/statechronicle-ports/Cargo.toml": "90aaa549bf426c465f74426caa0a6367e9ed24b5f87a27b8c0daf3f8be348415",
+    "crates/statechronicle-ports/README.md": "470009d01a3e91a77c66616e41c9c962a4de1c203e6317ac84bb2cdbfcc15d1d",
+    "crates/statechronicle-ports/src/authorization.rs": "0833bffe592bd72448d4831aa0f38633094ac048da177e924e06337efcb0f43f",
+    "crates/statechronicle-ports/src/commit_store.rs": "54738cebf607a1c5469dc8dfe18c54fe1c6255e4a7ef2753e12037841f4ce53e",
+    "crates/statechronicle-ports/src/event_publisher.rs": "2c3ef3e24bbc9e532b472e414b92a973b523fff25bd7332b1b60cdc5a5e6e58d",
+    "crates/statechronicle-ports/src/event_store.rs": "d93a417bb7f4846cba2e5e1045f0cb5d2b61e275ceba42f933e32fd5aa3d6d18",
+    "crates/statechronicle-ports/src/intent_store.rs": "062855c5d16394a926b6b1cd75fbc49e1d53722ea769159cb23984b933520aa9",
+    "crates/statechronicle-ports/src/key_registry.rs": "c64ce098a2709671d86e537fa6243145b44011f9949201dc630a8c36633831d3",
+    "crates/statechronicle-ports/src/ledger_batch.rs": "5043af6389be4d65ea92be2b66accff0bae3e13eb396f2a33b962b4d36bde7c5",
+    "crates/statechronicle-ports/src/ledger_store.rs": "5a2eccc785ee465496552f48cecf6bc95b13367995cb50fc6886c24a61b76bf4",
+    "crates/statechronicle-ports/src/lib.rs": "cbf6bad11ac3c8fd3ec0cf8a502999c570b2bf38043fafd7a0185a32ca8a62fe",
+    "crates/statechronicle-ports/src/observability.rs": "549cb003993bb98f19252f63a1cc62900fd0b3ab2f44a8a49cf341c268a9be22",
+    "crates/statechronicle-ports/src/outbox.rs": "e4c1cf3a4edcbd8ae71168b5ed746bd6231f7d601941b73e278d94ac6bf37eba",
+    "crates/statechronicle-ports/src/proof_index.rs": "e2ee3b156d604812e08be3317dbab4d16e8f0325f14b8d4303ee1dab722eaead",
+    "crates/statechronicle-ports/src/quota.rs": "dc061232c207fdfdc74e241955aab0ad68a94e10d554cf5f01f202881efb7224",
+    "crates/statechronicle-ports/src/snapshot_store.rs": "984a7e42de4153c1e8c61ad43ef593abe1998a15f4ed2d35d387b8094a3000af",
+    "crates/statechronicle-ports/src/state_index.rs": "2f02576b55f9945f4938ec06262f106bde3cc16fb0816b76eefe2768c6acc6af",
+    "crates/statechronicle-ports/src/tenant_store.rs": "60f78d6b0845780625f0f56d6b2b8945ac81866c78321282d108112106ede5e6",
+    "crates/statechronicle-ports/src/trade_index.rs": "86429b5d67f2369a046f34377e4b94c23b04e41c912ae4eb213db015fcbff7fb",
+    "crates/statechronicle-ports/src/transaction_manager.rs": "e419969cc7b43f46339e5af99aca65ced136853184fa81b43624595abde625cb",
+    "crates/statechronicle-ports/src/trustgrant_evaluator.rs": "b31e2cc8803795ee6ce7d77a91f42505c4951bb6fe2017a1fec69db688c74047",
+    "crates/statechronicle-ports/tests/ports_conformance.rs": "bb2606b2298b5eb8efc5fe4b5c2e55e53deabc5b61ff79da2cecab515dd08c8f",
+    "crates/statechronicle-profile/Cargo.toml": "662ec0a3eb33072b1d6b02ae7a32f1e85ec17389c98e227dd9b9931088bd4e70",
+    "crates/statechronicle-profile/README.md": "5c81c417f09744f5287bb68451f299e38d2d18717faadc6fb981be7f20852f2d",
+    "crates/statechronicle-profile/src/contract.rs": "575401a9f1c2650f12c5cd5f7fbf4045eba048a58178982b9fcd5209ac33e208",
+    "crates/statechronicle-profile/src/lib.rs": "b71309eaed842c1a97d5de088c8c59ab5b12425f432e6a40289e5d213985e145",
+    "crates/statechronicle-profiles/Cargo.toml": "9ee592d822ae04472c0e31952337606b5084fc43ff22ca7b651579085209b9f8",
+    "crates/statechronicle-profiles/README.md": "12e774970f35b4cb0ba8e8bd37ef01d67f68597cb76368df33c4f324d584584c",
+    "crates/statechronicle-profiles/src/atomicity.rs": "0c853cf8a556efe3a37201f1420d0555968c59befbf556a689aa367a2f65582f",
+    "crates/statechronicle-profiles/src/consumable_stack.rs": "b9097cd278b41f8bd6769272a9c603d05abce3232acfd1494c49edd5e8fa29ca",
+    "crates/statechronicle-profiles/src/custom.rs": "aab6f6928ff25e9f236cc94b4b6106effc2b0a21c66792428ba1cb87ca278808",
+    "crates/statechronicle-profiles/src/entitlement.rs": "383aa500ac8bdcf165cc8078539ff5e3f35b12da0b64f50126a26487517e9cfa",
+    "crates/statechronicle-profiles/src/error.rs": "4fa7ced73207684bc2574649d49d15e7bc4f945ee33a49a78179d4286cfd401f",
+    "crates/statechronicle-profiles/src/execution.rs": "e44a2c4b4002ed9a3b50440e8432a5411a93c59d73e41cac0fbbd6491ae9f89f",
+    "crates/statechronicle-profiles/src/fungible_balance.rs": "826f58f979907a6d2156a61ce7a0549000c1fe0850fb70961301ce619c8d3987",
+    "crates/statechronicle-profiles/src/keys.rs": "d60fde8dbd653039245ae403caef6ad3abe4d7192971ee9707ca00789691ba80",
+    "crates/statechronicle-profiles/src/lib.rs": "10375e5598693d112df4ef90a3f713176d84b77f2f9be5cc2061721019f3b7fc",
+    "crates/statechronicle-profiles/src/macros.rs": "191926a957a500fc71e844affd234d67fa84cf538eee5cf17582158cad55ab9f",
+    "crates/statechronicle-profiles/src/marketplace.rs": "8f6041c9b65b5c7079aa1285bc0407f39cd461340159ca3472e0c43da852ee55",
+    "crates/statechronicle-profiles/src/meter.rs": "76335a7f0b181199e93b8ab801839dff6031340f14d95ac036161fe5f09afcc4",
+    "crates/statechronicle-profiles/src/paid_unique_asset.rs": "88fc771dd41bad2571f890f4a621df8440fd9ce8b3b207c0ed470bf9ea5f5883",
+    "crates/statechronicle-profiles/src/registry.rs": "043a149ecbc6347c25b80cf9dc665c224844f64375a85c3910dcb92dae88c42e",
+    "crates/statechronicle-profiles/src/resource.rs": "e2fe99fba0133fab18b52e38787197ad00a7748cda88cf69ff5160e7ee4ef405",
+    "crates/statechronicle-profiles/src/transition.rs": "38b4152014924f5cf3f2183884c7234ea9b6572d9aee6a8fc0e9e6d059f090f3",
+    "crates/statechronicle-profiles/src/unique_asset.rs": "763f7f07687f47ea5d484fa81f7f82350748b322fcbef96a2fdc5b6b5513ba07",
+    "crates/statechronicle-profiles/tests/property.rs": "6001d260a2c7fe9851fe16d70a4abe51082aa7a662cf77d10652d2834bd5ad6e",
+    "crates/statechronicle-profiles/tests/registry.rs": "05c4f956009f775fe293245ee8301d957d6db7f967b8ab94eb82daf5e2593845",
+    "crates/statechronicle-profiles/tests/typed_evaluation.rs": "25ec659844774a5ca0922ad25793f539f43753bf065810d228fb01c4d012c5c9",
+    "crates/statechronicle-proof/Cargo.toml": "2ade2718cefda2c3547215089dc68f85524c19ceb47f1ce360f4cd5566cbe9d8",
+    "crates/statechronicle-proof/README.md": "129a37262c9a58c63e7732c5745cdc344cf4b289770e3dfa48b6c1787c318f17",
+    "crates/statechronicle-proof/src/bundle.rs": "c40b62536d8af58e78b5c0258596de509d22626ddf333de2dff905a1b9e00f96",
+    "crates/statechronicle-proof/src/claim.rs": "f758190bcc06b020909b0d03f7fda8bf4ca184fbce905bd4fa6a12aa169362f4",
+    "crates/statechronicle-proof/src/custom.rs": "1899d40bb39da5efd8ce194a2d1794090ae9fe619e223428f1c4f28b6c5aacbe",
+    "crates/statechronicle-proof/src/error.rs": "b48365e3f77b46c4efb8fdbc3cb2df454ca100923d4c640589ce49a330a2192e",
+    "crates/statechronicle-proof/src/inclusion.rs": "fa1237e8617de731a26d996ab61bcc063dcd51370b89989222889ba50a700607",
+    "crates/statechronicle-proof/src/lib.rs": "73d36ae40c73840253a1252da709af120fb08e4b4b1f70f951ec4c8d4c15e0ab",
+    "crates/statechronicle-proof/src/ownership.rs": "c55c8475aac6a1454690bc869657a040cf585f14bd3a1f0ff78efb8bee89c028",
+    "crates/statechronicle-proof/src/service.rs": "3073334c6818905a0c219ee5f68d5a922a491e422a369510199f85eff4d4c4ed",
+    "crates/statechronicle-proof/src/settlement.rs": "239f5e049e82614d53b48e858148050dd5347203203807e16dd2a7c04f0d6f38",
+    "crates/statechronicle-proof/src/state.rs": "cd6eba06ea768a4d451f319b8a04babf78d95c3531eae19585f995b2c716ea33",
+    "crates/statechronicle-proof/src/trade.rs": "3450e4051a7dee55f19ed6233d3179a71a3c3b918cd0c1ba8fda9a137964d01c",
+    "crates/statechronicle-proof/src/verify.rs": "6ad0621c225a4ed81c48b2233de9355d3f9aead54f21e0b74a16d936e9a233a7",
+    "crates/statechronicle-proof/tests/non_membership.rs": "f3d8fe3dbb1a684fa88de5522656a2526b5eed66eab1154acb484b78843eefa1",
+    "crates/statechronicle-proof/tests/property.rs": "8c47fc0393fbae50cf8493c1d41a6077b07e4005b5b481fb93691385895ff2d2",
+    "crates/statechronicle-proof/tests/verification_pipeline.rs": "d7013be9636f3009c75b0be978bb8873b31a0a20b1018fcd3f957ae92656b1f0",
+    "crates/statechronicle/Cargo.toml": "ae2dd243e81af70eafff97893f63c34d77f259ac0a2ebed152a7470ba3a567f3",
+    "crates/statechronicle/README.md": "2b1d9e1f0680eba0d18ac3829aa05ea0a957dff51eefb176e07986c9f60567fe",
+    "crates/statechronicle/examples/access.rs": "8f724a40b7fea9e64252238173e7f31ce64838e3e48aba40694e054935c57e53",
+    "crates/statechronicle/examples/common/domains.rs": "379f425573343b70a71d8baade28dec0734b28d7977a27661deaa46e847d3a58",
+    "crates/statechronicle/examples/common/harness.rs": "147cf5faacb99121b6889232301657927548cbf163580a2a14e8ffb32e12faa2",
+    "crates/statechronicle/examples/common/mod.rs": "ab644075bcbcecfe7dddf3f9eb6bae8bbdd4caa5b9fec99474e5063b7238f540",
+    "crates/statechronicle/examples/cross_tenant.rs": "bfecc9175f97ee0e23e61484179f733f6452fd74575bede01c0cb5c8926088bf",
+    "crates/statechronicle/examples/currency.rs": "c06e2cba0df215bf47b00d91b70b072c03f4c7fe559ecfe18dcd5e4095a1998a",
+    "crates/statechronicle/examples/custom_domains.rs": "bcfce3d873c9bcb9a892f35e075dc4fd728bc814dbd3876d8898cdc52ab462bd",
+    "crates/statechronicle/examples/e2e_throughput.rs": "de2adc31ec1ddba44cc8da4713df02d1ae464c514649bd1af31671b8f712779b",
+    "crates/statechronicle/examples/inventory.rs": "dcf2b076f072e4e430c32b39b65d93ee794f5a95d149369b50e975a216d2157c",
+    "crates/statechronicle/examples/marketplace.rs": "4bf6b2030750e0d446632678330f92b9e71d0eeedc805492003a39168f6de4f5",
+    "crates/statechronicle/examples/paid_asset.rs": "2dbb4e4504a175ae7892c95d09e785197e0bc0b897bdc009a856e3c292d309b8",
+    "crates/statechronicle/examples/parallel_throughput.rs": "381c7bb1b32d5b677e17907e1fdf911a24da4042be9b5958f17f88aba8a3be0c",
+    "crates/statechronicle/examples/proofs.rs": "213dbd7cdb3787dcb0150eb57c2b063a2d9d4d8a0fda58a890e0bb1fc5f4a6fa",
+    "crates/statechronicle/examples/stack.rs": "96b615788f3ae51eab49597d4d6e6f2b145a97e2ab02f49142a3336fde44b7c7",
+    "crates/statechronicle/examples/throughput.rs": "cd29c3b3f15bca120cdc6b405200754e20971aef096882e4a3fe084ff51bb7d7",
+    "crates/statechronicle/examples/trade_bundle.rs": "e7a21016f4ffe0082aa5d8370e995cda008509981190dda6252c7266af55b57b",
+    "crates/statechronicle/examples/trade_cross_tenant.rs": "2fb8d83f9b8b8242628a2df09629b9964a0dc9347a2a70e8c6abcc60b432abee",
+    "crates/statechronicle/examples/trade_value.rs": "6d79353d492e4cdfee2b7f13098c881a7ea785cbe5f8b6ffbae1b665919044f0",
+    "crates/statechronicle/src/lib.rs": "b4d11fcd768eda1372d3309fef7327fa6d2b39bfc708d7af31d1f54dc8fb8dbc",
+    "crates/statechronicle/src/mutation.rs": "c8ef02ebae5b7a6ef245706d93bcb1d99fcc161f97a98d88833398064749d958",
+    "crates/statechronicle/tests/claims_readonly.rs": "d8394a307714471bc607d2f2af9caf68a308295a33d2bdbda790afab14ebfe10",
+    "crates/statechronicle/tests/common/harness.rs": "147cf5faacb99121b6889232301657927548cbf163580a2a14e8ffb32e12faa2",
+    "crates/statechronicle/tests/common/mod.rs": "ab644075bcbcecfe7dddf3f9eb6bae8bbdd4caa5b9fec99474e5063b7238f540",
+    "crates/statechronicle/tests/custom_domains.rs": "3e0d4756ffc075dcede0fce8163491c4c65e385e66f29d67608f1afa6709989f",
+    "crates/statechronicle/tests/durable_batch.rs": "36038add8f785878c25e46946d3a9a139166d1832ccf07f6f442c5856a13992e",
+    "crates/statechronicle/tests/durable_recovery.rs": "187146931917d6bf9c85990ad6d72ec8802d0792f398afff76ed3b4178414bfb",
+    "crates/statechronicle/tests/e2e.rs": "95dca2979e7f28756941b4ed1488dbcd85e4126a1b8536a6aeccf87f1226d08a",
+    "crates/statechronicle/tests/operation_registration.rs": "b84135cb062ba018f7c240568c97fd87606ac1fe1840e215e8a9696fe0fef600",
+    "crates/statechronicle/tests/preparation_parity.rs": "5dda3941b384235c7c8dcd02f134e5cd28ef18ad0c9237827744084c1ac917c7",
+    "crates/statechronicle/tests/profile_guard_parity.rs": "241ca592861d0c2eb03b78798cc334fecdf3e4991fe42e1b59aabb4cbae35382",
+    "crates/statechronicle/tests/readonly_preparation.rs": "c7e1232e97e9e80a677c1af3048ec85398d0b53b9441b5ae9c715df62e2e813d",
+    "crates/statechronicle/tests/smoke.rs": "783ab119724f13072fc6747415c67eb12d87342439ed7d40743a2bf5e3a06d64",
+    "crates/statechronicle/tests/support/durable.rs": "3d7508c9a9498caf604aeaf816dd138cb6eb636933ebafc99916df2814c35037",
+    "crates/statechronicle/tests/support/readonly.rs": "87e4c46fffc3c9111be2047841532a893cd1c7ceae0bec41bbed54e3a12e83fd",
+    "crates/statechronicle/tests/support/versioned_recovery.rs": "764eebf0dc13c62819dcf7a9d45add3d8bbcadaf122a17a49f60120cf4e0b963",
+    "crates/statechronicle/tests/trade_3tenant.rs": "25e990452f75c8d7c1ec30f9a0ad510f7c2aa5e37bded85aada96b09a7a4341e",
+    "crates/statechronicle/tests/trade_bundle.rs": "877d740e5ee1961a91331bb904757a6d5674b953e14260937a5f58b595112544",
+    "crates/statechronicle/tests/trade_cross_tenant.rs": "5c394087df7893c5ad4691448f674042abf033a353b77ac2155be3072a3fe238",
+    "crates/statechronicle/tests/trade_history_proof.rs": "2b6bd293a0fdd305525441da9be91c6412d938a570a4cd183e599a1170ebf64a",
+    "crates/statechronicle/tests/trade_value.rs": "dccaeb29c233f007d0111c0801576cf293ad0820a6fbc409ebc262542f7f54b4",
+    "fuzz/Cargo.toml": "816348ba93cf9ba46725a182e83a8519a9837154df90cf5d618348332a78ec23",
+    "fuzz/fuzz_targets/fuzz_accumulator.rs": "5c4f9545a497003057a4bb8951d3bc99a2f05ff68b912b4989174dd2af7de8f6",
+    "fuzz/fuzz_targets/fuzz_amount_parse.rs": "7a282779cf83d83a420136c946ed56413fa40112780019acd79ce3faf710b4fa",
+    "fuzz/fuzz_targets/fuzz_authority_aggregate.rs": "2a13bdc57271fedb70fb58b0da0a06e47bba553bf195dd27bd15dd38d78d9bad",
+    "fuzz/fuzz_targets/fuzz_canonicalize.rs": "68103594f6517badd9440a58974e18962d0bc7094a632dc104769b953a0681d1",
+    "fuzz/fuzz_targets/fuzz_commit_extras.rs": "4a9a7d8608c8a6de27dfcac30edd2279f8d664216fe0c483b7893bae73af74c3",
+    "fuzz/fuzz_targets/fuzz_commit_roots.rs": "4030d486542ad197bec8eb17e860c5552ff574c8e680a6c84d0d27be5b2b89c5",
+    "fuzz/fuzz_targets/fuzz_cross_tenant_consistency.rs": "7b49323d0668720b4e411da10e1974a65575a9f70441a18045e08ade880c4989",
+    "fuzz/fuzz_targets/fuzz_cross_tenant_trade.rs": "a895b572824fd0f2175308f60df1fd3fd5a992a2dcbecae53822c369657b03eb",
+    "fuzz/fuzz_targets/fuzz_custom_state.rs": "aeb57ed9e5090cc2c27134d15f694eb9aebdb6a08b69fbb57792e989e015f685",
+    "fuzz/fuzz_targets/fuzz_custom_transition.rs": "26fde7c49a63616c48791892e5bd59fa1d530e6553f466429461f271c637f99f",
+    "fuzz/fuzz_targets/fuzz_digest.rs": "5ea2476acb9ebf7eadcd8c249ca347d1ceb2f2578016d0b5cd24e644368dd8b7",
+    "fuzz/fuzz_targets/fuzz_domain_roundtrip.rs": "35d017a956e5ea0b9388676286703e46ad10323b267952f0ea04286ad31ab6e2",
+    "fuzz/fuzz_targets/fuzz_executor_transition.rs": "dc82176f4515d8434c94d6540962d88e52efc860e72c031100661abdd3a97e69",
+    "fuzz/fuzz_targets/fuzz_intent_parse.rs": "a42f98ff44d24580a08e46ca005636adf95d240e44f45641c8b01a612a158312",
+    "fuzz/fuzz_targets/fuzz_non_membership.rs": "9a6b2a6a62963bf609e94b0b69c67834315ffb30b8f03ec7503b10cc4459e370",
+    "fuzz/fuzz_targets/fuzz_operation_name.rs": "489166964f4a63dfe57fcb1bd489ea5d493d6bc8c1c8889cf70e6560f02841e6",
+    "fuzz/fuzz_targets/fuzz_portable.rs": "86b934e32294d79b3b509fae40873f9c1082163aafff7e26fc27d8d9be4bfc7a",
+    "fuzz/fuzz_targets/fuzz_profile_id.rs": "30b14d24571951c737dffbe95e3444b4bfb418a4ea43c679c1059ccbc494c2cf",
+    "fuzz/fuzz_targets/fuzz_profile_rules.rs": "cadcfa13440af2b81d00f0c596886ce9e006dbbd0877deed896fd07cc1c5cca2",
+    "fuzz/fuzz_targets/fuzz_proof_verify.rs": "cde767eb02966afefa2a12acacfa1513966dcc211ba2c180c2740ab4b6c8f1e4",
+    "fuzz/fuzz_targets/fuzz_settle_batch.rs": "67802186dbf9945f4a780bb631f9a36749e92cc392b9b777949c81a76c213341",
+    "fuzz/fuzz_targets/fuzz_signature_verify.rs": "61dcca06f2393a9f6bd388760833de2bb95b468293bcde85ccff96dbc448f815",
+    "fuzz/fuzz_targets/fuzz_status.rs": "a9bd9fcaf2b178add17bf6a9ed2e7529ff36efde2bf51b02e306dd1d90077a5c",
+    "fuzz/fuzz_targets/fuzz_trade_index_build.rs": "ec13996724fca515ddaaa8b0beb851e4158535d600d3aadcd84f493cf839d369",
+    "fuzz/fuzz_targets/fuzz_trade_proof_verify.rs": "49c1b909dd648d26020e396af41ca25b404c4287c4ff81c27914ecdbd98c96ae"
+  },
+  "frozen_wire_sha256": "fdccce8e4ce783c27bd0239151930d1e51dc82c7704884731254b8199e991fff",
+  "frozen_wire_provenance": {
+    "producer_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+    "producer_sha256": "674ef508408c96cbd75e1c4a5025e6d92404139572d3d28ac1ff449a6007744b",
+    "history_sha256": "fdccce8e4ce783c27bd0239151930d1e51dc82c7704884731254b8199e991fff",
+    "evidence_manifest": "docs/0.3/evidence/compat/20261116T015951Z-2814374/manifest.json",
+    "producer_source_artifact": "docs/0.3/evidence/compat/20261116T015951Z-2814374/wire_producer.rs"
+  },
+  "compatibility": [
+    {
+      "path": "docs/0.3/evidence/compat/20261116T093457Z-1188197/manifest.json",
+      "sha256": "82ca6f2273ecabe44a6d75e798b3679cf5df892f4f5e8e711572a137c61715a8"
+    }
+  ],
+  "tutorials": [
+    {
+      "path": "docs/0.3/evidence/tutorials/minimal-native-domain-20261116T093457Z-1188193/manifest.json",
+      "sha256": "dc06f454643763385e00e2d795d80ec5aca86d5f0f4f55922ff07eb0521cd18b"
+    },
+    {
+      "path": "docs/0.3/evidence/tutorials/minimal-native-domain-20261116T093457Z-1188192/manifest.json",
+      "sha256": "c52640ba8e270add0a08dec2613964d74e35dbdd5d017576e342c01546438cc0"
+    }
+  ],
+  "metrics_delta_since_preceding_production": {
+    "tracked_bytes": 5523,
+    "syntax_lines": 106,
+    "lexical_tokens": 715,
+    "branch_nodes": 0,
+    "public_syntax_items": 10
+  },
+  "artifacts": [
+    {
+      "path": "stable-tests.log.gz",
+      "sha256": "46a181f3baa7a5073753daebeafffc09f9bc0224784159c93479c8bcb7945a46"
+    },
+    {
+      "path": "1.85.0-tests.log.gz",
+      "sha256": "58e4c8a76d5f878a0893c5dda7cc0f71d08e4e5d431c8760c882deccd39e9aa1"
+    },
+    {
+      "path": "stable-doctests.log.gz",
+      "sha256": "a73ceec845b0fd08dc94e954c6cd6fb5efdd6f98e7282ad7a4a0b48d8ea1f76d"
+    },
+    {
+      "path": "stable-clippy.log.gz",
+      "sha256": "30db85dec5a3f7ffa87aa9f346917bb5e969be386ee43f0598462942a6e84f3c"
+    },
+    {
+      "path": "stable-rustdoc.log.gz",
+      "sha256": "5c4ca6e7e198a2388ea5d480c8b42ddbacacc99b145b665d654d1c4266ae43f3"
+    },
+    {
+      "path": "stable-format.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "stable-example.log.gz",
+      "sha256": "5215b80878a8ae3712058981e8c82aa7889dbb9dd1ba6f2a22fa0469531cb52a"
+    },
+    {
+      "path": "1.85.0-doctests.log.gz",
+      "sha256": "cf1dd24cce92369459a17c60f311101e97800de41efb723056c6f2ed9ae3b4ff"
+    },
+    {
+      "path": "1.85.0-clippy.log.gz",
+      "sha256": "76e32d0233959a39eb857bb602aaab095ade2607e69811e184cf8ae3f4da111a"
+    },
+    {
+      "path": "1.85.0-rustdoc.log.gz",
+      "sha256": "25129e8574c3fcb456744abd306bec64b179d53c36f32090b2c75eb6eccb1598"
+    },
+    {
+      "path": "1.85.0-format.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "path": "1.85.0-example.log.gz",
+      "sha256": "331bd955154f0f6bcfc7d06a99c23e0d82ab222b26e10427bbd738d66b8a12fc"
+    },
+    {
+      "path": "preflight-initial-check.log.gz",
+      "sha256": "074308fbebebb3d7a20ac3e61c60f1ecbff003313897f3ff5180f06a10641d75"
+    },
+    {
+      "path": "preflight-initial-tests.log.gz",
+      "sha256": "0650a692f1b2b2b0650d1b2556dce336165ea2010493651335b7750b49cc4e83"
+    },
+    {
+      "path": "preflight-preflight-clippy.log.gz",
+      "sha256": "160e2bff6bbe6d2aa9b053d81db36b4ccf3a665074671029b9339fc17a8a8ecd"
+    },
+    {
+      "path": "preflight-focused-tests.log.gz",
+      "sha256": "09d15a35f94061b6dca62b08097916764d22c16678dc3da1675e8b08af4a76a3"
+    },
+    {
+      "path": "preflight-corrected-clippy.log.gz",
+      "sha256": "27b68bd6b9b93b25f27fd261802c0888780778a54b96a27a310af9190fbea866"
+    },
+    {
+      "path": "preflight-final-preflight-clippy.log.gz",
+      "sha256": "af1e88b1898793b480df92aa9bf5ae85e92e0673ecd60146f4c317ba8018c850"
+    },
+    {
+      "path": "preflight-graph-update.log.gz",
+      "sha256": "4c7f888ec5aaa7a1c4f85a580e91a539bff7c7399bf7a66d1e5b713e4fcac0ca"
+    },
+    {
+      "path": "preflight-compat.log.gz",
+      "sha256": "5932ea9eb941602e31a393fc9eac6b51b4af295068fe695df109d5316d6429d4"
+    },
+    {
+      "path": "preflight-metrics.log.gz",
+      "sha256": "0600707256386c07c4eb0807e799e9dc6561f6074aabe3ad5ca32f599d39e25d"
+    }
+  ],
+  "unqualified_attempts": "Initial focused Clippy refused shadowed test bindings. Both failed logs and corrected preflight retained. No production lint suppressions or changed test policy.",
+  "limitations": [
+    "Read capability cannot sandbox host adapter code. Caller-selected keys must independently satisfy signer policy.",
+    "Blanket read bridge forwards the existing boxed future; this source fact does not prove whole-path allocation or latency equivalence.",
+    "Tests compare shared implementation surfaces; frozen proof bytes are original producer output, but new parity cases are not an independent full original execution model.",
+    "No new performance/fuzz/coverage/physical crash/package/security clearance or completed end-to-end release claim.",
+    "Durable custom-ledger tutorial and full proof-serving/current-historical composition remain open."
+  ]
+}
