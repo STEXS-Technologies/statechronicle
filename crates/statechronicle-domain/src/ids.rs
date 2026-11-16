@@ -1,7 +1,7 @@
 //! Prefixed newtype identifiers.
 //!
-//! Canonical identity for the protocol's core objects, hand-written here as
-//! validated newtypes (the shared crate's `macros.rs` is a placeholder):
+//! Canonical identity for the protocol's core objects. Constructors here own
+//! validation; shared private trait shells forward parsing to those constructors:
 //!
 //! | Prefix | Id | Protocol |
 //! |---|---|---|
@@ -16,11 +16,8 @@
 //! [`statechronicle_core::limits::MAX_ID_LENGTH`]) are validated. Construction,
 //! parsing, and deserialization all fail closed on malformed input.
 
-use core::fmt;
+#[cfg(test)]
 use core::str::FromStr;
-
-use serde::de::Error as _;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use statechronicle_core::limits::MAX_ID_LENGTH;
 
@@ -100,71 +97,7 @@ impl StateId {
     }
 }
 
-impl fmt::Display for StateId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl FromStr for StateId {
-    type Err = DomainError;
-
-    /// Parses a `StateId` from its `stc_`-prefixed string form.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `StateId`.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::new(String::from(s))
-    }
-}
-
-impl TryFrom<String> for StateId {
-    type Error = DomainError;
-
-    /// Converts an owned string into a validated `StateId`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `StateId`.
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl TryFrom<&str> for StateId {
-    type Error = DomainError;
-
-    /// Converts a borrowed string into a validated `StateId`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `StateId`.
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::new(String::from(value))
-    }
-}
-
-impl Serialize for StateId {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for StateId {
-    /// Deserializes from the canonical `stc_`-prefixed string form.
-    ///
-    /// # Errors
-    ///
-    /// Returns a serde error when the string is not a valid `StateId`.
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = String::deserialize(deserializer)?;
-        Self::new(value).map_err(D::Error::custom)
-    }
-}
+crate::validated_string::impl_validated_string!(StateId);
 
 /// Identifies an intent (protocol §11.1).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -189,71 +122,7 @@ impl IntentId {
     }
 }
 
-impl fmt::Display for IntentId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl FromStr for IntentId {
-    type Err = DomainError;
-
-    /// Parses an `IntentId` from its `int_`-prefixed string form.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `IntentId`.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::new(String::from(s))
-    }
-}
-
-impl TryFrom<String> for IntentId {
-    type Error = DomainError;
-
-    /// Converts an owned string into a validated `IntentId`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `IntentId`.
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl TryFrom<&str> for IntentId {
-    type Error = DomainError;
-
-    /// Converts a borrowed string into a validated `IntentId`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `IntentId`.
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::new(String::from(value))
-    }
-}
-
-impl Serialize for IntentId {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for IntentId {
-    /// Deserializes from the canonical `int_`-prefixed string form.
-    ///
-    /// # Errors
-    ///
-    /// Returns a serde error when the string is not a valid `IntentId`.
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = String::deserialize(deserializer)?;
-        Self::new(value).map_err(D::Error::custom)
-    }
-}
+crate::validated_string::impl_validated_string!(IntentId);
 
 /// Identifies an event (protocol §12.1).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -278,71 +147,7 @@ impl EventId {
     }
 }
 
-impl fmt::Display for EventId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl FromStr for EventId {
-    type Err = DomainError;
-
-    /// Parses an `EventId` from its `evt_`-prefixed string form.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `EventId`.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::new(String::from(s))
-    }
-}
-
-impl TryFrom<String> for EventId {
-    type Error = DomainError;
-
-    /// Converts an owned string into a validated `EventId`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `EventId`.
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl TryFrom<&str> for EventId {
-    type Error = DomainError;
-
-    /// Converts a borrowed string into a validated `EventId`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `EventId`.
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::new(String::from(value))
-    }
-}
-
-impl Serialize for EventId {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for EventId {
-    /// Deserializes from the canonical `evt_`-prefixed string form.
-    ///
-    /// # Errors
-    ///
-    /// Returns a serde error when the string is not a valid `EventId`.
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = String::deserialize(deserializer)?;
-        Self::new(value).map_err(D::Error::custom)
-    }
-}
+crate::validated_string::impl_validated_string!(EventId);
 
 /// Identifies a commit (protocol §13.1).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -367,71 +172,7 @@ impl CommitId {
     }
 }
 
-impl fmt::Display for CommitId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl FromStr for CommitId {
-    type Err = DomainError;
-
-    /// Parses a `CommitId` from its `cmt_`-prefixed string form.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `CommitId`.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::new(String::from(s))
-    }
-}
-
-impl TryFrom<String> for CommitId {
-    type Error = DomainError;
-
-    /// Converts an owned string into a validated `CommitId`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `CommitId`.
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl TryFrom<&str> for CommitId {
-    type Error = DomainError;
-
-    /// Converts a borrowed string into a validated `CommitId`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `CommitId`.
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::new(String::from(value))
-    }
-}
-
-impl Serialize for CommitId {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for CommitId {
-    /// Deserializes from the canonical `cmt_`-prefixed string form.
-    ///
-    /// # Errors
-    ///
-    /// Returns a serde error when the string is not a valid `CommitId`.
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = String::deserialize(deserializer)?;
-        Self::new(value).map_err(D::Error::custom)
-    }
-}
+crate::validated_string::impl_validated_string!(CommitId);
 
 /// Identifies a snapshot (protocol §15).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -457,71 +198,7 @@ impl SnapshotId {
     }
 }
 
-impl fmt::Display for SnapshotId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl FromStr for SnapshotId {
-    type Err = DomainError;
-
-    /// Parses a `SnapshotId` from its `snp_`-prefixed string form.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `SnapshotId`.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::new(String::from(s))
-    }
-}
-
-impl TryFrom<String> for SnapshotId {
-    type Error = DomainError;
-
-    /// Converts an owned string into a validated `SnapshotId`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `SnapshotId`.
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl TryFrom<&str> for SnapshotId {
-    type Error = DomainError;
-
-    /// Converts a borrowed string into a validated `SnapshotId`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidId`] when the string is not a valid
-    /// `SnapshotId`.
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::new(String::from(value))
-    }
-}
-
-impl Serialize for SnapshotId {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for SnapshotId {
-    /// Deserializes from the canonical `snp_`-prefixed string form.
-    ///
-    /// # Errors
-    ///
-    /// Returns a serde error when the string is not a valid `SnapshotId`.
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = String::deserialize(deserializer)?;
-        Self::new(value).map_err(D::Error::custom)
-    }
-}
+crate::validated_string::impl_validated_string!(SnapshotId);
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]

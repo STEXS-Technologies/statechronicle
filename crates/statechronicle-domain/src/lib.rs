@@ -8,6 +8,8 @@
 #![deny(unsafe_code)]
 #![allow(clippy::must_use_candidate)]
 
+mod validated_string;
+
 /// Tenant identity and isolation scope.
 pub mod tenant;
 

@@ -6,12 +6,11 @@
 //! envelope rule (§2) the signature lives in [`crate::signed::Signed<Commit>`]
 //! and covers only the body.
 
-use core::fmt;
+#[cfg(test)]
 use core::str::FromStr;
 
 use chrono::{DateTime, Utc};
-use serde::de::Error as _;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 use statechronicle_core::digest::ContentDigest;
 use statechronicle_core::limits::MAX_ID_LENGTH;
@@ -90,72 +89,7 @@ impl ProfileId {
     }
 }
 
-impl fmt::Display for ProfileId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl FromStr for ProfileId {
-    type Err = DomainError;
-
-    /// Parses a profile registry id, validating it.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidProfile`] when the string is empty or
-    /// exceeds [`MAX_ID_LENGTH`] characters.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::new(String::from(s))
-    }
-}
-
-impl TryFrom<String> for ProfileId {
-    type Error = DomainError;
-
-    /// Converts an owned string into a validated profile registry id.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidProfile`] when the string is empty or
-    /// exceeds [`MAX_ID_LENGTH`] characters.
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl TryFrom<&str> for ProfileId {
-    type Error = DomainError;
-
-    /// Converts a borrowed string into a validated profile registry id.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidProfile`] when the string is empty or
-    /// exceeds [`MAX_ID_LENGTH`] characters.
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::new(String::from(value))
-    }
-}
-
-impl Serialize for ProfileId {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for ProfileId {
-    /// Deserializes a profile registry id, validating it.
-    ///
-    /// # Errors
-    ///
-    /// Returns a serde error when the string is empty or exceeds
-    /// [`MAX_ID_LENGTH`] characters.
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = String::deserialize(deserializer)?;
-        Self::new(value).map_err(D::Error::custom)
-    }
-}
+crate::validated_string::impl_validated_string!(ProfileId);
 
 /// Validates a profile registry id: non-empty and within the id length bound.
 ///

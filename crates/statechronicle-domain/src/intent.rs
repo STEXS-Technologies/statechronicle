@@ -17,6 +17,7 @@
 
 use core::fmt;
 use std::collections::BTreeMap;
+#[cfg(test)]
 use std::str::FromStr;
 
 use base64::Engine as _;
@@ -116,72 +117,7 @@ impl Operation {
     }
 }
 
-impl fmt::Display for Operation {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl FromStr for Operation {
-    type Err = DomainError;
-
-    /// Parses an operation name, validating it.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidOperation`] when the string is empty or
-    /// exceeds [`MAX_ID_LENGTH`] characters.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::new(String::from(s))
-    }
-}
-
-impl TryFrom<String> for Operation {
-    type Error = DomainError;
-
-    /// Converts an owned string into a validated operation name.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidOperation`] when the string is empty or
-    /// exceeds [`MAX_ID_LENGTH`] characters.
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl TryFrom<&str> for Operation {
-    type Error = DomainError;
-
-    /// Converts a borrowed string into a validated operation name.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidOperation`] when the string is empty or
-    /// exceeds [`MAX_ID_LENGTH`] characters.
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::new(String::from(value))
-    }
-}
-
-impl Serialize for Operation {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for Operation {
-    /// Deserializes an operation name, validating it.
-    ///
-    /// # Errors
-    ///
-    /// Returns a serde error when the string is empty or exceeds
-    /// [`MAX_ID_LENGTH`] characters.
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = String::deserialize(deserializer)?;
-        Self::new(value).map_err(D::Error::custom)
-    }
-}
+crate::validated_string::impl_validated_string!(Operation);
 
 /// Validates an operation name: non-empty and within the id length bound.
 ///
@@ -324,72 +260,7 @@ impl KeyId {
     }
 }
 
-impl fmt::Display for KeyId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl FromStr for KeyId {
-    type Err = DomainError;
-
-    /// Parses a key id, validating it.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidKeyId`] when the string is empty or
-    /// exceeds [`MAX_ID_LENGTH`] characters.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::new(String::from(s))
-    }
-}
-
-impl TryFrom<String> for KeyId {
-    type Error = DomainError;
-
-    /// Converts an owned string into a validated key id.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidKeyId`] when the string is empty or
-    /// exceeds [`MAX_ID_LENGTH`] characters.
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl TryFrom<&str> for KeyId {
-    type Error = DomainError;
-
-    /// Converts a borrowed string into a validated key id.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidKeyId`] when the string is empty or
-    /// exceeds [`MAX_ID_LENGTH`] characters.
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::new(String::from(value))
-    }
-}
-
-impl Serialize for KeyId {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for KeyId {
-    /// Deserializes a key id, validating it.
-    ///
-    /// # Errors
-    ///
-    /// Returns a serde error when the string is empty or exceeds
-    /// [`MAX_ID_LENGTH`] characters.
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = String::deserialize(deserializer)?;
-        Self::new(value).map_err(D::Error::custom)
-    }
-}
+crate::validated_string::impl_validated_string!(KeyId);
 
 /// Validates a key id: non-empty and within the id length bound.
 ///
