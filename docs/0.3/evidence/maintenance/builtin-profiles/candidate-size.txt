@@ -1,0 +1,38 @@
+target/performance-matrix/20261116T130401Z-565324/lane-1-bench  :
+section                    size      addr
+.interp                      28       736
+.note.ABI-tag                32       764
+.note.gnu.build-id           36       796
+.dynsym                    1776       832
+.gnu.version                148      2608
+.gnu.version_r              320      2756
+.gnu.hash                    28      3080
+.dynstr                    1147      3108
+.rela.dyn                 86256      4256
+.rela.plt                    48     90512
+.gcc_except_table        108340     90560
+.rodata                  565580    198912
+.eh_frame_hdr             31972    764492
+.eh_frame                176020    796464
+.text                   2047016    976592
+.init                        27   3023608
+.fini                        13   3023636
+.plt                         48   3023664
+.tdata                      168   3027808
+.tbss                        72   3027976
+.data.rel.ro              52896   3027976
+.fini_array                   8   3080872
+.init_array                  16   3080880
+.dynamic                    464   3080896
+.got                       6656   3081360
+.got.plt                     40   3088016
+.relro_padding              328   3088056
+.tm_clone_table               0   3092152
+.data                      7112   3092152
+.bss                        256   3099264
+.comment                    186         0
+.annobin.notes              247         0
+.gnu.build.attributes       324         0
+Total                   3087608
+
+

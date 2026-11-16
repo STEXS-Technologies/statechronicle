@@ -1,0 +1,52 @@
+{
+  "source_campaign": "docs/0.3/evidence/maintenance/builtin-profiles/paired-20261116T130401Z-565324",
+  "source_campaign_sha256": "496fc4db5e537c05d4e380aa514ce45629dbf779769601b816eea8034af70c83",
+  "checks": [
+    {
+      "lane": "control",
+      "command": [
+        "size",
+        "-A",
+        "-d",
+        "target/performance-matrix/20261116T130401Z-565324/lane-0-bench"
+      ],
+      "exit_code": 0,
+      "artifact": "control-size.txt",
+      "sha256": "2414b8ea1fa9af196775f7918e82e763dc89e4d20634808e467d8f741997cf17"
+    },
+    {
+      "lane": "control",
+      "command": [
+        "readelf",
+        "-SW",
+        "target/performance-matrix/20261116T130401Z-565324/lane-0-bench"
+      ],
+      "exit_code": 0,
+      "artifact": "control-readelf.txt",
+      "sha256": "d7d9b985e1375dfb4ace504954ad1a25f75a1375d984df8f43274312146716f0"
+    },
+    {
+      "lane": "candidate",
+      "command": [
+        "size",
+        "-A",
+        "-d",
+        "target/performance-matrix/20261116T130401Z-565324/lane-1-bench"
+      ],
+      "exit_code": 0,
+      "artifact": "candidate-size.txt",
+      "sha256": "7b10fdfc0febb63200a412820c30e74039501bb2f84bd7f5647a1f4ba7ad33d0"
+    },
+    {
+      "lane": "candidate",
+      "command": [
+        "readelf",
+        "-SW",
+        "target/performance-matrix/20261116T130401Z-565324/lane-1-bench"
+      ],
+      "exit_code": 0,
+      "artifact": "candidate-readelf.txt",
+      "sha256": "7a333eadb6c6321ae34f4cac449f8f286049c05f5294549be0aec9195d22861d"
+    }
+  ]
+}

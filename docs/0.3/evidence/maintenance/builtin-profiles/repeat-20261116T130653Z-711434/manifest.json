@@ -1,0 +1,700 @@
+{
+  "candidate_commit": "7abe9d885eeaf008e524d70e51165fa3b137c62f",
+  "source_campaign": "docs/0.3/evidence/maintenance/builtin-profiles/paired-20261116T130401Z-565324",
+  "source_campaign_sha256": "496fc4db5e537c05d4e380aa514ce45629dbf779769601b816eea8034af70c83",
+  "cpu": 8,
+  "conditions_before": {
+    "utc": "2026-11-16T13:06:53Z",
+    "load_average": [
+      6.5126953125,
+      8.7392578125,
+      8.98974609375
+    ],
+    "governor": "performance",
+    "frequency": "3012481"
+  },
+  "status": "passed",
+  "checks": [
+    {
+      "label": "default-0-candidate-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.040363134990912,
+      "artifact": "default-0-candidate-all.log.gz",
+      "sha256": "25446a7e98e4748887e0d97a64c2940ef7acc98b99e1dcdc33411395d5b50471"
+    },
+    {
+      "label": "default-0-control-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.027377978010918,
+      "artifact": "default-0-control-all.log.gz",
+      "sha256": "5c6447fa551fc0cec5347c850aabd879b0a4346d68362670543cb7c473c25ede"
+    },
+    {
+      "label": "default-1-control-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.0491104969987646,
+      "artifact": "default-1-control-all.log.gz",
+      "sha256": "c031803d97dd01926b2af9116b9e02675d26615ec07a61c7b5a155e18fefa461"
+    },
+    {
+      "label": "default-1-candidate-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.0213828660052968,
+      "artifact": "default-1-candidate-all.log.gz",
+      "sha256": "1e5153903e85d9b72f0603539dcd8f3dd43b1964e97fcd07bbc7e2b1794f14cc"
+    },
+    {
+      "label": "default-2-candidate-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.0256859660003101,
+      "artifact": "default-2-candidate-all.log.gz",
+      "sha256": "db56e7ffe48f6288b5ccaefd6ece1ea9b337d14fd384318669985948cf5bd0f2"
+    },
+    {
+      "label": "default-2-control-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.0218294000078458,
+      "artifact": "default-2-control-all.log.gz",
+      "sha256": "7deeb53f2ecd47da4c9c97b9ac1633efdbd4f8fe39f039e3e8ad99cb529147c5"
+    },
+    {
+      "label": "default-3-control-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.0299758199980715,
+      "artifact": "default-3-control-all.log.gz",
+      "sha256": "72cc02561d292621b7f285fead7c7447b6c6f323e6897618f2a37b8079eb3ce0"
+    },
+    {
+      "label": "default-3-candidate-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.0260704300017096,
+      "artifact": "default-3-candidate-all.log.gz",
+      "sha256": "d95cf0671c21449b8cb1a4b992ec8d968b7fe66e85ce9955c17a2b0a7e35089b"
+    },
+    {
+      "label": "default-4-candidate-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.0654934140038677,
+      "artifact": "default-4-candidate-all.log.gz",
+      "sha256": "d27af286be506abcf44767d58fbf1bb42b791773e6a3348c5837b2dc80b4a872"
+    },
+    {
+      "label": "default-4-control-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.028661899996223,
+      "artifact": "default-4-control-all.log.gz",
+      "sha256": "d7e6a5b8b8f5b3afab4092bc6a82249caef2f10c14c2d963b2709d4ce01afaa7"
+    },
+    {
+      "label": "default-5-control-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.0747367559961276,
+      "artifact": "default-5-control-all.log.gz",
+      "sha256": "35eccc65fa9a4a2542f3f8cd0a4e0fa6c3fa2cc36a419bad0c8a4199af96fe20"
+    },
+    {
+      "label": "default-5-candidate-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.031129160997807,
+      "artifact": "default-5-candidate-all.log.gz",
+      "sha256": "ce77a82e37526760a4fb5bf3cb412e905d42f0d62602f2239f9f4feef30d35cc"
+    },
+    {
+      "label": "default-6-candidate-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.039374553001835,
+      "artifact": "default-6-candidate-all.log.gz",
+      "sha256": "494b5ea63061b4aa6ebef4557553c043d4c2a465cc80bb64f8b5044850270265"
+    },
+    {
+      "label": "default-6-control-all",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench"
+      ],
+      "multiplier": 1,
+      "exit_code": 0,
+      "seconds": 1.0282899209996685,
+      "artifact": "default-6-control-all.log.gz",
+      "sha256": "bd0519a63503214aa92ee236dee91701bb4b06e4968b796c7b5aca2eba8882b5"
+    },
+    {
+      "label": "extended-0-candidate-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.0482802799961064,
+      "artifact": "extended-0-candidate-portable_validate_reduce_hash.log.gz",
+      "sha256": "cf79fd21210c6ec4e2840e237a00349803fa9b5630a887c08bc5b06f66fdda06"
+    },
+    {
+      "label": "extended-0-candidate-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.20313420001184568,
+      "artifact": "extended-0-candidate-wrong_key_refusal.log.gz",
+      "sha256": "99216f2e0a5370e2e747fc4e4fbce7e603c87cbf6cca6560c7942abc955d95a8"
+    },
+    {
+      "label": "extended-0-control-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.046207232007873245,
+      "artifact": "extended-0-control-portable_validate_reduce_hash.log.gz",
+      "sha256": "07836f72a2977fa78cbc7a30246f51653aceaabf0eb51bb9c537b396b9196b87"
+    },
+    {
+      "label": "extended-0-control-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.20294941299653146,
+      "artifact": "extended-0-control-wrong_key_refusal.log.gz",
+      "sha256": "98e9b08be82245ef9a82c265f6c18ec3470b1aa179429d8d923887d4654c3729"
+    },
+    {
+      "label": "extended-1-control-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.04660715500358492,
+      "artifact": "extended-1-control-portable_validate_reduce_hash.log.gz",
+      "sha256": "3f37f140a7769aadc4aaacb9a5b8c088232ae9ae2ab8f7deefd69470f5639246"
+    },
+    {
+      "label": "extended-1-control-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.2009414499916602,
+      "artifact": "extended-1-control-wrong_key_refusal.log.gz",
+      "sha256": "1a0acd192ecd5d5b4307c7fd2c9856fd2b2d7b42cf1070b3b43b1d5e0a345fba"
+    },
+    {
+      "label": "extended-1-candidate-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.04414581600576639,
+      "artifact": "extended-1-candidate-portable_validate_reduce_hash.log.gz",
+      "sha256": "fb6a7cc305f6a672506e2c2a5665b6585623e52c9e37be0c892298c22c332ec5"
+    },
+    {
+      "label": "extended-1-candidate-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.20516239199787378,
+      "artifact": "extended-1-candidate-wrong_key_refusal.log.gz",
+      "sha256": "3da1d64eef0a1391a1ee0de270793263aac9a80542cefe618a8f3e88521314f7"
+    },
+    {
+      "label": "extended-2-candidate-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.04768916800094303,
+      "artifact": "extended-2-candidate-portable_validate_reduce_hash.log.gz",
+      "sha256": "07617c9a7454e2167bece88433a08d9af492897855ed46517249be75bdf78ba3"
+    },
+    {
+      "label": "extended-2-candidate-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.21216340899991337,
+      "artifact": "extended-2-candidate-wrong_key_refusal.log.gz",
+      "sha256": "87dd2c0b58835a8749bd73f1420fd72433dd06c1b1b0626b1caee1d97018d830"
+    },
+    {
+      "label": "extended-2-control-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.04642953199800104,
+      "artifact": "extended-2-control-portable_validate_reduce_hash.log.gz",
+      "sha256": "058caeb4677f3dd1c139ef5e7189aa7f14c4a7fdcdc5cec427ba491a25496522"
+    },
+    {
+      "label": "extended-2-control-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.20531610900070518,
+      "artifact": "extended-2-control-wrong_key_refusal.log.gz",
+      "sha256": "21e420dcdbe393bf66cf2c99b067d0150bc33a084f99452bd72ef2ca1a063de8"
+    },
+    {
+      "label": "extended-3-control-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.045495846003177576,
+      "artifact": "extended-3-control-portable_validate_reduce_hash.log.gz",
+      "sha256": "229eec85232749d7351bf8fff35935bf3c92739885978750ee749529a7e55ae2"
+    },
+    {
+      "label": "extended-3-control-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.2059411679947516,
+      "artifact": "extended-3-control-wrong_key_refusal.log.gz",
+      "sha256": "5803c2e7c2d84d03604a9d19e3c140adcfa3fe35f2c43c9874e33caeebfff5fc"
+    },
+    {
+      "label": "extended-3-candidate-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.04606024699751288,
+      "artifact": "extended-3-candidate-portable_validate_reduce_hash.log.gz",
+      "sha256": "32016a13e47033755a0de0a890e2306a8dd17d869b8c62e16e1bfa64e23e141f"
+    },
+    {
+      "label": "extended-3-candidate-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.20615017200179864,
+      "artifact": "extended-3-candidate-wrong_key_refusal.log.gz",
+      "sha256": "648c053ec9411a470e62fd77a33977644205a83857d2dd445be01b7f84b615bc"
+    },
+    {
+      "label": "extended-4-candidate-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.045921940996777266,
+      "artifact": "extended-4-candidate-portable_validate_reduce_hash.log.gz",
+      "sha256": "a80022081c483f58b4f0d97f588d1a823739e11482b975e87713ced55b92add1"
+    },
+    {
+      "label": "extended-4-candidate-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.20532716099114623,
+      "artifact": "extended-4-candidate-wrong_key_refusal.log.gz",
+      "sha256": "16654cf486c6732685ba52ea1ed356170df0596fe517e652182ad42734e6e735"
+    },
+    {
+      "label": "extended-4-control-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.04506192800181452,
+      "artifact": "extended-4-control-portable_validate_reduce_hash.log.gz",
+      "sha256": "407a3525d4ca9a5f160f8bae93816a406704ac9781396475f367762679607998"
+    },
+    {
+      "label": "extended-4-control-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.20517115900292993,
+      "artifact": "extended-4-control-wrong_key_refusal.log.gz",
+      "sha256": "6483c9a08446d11e483e5738ff7617128ea1787f8d53f57f518648d05895ff06"
+    },
+    {
+      "label": "extended-5-control-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.045304024999495596,
+      "artifact": "extended-5-control-portable_validate_reduce_hash.log.gz",
+      "sha256": "1cc7762508ac893f4853bb5dcb60baa610ac2b9fe2d7064a3cff00dfbcfe5fe7"
+    },
+    {
+      "label": "extended-5-control-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.2047491830016952,
+      "artifact": "extended-5-control-wrong_key_refusal.log.gz",
+      "sha256": "1ef74007a2ec7df411af09eba4f54fd362163529d3643622fbea491f58fb0ffb"
+    },
+    {
+      "label": "extended-5-candidate-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.04603643099835608,
+      "artifact": "extended-5-candidate-portable_validate_reduce_hash.log.gz",
+      "sha256": "cdf5a03ca9e50bea93a4fb12a9682a5476b872a99756d46be9fca159dc4cc9c5"
+    },
+    {
+      "label": "extended-5-candidate-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.20520265999948606,
+      "artifact": "extended-5-candidate-wrong_key_refusal.log.gz",
+      "sha256": "fc6be26dbb98abc533c614cbd0a36b0bcf686d0e73a9d589e6b452ded2f9ef23"
+    },
+    {
+      "label": "extended-6-candidate-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.04417475199443288,
+      "artifact": "extended-6-candidate-portable_validate_reduce_hash.log.gz",
+      "sha256": "8d5785767684cc91b8cb486a551a011881689a1a2ee2b581c0b11c84b6fe9a9e"
+    },
+    {
+      "label": "extended-6-candidate-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-1-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.20192442199913785,
+      "artifact": "extended-6-candidate-wrong_key_refusal.log.gz",
+      "sha256": "714ae6a392dd8a516f019f2607e5ad09c519ffd36d9cdedce0a6b6a2efcab56b"
+    },
+    {
+      "label": "extended-6-control-portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "portable_validate_reduce_hash"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.04448489200149197,
+      "artifact": "extended-6-control-portable_validate_reduce_hash.log.gz",
+      "sha256": "6a8b23190378e9d6b542d615b96372167a3c7afeb07019ea1851e8f43c470fb5"
+    },
+    {
+      "label": "extended-6-control-wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "/home/ac/projects/statechronicle/target/performance-matrix/20261116T130401Z-565324/lane-0-bench",
+        "wrong_key_refusal"
+      ],
+      "multiplier": 20,
+      "exit_code": 0,
+      "seconds": 0.20620724199397955,
+      "artifact": "extended-6-control-wrong_key_refusal.log.gz",
+      "sha256": "028acf596ff1f978387808616ee30dc2701d2863e1820683274555347c702ab0"
+    }
+  ],
+  "binary_sha256": {
+    "control": "a61cf945e68e054355b211381040d4ba51dc3ab922aad819e3893b17fba6a5ca",
+    "candidate": "4820af9700748596c8cf87130644b0b92117048b988e8ae5c69438d7af5d737b"
+  },
+  "limitations": [
+    "Shared host, predeclared CPU 8; no observations discarded, original CPU 0 campaign retained separately.",
+    "Same immutable binaries and locks as source campaign; no builds during timing.",
+    "Each p95 is a percentile of 31 batch averages, not individual requests."
+  ],
+  "conditions_after": {
+    "utc": "2026-11-16T13:07:11Z",
+    "load_average": [
+      7.45263671875,
+      8.7919921875,
+      9.0009765625
+    ],
+    "governor": "performance",
+    "frequency": "5156229"
+  },
+  "artifacts_sha256": {
+    "runner.py": "87ff08755ce6a08672045ea5d574e7c66625604d3423d3539405c863971118e9",
+    "default-0-candidate-all.log.gz": "25446a7e98e4748887e0d97a64c2940ef7acc98b99e1dcdc33411395d5b50471",
+    "default-0-control-all.log.gz": "5c6447fa551fc0cec5347c850aabd879b0a4346d68362670543cb7c473c25ede",
+    "default-1-control-all.log.gz": "c031803d97dd01926b2af9116b9e02675d26615ec07a61c7b5a155e18fefa461",
+    "default-1-candidate-all.log.gz": "1e5153903e85d9b72f0603539dcd8f3dd43b1964e97fcd07bbc7e2b1794f14cc",
+    "default-2-candidate-all.log.gz": "db56e7ffe48f6288b5ccaefd6ece1ea9b337d14fd384318669985948cf5bd0f2",
+    "default-2-control-all.log.gz": "7deeb53f2ecd47da4c9c97b9ac1633efdbd4f8fe39f039e3e8ad99cb529147c5",
+    "default-3-control-all.log.gz": "72cc02561d292621b7f285fead7c7447b6c6f323e6897618f2a37b8079eb3ce0",
+    "default-3-candidate-all.log.gz": "d95cf0671c21449b8cb1a4b992ec8d968b7fe66e85ce9955c17a2b0a7e35089b",
+    "default-4-candidate-all.log.gz": "d27af286be506abcf44767d58fbf1bb42b791773e6a3348c5837b2dc80b4a872",
+    "default-4-control-all.log.gz": "d7e6a5b8b8f5b3afab4092bc6a82249caef2f10c14c2d963b2709d4ce01afaa7",
+    "default-5-control-all.log.gz": "35eccc65fa9a4a2542f3f8cd0a4e0fa6c3fa2cc36a419bad0c8a4199af96fe20",
+    "default-5-candidate-all.log.gz": "ce77a82e37526760a4fb5bf3cb412e905d42f0d62602f2239f9f4feef30d35cc",
+    "default-6-candidate-all.log.gz": "494b5ea63061b4aa6ebef4557553c043d4c2a465cc80bb64f8b5044850270265",
+    "default-6-control-all.log.gz": "bd0519a63503214aa92ee236dee91701bb4b06e4968b796c7b5aca2eba8882b5",
+    "extended-0-candidate-portable_validate_reduce_hash.log.gz": "cf79fd21210c6ec4e2840e237a00349803fa9b5630a887c08bc5b06f66fdda06",
+    "extended-0-candidate-wrong_key_refusal.log.gz": "99216f2e0a5370e2e747fc4e4fbce7e603c87cbf6cca6560c7942abc955d95a8",
+    "extended-0-control-portable_validate_reduce_hash.log.gz": "07836f72a2977fa78cbc7a30246f51653aceaabf0eb51bb9c537b396b9196b87",
+    "extended-0-control-wrong_key_refusal.log.gz": "98e9b08be82245ef9a82c265f6c18ec3470b1aa179429d8d923887d4654c3729",
+    "extended-1-control-portable_validate_reduce_hash.log.gz": "3f37f140a7769aadc4aaacb9a5b8c088232ae9ae2ab8f7deefd69470f5639246",
+    "extended-1-control-wrong_key_refusal.log.gz": "1a0acd192ecd5d5b4307c7fd2c9856fd2b2d7b42cf1070b3b43b1d5e0a345fba",
+    "extended-1-candidate-portable_validate_reduce_hash.log.gz": "fb6a7cc305f6a672506e2c2a5665b6585623e52c9e37be0c892298c22c332ec5",
+    "extended-1-candidate-wrong_key_refusal.log.gz": "3da1d64eef0a1391a1ee0de270793263aac9a80542cefe618a8f3e88521314f7",
+    "extended-2-candidate-portable_validate_reduce_hash.log.gz": "07617c9a7454e2167bece88433a08d9af492897855ed46517249be75bdf78ba3",
+    "extended-2-candidate-wrong_key_refusal.log.gz": "87dd2c0b58835a8749bd73f1420fd72433dd06c1b1b0626b1caee1d97018d830",
+    "extended-2-control-portable_validate_reduce_hash.log.gz": "058caeb4677f3dd1c139ef5e7189aa7f14c4a7fdcdc5cec427ba491a25496522",
+    "extended-2-control-wrong_key_refusal.log.gz": "21e420dcdbe393bf66cf2c99b067d0150bc33a084f99452bd72ef2ca1a063de8",
+    "extended-3-control-portable_validate_reduce_hash.log.gz": "229eec85232749d7351bf8fff35935bf3c92739885978750ee749529a7e55ae2",
+    "extended-3-control-wrong_key_refusal.log.gz": "5803c2e7c2d84d03604a9d19e3c140adcfa3fe35f2c43c9874e33caeebfff5fc",
+    "extended-3-candidate-portable_validate_reduce_hash.log.gz": "32016a13e47033755a0de0a890e2306a8dd17d869b8c62e16e1bfa64e23e141f",
+    "extended-3-candidate-wrong_key_refusal.log.gz": "648c053ec9411a470e62fd77a33977644205a83857d2dd445be01b7f84b615bc",
+    "extended-4-candidate-portable_validate_reduce_hash.log.gz": "a80022081c483f58b4f0d97f588d1a823739e11482b975e87713ced55b92add1",
+    "extended-4-candidate-wrong_key_refusal.log.gz": "16654cf486c6732685ba52ea1ed356170df0596fe517e652182ad42734e6e735",
+    "extended-4-control-portable_validate_reduce_hash.log.gz": "407a3525d4ca9a5f160f8bae93816a406704ac9781396475f367762679607998",
+    "extended-4-control-wrong_key_refusal.log.gz": "6483c9a08446d11e483e5738ff7617128ea1787f8d53f57f518648d05895ff06",
+    "extended-5-control-portable_validate_reduce_hash.log.gz": "1cc7762508ac893f4853bb5dcb60baa610ac2b9fe2d7064a3cff00dfbcfe5fe7",
+    "extended-5-control-wrong_key_refusal.log.gz": "1ef74007a2ec7df411af09eba4f54fd362163529d3643622fbea491f58fb0ffb",
+    "extended-5-candidate-portable_validate_reduce_hash.log.gz": "cdf5a03ca9e50bea93a4fb12a9682a5476b872a99756d46be9fca159dc4cc9c5",
+    "extended-5-candidate-wrong_key_refusal.log.gz": "fc6be26dbb98abc533c614cbd0a36b0bcf686d0e73a9d589e6b452ded2f9ef23",
+    "extended-6-candidate-portable_validate_reduce_hash.log.gz": "8d5785767684cc91b8cb486a551a011881689a1a2ee2b581c0b11c84b6fe9a9e",
+    "extended-6-candidate-wrong_key_refusal.log.gz": "714ae6a392dd8a516f019f2607e5ad09c519ffd36d9cdedce0a6b6a2efcab56b",
+    "extended-6-control-portable_validate_reduce_hash.log.gz": "6a8b23190378e9d6b542d615b96372167a3c7afeb07019ea1851e8f43c470fb5",
+    "extended-6-control-wrong_key_refusal.log.gz": "028acf596ff1f978387808616ee30dc2701d2863e1820683274555347c702ab0",
+    "summary.json": "0ac0bd780c0ea7ea764d81fa3650954566da376754387be55976eed2779c051f"
+  }
+}

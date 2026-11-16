@@ -942,3 +942,24 @@ source hashes and scope](evidence/f3/native-contracts/README.md) distinguish typ
 safety from trusted pin origin, cryptography and migration authorization. No
 production library, dependency, lockfile or workflow changes occur. Broader
 F3/F8 and release qualification remain open.
+
+
+## Built-in profile wrapper reassessment
+
+Retained source `7abe9d8` removes three duplicate field guards and eight exact
+execution-policy forwarding overrides, using existing registry/trait owners.
+All eight built-in profiles are reviewed; missing-state errors, float errors
+and narrower reducer string-field exposure remain intentionally distinct. An
+external 296,604-case check/reduction/transfer corpus agrees with the actual
+original release and the unchanged control. A float-error substitution fails
+1,430 cases under optimized Python. The existing 23,544-row executor trace,
+884 root tests, 16 doctests, strict static checks, frozen consumer and portable
+qualification pass on the retained source.
+
+Production loses 555 tokens and 10 parsed branches without public API changes.
+Allocation totals match, while the combined benchmark binary grows 0.133%.
+Default portable median and wrong-key batch-average p95 concerns persist in
+a repeat but diminish with longer measurements; they remain visible in the
+[evidence and limitations](evidence/maintenance/builtin-profiles/README.md).
+This advances F3's built-in review and F6's duplicate-owner work; it does not
+close full performance, footprint or release qualification.

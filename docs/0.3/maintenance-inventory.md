@@ -181,3 +181,17 @@ pass. Production loses 375 tokens and 27 parsed branches; affected files shrink
 evidence/f2/batch-completion/README.md) retains a rejected generic result wrapper,
 two matched retained campaigns, equal allocation totals and an open refusing-sink
 p95 concern. Canonical ledger authority remains separate.
+
+
+All eight built-in profiles now inherit the existing `ProfileRules` execution-policy
+default rather than duplicating its exact forwarding body. Reducer required-input
+strings and typed amount/boolean reads use the existing registry helpers. Distinct
+missing-state, float-error and string-field contracts remain explicit. No new
+helper, public API, dependency or crate is introduced. The combined change removes
+68 syntax lines, 555 tokens and 10 parsed branches; whole production is 120,696
+tokens and 1,948 branches, still above the original release. [Original-release
+296,604-case reduction parity, 23,544-row executor parity, exact-source checks and
+all retained measurement attempts](evidence/maintenance/builtin-profiles/README.md)
+include a 0.133% binary increase and short-regime portable/wrong-key timing
+concerns that diminish in longer measurements. These are explicit limits, not a
+full performance or footprint-gate pass.

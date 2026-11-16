@@ -1,0 +1,8 @@
+{
+  "revision": "cd85a399f108e43a55e4f756232a42a5591c0992",
+  "path": "crates/statechronicle-profiles/src/transition.rs",
+  "original_sha256": "fc14248c9811ef208ad37712395d42b8450c4d8a59a9cb140a6192b4a3409906",
+  "mutated_sha256": "4a29e96e71d9bccd9f839f21cc9139b63e96b623de8e952f7414346956428a67",
+  "removed": "return Err(invalid_input(format!(\n            \"`{key}` must be an integer string (floats are forbidden)\"\n        )));",
+  "replacement": "return Err(ProfileError::FloatForbidden);"
+}

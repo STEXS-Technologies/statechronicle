@@ -1,0 +1,87 @@
+{
+  "candidate_commit": "7abe9d885eeaf008e524d70e51165fa3b137c62f",
+  "control_commit": "d83ae0326e72e3e971a2d514629a431ee217aba8",
+  "manifests": {
+    "docs/0.3/evidence/maintenance/builtin-profiles/20261116T125018Z-16590/manifest.json": {
+      "status": "failed_or_interrupted",
+      "sha256": "ca0633d3b5b06dd4e9f0834fed0db7b40fae97a27ff62aa7d2c76adef6d1c6ea"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/20261116T125057Z-41710/manifest.json": {
+      "status": "passed",
+      "sha256": "7afa07a4ff9eac806519856fa33e3f7a820357d49a8d6f5f165a36f6c21dccfe"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/20261116T125147Z-78337/manifest.json": {
+      "status": "failed_or_interrupted",
+      "sha256": "aab92d2b2c16c363e1304b543a6dc3f410654206e45554713333fab0d089a49c"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/20261116T125230Z-109663/manifest.json": {
+      "status": "passed",
+      "sha256": "5c33777d3aaa2e754ccb3bb93fdb4d4641f60a5e9c4875a151d53eb7f3501c55"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/20261116T125320Z-145157/manifest.json": {
+      "status": "failed_or_interrupted",
+      "sha256": "b426152aa565acc6627c50d363b94c0e8012dcbb9cb7d28d0e2af2af36fabf5e"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/20261116T130228Z-486762/manifest.json": {
+      "status": "passed",
+      "sha256": "af5d8ed555dd59f1c706519248e20b84d9e13d5efad827c3f75b906752c3e9ee"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/allocations-20261116T125508Z-219192/manifest.json": {
+      "status": "passed",
+      "sha256": "26600fab6dcb16bc01046fe2294618f3322e50edaf6d47680aeca1102140c931"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/allocations-20261116T130516Z-626071/manifest.json": {
+      "status": "passed",
+      "sha256": "28e741c1396324363f44a8b07121eb1fc78ccda7a44fa1722aee4398cae1e74a"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/paired-20261116T125348Z-164088/manifest.json": {
+      "status": "passed",
+      "sha256": "68af93796af51ed83b112a74a8acfd5b56a434e3af01029c1754573becdf310e"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/paired-20261116T130401Z-565324/manifest.json": {
+      "status": "passed",
+      "sha256": "496fc4db5e537c05d4e380aa514ce45629dbf779769601b816eea8034af70c83"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/qualification-7abe9d8/manifest.json": {
+      "status": "passed",
+      "sha256": "3359a7fbfe7d2abe51826e33ecf6ba1fb0875a0692cde1a28e3e8b5153766c88"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/qualification-cd85a39/manifest.json": {
+      "status": "passed",
+      "sha256": "cab80ecba659371a003d1a457ea9a90aa1ed15ee231a9353e9014af89f2a0d5b"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/repeat-20261116T125631Z-278672/manifest.json": {
+      "status": "passed",
+      "sha256": "e71d480b31042132ddc1c5d9769ec0462a81e673d2abd67520f80ea9c93b2dc9"
+    },
+    "docs/0.3/evidence/maintenance/builtin-profiles/repeat-20261116T130653Z-711434/manifest.json": {
+      "status": "passed",
+      "sha256": "476fd03b7fb71fb73462cd8d66c7d5531067570c93e87b03d78ee918206ba212"
+    },
+    "docs/0.3/evidence/f2/executor-order/20261116T130321Z-530529/manifest.json": {
+      "status": "passed",
+      "sha256": "ef3ddf8dc8efce749837f39b414c7381462602f1ad20afe9039689a5b2f7c0d9"
+    },
+    "docs/0.3/evidence/compat/20261116T125509Z-220070/manifest.json": {
+      "status": "passed",
+      "sha256": "af3c7067381caa52448e12337a8b5d3e8e66dad9d636d06d2c249ed08593ac20"
+    },
+    "docs/0.3/evidence/compat/20261116T130517Z-627088/manifest.json": {
+      "status": "passed",
+      "sha256": "3bf286a4f758e046e313e9c49043b7ae0cef78fc48c7cc39a7f6cb2b4000d97b"
+    }
+  },
+  "verified_artifacts": 443,
+  "negative_control_owner_and_fixture_unchanged_from": "fb3d5a4",
+  "production_delta": {
+    "syntax_lines": -68,
+    "lexical_tokens": -555,
+    "branch_nodes": -10,
+    "tracked_bytes": -3062,
+    "public_syntax_items": 0
+  },
+  "remaining": [
+    "Default short-regime portable and wrong-key timing concerns; extended measurements differ.",
+    "Broader performance, footprint justification, canonical-facade qualification, exact-candidate coverage/packages and release work remain open."
+  ]
+}
