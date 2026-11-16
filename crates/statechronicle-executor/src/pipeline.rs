@@ -51,6 +51,7 @@ use statechronicle_ports::state_index::StateIndex;
 use statechronicle_ports::tenant_store::TenantStore;
 use statechronicle_ports::transaction_manager::{TransactionManager, TransactionManagerError};
 use statechronicle_ports::trustgrant_evaluator::TrustGrantError;
+use statechronicle_profiles::error::ProfileEvaluationError;
 use statechronicle_profiles::execution::ExecutionPolicy;
 use statechronicle_profiles::registry::ProfileRegistry;
 
@@ -999,13 +1000,16 @@ impl Executor {
             Some(proof)
         };
 
-        // §18.1 step 9: profile rules.
-        rules.check(operation, current.as_ref(), &intent.inputs)?;
-
-        // §18.1 step 10: deterministic after-state.
+        // §18.1 steps 9–10: profile rules, then deterministic after-state.
+        // Typed adapters share decoded arguments; default rules retain both calls.
         let after_state = rules
-            .apply(current.as_ref(), operation, &intent.inputs)
-            .map_err(|error| ExecutorError::TransitionInvalid(error.to_string()))?;
+            .evaluate(current.as_ref(), operation, &intent.inputs)
+            .map_err(|error| match error {
+                ProfileEvaluationError::Check(error) => ExecutorError::from(error),
+                ProfileEvaluationError::Apply(error) => {
+                    ExecutorError::TransitionInvalid(error.to_string())
+                }
+            })?;
         if after_state.state_type() != state_type {
             return Err(ExecutorError::TransitionInvalid(String::from(
                 "reducer state type mismatch",

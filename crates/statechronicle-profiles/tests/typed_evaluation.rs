@@ -79,6 +79,9 @@ impl StateProfile for Model {
 }
 static OPERATIONS: LazyLock<Vec<Operation>> =
     LazyLock::new(|| vec![Operation::new("evaluation.set".into()).unwrap()]);
+fn operation() -> &'static Operation {
+    OPERATIONS.first().unwrap()
+}
 fn profile() -> TypedProfile<Model> {
     TypedProfile::new(Model, &OPERATIONS)
 }
@@ -116,10 +119,10 @@ fn original_hosted_check_apply_decodes_and_validates_twice() {
     let projection = current();
     trace();
     adapter
-        .check(&OPERATIONS[0], Some(&projection), &inputs(23))
+        .check(operation(), Some(&projection), &inputs(23))
         .unwrap();
     let after = adapter
-        .apply(Some(&projection), &OPERATIONS[0], &inputs(23))
+        .apply(Some(&projection), operation(), &inputs(23))
         .unwrap();
     assert_eq!(after, state(23));
     assert_eq!(
@@ -145,29 +148,185 @@ fn original_check_and_reduction_failures_have_distinct_stages() {
     let projection = current();
     assert_eq!(
         adapter
-            .check(&OPERATIONS[0], Some(&projection), &inputs(99))
+            .check(operation(), Some(&projection), &inputs(99))
             .unwrap_err()
             .to_string(),
         "invalid input: command refused"
     );
     adapter
-        .check(&OPERATIONS[0], Some(&projection), &inputs(98))
+        .check(operation(), Some(&projection), &inputs(98))
         .unwrap();
     assert_eq!(
         adapter
-            .apply(Some(&projection), &OPERATIONS[0], &inputs(98))
+            .apply(Some(&projection), operation(), &inputs(98))
             .unwrap_err()
             .to_string(),
         "invalid input: reduction refused"
     );
     adapter
-        .check(&OPERATIONS[0], Some(&projection), &inputs(101))
+        .check(operation(), Some(&projection), &inputs(101))
         .unwrap();
     assert_eq!(
         adapter
-            .apply(Some(&projection), &OPERATIONS[0], &inputs(101))
+            .apply(Some(&projection), operation(), &inputs(101))
             .unwrap_err()
             .to_string(),
         "invalid input: state refused"
     );
+}
+
+#[test]
+fn combined_typed_evaluation_decodes_once_and_keeps_output_validation() {
+    let adapter = profile();
+    let projection = current();
+    trace();
+    let after = adapter
+        .evaluate(Some(&projection), operation(), &inputs(23))
+        .unwrap();
+    assert_eq!(after, state(23));
+    assert_eq!(
+        trace(),
+        vec![
+            "decode command",
+            "decode state",
+            "validate state",
+            "validate command",
+            "reduce",
+            "validate state",
+        ]
+    );
+    trace();
+    adapter.evaluate(None, operation(), &inputs(23)).unwrap();
+    assert_eq!(
+        trace(),
+        vec![
+            "decode command",
+            "validate command",
+            "reduce",
+            "validate state"
+        ]
+    );
+}
+
+#[test]
+fn combined_evaluation_matches_legacy_states_and_failure_stages() {
+    use statechronicle_profiles::error::ProfileEvaluationError::{Apply, Check};
+    let adapter = profile();
+    let mut commands = vec![
+        inputs(23),
+        inputs(98),
+        inputs(99),
+        inputs(101),
+        inputs(u64::MAX),
+    ];
+    for (key, value) in [
+        ("profile", json!("other.domain")),
+        ("schema_version", json!(2)),
+        ("command", json!([0])),
+        ("command", json!([0, 0, 0, 0, 0, 0, 0, 0, 0])),
+        ("command", json!([256])),
+        ("command", json!("bytes")),
+    ] {
+        let mut input = inputs(23);
+        input.insert(key.into(), value);
+        commands.push(input);
+    }
+    for key in ["profile", "schema_version", "command"] {
+        let mut input = inputs(23);
+        input.remove(key);
+        commands.push(input);
+    }
+    let mut projections = vec![None, Some(current())];
+    let mut bad = current();
+    bad.state_type = StateType::UniqueAsset;
+    projections.push(Some(bad));
+    for (domain, schema, payload) in [
+        (Model::DOMAIN_ID, 1, 101u64.to_le_bytes().to_vec()),
+        (Model::DOMAIN_ID, 2, 17u64.to_le_bytes().to_vec()),
+        ("other.domain", 1, 17u64.to_le_bytes().to_vec()),
+        (Model::DOMAIN_ID, 1, vec![0]),
+        (Model::DOMAIN_ID, 1, vec![0; 9]),
+    ] {
+        let mut projection = current();
+        projection.state = ResourceState::Custom(CustomState {
+            domain: ProfileId::new(domain.into()).unwrap(),
+            schema_version: schema,
+            payload,
+        });
+        projections.push(Some(projection));
+    }
+    let unknown = Operation::new("evaluation.unknown".into()).unwrap();
+    for operation in [operation(), &unknown] {
+        for projection in &projections {
+            for input in &commands {
+                let legacy = adapter
+                    .check(operation, projection.as_ref(), input)
+                    .map_err(Check)
+                    .and_then(|()| {
+                        adapter
+                            .apply(projection.as_ref(), operation, input)
+                            .map_err(Apply)
+                    });
+                assert_eq!(
+                    adapter.evaluate(projection.as_ref(), operation, input),
+                    legacy,
+                    "operation={operation:?}, projection={projection:?}, inputs={input:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn default_evaluation_preserves_custom_rule_order_and_refusal() {
+    use statechronicle_profiles::error::{ProfileError, ProfileEvaluationError};
+    struct Legacy {
+        fail_check: bool,
+    }
+    impl ProfileRules for Legacy {
+        fn state_type(&self) -> StateType {
+            StateType::Custom
+        }
+        fn profile_id(&self) -> &'static str {
+            Model::DOMAIN_ID
+        }
+        fn allowed_operations(&self) -> &'static [Operation] {
+            &OPERATIONS
+        }
+        fn check(
+            &self,
+            _: &Operation,
+            _: Option<&StateProjection>,
+            _: &BTreeMap<String, Value>,
+        ) -> Result<(), ProfileError> {
+            record("legacy check");
+            if self.fail_check {
+                Err(ProfileError::NotTransferable)
+            } else {
+                Ok(())
+            }
+        }
+        fn apply(
+            &self,
+            _: Option<&StateProjection>,
+            _: &Operation,
+            _: &BTreeMap<String, Value>,
+        ) -> Result<ResourceState, ProfileError> {
+            record("legacy apply");
+            Err(ProfileError::HardDeleteForbidden)
+        }
+    }
+    trace();
+    assert_eq!(
+        Legacy { fail_check: true }.evaluate(None, operation(), &inputs(23)),
+        Err(ProfileEvaluationError::Check(ProfileError::NotTransferable))
+    );
+    assert_eq!(trace(), vec!["legacy check"]);
+    assert_eq!(
+        Legacy { fail_check: false }.evaluate(None, operation(), &inputs(23)),
+        Err(ProfileEvaluationError::Apply(
+            ProfileError::HardDeleteForbidden
+        ))
+    );
+    assert_eq!(trace(), vec!["legacy check", "legacy apply"]);
 }
