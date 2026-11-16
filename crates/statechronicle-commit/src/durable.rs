@@ -81,11 +81,11 @@ impl CommittedMutation {
         &self.identity
     }
     /// Original signed commit, checked under the supplied independent policy.
-    pub fn commit(&self) -> &Signed<Commit> {
+    pub const fn commit(&self) -> &Signed<Commit> {
         &self.record.commit
     }
     /// Verified original immutable mutation effects, not today's projections.
-    pub fn record(&self) -> &LedgerMutation {
+    pub const fn record(&self) -> &LedgerMutation {
         &self.record
     }
 }

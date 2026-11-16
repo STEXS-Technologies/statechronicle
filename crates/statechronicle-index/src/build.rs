@@ -361,15 +361,20 @@ fn recover_value_pairs(events: &[Event]) -> Result<Vec<RecoveredValuePair>, Inde
         for event in &group {
             let before = commitment_amount(&event.before.state);
             let after = commitment_amount(&event.after.state);
-            if before > after {
-                let delta = before
-                    .checked_sub(after)
-                    .ok_or_else(|| IndexError::MalformedValue(String::from("debit overflow")))?;
-                debit = debit
-                    .checked_add(delta)
-                    .ok_or_else(|| IndexError::MalformedValue(String::from("debit overflow")))?;
-            } else if after > before {
-                credited_subject = state_str_opt(&event.after.state, keys::SUBJECT).map(SubjectId);
+            match before.cmp(&after) {
+                std::cmp::Ordering::Greater => {
+                    let delta = before.checked_sub(after).ok_or_else(|| {
+                        IndexError::MalformedValue(String::from("debit overflow"))
+                    })?;
+                    debit = debit.checked_add(delta).ok_or_else(|| {
+                        IndexError::MalformedValue(String::from("debit overflow"))
+                    })?;
+                }
+                std::cmp::Ordering::Less => {
+                    credited_subject =
+                        state_str_opt(&event.after.state, keys::SUBJECT).map(SubjectId);
+                }
+                std::cmp::Ordering::Equal => {}
             }
         }
         let mut event_ids: Vec<EventId> =
@@ -1201,16 +1206,15 @@ mod tests {
 
     /// Derives a deterministic batch from a byte slice using fixed event
     /// templates, so the builder is exercised over arbitrary shapes.
-    #[allow(clippy::manual_is_multiple_of)]
     fn batch_from_bytes(data: &[u8]) -> IngestBatch {
-        let tenant_name = if data.first().copied().unwrap_or(0) % 2 == 0 {
+        let tenant_name = if data.first().copied().unwrap_or(0).rem_euclid(2) == 0 {
             "acme.game.alpha"
         } else {
             "acme.game.beta"
         };
         let trade = format!("trade_{:03}", data.get(1).copied().unwrap_or(0) % 7);
         let mut events = Vec::new();
-        if data.len() > 2 && data[2] % 3 != 0 {
+        if data.len() > 2 && data[2].rem_euclid(3) != 0 {
             events.push(lock_event(
                 "f1",
                 tenant_name,
@@ -1219,7 +1223,7 @@ mod tests {
                 "alice",
             ));
         }
-        if data.len() > 3 && data[3] % 2 == 0 {
+        if data.len() > 3 && data[3].rem_euclid(2) == 0 {
             events.push(settle_event(
                 "f2",
                 tenant_name,
@@ -1238,7 +1242,7 @@ mod tests {
             ));
         }
         let mut settle_intents = Vec::new();
-        if data.len() > 4 && data[4] % 2 == 0 {
+        if data.len() > 4 && data[4].rem_euclid(2) == 0 {
             let amount = (data.get(5).copied().unwrap_or(0) % 100).to_string();
             settle_intents.push(value_settle_intent(&trade, "wallet:gold", &amount, "alice"));
         }

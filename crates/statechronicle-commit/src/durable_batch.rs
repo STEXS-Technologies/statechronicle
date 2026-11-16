@@ -126,7 +126,7 @@ impl CommittedBatch {
         &self.identity
     }
     /// Complete original immutable effects, never today's mutable projections.
-    pub fn record(&self) -> &LedgerBatch {
+    pub const fn record(&self) -> &LedgerBatch {
         &self.record
     }
 }

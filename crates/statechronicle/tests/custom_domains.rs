@@ -872,10 +872,11 @@ fn custom_domain_conformance_vectors() {
         });
         let bytes = canonicalize(&state).unwrap();
         let hex = |value: &[u8]| {
-            value
-                .iter()
-                .map(|byte| format!("{byte:02x}"))
-                .collect::<String>()
+            value.iter().fold(String::new(), |mut output, byte| {
+                use std::fmt::Write as _;
+                write!(output, "{byte:02x}").unwrap();
+                output
+            })
         };
         assert_eq!(hex(&bytes), vector["state_bcs_hex"]);
         let digest = canonicalize_and_digest(&state).unwrap();

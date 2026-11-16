@@ -153,13 +153,11 @@ pub fn validate_settle_batch(
         .count();
     if settle_intents.iter().any(declares_bundle) {
         check_bundle_shape(settle_intents, settle_event_count, events)?;
-    } else {
-        if settle_event_count != settle_intents.len() {
-            return Err(ProfileError::AtomicityViolation(format!(
-                "settle batch has {settle_event_count} trade.settle event(s) for {} settle intent(s)",
-                settle_intents.len()
-            )));
-        }
+    } else if settle_event_count != settle_intents.len() {
+        return Err(ProfileError::AtomicityViolation(format!(
+            "settle batch has {settle_event_count} trade.settle event(s) for {} settle intent(s)",
+            settle_intents.len()
+        )));
     }
 
     // Group ALL events by intent id (for the undeclared-group check below).

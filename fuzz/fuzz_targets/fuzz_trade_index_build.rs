@@ -1,5 +1,4 @@
 #![no_main]
-#![allow(clippy::manual_is_multiple_of)]
 
 use std::collections::BTreeMap;
 
@@ -42,7 +41,7 @@ fn now() -> DateTime<Utc> {
 }
 
 fn tenant_name(data: &[u8]) -> &'static str {
-    if data.first().copied().unwrap_or(0) % 2 == 0 {
+    if data.first().copied().unwrap_or(0).rem_euclid(2) == 0 {
         "acme.game.alpha"
     } else {
         "acme.game.beta"
@@ -105,7 +104,7 @@ fn batch_from_bytes(data: &[u8]) -> Option<IngestBatch> {
             }
         }
     }
-    if data.len() > 2 && data[2] % 3 == 0 {
+    if data.len() > 2 && data[2].rem_euclid(3) == 0 {
         let amount = format!("{}", data.get(3).copied().unwrap_or(0) % 100);
         let mut inputs = std::collections::BTreeMap::new();
         inputs.insert(String::from("trade_id"), serde_json::json!(trade_id));

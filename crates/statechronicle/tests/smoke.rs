@@ -79,14 +79,14 @@ fn facade_signed_intent_is_usable() {
 }
 
 #[test]
-fn facade_executor_and_proof_types_are_visible() {
+const fn facade_executor_and_proof_types_are_visible() {
     // Compile-time proof that the namespaced and top-level facades both resolve
     // to the same concrete types.
-    fn _takes_executor(_executor: &statechronicle::Executor) {}
-    fn _takes_ports(_ports: &statechronicle::executor::pipeline::Ports) {}
-    fn _takes_proof_service(_service: &statechronicle::ProofService) {}
-    fn _takes_accumulator(_acc: &statechronicle::StateAccumulator) {}
-    fn _takes_registry(_reg: statechronicle::ProfileRegistry) {}
+    const fn _takes_executor(_executor: &statechronicle::Executor) {}
+    const fn _takes_ports(_ports: &statechronicle::executor::pipeline::Ports) {}
+    const fn _takes_proof_service(_service: &statechronicle::ProofService) {}
+    const fn _takes_accumulator(_acc: &statechronicle::StateAccumulator) {}
+    const fn _takes_registry(_reg: statechronicle::ProfileRegistry) {}
     let _ = (
         _takes_executor,
         _takes_ports,

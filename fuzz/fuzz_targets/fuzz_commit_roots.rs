@@ -1,5 +1,5 @@
 #![no_main]
-#![allow(clippy::collapsible_if, clippy::manual_is_multiple_of)]
+#![allow(clippy::collapsible_if)]
 
 use libfuzzer_sys::fuzz_target;
 
@@ -72,7 +72,7 @@ fn build_event(chunk: &[u8], index: usize) -> Option<Event> {
     let owner = format!("account:example:player_{}", index % 17);
     // Every third event is subject-held, exercising the `for_subject_held`
     // key derivation; the rest are owner-based (`for_resource`).
-    let (state, resource, state_type) = if index % 3 == 0 {
+    let (state, resource, state_type) = if index.rem_euclid(3) == 0 {
         (
             serde_json::json!({ "subject": &owner, "quantity": "1", "unit": "items" }),
             format!("stack:item_{index}"),

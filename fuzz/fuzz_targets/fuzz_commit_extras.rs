@@ -1,5 +1,4 @@
 #![no_main]
-#![allow(clippy::manual_is_multiple_of)]
 
 use libfuzzer_sys::fuzz_target;
 
@@ -84,7 +83,7 @@ fn build_event(chunk: &[u8], index: usize) -> Option<Event> {
     let intent_id = IntentId::new(format!("int_{index}_{body}")).ok()?;
     let operation = Operation::new(String::from("asset.transfer")).ok()?;
     let owner = format!("account:example:player_{}", index % 17);
-    let (state, resource, state_type) = if index % 3 == 0 {
+    let (state, resource, state_type) = if index.rem_euclid(3) == 0 {
         (
             serde_json::json!({ "subject": &owner, "quantity": "1", "unit": "items" }),
             format!("stack:item_{index}"),

@@ -719,7 +719,7 @@ mod tests {
         StateKey::for_resource(&tenant().0, &resource().0)
     }
 
-    fn absent_key() -> StateKey {
+    const fn absent_key() -> StateKey {
         StateKey::new([0xabu8; 32])
     }
 

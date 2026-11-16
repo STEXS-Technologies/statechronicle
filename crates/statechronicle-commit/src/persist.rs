@@ -776,9 +776,9 @@ pub async fn persist(
 /// Each projection is a deterministic function of its event's after-state:
 /// version, state hash, state payload, last event id, and last commit id all
 /// come from the event/commit; the state type comes from the caller.
-pub fn projections_for<'event>(
+pub fn projections_for(
     commit_id: &CommitId,
-    entries: &[CommittedEvent<'event>],
+    entries: &[CommittedEvent<'_>],
 ) -> Vec<StateProjection> {
     entries
         .iter()
