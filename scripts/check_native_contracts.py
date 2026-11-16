@@ -17,6 +17,15 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def application_span(span):
+    """Follow call-site expansion spans, never definition-site or child notes."""
+    while span:
+        if span['file_name'] == 'src/main.rs':
+            return True
+        span = (span.get('expansion') or {}).get('span')
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--revision', default='HEAD')
@@ -95,7 +104,7 @@ ed25519-dalek = "3"
             probe = consumer / 'src/main.rs'
             probe.write_bytes(positive)
             (consumer / 'Cargo.lock').write_bytes((source / 'Cargo.lock').read_bytes())
-            metadata = json.loads(run('resolve', ['cargo', '+1.100.0', 'metadata', '--offline', '--format-version', '1'], consumer))
+            json.loads(run('resolve', ['cargo', '+1.100.0', 'metadata', '--offline', '--format-version', '1'], consumer))
             lock = (consumer / 'Cargo.lock').read_bytes()
             import tomllib
             def packages(data):
@@ -133,7 +142,7 @@ ed25519-dalek = "3"
                         messages.append(message['message'])
                 assert messages and all(message.get('code', {}).get('code') == case['error_code'] for message in messages), case['name']
                 assert any(case['diagnostic_contains'] in message.get('rendered', '')
-                           and any(span['is_primary'] and span['file_name'] == 'src/main.rs'
+                           and any(span['is_primary'] and application_span(span)
                                    for span in message['spans']) for message in messages), case['name']
                 manifest['negative_probes'].append(dict(name=case['name'], error_code=case['error_code'],
                     source_sha256=sha(changed.encode()), diagnostic_contains=case['diagnostic_contains']))

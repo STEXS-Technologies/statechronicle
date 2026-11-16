@@ -18,7 +18,8 @@ compiler, diagnostics, commands, exit codes and hashes under
 `positive.rs` must check, run and pass strict Clippy. Each `cases.json` probe
 changes exactly one expression in that otherwise valid consumer. Cargo must
 return 101, every compiler error must have the intended code, and an intended
-message must have a primary span in the application source. The original valid
+message must have a primary span in the application source, directly or through
+its macro call-site expansion chain. The original valid
 application is restored and checked after every refusal. Unrelated compile,
 dependency or infrastructure errors cannot count as a successful probe.
 
