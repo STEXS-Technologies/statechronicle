@@ -19,6 +19,13 @@ locked dependencies, finite tests, exact CLI output, strict Clippy and formattin
 Source changes must be committed before this stage. Each tutorial produces its
 own exact-revision evidence manifest.
 
+`check_native_contracts.py` additionally builds a fresh external application,
+checks seven intended compiler refusals with exact diagnostic codes and source
+attribution, restores the valid program after each probe, and executes dynamic
+schema/domain/operation checks. See [the fixture contract](../../ci/native-contracts/README.md).
+A mere compiler failure is insufficient. Its deliberate valid-program negative
+control must fail and is a separate manual tool qualification command.
+
 All four active lockfiles are audited with `--deny warnings`, so unsoundness,
 unmaintained/yanked warnings and vulnerabilities cannot be silently accepted.
 The separate cargo-deny stage enforces advisories, licenses, bans and sources.

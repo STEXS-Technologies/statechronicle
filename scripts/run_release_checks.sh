@@ -20,6 +20,8 @@ RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps --all-features --lock
 # Standalone applications are separate workspaces and must compile outside ours.
 python3 scripts/check_tutorials.py --tutorial minimal-native-domain
 python3 scripts/check_tutorials.py --tutorial durable-custom-ledger
+# Compiler refusals and dynamic schema checks use a fresh external consumer.
+python3 scripts/check_native_contracts.py
 # Unsoundness and other advisory warnings must fail, including isolated locks.
 for lockfile in Cargo.lock ci/conformance/Cargo.lock \
   tutorials/minimal-native-domain/Cargo.lock tutorials/durable-custom-ledger/Cargo.lock; do
