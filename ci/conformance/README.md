@@ -206,10 +206,30 @@ receipt mutation. The check removes the first commit's pending rows from its
 expected raw view and requires both immutable receipts to remain exact. This
 is not an exactly-once delivery claim.
 
-The bounded reference uses two different unique-asset resources and two signed
-commits. Three deliberately faulty modes discard old receipts, substitute the
-current projection collection, or reconstruct the original outbox from remaining
-pending rows. Each fails `lookup.original`. This does not yet cover overwritten
-same-key projections, batch retention, projection rebuild, interrupted/corrupt
-replay, real database reopen, process kill or power loss. Callers must supply
-valid fixtures; the harness checks storage, not ingress or signer authorization.
+The bounded reference checks both different resources and an asset transfer
+that replaces the current projection at the same resource key. Native profile
+checks/reduction generate the transfer state; the commit builder recomputes
+signed event/state roots. Both exact original receipts must survive the updated
+owner/version and acknowledgement of the first outbox. A separate two-holder
+currency fixture proves that subject-held projection keys preserve both holders
+under the same tenant/resource. Owner-based keys exclude owner identity, while
+subject-held keys include the subject. The reference upserts current rows under
+these keys, checks monotonic versions before publishing any rows, and retains
+immutable original projection sets separately. A deliberately invalid equal-
+version projection is refused without changing any original committed effect.
+
+Five deliberately faulty retention/projection modes exercise the oracles:
+
+| Fault | Required oracle |
+| --- | --- |
+| Discard the old receipt after another commit | `lookup.original` |
+| Substitute current projections into the original receipt | `lookup.original` |
+| Reconstruct original outbox from remaining pending rows | `lookup.original` |
+| Append rather than replace a current projection | `retention.effects` |
+| Key subject-held projections only by resource | `retention.effects` |
+
+These are bounded two-commit schedules. They do not establish batch retention,
+long-history projection rebuild, interrupted/corrupt replay, real database
+reopen, process kill or power-loss guarantees. Callers must supply valid signed
+fixtures; storage checks do not establish ingress or signer authorization. The
+equal-version refusal test deliberately supplies invalid storage input.

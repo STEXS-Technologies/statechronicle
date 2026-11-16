@@ -34,6 +34,13 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+// Reference projection keys follow resource/subject addressing, independently
+// of receipt lookup. Owners are values, not part of an owner-based state key.
+fn same_projection_key(a: &StateProjection, b: &StateProjection) -> bool {
+    a.tenant_id == b.tenant_id
+        && a.resource_id == b.resource_id
+        && a.state.subject() == b.state.subject()
+}
 type Identity = (String, String);
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Mode {
@@ -62,6 +69,8 @@ enum Mode {
     PruneOriginal,
     CurrentProjectionLookup,
     PendingOutboxLookup,
+    AppendProjections,
+    ResourceOnlyProjections,
 }
 #[derive(Default)]
 struct Database {
@@ -602,6 +611,27 @@ impl LedgerTransaction for Transaction {
         {
             return Err(LedgerStoreError::Conflict("stale canonical head".into()));
         }
+        let mut projections = db.visible.projections.clone();
+        for projection in &self.staged.projections {
+            if projections.iter().any(|old| {
+                same_projection_key(old, projection) && old.version >= projection.version
+            }) {
+                return Err(LedgerStoreError::Conflict(
+                    "non-monotonic projection version".into(),
+                ));
+            }
+            if self.connection.0.mode != Mode::AppendProjections {
+                projections.retain(|old| {
+                    if self.connection.0.mode == Mode::ResourceOnlyProjections {
+                        old.tenant_id != projection.tenant_id
+                            || old.resource_id != projection.resource_id
+                    } else {
+                        !same_projection_key(old, projection)
+                    }
+                });
+            }
+            projections.push(projection.clone());
+        }
         if self.connection.0.mode == Mode::DiscardCommit {
             return Ok(());
         }
@@ -641,7 +671,7 @@ impl LedgerTransaction for Transaction {
             db.visible.events.append(&mut self.staged.events);
         }
         db.visible.commits.append(&mut self.staged.commits);
-        db.visible.projections.append(&mut self.staged.projections);
+        db.visible.projections = projections;
         db.visible.outbox.append(&mut self.staged.outbox);
         db.visible.finalized.append(&mut self.staged.finalized);
         db.visible
@@ -1224,40 +1254,68 @@ async fn batch_member_expiry_fences_nonfirst_member_and_stale_cleanup() {
     }
 }
 
-#[tokio::test]
-async fn original_records_survive_later_canonical_head() {
+fn seal_after(mutation: &mut LedgerMutation, previous: Option<&LedgerMutation>) {
     use statechronicle::commit::roots::state_root_updates;
-    use statechronicle_conformance::check_delivered_retention;
-    let first = fixture("acme.game.alpha", 900);
-    let mut later = fixture("acme.game.alpha", 901);
-    let mut tree = StateAccumulator::empty();
-    let events: Vec<_> = first.events.iter().chain(&later.events).cloned().collect();
-    tree.insert_batch(&state_root_updates(&events).unwrap())
+    let scope = CommitScope::tenant(mutation.intent.tenant_id.clone());
+    let mut batch = CommitBatch::new(scope.clone());
+    for event in &mutation.events {
+        batch.add_event(event.clone()).unwrap();
+    }
+    // This fixture builder deliberately supports only genesis plus one child.
+    if let Some(previous) = previous {
+        assert_eq!(previous.commit.body.sequence, 1);
+    }
+    let prior = previous
+        .map(|m| state_root_updates(&m.events).unwrap())
+        .unwrap_or_default();
+    let old = &mutation.commit.body;
+    let body = CommitBuilder::builder()
+        .scope(scope)
+        .sequence(previous.map_or(1, |m| m.commit.body.sequence + 1))
+        .parent(previous.map(|m| m.commit.body.commit_id.clone()))
+        .executor(old.executor.clone())
+        .profile(old.profile.clone())
+        .created_at(old.created_at)
+        .build(
+            &batch,
+            previous.map_or_else(
+                || ContentDigest::new(*StateAccumulator::empty().root().as_bytes()),
+                |m| m.commit.body.next_state_root.clone(),
+            ),
+            &prior,
+            || Ok(old.commit_id.clone()),
+        )
         .unwrap();
-    let mut body = later.commit.body.clone();
-    body.sequence = 2;
-    body.parent_commit_id = Some(first.commit.body.commit_id.clone());
-    body.previous_state_root = first.commit.body.next_state_root.clone();
-    body.next_state_root = ContentDigest::new(*tree.root().as_bytes());
     let signing = ed25519_dalek::SigningKey::from_bytes(&[77; 32]);
-    later.commit = sign_commit(
+    mutation.commit = sign_commit(
         &body,
         &signing,
         KeyId::new("test:conformance-key".into()).unwrap(),
     )
     .unwrap();
-    verify_commit(&later.commit, &signing.verifying_key()).unwrap();
-    let expected = Snapshot {
-        events,
+    verify_commit(&mutation.commit, &signing.verifying_key()).unwrap();
+    mutation.payload_digest = canonicalize_and_digest(&mutation.intent).unwrap();
+    let entries: Vec<_> = mutation
+        .events
+        .iter()
+        .map(|event| CommittedEvent {
+            event,
+            state_type: event.after.state.state_type(),
+        })
+        .collect();
+    mutation.projections = projections_for(&mutation.commit.body.commit_id, &entries);
+}
+fn expected_pair(
+    first: &LedgerMutation,
+    later: &LedgerMutation,
+    projections: Vec<StateProjection>,
+) -> Snapshot {
+    Snapshot {
+        events: first.events.iter().chain(&later.events).cloned().collect(),
         commits: vec![first.commit.clone(), later.commit.clone()],
-        projections: first
-            .projections
-            .iter()
-            .chain(&later.projections)
-            .cloned()
-            .collect(),
+        projections,
         outbox: first.outbox.iter().chain(&later.outbox).cloned().collect(),
-        finalized: [&first, &later]
+        finalized: [first, later]
             .into_iter()
             .map(|m| {
                 (
@@ -1272,9 +1330,211 @@ async fn original_records_survive_later_canonical_head() {
             later.intent.tenant_id.clone(),
             later.commit.body.commit_id.clone(),
             later.commit.body.next_state_root.clone(),
-            2,
+            later.commit.body.sequence,
         )],
+    }
+}
+
+#[tokio::test]
+async fn overwritten_projection_does_not_rewrite_original_receipt() {
+    use statechronicle::profiles::{registry::ProfileRules, unique_asset::UniqueAssetRules};
+    use statechronicle_conformance::check_delivered_retention;
+    let first = fixture("acme.game.alpha", 910);
+    let mut later = fixture("acme.game.alpha", 911);
+    later.intent.resource_id = first.intent.resource_id.clone();
+    later.intent.operation = Operation::from_static("asset.transfer");
+    later.intent.expected_version = 1;
+    later.intent.inputs = [
+        ("from_owner".into(), serde_json::json!("account:alice")),
+        ("to_owner".into(), serde_json::json!("account:bob")),
+    ]
+    .into();
+    UniqueAssetRules
+        .check(
+            &later.intent.operation,
+            first.projections.first(),
+            &later.intent.inputs,
+        )
+        .unwrap();
+    let after = UniqueAssetRules
+        .apply(
+            first.projections.first(),
+            &later.intent.operation,
+            &later.intent.inputs,
+        )
+        .unwrap();
+    let event = &mut later.events[0];
+    event.resource_id = first.intent.resource_id.clone();
+    event.operation = later.intent.operation.clone();
+    event.before = first.events[0].after.clone();
+    event.after = StateCommitment {
+        version: 2,
+        state_hash: canonicalize_and_digest(&after).unwrap(),
+        state: after,
     };
+    seal_after(&mut later, Some(&first));
+    assert_ne!(first.projections, later.projections);
+    let expected = expected_pair(&first, &later, later.projections.clone());
+    for (mode, oracle) in [
+        (Mode::Correct, None),
+        (Mode::AppendProjections, Some("retention.effects")),
+        (Mode::CurrentProjectionLookup, Some("lookup.original")),
+        (Mode::PruneOriginal, Some("lookup.original")),
+        (Mode::PendingOutboxLookup, Some("lookup.original")),
+    ] {
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            check_delivered_retention(&Backend::new(mode), &first, &later, &expected),
+        )
+        .await
+        .unwrap();
+        if let Some(oracle) = oracle {
+            let error = result.unwrap_err();
+            println!("same-key {mode:?}: {error}");
+            assert_eq!(error.check, oracle);
+        } else {
+            result.unwrap();
+        }
+    }
+}
+
+#[tokio::test]
+async fn non_monotonic_projection_refusal_leaves_original_commit_intact() {
+    use statechronicle_conformance::write;
+    let first = fixture("acme.game.alpha", 930);
+    let mut stale = fixture("acme.game.alpha", 931);
+    stale.intent.resource_id = first.intent.resource_id.clone();
+    stale.events[0].resource_id = first.intent.resource_id.clone();
+    // Deliberately invalid storage input: a new identity/head cannot replace
+    // the current projection with another projection at the same version.
+    seal_after(&mut stale, Some(&first));
+    let backend = Backend::new(Mode::Correct);
+    write(&backend.connect().await.unwrap(), &first)
+        .await
+        .unwrap();
+    let error = write(&backend.connect().await.unwrap(), &stale)
+        .await
+        .unwrap_err();
+    assert!(matches!(error, LedgerStoreError::Conflict(_)));
+    let actual = backend.inspect().await.unwrap();
+    assert_eq!(actual.events, first.events);
+    assert_eq!(actual.commits, vec![first.commit.clone()]);
+    assert_eq!(actual.projections, first.projections);
+    assert_eq!(actual.outbox, first.outbox);
+    assert_eq!(
+        actual.finalized,
+        vec![(
+            first.intent.tenant_id.clone(),
+            first.intent.intent_id.clone(),
+            first.payload_digest.clone(),
+            first.commit.body.commit_id.clone()
+        )]
+    );
+    assert_eq!(
+        actual.heads,
+        vec![(
+            first.intent.tenant_id.clone(),
+            first.commit.body.commit_id.clone(),
+            first.commit.body.next_state_root.clone(),
+            1
+        )]
+    );
+    let reader = backend.connect().await.unwrap();
+    assert!(
+        matches!(reader.lookup_mutation(&first.intent.tenant_id, &first.intent.intent_id).await.unwrap(),
+        LedgerLookup::Committed(record) if *record == first)
+    );
+    assert!(!matches!(
+        reader
+            .lookup_mutation(&stale.intent.tenant_id, &stale.intent.intent_id)
+            .await
+            .unwrap(),
+        LedgerLookup::Committed(_)
+    ));
+}
+
+#[tokio::test]
+async fn subject_held_projection_keys_do_not_erase_other_holders() {
+    use statechronicle::profiles::{
+        fungible_balance::FungibleBalanceRules, registry::ProfileRules,
+    };
+    use statechronicle_conformance::check_later_head_retention;
+    let mut first = fixture("acme.game.alpha", 920);
+    let mut later = fixture("acme.game.alpha", 921);
+    for (mutation, subject) in [(&mut first, "account:alice"), (&mut later, "account:bob")] {
+        mutation.intent.resource_id = ResourceId("currency:shared".into());
+        mutation.intent.state_type = Some(StateType::FungibleBalance);
+        mutation.intent.operation = Operation::from_static("balance.create");
+        mutation.intent.inputs = [
+            ("subject".into(), serde_json::json!(subject)),
+            ("unit".into(), serde_json::json!("COIN")),
+            ("balance".into(), serde_json::json!("10")),
+        ]
+        .into();
+        FungibleBalanceRules
+            .check(&mutation.intent.operation, None, &mutation.intent.inputs)
+            .unwrap();
+        let state = FungibleBalanceRules
+            .apply(None, &mutation.intent.operation, &mutation.intent.inputs)
+            .unwrap();
+        let event = &mut mutation.events[0];
+        event.resource_id = mutation.intent.resource_id.clone();
+        event.operation = mutation.intent.operation.clone();
+        let mut before = state.clone();
+        if let ResourceState::FungibleBalance(balance) = &mut before {
+            balance.balance = statechronicle::core::amount::Amount::ZERO;
+        }
+        event.before = StateCommitment {
+            version: 0,
+            state_hash: canonicalize_and_digest(&before).unwrap(),
+            state: before,
+        };
+        event.after = StateCommitment {
+            version: 1,
+            state_hash: canonicalize_and_digest(&state).unwrap(),
+            state,
+        };
+    }
+    seal_after(&mut first, None);
+    seal_after(&mut later, Some(&first));
+    let expected = expected_pair(
+        &first,
+        &later,
+        vec![first.projections[0].clone(), later.projections[0].clone()],
+    );
+    for mode in [Mode::Correct, Mode::ResourceOnlyProjections] {
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            check_later_head_retention(&Backend::new(mode), &first, &later, &expected),
+        )
+        .await
+        .unwrap();
+        if mode == Mode::Correct {
+            result.unwrap();
+        } else {
+            let error = result.unwrap_err();
+            println!("holders {mode:?}: {error}");
+            assert_eq!(error.check, "retention.effects");
+        }
+    }
+}
+
+#[tokio::test]
+async fn original_records_survive_later_canonical_head() {
+    use statechronicle_conformance::check_delivered_retention;
+    let first = fixture("acme.game.alpha", 900);
+    let mut later = fixture("acme.game.alpha", 901);
+    seal_after(&mut later, Some(&first));
+    let expected = expected_pair(
+        &first,
+        &later,
+        first
+            .projections
+            .iter()
+            .chain(&later.projections)
+            .cloned()
+            .collect(),
+    );
     for mode in [
         Mode::Correct,
         Mode::PruneOriginal,
