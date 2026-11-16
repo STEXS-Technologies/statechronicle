@@ -35,7 +35,7 @@ pub struct MutationIdentity {
 }
 
 impl MutationIdentity {
-    fn from_intent(intent: &Intent) -> Result<Self, CommitError> {
+    pub(crate) fn from_intent(intent: &Intent) -> Result<Self, CommitError> {
         Ok(Self {
             tenant: intent.tenant_id.clone(),
             intent_id: intent.intent_id.clone(),
@@ -167,7 +167,10 @@ pub enum DurableError {
     },
 }
 
-fn transaction_error(identity: MutationIdentity, failure: TransactionFailure) -> DurableError {
+pub(crate) fn transaction_error(
+    identity: MutationIdentity,
+    failure: TransactionFailure,
+) -> DurableError {
     if matches!(
         failure.phase,
         TransactionPhase::Commit | TransactionPhase::Rollback
@@ -244,7 +247,7 @@ fn verify_record(
     Ok(CommittedMutation { identity, record })
 }
 
-fn read_error(error: LedgerStoreError) -> DurableError {
+pub(crate) fn read_error(error: LedgerStoreError) -> DurableError {
     match error {
         source @ LedgerStoreError::Unavailable(_) => DurableError::Unavailable(source),
         source @ LedgerStoreError::Conflict(_) => DurableError::Conflict(source),

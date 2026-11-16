@@ -70,3 +70,15 @@ uncertainty contract after a known successful underlying transaction.
 See [consumer instructions](../../ci/conformance/README.md) for the trait,
 fixture requirements, exact local command and per-check inputs. Run only against
 disposable test databases: every check deliberately resets storage.
+
+## Optional protected batch capability
+
+Protected batches require `LedgerTransaction::retain_batch` and
+`ledger_batch::LedgerBatchRecovery` on the same store. Retention is unsupported
+by default. Every member claim must finalize atomically with one commit and the
+complete immutable original group. Single and batch claims share the same
+identity namespace; neither lookup may reinterpret the other's records as
+independently committed subsets. See [durable-batches.md](durable-batches.md).
+The reusable conformance functions currently qualify single mutations only;
+batch-specific generic scenarios and independent broken implementations remain
+open, and an adapter must separately qualify this new capability.

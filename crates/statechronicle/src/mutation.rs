@@ -1,6 +1,8 @@
-//! Protected single-mutation composition: prepare through
+//! Protected mutation composition: prepare single requests through
 //! [`crate::Executor::prepare_player`], bind and sign with [`crate::mutation::SignedMutation`],
 //! commit atomically, and resolve retries through [`crate::mutation::recover`].
+//! Batches use [`crate::Executor::prepare_player_batch`] and [`crate::mutation::SignedBatch`];
+//! every member is retained and recovered as one complete atomic group.
 //!
 //! Signing is not durable success. Only the independently verified ledger
 //! receipt permits post-commit dispatch. Storage must still enforce current
@@ -143,6 +145,135 @@ fn entries(prepared: &PreparedMutation) -> Vec<CommittedEvent<'_>> {
     prepared
         .events()
         .iter()
+        .map(|event| CommittedEvent {
+            event,
+            state_type: event.after.state.state_type(),
+        })
+        .collect()
+}
+
+pub use statechronicle_commit::durable_batch::{
+    BatchIdentity, BatchMember, BatchRecoveryOutcome, CommittedBatch, DurableBatchError,
+    DurableBatchOutcome, recover_batch,
+};
+use statechronicle_commit::durable_batch::{DurableBatchRequest, commit_batch_verified};
+use statechronicle_ports::ledger_batch::LedgerBatchRecovery;
+
+/// An owned signed plan for the ENTIRE protected prepared batch. There is no
+/// owned leg extraction and no method that commits a successful subset.
+/// Signing is not a receipt; atomic group retention and verified original
+/// readback are mandatory at the ledger boundary.
+///
+/// ```compile_fail
+/// use statechronicle::mutation::SignedBatch;
+/// let forged = SignedBatch { prepared: todo!(), commit: todo!() };
+/// ```
+#[derive(Debug)]
+pub struct SignedBatch {
+    prepared: PreparedBatch,
+    commit: Signed<Commit>,
+    projections: Vec<StateProjection>,
+    outbox: Vec<OutboxRecord>,
+}
+impl SignedBatch {
+    /// Bind every prepared event to one signed tenant commit. Host-supplied
+    /// history/root context is checked by the ledger at commit time. Event
+    /// producer and commit signer remain distinct roles.
+    /// # Errors
+    /// Refuses scope/root/count mismatches before calling the signer, or
+    /// returns the signer's error. No durable effects or claims are made.
+    pub fn sign(
+        prepared: PreparedBatch,
+        body: &Commit,
+        key_id: KeyId,
+        signer: &dyn CommitSigner,
+        outbox: Vec<OutboxRecord>,
+    ) -> Result<Self, CommitError> {
+        let tenant = validate_tenant_commit(body)?;
+        if prepared
+            .mutations()
+            .iter()
+            .any(|member| member.validated().intent.tenant_id != *tenant)
+        {
+            return Err(CommitError::MixedTenant);
+        }
+        let events: Vec<_> = prepared.events().cloned().collect();
+        let count = u64::try_from(events.len())
+            .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+        if count != body.event_count || event_root(&events)? != body.event_merkle_root {
+            return Err(CommitError::EventRootMismatch);
+        }
+        let commit = sign_commit_with_signer(body, key_id, signer)?;
+        let projections = projections_for(&commit.body.commit_id, &batch_entries(&prepared));
+        Ok(Self {
+            prepared,
+            commit,
+            projections,
+            outbox,
+        })
+    }
+    /// Entire original protected batch; borrowed legs cannot be committed alone.
+    pub const fn prepared(&self) -> &PreparedBatch {
+        &self.prepared
+    }
+    /// Signed commit covering the complete event set, not durable success.
+    pub const fn signed_commit(&self) -> &Signed<Commit> {
+        &self.commit
+    }
+    /// Reauthorize and atomically commit the whole group. Every member shares
+    /// the existing intent idempotency namespace; original group membership
+    /// cannot be changed on replay. Retain this plan after any unknown result.
+    /// # Errors
+    /// Returns refusal, conflict, corruption or explicit unknown with complete
+    /// group identity. No successful subset is returned or dispatched.
+    pub async fn commit<S: LedgerBatchRecovery + ?Sized>(
+        &self,
+        ledger: &S,
+        authorizer: &dyn Authorizer,
+        verifier: &dyn SignedCommitVerifier,
+    ) -> Result<DurableBatchOutcome, DurableBatchError> {
+        commit_batch_verified(
+            ledger,
+            authorizer,
+            verifier,
+            DurableBatchRequest {
+                members: &batch_members(&self.prepared),
+                entries: &batch_entries(&self.prepared),
+                commit: &self.commit,
+                projections: &self.projections,
+                outbox: &self.outbox,
+            },
+        )
+        .await
+    }
+    /// Resolve the original complete group without reducing, signing, claiming
+    /// or dispatching. A lookup failure does not make an unknown write safe.
+    /// # Errors
+    /// Reauthorizes every member and rejects partial, substituted or corrupt
+    /// evidence; preserves typed policy and storage causes.
+    pub async fn recover<S: LedgerBatchRecovery + ?Sized>(
+        &self,
+        ledger: &S,
+        authorizer: &dyn Authorizer,
+        verifier: &dyn SignedCommitVerifier,
+    ) -> Result<BatchRecoveryOutcome, DurableBatchError> {
+        recover_batch(ledger, authorizer, verifier, &batch_members(&self.prepared)).await
+    }
+}
+fn batch_members(prepared: &PreparedBatch) -> Vec<BatchMember<'_>> {
+    prepared
+        .mutations()
+        .iter()
+        .map(|member| BatchMember {
+            principal: member.principal(),
+            intent: &member.validated().intent,
+            payload_digest: member.payload_digest(),
+        })
+        .collect()
+}
+fn batch_entries(prepared: &PreparedBatch) -> Vec<CommittedEvent<'_>> {
+    prepared
+        .events()
         .map(|event| CommittedEvent {
             event,
             state_type: event.after.state.state_type(),

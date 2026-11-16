@@ -7,6 +7,7 @@ use statechronicle::accumulator::sparse_merkle::{StateAccumulator, StateUpdate};
 use statechronicle::commit::persist::SignedCommitVerifier;
 use statechronicle::commit::sign::verify_commit;
 use statechronicle::ports::authorization::{AuthorizationContext, AuthorizationError, Authorizer};
+use statechronicle::ports::ledger_batch::{LedgerBatch, LedgerBatchLookup, LedgerBatchRecovery};
 use statechronicle::ports::ledger_store::{
     IdempotencyClaim, LedgerLookup, LedgerMutation, LedgerRecovery, LedgerStore, LedgerStoreError,
     LedgerTransaction, OutboxRecord,
@@ -28,6 +29,7 @@ pub enum Step {
     Projection,
     Outbox,
     Finalize,
+    RetainBatch,
     Commit,
     Rollback,
     Lookup,
@@ -35,6 +37,7 @@ pub enum Step {
 #[derive(Default, Clone)]
 pub struct Stored {
     pub mutations: BTreeMap<(String, String), LedgerMutation>,
+    pub batches: BTreeMap<(String, String), LedgerBatch>,
     pub events: Vec<Event>,
     pub commits: Vec<Signed<Commit>>,
     pub projections: Vec<StateProjection>,
@@ -48,6 +51,8 @@ pub struct MemoryLedger {
     pub fail_projection: bool,
     pub faults: Vec<Step>,
     pub pause: Option<Step>,
+    pub fail_at: Option<(Step, usize)>,
+    pub pause_at: Option<(Step, usize)>,
     pub lose_commit_response: bool,
     pub yield_each_step: bool,
     pub calls: Arc<Mutex<Vec<Step>>>,
@@ -56,8 +61,8 @@ pub struct MemoryLedger {
 struct Transaction {
     ledger: MemoryLedger,
     staged: Stored,
-    identity: Option<((String, String), ContentDigest)>,
-    intent: Option<Intent>,
+    claims: Vec<((String, String), ContentDigest, Intent)>,
+    batch: Option<LedgerBatch>,
 }
 impl MemoryLedger {
     async fn checkpoint(&self, step: Step) -> Result<(), LedgerStoreError> {
@@ -65,10 +70,17 @@ impl MemoryLedger {
         if self.yield_each_step {
             tokio::task::yield_now().await;
         }
-        if self.pause == Some(step) {
+        let occurrence = self
+            .calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|called| **called == step)
+            .count();
+        if self.pause == Some(step) || self.pause_at == Some((step, occurrence)) {
             pending::<()>().await;
         }
-        if self.faults.contains(&step) {
+        if self.faults.contains(&step) || self.fail_at == Some((step, occurrence)) {
             return Err(LedgerStoreError::Unavailable(format!("injected {step:?}")));
         }
         Ok(())
@@ -76,7 +88,7 @@ impl MemoryLedger {
 }
 impl Drop for Transaction {
     fn drop(&mut self) {
-        if let Some((key, _)) = &self.identity {
+        for (key, _, _) in &self.claims {
             self.ledger.reservations.lock().unwrap().remove(key);
         }
     }
@@ -91,8 +103,8 @@ impl LedgerStore for MemoryLedger {
         Ok(Box::new(Transaction {
             ledger: self.clone(),
             staged: Stored::default(),
-            identity: None,
-            intent: None,
+            claims: Vec::new(),
+            batch: None,
         }))
     }
     async fn begin_multi(
@@ -136,8 +148,7 @@ impl LedgerTransaction for Transaction {
         }
         reservations.insert(key.clone(), digest.clone());
         drop(reservations);
-        self.intent = Some(intent.clone());
-        self.identity = Some((key, digest.clone()));
+        self.claims.push((key, digest.clone(), intent.clone()));
         Ok(IdempotencyClaim::NewReservation {
             attempt_id: String::from("attempt"),
         })
@@ -172,17 +183,34 @@ impl LedgerTransaction for Transaction {
     }
     async fn finalize_idempotency(
         &mut self,
-        _tenant: &TenantId,
-        _intent_id: &IntentId,
-        _attempt: &str,
+        tenant: &TenantId,
+        intent_id: &IntentId,
+        attempt: &str,
         commit: &CommitId,
     ) -> Result<(), LedgerStoreError> {
         self.ledger.checkpoint(Step::Finalize).await?;
-        let (key, digest) = self.identity.as_ref().unwrap();
+        let (key, digest, _) = self
+            .claims
+            .iter()
+            .find(|(key, _, _)| key == &(tenant.0.clone(), intent_id.as_str().to_owned()))
+            .ok_or_else(|| LedgerStoreError::Invariant(String::from("missing member claim")))?;
+        if attempt != "attempt" {
+            return Err(LedgerStoreError::Idempotency(String::from("wrong attempt")));
+        }
         self.staged
             .identities
             .insert(key.clone(), (digest.clone(), commit.clone()));
         self.staged.finalized = true;
+        Ok(())
+    }
+    async fn retain_batch(&mut self, batch: &LedgerBatch) -> Result<(), LedgerStoreError> {
+        self.ledger.checkpoint(Step::RetainBatch).await?;
+        if self.batch.is_some() {
+            return Err(LedgerStoreError::Invariant(String::from(
+                "batch already retained",
+            )));
+        }
+        self.batch = Some(batch.clone());
         Ok(())
     }
     async fn commit(mut self: Box<Self>) -> Result<(), LedgerStoreError> {
@@ -252,16 +280,73 @@ impl LedgerTransaction for Transaction {
                     "prepared state root mismatch",
                 )));
             }
-            let (identity, digest) = self.identity.as_ref().unwrap();
-            let record = LedgerMutation {
-                intent: self.intent.clone().unwrap(),
-                payload_digest: digest.clone(),
-                commit: prepared.clone(),
-                events: self.staged.events.clone(),
-                projections: self.staged.projections.clone(),
-                outbox: self.staged.outbox.clone(),
-            };
-            data.mutations.insert(identity.clone(), record);
+            if self.claims.len() != self.staged.identities.len()
+                || self.claims.iter().any(|(key, digest, _)| {
+                    self.staged.identities.get(key)
+                        != Some(&(digest.clone(), prepared.body.commit_id.clone()))
+                })
+            {
+                return Err(LedgerStoreError::Invariant(String::from(
+                    "not every member finalized",
+                )));
+            }
+            if let Some(batch) = &self.batch {
+                if batch.intents
+                    != self
+                        .claims
+                        .iter()
+                        .map(|(_, _, intent)| intent.clone())
+                        .collect::<Vec<_>>()
+                {
+                    // Claims are acquired in sorted order; group identity keeps
+                    // caller order. Compare membership independently below.
+                    let mut left: Vec<_> = batch
+                        .intents
+                        .iter()
+                        .map(|intent| (&intent.intent_id, intent))
+                        .collect();
+                    let mut right: Vec<_> = self
+                        .claims
+                        .iter()
+                        .map(|(_, _, intent)| (&intent.intent_id, intent))
+                        .collect();
+                    left.sort_by_key(|(id, _)| *id);
+                    right.sort_by_key(|(id, _)| *id);
+                    if left != right {
+                        return Err(LedgerStoreError::Invariant(String::from(
+                            "incomplete batch membership",
+                        )));
+                    }
+                }
+                if batch.commit != *prepared
+                    || batch.events != self.staged.events
+                    || batch.projections != self.staged.projections
+                    || batch.outbox != self.staged.outbox
+                {
+                    return Err(LedgerStoreError::Invariant(String::from(
+                        "batch metadata differs from staged effects",
+                    )));
+                }
+                for (key, _, _) in &self.claims {
+                    data.batches.insert(key.clone(), batch.clone());
+                }
+            } else {
+                if self.claims.len() != 1 {
+                    return Err(LedgerStoreError::Invariant(String::from(
+                        "multiple claims without batch retention",
+                    )));
+                }
+                let (identity, digest, intent) = self.claims.first().unwrap();
+                let record = LedgerMutation {
+                    intent: intent.clone(),
+                    payload_digest: digest.clone(),
+                    commit: prepared.clone(),
+                    events: self.staged.events.clone(),
+                    projections: self.staged.projections.clone(),
+                    outbox: self.staged.outbox.clone(),
+                };
+                data.mutations.insert(identity.clone(), record);
+            }
             data.events.append(&mut self.staged.events);
             data.commits.append(&mut self.staged.commits);
             data.projections = projections;
@@ -319,6 +404,49 @@ impl LedgerRecovery for MemoryLedger {
             });
         }
         Ok(LedgerLookup::NotFound)
+    }
+}
+
+#[async_trait]
+impl LedgerBatchRecovery for MemoryLedger {
+    async fn lookup_batch(
+        &self,
+        tenant: &TenantId,
+        intent_id: &IntentId,
+    ) -> Result<LedgerBatchLookup, LedgerStoreError> {
+        self.checkpoint(Step::Lookup).await?;
+        let key = (tenant.0.clone(), intent_id.as_str().to_owned());
+        let data = self.data.lock().unwrap();
+        if let Some(batch) = data.batches.get(&key) {
+            if !data.commits.contains(&batch.commit)
+                || batch.intents.iter().any(|intent| {
+                    let digest =
+                        statechronicle::core::canonicalize::canonicalize_and_digest(intent)
+                            .unwrap();
+                    data.identities
+                        .get(&(tenant.0.clone(), intent.intent_id.as_str().to_owned()))
+                        != Some(&(digest, batch.commit.body.commit_id.clone()))
+                })
+            {
+                return Err(LedgerStoreError::Invariant(String::from(
+                    "incomplete finalized batch",
+                )));
+            }
+            return Ok(LedgerBatchLookup::Committed(Box::new(batch.clone())));
+        }
+        if data.identities.contains_key(&key) {
+            return Err(LedgerStoreError::Invariant(String::from(
+                "finalized member has no original batch",
+            )));
+        }
+        if let Some(digest) = self.reservations.lock().unwrap().get(&key) {
+            return Ok(LedgerBatchLookup::InProgress {
+                payload_digest: digest.clone(),
+                attempt_id: String::from("attempt"),
+                lease_expires_at_unix: i64::MAX,
+            });
+        }
+        Ok(LedgerBatchLookup::NotFound)
     }
 }
 

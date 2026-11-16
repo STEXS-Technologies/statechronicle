@@ -217,11 +217,26 @@ pub(crate) fn validate_effects(
     request: &DurableCommitRequest<'_>,
     tenant: &TenantId,
 ) -> Result<Vec<Event>, CommitError> {
-    let events: Vec<Event> = request
-        .entries
-        .iter()
-        .map(|entry| entry.event.clone())
-        .collect();
+    validate_effects_with_binding(
+        request.entries,
+        request.commit,
+        request.projections,
+        request.outbox,
+        tenant,
+        |event| validate_event_binding(event, request.intent, tenant),
+    )
+}
+
+/// Shared complete effect validation; the caller owns single/group membership.
+pub(crate) fn validate_effects_with_binding(
+    entries: &[CommittedEvent<'_>],
+    commit: &Signed<Commit>,
+    projections: &[StateProjection],
+    outbox_records: &[OutboxRecord],
+    tenant: &TenantId,
+    bind: impl Fn(&Event) -> Result<(), CommitError>,
+) -> Result<Vec<Event>, CommitError> {
+    let events: Vec<Event> = entries.iter().map(|entry| entry.event.clone()).collect();
     if events.is_empty() {
         return Err(CommitError::InvalidEvent(String::from(
             "durable commit must contain at least one event",
@@ -242,31 +257,25 @@ pub(crate) fn validate_effects(
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
     check_size("event_batch", MAX_EVENT_BATCH_BYTES, event_bytes)
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
-    let commit_bytes = bcs::to_bytes(request.commit)
-        .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+    let commit_bytes =
+        bcs::to_bytes(commit).map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
     check_size("commit", MAX_COMMIT_BYTES, commit_bytes.len())
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
-    validate_committed_events(request.entries)?;
+    validate_committed_events(entries)?;
     for event in &events {
-        validate_event_binding(event, request.intent, tenant)?;
+        bind(event)?;
     }
-    validate_projection_bindings(
-        &request.commit.body.commit_id,
-        request.entries,
-        request.projections,
-    )?;
-    for projection in request.projections {
-        if projection.tenant_id != *tenant
-            || projection.last_commit_id != request.commit.body.commit_id
-        {
+    validate_projection_bindings(&commit.body.commit_id, entries, projections)?;
+    for projection in projections {
+        if projection.tenant_id != *tenant || projection.last_commit_id != commit.body.commit_id {
             return Err(CommitError::Store(String::from(
                 "durable projection is not bound to the commit scope",
             )));
         }
     }
-    validate_outbox_records(request.outbox)?;
-    for outbox in request.outbox {
-        if outbox.tenant != *tenant || outbox.commit_id != request.commit.body.commit_id {
+    validate_outbox_records(outbox_records)?;
+    for outbox in outbox_records {
+        if outbox.tenant != *tenant || outbox.commit_id != commit.body.commit_id {
             return Err(CommitError::Store(String::from(
                 "durable outbox record is not bound to the commit scope",
             )));
@@ -275,8 +284,8 @@ pub(crate) fn validate_effects(
     }
     let event_count = u64::try_from(events.len())
         .map_err(|error| CommitError::InvalidEvent(format!("event count overflow: {error}")))?;
-    if event_count != request.commit.body.event_count
-        || event_root(&events)? != request.commit.body.event_merkle_root
+    if event_count != commit.body.event_count
+        || event_root(&events)? != commit.body.event_merkle_root
     {
         return Err(CommitError::EventRootMismatch);
     }
@@ -308,7 +317,7 @@ pub(crate) struct TransactionFailure {
     pub(crate) rollback_error: Option<LedgerStoreError>,
 }
 
-async fn abort(
+pub(crate) async fn abort(
     transaction: Box<dyn LedgerTransaction>,
     source: LedgerStoreError,
 ) -> TransactionFailure {
@@ -319,7 +328,9 @@ async fn abort(
     }
 }
 
-async fn rollback_only(transaction: Box<dyn LedgerTransaction>) -> Result<(), TransactionFailure> {
+pub(crate) async fn rollback_only(
+    transaction: Box<dyn LedgerTransaction>,
+) -> Result<(), TransactionFailure> {
     transaction
         .rollback()
         .await
@@ -428,7 +439,7 @@ fn validate_committed_events(entries: &[CommittedEvent<'_>]) -> Result<(), Commi
 }
 
 /// Binds every event dimension to the authenticated intent and commit scope.
-fn validate_event_binding(
+pub(crate) fn validate_event_binding(
     event: &Event,
     intent: &statechronicle_domain::intent::Intent,
     tenant: &TenantId,

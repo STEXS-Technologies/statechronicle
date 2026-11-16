@@ -45,6 +45,9 @@ pub mod transaction_manager;
 /// Durable atomic ledger transaction boundary.
 pub mod ledger_store;
 
+/// Optional atomic batch retention and recovery contract.
+pub mod ledger_batch;
+
 /// Mandatory authenticated actor and authorization boundary.
 pub mod authorization;
 

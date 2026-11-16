@@ -18,20 +18,18 @@ body digests, and events. Accessors borrow legs and events. Private construction
 no cloning/deserialization, and no owned leg extraction prevent this API from
 turning an accepted group into separately committable single plans.
 
-This is a preparation stage, not a durable batch coordinator. Legs observe the
-existing state index; there is no sequential overlay of earlier leg results.
-A later coordinator must reject inconsistent observations at the authoritative
-ledger boundary. Mixed tenants are currently refused.
+Preparation observes the existing state index; there is no sequential overlay
+of earlier leg results. The ledger must reject inconsistent observations at the
+authoritative boundary. Mixed tenants are currently refused.
 
-## Remaining durable group boundary
+## Durable composition
 
-The existing `LedgerMutation` recovery record binds one intent. Its verifier
-checks all events against that one intent; it cannot establish a multi-intent
-group. Looping over single-mutation commits would allow partial persistence.
-Protected durable batches still require an atomic group membership record,
-authoritative lookup of the entire original group, signer and payload binding,
-head conflict checks, and ambiguous-acknowledgement recovery. This preparation
-API does not close that roadmap requirement.
+`mutation::SignedBatch` now binds the complete prepared batch to one signed
+commit and derives projections internally. Its `commit` and `recover` methods
+require the optional atomic batch retention/recovery contract. See
+[durable-batches.md](durable-batches.md) for its transaction, original-group
+replay, failure semantics and qualification limits. This does not turn the
+prepared value itself into a receipt.
 
 ## Verification
 

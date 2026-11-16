@@ -121,6 +121,25 @@ pub trait LedgerTransaction: Send + Sync {
         commit_id: &CommitId,
     ) -> Result<(), LedgerStoreError>;
 
+    /// Retain a complete original batch in THIS transaction, binding every
+    /// member claim to this group and its one signed commit. Commit must fail
+    /// unless all matching fenced claims are finalized and the staged events,
+    /// commit, projections and outbox exactly match this record. Retention must
+    /// remain immutable and accessible by every member after later writes.
+    ///
+    /// Old adapters remain source-compatible and refuse this optional operation
+    /// by default. No effects may escape rollback on that refusal. Implementing
+    /// this method requires the `LedgerBatchRecovery` contract on the store;
+    /// accepting it without complete atomic metadata is not conformant.
+    async fn retain_batch(
+        &mut self,
+        _batch: &crate::ledger_batch::LedgerBatch,
+    ) -> Result<(), LedgerStoreError> {
+        Err(LedgerStoreError::Invariant(String::from(
+            "atomic batch retention is unsupported",
+        )))
+    }
+
     /// Commit every staged effect atomically.
     async fn commit(self: Box<Self>) -> Result<(), LedgerStoreError>;
 
