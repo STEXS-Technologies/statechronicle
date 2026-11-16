@@ -193,3 +193,16 @@ the frozen original. Observed paired median deltas are respectively -10 ns
 All samples remain recorded, including substantial host noise. This mitigates
 the earlier +33 ns observation without declaring the final F8 gate passed.
 See [controlled investigation and limitations](proof-lookup-performance.md).
+
+## Decode-once hosted profile checkpoint
+
+A same-dependency control and candidate-legacy lane isolate the new combined
+profile evaluation. Seven paired rounds show -150.66 ns (-38.25%) for fixed
+configuration creation and -215.41 ns (-42.37%) for update relative to the
+pre-change control. Malformed-command refusal changes +1.03 ns (+0.75%).
+Valgrind totals show 7 fewer allocations/131 fewer bytes for create and 10 fewer
+allocations/166 fewer bytes for update; refusal allocation totals are unchanged.
+All raw samples, source and resolved-lock equality checks are retained in
+`evidence/f3/typed-performance/20261116T045923Z-3200086/`. See
+[scope, extra control and limitations](typed-evaluation.md). These matched model
+results support the decode-once change; the final F8 performance gate stays open.

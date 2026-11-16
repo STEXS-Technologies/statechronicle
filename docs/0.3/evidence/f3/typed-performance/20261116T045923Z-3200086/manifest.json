@@ -1,0 +1,792 @@
+{
+  "control_commit": "63b9a47d733646aeba698b679aa7ccc843413088",
+  "candidate_commit": "15aff1b10b9456c96960581a793bd15b9000a9a2",
+  "runner_sha256": "ef40070dbcdf1908093bbba48d4bd352dde649db2873e7755cdc8ef619508f58",
+  "fixture_sha256": "8ff46ab69b240b9e2533c4f367c1fa1066849cf92def4c95db4fc0f1d34b1b51",
+  "toolchain": {
+    "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5\n",
+    "cargo": "cargo 1.100.0 (3acc79c0c 2026-11-05)\n"
+  },
+  "platform": "Linux-7.2.15-100.fc43.x86_64-x86_64-with-glibc2.42",
+  "cpu": 0,
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8",
+    "RUSTFLAGS": "unset",
+    "CARGO_ENCODED_RUSTFLAGS": "unset"
+  },
+  "status": "passed",
+  "checks": [
+    {
+      "label": "control-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1",
+        "--all-features"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 0.1089181040006224,
+      "artifact": "control-resolve.log.gz"
+    },
+    {
+      "label": "control-build",
+      "command": [
+        "cargo",
+        "build",
+        "--example",
+        "typed_evaluation",
+        "--release",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 6.708380545998807,
+      "artifact": "control-build.log.gz"
+    },
+    {
+      "label": "candidate-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1",
+        "--all-features"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 0.10874440399493324,
+      "artifact": "candidate-resolve.log.gz"
+    },
+    {
+      "label": "candidate-build",
+      "command": [
+        "cargo",
+        "build",
+        "--example",
+        "typed_evaluation",
+        "--release",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer",
+      "exit_code": 0,
+      "seconds": 6.7882536059987615,
+      "artifact": "candidate-build.log.gz"
+    },
+    {
+      "label": "pair-0-control-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.37905573500029277,
+      "artifact": "pair-0-control-legacy.log.gz"
+    },
+    {
+      "label": "pair-0-candidate-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.3354175739950733,
+      "artifact": "pair-0-candidate-legacy.log.gz"
+    },
+    {
+      "label": "pair-0-candidate-combined",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "combined________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.2870170850001159,
+      "artifact": "pair-0-candidate-combined.log.gz"
+    },
+    {
+      "label": "pair-1-candidate-combined",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "combined________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.22212401899741963,
+      "artifact": "pair-1-candidate-combined.log.gz"
+    },
+    {
+      "label": "pair-1-candidate-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.4193490429970552,
+      "artifact": "pair-1-candidate-legacy.log.gz"
+    },
+    {
+      "label": "pair-1-control-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.3438142320010229,
+      "artifact": "pair-1-control-legacy.log.gz"
+    },
+    {
+      "label": "pair-2-control-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.33088335200591246,
+      "artifact": "pair-2-control-legacy.log.gz"
+    },
+    {
+      "label": "pair-2-candidate-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.336679626001569,
+      "artifact": "pair-2-candidate-legacy.log.gz"
+    },
+    {
+      "label": "pair-2-candidate-combined",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "combined________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.23012333799852058,
+      "artifact": "pair-2-candidate-combined.log.gz"
+    },
+    {
+      "label": "pair-3-candidate-combined",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "combined________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.2554712710043532,
+      "artifact": "pair-3-candidate-combined.log.gz"
+    },
+    {
+      "label": "pair-3-candidate-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.37256508100108476,
+      "artifact": "pair-3-candidate-legacy.log.gz"
+    },
+    {
+      "label": "pair-3-control-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.3489507330014021,
+      "artifact": "pair-3-control-legacy.log.gz"
+    },
+    {
+      "label": "pair-4-control-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.34865064599580364,
+      "artifact": "pair-4-control-legacy.log.gz"
+    },
+    {
+      "label": "pair-4-candidate-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.45910866600024747,
+      "artifact": "pair-4-candidate-legacy.log.gz"
+    },
+    {
+      "label": "pair-4-candidate-combined",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "combined________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.2564111920000869,
+      "artifact": "pair-4-candidate-combined.log.gz"
+    },
+    {
+      "label": "pair-5-candidate-combined",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "combined________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.22616910299984738,
+      "artifact": "pair-5-candidate-combined.log.gz"
+    },
+    {
+      "label": "pair-5-candidate-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.3823690159988473,
+      "artifact": "pair-5-candidate-legacy.log.gz"
+    },
+    {
+      "label": "pair-5-control-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.3838222609992954,
+      "artifact": "pair-5-control-legacy.log.gz"
+    },
+    {
+      "label": "pair-6-control-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.33761694200075,
+      "artifact": "pair-6-control-legacy.log.gz"
+    },
+    {
+      "label": "pair-6-candidate-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.33991036400402663,
+      "artifact": "pair-6-candidate-legacy.log.gz"
+    },
+    {
+      "label": "pair-6-candidate-combined",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "combined________________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.23350274800031912,
+      "artifact": "pair-6-candidate-combined.log.gz"
+    },
+    {
+      "label": "alloc-control-legacy-hosted_create-control",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "control_________________________",
+        "hosted_create___________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.9230318539994187,
+      "artifact": "alloc-control-legacy-hosted_create-control.log.gz"
+    },
+    {
+      "label": "alloc-control-legacy-hosted_create-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________",
+        "hosted_create___________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.4123259570042137,
+      "artifact": "alloc-control-legacy-hosted_create-legacy.log.gz"
+    },
+    {
+      "label": "alloc-control-legacy-hosted_update-control",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "control_________________________",
+        "hosted_update___________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.352452421997441,
+      "artifact": "alloc-control-legacy-hosted_update-control.log.gz"
+    },
+    {
+      "label": "alloc-control-legacy-hosted_update-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________",
+        "hosted_update___________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.46809552099875873,
+      "artifact": "alloc-control-legacy-hosted_update-legacy.log.gz"
+    },
+    {
+      "label": "alloc-control-legacy-hosted_malformed-control",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "control_________________________",
+        "hosted_malformed________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.3642784679977922,
+      "artifact": "alloc-control-legacy-hosted_malformed-control.log.gz"
+    },
+    {
+      "label": "alloc-control-legacy-hosted_malformed-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/control/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________",
+        "hosted_malformed________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.3843449859996326,
+      "artifact": "alloc-control-legacy-hosted_malformed-legacy.log.gz"
+    },
+    {
+      "label": "alloc-candidate-legacy-hosted_create-control",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "control_________________________",
+        "hosted_create___________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 1.3452743250018102,
+      "artifact": "alloc-candidate-legacy-hosted_create-control.log.gz"
+    },
+    {
+      "label": "alloc-candidate-legacy-hosted_create-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________",
+        "hosted_create___________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.4144001090025995,
+      "artifact": "alloc-candidate-legacy-hosted_create-legacy.log.gz"
+    },
+    {
+      "label": "alloc-candidate-legacy-hosted_update-control",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "control_________________________",
+        "hosted_update___________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.36152823000156786,
+      "artifact": "alloc-candidate-legacy-hosted_update-control.log.gz"
+    },
+    {
+      "label": "alloc-candidate-legacy-hosted_update-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________",
+        "hosted_update___________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.40689365500293206,
+      "artifact": "alloc-candidate-legacy-hosted_update-legacy.log.gz"
+    },
+    {
+      "label": "alloc-candidate-legacy-hosted_malformed-control",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "control_________________________",
+        "hosted_malformed________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.34778477999498136,
+      "artifact": "alloc-candidate-legacy-hosted_malformed-control.log.gz"
+    },
+    {
+      "label": "alloc-candidate-legacy-hosted_malformed-legacy",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "legacy__________________________",
+        "hosted_malformed________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.3792935809979099,
+      "artifact": "alloc-candidate-legacy-hosted_malformed-legacy.log.gz"
+    },
+    {
+      "label": "alloc-candidate-combined-hosted_create-control",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "control_________________________",
+        "hosted_create___________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.3700717059982708,
+      "artifact": "alloc-candidate-combined-hosted_create-control.log.gz"
+    },
+    {
+      "label": "alloc-candidate-combined-hosted_create-combined",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "combined________________________",
+        "hosted_create___________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.4494313899995177,
+      "artifact": "alloc-candidate-combined-hosted_create-combined.log.gz"
+    },
+    {
+      "label": "alloc-candidate-combined-hosted_update-control",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "control_________________________",
+        "hosted_update___________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.37185647300066194,
+      "artifact": "alloc-candidate-combined-hosted_update-control.log.gz"
+    },
+    {
+      "label": "alloc-candidate-combined-hosted_update-combined",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "combined________________________",
+        "hosted_update___________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.3921645030059153,
+      "artifact": "alloc-candidate-combined-hosted_update-combined.log.gz"
+    },
+    {
+      "label": "alloc-candidate-combined-hosted_malformed-control",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "control_________________________",
+        "hosted_malformed________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.36705775200243806,
+      "artifact": "alloc-candidate-combined-hosted_malformed-control.log.gz"
+    },
+    {
+      "label": "alloc-candidate-combined-hosted_malformed-combined",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/typed-bench/20261116T045923Z-3200086/candidate/consumer/crates/consumer/target/release/examples/typed_evaluation",
+        "combined________________________",
+        "hosted_malformed________________"
+      ],
+      "cwd": "/home/ac/projects/statechronicle",
+      "exit_code": 0,
+      "seconds": 0.38299364900012733,
+      "artifact": "alloc-candidate-combined-hosted_malformed-combined.log.gz"
+    }
+  ],
+  "artifacts_sha256": {
+    "control-benchmark.rs": "dcc8bd1fc00b4473978079126ecb22718916b89112decf783553f32f73be6a7d",
+    "control-resolve.log.gz": "b1187fa0570225e39c26327392310b37eaea4fedae4613204e5615f45ff6150d",
+    "control.lock": "7d0dade64a108d1d2e480908b149ffc279a00f09d3f812f816d07d36437a1539",
+    "control-build.log.gz": "0f211618c539bddcb5dcc330f8a9162714eb2969b5dc5d73aabaf89625f029cc",
+    "candidate-benchmark.rs": "8ff46ab69b240b9e2533c4f367c1fa1066849cf92def4c95db4fc0f1d34b1b51",
+    "candidate-resolve.log.gz": "d305f61319447dad8b0aea5ce38246c627cff83f43d3afd6440aeedd1dfb3fc5",
+    "candidate.lock": "7d0dade64a108d1d2e480908b149ffc279a00f09d3f812f816d07d36437a1539",
+    "candidate-build.log.gz": "2cd25e66096c733c4d3a800e76899c20c7e41329b4e376b7944a3abe4fca5019",
+    "pair-0-control-legacy.log.gz": "468ce084a5a129a2bb0306d5c8e3c8413679df793ab8a9ce2ba0524e52ce1016",
+    "pair-0-candidate-legacy.log.gz": "cbbf51781a083de38c6ecd7219b63601851c9f904c1ed81006134cf9baa256d4",
+    "pair-0-candidate-combined.log.gz": "bedfefbfa0d7c0aa8d7aa3b9b7d39cbae64dc8237dcdca691c034364e1489d69",
+    "pair-1-candidate-combined.log.gz": "4d79da55f80103bf40be00a6194de96a89b774b248c6617d3785bf8832306c13",
+    "pair-1-candidate-legacy.log.gz": "2a0f0752680f26d6f8d76645e3722a162fc93c487d6b60faeef5cdde62e9d3b8",
+    "pair-1-control-legacy.log.gz": "a2990cc35e1dbb1747f01ffdf5dca69b87e14290a0433ef9119a0ec50914be08",
+    "pair-2-control-legacy.log.gz": "f2fcbce94778387971e6dc0cec8087930fa5db4c928a4d5498276aa4c1ed729e",
+    "pair-2-candidate-legacy.log.gz": "5c82663d9654dacaa03f9291775d620311a10be9ae5781ff11d3b0ff952e6ae5",
+    "pair-2-candidate-combined.log.gz": "789738878d4c418a1de3ba78fdb50bc0e2aff5b5f974a2d2da6c0d5c155b0f3d",
+    "pair-3-candidate-combined.log.gz": "f20ea6e357451ce15efe543ae6ed19f0eb67151d7137bd5cbab3403b17d60c93",
+    "pair-3-candidate-legacy.log.gz": "d594ba258c920efef642842a7047401408b9924fce5ed8dd2ab8c8b2b9aceed5",
+    "pair-3-control-legacy.log.gz": "bab744c8cb1e5b015cbf2acc04621f693386635902cf9b413d53a299a38b8351",
+    "pair-4-control-legacy.log.gz": "9ea6731beda60b4ae58e3b38680a2235f6abf2ddecc3129fac04d28b0719e993",
+    "pair-4-candidate-legacy.log.gz": "ca363736591c2831234f9ad4d7d97062bb7faa90f4ca94bf05d436bb7158aadc",
+    "pair-4-candidate-combined.log.gz": "2dbd09af2af6619dbf18030911c346a0a694d49f427c828c71899d9938387a68",
+    "pair-5-candidate-combined.log.gz": "3af6ab487ce67ecdefccae36826acfacb8645e11b4603047857b8a195cc32d8d",
+    "pair-5-candidate-legacy.log.gz": "76ce3e60306d3f6a1588b6e2c737d40111136e6f253e8fb0a4625924267ac82e",
+    "pair-5-control-legacy.log.gz": "7fcbfcccf511aed5c36181f65ace1782109558c37610e77f7ed623e35b463924",
+    "pair-6-control-legacy.log.gz": "9a5ad4d0d8ab4bd0b6f275de00f303159c016baaeaec20df7342f52a6fb9fc6d",
+    "pair-6-candidate-legacy.log.gz": "6cc25507fd1c16844f4a092567c840fa5434655c9c8cfb358533d014cbec0306",
+    "pair-6-candidate-combined.log.gz": "ca2630c758a4737f7ad172ee14abb7bbbc3c43411be789df674074abddf90c5c",
+    "summary.json": "6f6db12088871ac168109d649829d65acef5a229fc7b4a6bf3d86fa08bb101ce",
+    "alloc-control-legacy-hosted_create-control.log.gz": "ca27982f4eea236afc6156492f66ab113cec08085b799f6e6046af2cd35a019c",
+    "alloc-control-legacy-hosted_create-legacy.log.gz": "c3e6f5c19f498acfa4bf530fd06e80bba6973dfa5dd51a90d72b5cf9f181650a",
+    "alloc-control-legacy-hosted_update-control.log.gz": "bfae8f3000431f163ebaa35d7d065d30668907c85b5e2bf1fd96c452fadbe482",
+    "alloc-control-legacy-hosted_update-legacy.log.gz": "491052c6d24fd53352f1130a0cee25ca1abb762c0dd548a28d5f6fee67c5567a",
+    "alloc-control-legacy-hosted_malformed-control.log.gz": "b4ca92568ac1506b8d7c33b30c42d9fed3ce5f282f8314c9c6756d9a882aefe7",
+    "alloc-control-legacy-hosted_malformed-legacy.log.gz": "0de1022309e6f1339d3d901888560e7b5f12cf2efe420cb10eca7d9da6d6238b",
+    "alloc-candidate-legacy-hosted_create-control.log.gz": "2b10b4400ac0eb658accda016b18655566e3eb7a682ee873e505182e8c3bf381",
+    "alloc-candidate-legacy-hosted_create-legacy.log.gz": "aaad8081851496cfd21aaa9c19fa5ce6aec11e8fcb4b5769453014489884c2ae",
+    "alloc-candidate-legacy-hosted_update-control.log.gz": "c311deae86eebc4d793c5f7cfe4a74338bb348613804f27d3c365773025b3b86",
+    "alloc-candidate-legacy-hosted_update-legacy.log.gz": "171ef798843d8d0d5a5ba3581adb458a18d676a3b480b9268fcdf8a7a8576ee2",
+    "alloc-candidate-legacy-hosted_malformed-control.log.gz": "0b69dc348afa2744371e0f34459486db849f1ee654013afc07af8942f277741e",
+    "alloc-candidate-legacy-hosted_malformed-legacy.log.gz": "ee71c7769fd60de91a7a3fc3ea7da4b4117f91483198c822fe53af71c7369209",
+    "alloc-candidate-combined-hosted_create-control.log.gz": "a75d7e7338bf0bceec2a38eac34d10db129c08b12b814b8c33684ac4d61f1735",
+    "alloc-candidate-combined-hosted_create-combined.log.gz": "7d8103612ef002a662c5718fc078aecbb3aee13cdc35ecae59ceb2bdf9b8fb74",
+    "alloc-candidate-combined-hosted_update-control.log.gz": "883add07cf3107608afc2adde75a0283a9c4056ec5d28f26bc033bbde1be911f",
+    "alloc-candidate-combined-hosted_update-combined.log.gz": "64b257f632e66bc62bb1acb1031f1c107d0953f963a66a409de1e51f2ab7e9e1",
+    "alloc-candidate-combined-hosted_malformed-control.log.gz": "2470e32d27acb63d65410f300d88070f485156543dc76541045299bbb7effdd3",
+    "alloc-candidate-combined-hosted_malformed-combined.log.gz": "e1ea3c9f9fb6e6b62a9b7b156e8fadeb130110269f928dd5b4d0097165f9c6a8",
+    "allocations.json": "d2bea023537a1e2d6d4f842a4e28f9ef472dff28d07a5c32d6aa1ec5dae3af3c",
+    "runner.py": "ef40070dbcdf1908093bbba48d4bd352dde649db2873e7755cdc8ef619508f58",
+    "runner-output.log.gz": "509d77d7a993e8b200351209729154199f5b9feb05fb29b037f15c94e57161b1",
+    "graph-update.log.gz": "c001ad0f4f6bd784f63b5c7230453ecbcf100d0e4d7819872addce321cc320a9"
+  },
+  "limitations": [
+    "Shared host; seven alternating rounds, no discarded samples.",
+    "Tail values are percentiles of 31 sample averages, not individual request latency.",
+    "Only fixed configuration create/update/malformed-command profiles; no universal speedup claim.",
+    "Same resolved dependencies and compiler; control profile source matches frozen original.",
+    "Control-subtracted whole-process heap totals include setup/profiler effects; raw totals retained.",
+    "Native Configuration reducer retains its own validation call; adapter does not bypass it."
+  ],
+  "original_profile_sha256": "4ecf91d8585ab735d4e30edd2ecec6a17dd43b2815b5f05df2ce72a31a0f051b",
+  "control_binary_sha256": "88f0617048b48ae96980c3fb29d94efe51c0f9eb1a40003a83c5d889a7652c77",
+  "candidate_binary_sha256": "4cae33f024567c13f0c69b13dc45c67933ae4f2c7665ae2a364e4f7fbfa4dacc",
+  "resolved_lock_sha256": "7d0dade64a108d1d2e480908b149ffc279a00f09d3f812f816d07d36437a1539",
+  "allocation_profiler": "valgrind-3.27.1",
+  "cpu_model": "AMD Ryzen 9 7950X 16-Core Processor",
+  "graph_update": {
+    "command": "graphify update .",
+    "exit_code": 0,
+    "scope": "AST-only benchmark and script update; warnings retained."
+  }
+}

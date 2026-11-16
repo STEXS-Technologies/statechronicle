@@ -554,3 +554,13 @@ Exact candidate `d1550a9` passes all five external hosted/portable/bare-metal
 checks on Rust 1.100 and independently on Rust 1.85, including frozen legacy
 consumers and canonical overlays. Manifests: `evidence/compat/20261116T045523Z-3083571/`
 and `evidence/compat/20261116T045532Z-3089968/`.
+
+Matched hosted measurements now support the decode-once change at `15aff1b`:
+seven alternating rounds versus same-dependency `63b9a47` observe create/update
+median paired changes of -38.25%/-42.37%, while malformed-command refusal is
++0.75%. Retained legacy candidate allocations equal control allocations;
+combined create/update save exactly 7/10 allocations and 131/166 bytes per
+operation. All raw samples, fixed overhead, extra candidate-legacy lane and
+shared-host limits remain visible in the
+[measurement contract](typed-evaluation.md). This closes the checkpoint's
+missing fixed-model timing/allocation evidence, not the complete F8 matrix.

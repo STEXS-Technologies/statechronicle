@@ -61,3 +61,12 @@ variants, wire structs or serialized tags change. Existing verification helpers
 retain compatibility semantics. Candidate-only consumer overlays under
 `ci/canonical-0.3/` compile the new surface against original proof records; their
 hashes are recorded separately from the immutable original consumer manifest.
+
+The hosted decode-once change adds the object-safe default
+`ProfileRules::evaluate(current, operation, inputs)` returning the proposed
+`ResourceState` or `ProfileEvaluationError::{Check, Apply}`. The default preserves
+existing implementations' check/apply behavior. `TypedProfile` overrides it to
+share native decoded values; its existing methods retain their contracts.
+`StateProfile` and all existing exhaustive error enums remain unchanged. This
+adds a method and a new enum, not a variant to a previously exhaustive enum.
+External legacy consumers pass on Rust 1.85 and 1.100 at `d1550a9`.

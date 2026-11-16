@@ -1,0 +1,152 @@
+{
+  "control-legacy": {
+    "hosted_create": {
+      "raw": {
+        "control": {
+          "allocations": 55,
+          "bytes": 6707
+        },
+        "legacy": {
+          "allocations": 17057,
+          "bytes": 298752
+        }
+      },
+      "control_subtracted_per_operation": {
+        "allocations": 17.002,
+        "bytes": 292.045
+      }
+    },
+    "hosted_update": {
+      "raw": {
+        "control": {
+          "allocations": 55,
+          "bytes": 6707
+        },
+        "legacy": {
+          "allocations": 23057,
+          "bytes": 368752
+        }
+      },
+      "control_subtracted_per_operation": {
+        "allocations": 23.002,
+        "bytes": 362.045
+      }
+    },
+    "hosted_malformed": {
+      "raw": {
+        "control": {
+          "allocations": 55,
+          "bytes": 6707
+        },
+        "legacy": {
+          "allocations": 5057,
+          "bytes": 124752
+        }
+      },
+      "control_subtracted_per_operation": {
+        "allocations": 5.002,
+        "bytes": 118.045
+      }
+    }
+  },
+  "candidate-legacy": {
+    "hosted_create": {
+      "raw": {
+        "control": {
+          "allocations": 55,
+          "bytes": 6709
+        },
+        "legacy": {
+          "allocations": 17057,
+          "bytes": 298754
+        }
+      },
+      "control_subtracted_per_operation": {
+        "allocations": 17.002,
+        "bytes": 292.045
+      }
+    },
+    "hosted_update": {
+      "raw": {
+        "control": {
+          "allocations": 55,
+          "bytes": 6709
+        },
+        "legacy": {
+          "allocations": 23057,
+          "bytes": 368754
+        }
+      },
+      "control_subtracted_per_operation": {
+        "allocations": 23.002,
+        "bytes": 362.045
+      }
+    },
+    "hosted_malformed": {
+      "raw": {
+        "control": {
+          "allocations": 55,
+          "bytes": 6709
+        },
+        "legacy": {
+          "allocations": 5057,
+          "bytes": 124754
+        }
+      },
+      "control_subtracted_per_operation": {
+        "allocations": 5.002,
+        "bytes": 118.045
+      }
+    }
+  },
+  "candidate-combined": {
+    "hosted_create": {
+      "raw": {
+        "control": {
+          "allocations": 55,
+          "bytes": 6709
+        },
+        "combined": {
+          "allocations": 10057,
+          "bytes": 167754
+        }
+      },
+      "control_subtracted_per_operation": {
+        "allocations": 10.002,
+        "bytes": 161.045
+      }
+    },
+    "hosted_update": {
+      "raw": {
+        "control": {
+          "allocations": 55,
+          "bytes": 6709
+        },
+        "combined": {
+          "allocations": 13057,
+          "bytes": 202754
+        }
+      },
+      "control_subtracted_per_operation": {
+        "allocations": 13.002,
+        "bytes": 196.045
+      }
+    },
+    "hosted_malformed": {
+      "raw": {
+        "control": {
+          "allocations": 55,
+          "bytes": 6709
+        },
+        "combined": {
+          "allocations": 5057,
+          "bytes": 124754
+        }
+      },
+      "control_subtracted_per_operation": {
+        "allocations": 5.002,
+        "bytes": 118.045
+      }
+    }
+  }
+}
