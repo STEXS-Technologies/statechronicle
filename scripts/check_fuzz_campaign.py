@@ -56,6 +56,12 @@ def main():
         manifest['checks'].append(record)
         save()
         if result.returncode != expected or (diagnostic and diagnostic.encode() not in result.stdout):
+            for option in command:
+                if option.startswith('-artifact_prefix='):
+                    crashes = Path(option.removeprefix('-artifact_prefix='))
+                    if crashes.is_dir():
+                        with tarfile.open(output / (label + '-artifacts.tar.gz'), 'w:gz') as tar:
+                            tar.add(crashes, arcname='artifacts')
             raise RuntimeError(label + ': unexpected exit/diagnostic')
         print(label, result.returncode, flush=True)
         return result.stdout.decode(errors='replace')

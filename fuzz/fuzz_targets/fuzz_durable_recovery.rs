@@ -250,7 +250,7 @@ fuzz_target!(|data: &[u8]| {
     if nonce.is_empty() {
         nonce.push(0);
     }
-    nonce.push(255);
+    nonce[0] ^= 255;
     conflict.nonce = Nonce::from_bytes(nonce).unwrap();
     assert!(
         matches!(
