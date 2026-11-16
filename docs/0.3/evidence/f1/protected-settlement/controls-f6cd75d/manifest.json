@@ -1,0 +1,77 @@
+{
+  "candidate_commit": "f6cd75d7688fef7815acb8acafd8edb66d37c9ab",
+  "archive_sha256": "7d30423a4a8403cf8c2206c3e559ddecbf844ed67c8cb43b9ae2a733a41e070f",
+  "checks": [
+    {
+      "lane": "positive",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "statechronicle",
+        "--test",
+        "protected_settlement",
+        "--locked",
+        "--offline"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "passed": true,
+      "artifact": "positive.log.gz",
+      "sha256": "801c52db4fc143bdbc48b01fdf744ec1958eaed39520e007c6f1f021ff5c53f3",
+      "removed_source": null,
+      "mutated_source_sha256": null
+    },
+    {
+      "lane": "skip-settlement-validation",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "statechronicle",
+        "--test",
+        "protected_settlement",
+        "--locked",
+        "--offline",
+        "protected_settlement_refuses_incomplete_or_mismatched_groups_without_writes",
+        "--",
+        "--exact"
+      ],
+      "exit_code": 101,
+      "expected_exit_code": 101,
+      "passed": true,
+      "artifact": "skip-settlement-validation.log.gz",
+      "sha256": "1fd671bfc4cad79423cd133a579efc7887304854345b886521c188ae6a7e3687",
+      "removed_source": "        if settlement {\n            // Existing validators consume flat slices. Keep this bounded copy\n            // local to the explicit coordinator; ordinary batches do not pay it.\n            let events: Vec<_> = prepared.events().cloned().collect();\n            settlement::validate_settle(\n                &events,\n                prepared.mutations().iter().map(PreparedMutation::validated),\n            )?;\n        }\n",
+      "mutated_source_sha256": "007eede0dde8cb180b577f0dc8db361e6682eee7b3dcbd1757291406e5b452fe"
+    },
+    {
+      "lane": "skip-bundle-routing",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "statechronicle",
+        "--test",
+        "protected_settlement",
+        "--locked",
+        "--offline",
+        "incomplete_bundle_cannot_escape_single_or_batch_protected_preparation",
+        "--",
+        "--exact"
+      ],
+      "exit_code": 101,
+      "expected_exit_code": 101,
+      "passed": true,
+      "artifact": "skip-bundle-routing.log.gz",
+      "sha256": "17a3f34eae81dcfb0a87887856a76cbfbd40444b922e309398ef164bf6a5480c",
+      "removed_source": "        if !coordinated\n            && intent.operation == *asset_op::trade_settle()\n            && atomicity::declares_bundle(intent)\n        {\n            return Err(ProfileError::AtomicityViolation(format!(\n                \"bundle settle intent `{}` requires the settlement coordinator\",\n                intent.intent_id.as_str()\n            )));\n        }\n",
+      "mutated_source_sha256": "e2fe99fba0133fab18b52e38787197ad00a7748cda88cf69ff5160e7ee4ef405"
+    }
+  ],
+  "status": "passed",
+  "limitations": [
+    "Deliberate bypasses in isolated source copies only; no production mutation.",
+    "Bounded preparation regression checks, not canonical economic contention or physical storage qualification."
+  ]
+}

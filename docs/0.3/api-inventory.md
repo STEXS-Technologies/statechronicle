@@ -93,3 +93,12 @@ public key types to Ed25519 Dalek 3. Earlier version-2 and Rust-1.85 evidence
 above describes those exact historical checkpoints, not the refreshed tree.
 Frozen original sources and measurement artifacts remain unchanged. Consumers
 of interim version-2 checkpoints must align their direct key-type dependency.
+
+`Preparer::prepare_player_settlement` and the matching `Executor` forwarding
+method add explicit protected single-tenant settlement composition. Both return
+the existing private-construction `PreparedBatch`; `SignedBatch` remains the
+canonical binding/commit owner. They reuse per-member ingress checks and legacy
+settlement validators. Resource-profile bundle declarations now require a
+coordinator, an intentional validation tightening described in migration.md.
+See [settlement checkpoint](evidence/f1/protected-settlement/README.md) for exact
+source, passing consumer checks and remaining canonical contention gates.
