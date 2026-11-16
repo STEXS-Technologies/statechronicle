@@ -129,7 +129,7 @@ The two-member reference exercises both members and all three stale cleanup
 forms; five fault behaviors fail their named oracles. A shared-deadline model
 passes the applicable whole-group check and rejects isolated configuration as
 an unsupported setup. These are bounded logical schedules, not universal lease,
-large-group, process-reopen or power-loss qualification. Generic later-head
+large-group, process-reopen or power-loss qualification. Broader later-head
 retention/rebuild, interrupted/corrupt replay, real backend clocks/transactions
 and broader F5/F8 work remain open. See the consumer instructions for exact
 hook and fixture contracts.
@@ -173,8 +173,52 @@ Five deliberately faulty retention/projection modes exercise the oracles:
 | Append rather than replace a current projection | `retention.effects` |
 | Key subject-held projections only by resource | `retention.effects` |
 
-These are bounded two-commit schedules. They do not establish batch retention,
+These are bounded two-commit schedules. They do not establish
 long-history projection rebuild, interrupted/corrupt replay, real database
 reopen, process kill or power-loss guarantees. Callers must supply valid signed
 fixtures; storage checks do not establish ingress or signer authorization. The
 equal-version refusal test deliberately supplies invalid storage input.
+
+## Batch retention after head advance and delivery
+
+Use `batch::check_later_head_retention` for two consecutive signed single-tenant
+batches with distinct commit/member identities and an independently supplied
+final `Snapshot`. The final snapshot contains both append-only histories and all
+finalizations, current projections, pending outbox rows, and only the later head.
+The harness separately inspects every raw retained membership row and compares
+its complete original group. Neither raw inspection nor expected effects may be
+reconstructed from lookup results.
+
+Every member in both groups must resolve to its complete original batch;
+standalone lookup must still refuse the batch namespace. Each exact member
+retry must return its original commit, while a changed nonce must conflict.
+Fresh independent connections and repeated raw observations check that retries
+change no effects or retained membership. These checks reuse the existing exact/
+conflicting-retry logic, rather than introducing another interpretation.
+
+If the adapter implements the optional `LedgerOutboxTestBackend`, also run
+`batch::check_delivered_retention`. It acknowledges only the first group's
+pending rows, then repeats all original lookup, namespace, exact retry,
+conflicting retry and raw membership/effect checks. Original immutable receipt
+outbox and projection sets must stay intact. Acknowledgement is not proof of
+exactly-once external delivery or physical durability.
+
+The reference uses two two-member groups in one tenant. Native profile checks
+and reduction produce two asset transfers, replacing both current projections
+while the original group remains exact. Seven fault behaviors fail named checks:
+
+| Fault | Required oracle |
+| --- | --- |
+| Drop the old group | `batch.retention.membership` |
+| Drop only its second member row | `batch.retention.membership` |
+| Substitute current projections into a historical lookup | `batch.lookup.original` |
+| Corrupt only the second old member lookup after head advance | `batch.lookup.original` with `member 1` |
+| Reconstruct original outbox from pending rows | `batch.lookup.original` |
+| Return the latest head for an original exact retry | `batch.replay.identity` |
+| Append rather than replace current projections | `batch.retention.effects` |
+
+This closes selected logical batch-retention schedules. Larger groups, mixed
+single/batch histories, interrupted/corrupt replay, verified projection rebuild,
+real database reopen/process-kill/power-loss behavior and broader F5/F8 gates
+remain open. Fixture signature validity is checked during reference generation;
+consumer ingress and signer authorization remain separate authorities.

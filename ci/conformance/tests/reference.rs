@@ -71,6 +71,9 @@ enum Mode {
     PendingOutboxLookup,
     AppendProjections,
     ResourceOnlyProjections,
+    PruneBatchMemberAfterHead,
+    ReplayLatestHead,
+    CorruptOldSecondMemberLookup,
 }
 #[derive(Default)]
 struct Database {
@@ -292,6 +295,29 @@ impl LedgerBatchRecovery for Connection {
                 batch.intents.retain(|member| member.intent_id == *intent);
                 batch.events.retain(|event| event.intent_id == *intent);
             }
+            if self.0.mode == Mode::CurrentProjectionLookup
+                || (self.0.mode == Mode::CorruptOldSecondMemberLookup
+                    && batch.commit.body.sequence == 1
+                    && batch
+                        .intents
+                        .get(1)
+                        .is_some_and(|member| member.intent_id == *intent)
+                    && db
+                        .visible
+                        .heads
+                        .iter()
+                        .any(|(scope, _, _, sequence)| scope == tenant && *sequence > 1))
+            {
+                batch.projections = db.visible.projections.clone();
+            }
+            if self.0.mode == Mode::PendingOutboxLookup {
+                batch.outbox.retain(|old| {
+                    db.visible
+                        .outbox
+                        .iter()
+                        .any(|row| old.tenant == row.tenant && old.delivery_key == row.delivery_key)
+                });
+            }
             return Ok(LedgerBatchLookup::Committed(Box::new(batch)));
         }
         if let Some(record) = db.records.get(&key) {
@@ -382,7 +408,17 @@ impl LedgerTransaction for Transaction {
                     .ok_or_else(|| invariant("missing retained member"))?;
                 return Ok(if canonicalize_and_digest(original).unwrap() == *digest {
                     IdempotencyClaim::Committed {
-                        commit_id: batch.commit.body.commit_id.clone(),
+                        commit_id: if self.connection.0.mode == Mode::ReplayLatestHead {
+                            db.visible
+                                .heads
+                                .iter()
+                                .find(|(tenant, ..)| tenant == &intent.tenant_id)
+                                .unwrap()
+                                .1
+                                .clone()
+                        } else {
+                            batch.commit.body.commit_id.clone()
+                        },
                     }
                 } else {
                     IdempotencyClaim::ConflictDifferentPayload
@@ -643,6 +679,21 @@ impl LedgerTransaction for Transaction {
         }
         if self.connection.0.mode == Mode::PruneOriginal {
             db.records.clear();
+            db.batches.clear();
+        }
+        if self.connection.0.mode == Mode::PruneBatchMemberAfterHead && commit.body.sequence > 1 {
+            let key = db
+                .batches
+                .iter()
+                .find(|(_, batch)| batch.commit.body.sequence == 1)
+                .map(|(_, batch)| {
+                    self.connection
+                        .0
+                        .key(&batch.intents[1].tenant_id, &batch.intents[1].intent_id)
+                });
+            if let Some(key) = key {
+                db.batches.remove(&key);
+            }
         }
         if let Some(batch) = &self.batch {
             let count = if self.connection.0.mode == Mode::ForgetMember {
@@ -1553,6 +1604,136 @@ async fn original_records_survive_later_canonical_head() {
             let error = result.unwrap_err();
             println!("{mode:?}: {error}");
             assert_eq!(error.check, "lookup.original");
+        }
+    }
+}
+
+#[tokio::test]
+async fn complete_original_batches_survive_replaced_projections_and_delivery() {
+    use statechronicle::commit::roots::state_root_updates;
+    use statechronicle::profiles::{registry::ProfileRules, unique_asset::UniqueAssetRules};
+    use statechronicle_conformance::batch;
+    let first = batch_fixture(950);
+    let mut later = batch_fixture(951);
+    for index in 0..later.intents.len() {
+        let intent = &mut later.intents[index];
+        intent.resource_id = first.intents[index].resource_id.clone();
+        intent.operation = Operation::from_static("asset.transfer");
+        intent.expected_version = 1;
+        intent.inputs = [
+            ("from_owner".into(), serde_json::json!("account:alice")),
+            ("to_owner".into(), serde_json::json!("account:bob")),
+        ]
+        .into();
+        let current = Some(&first.projections[index]);
+        UniqueAssetRules
+            .check(&intent.operation, current, &intent.inputs)
+            .unwrap();
+        let state = UniqueAssetRules
+            .apply(current, &intent.operation, &intent.inputs)
+            .unwrap();
+        let event = &mut later.events[index];
+        event.resource_id = intent.resource_id.clone();
+        event.operation = intent.operation.clone();
+        event.before = first.events[index].after.clone();
+        event.after = StateCommitment {
+            version: 2,
+            state_hash: canonicalize_and_digest(&state).unwrap(),
+            state,
+        };
+    }
+    let mut group = CommitBatch::new(later.commit.body.scope.clone());
+    for event in &later.events {
+        group.add_event(event.clone()).unwrap();
+    }
+    let old = &later.commit.body;
+    let body = CommitBuilder::builder()
+        .scope(old.scope.clone())
+        .sequence(2)
+        .parent(Some(first.commit.body.commit_id.clone()))
+        .executor(old.executor.clone())
+        .profile(old.profile.clone())
+        .created_at(old.created_at)
+        .build(
+            &group,
+            first.commit.body.next_state_root.clone(),
+            &state_root_updates(&first.events).unwrap(),
+            || Ok(old.commit_id.clone()),
+        )
+        .unwrap();
+    let signing = ed25519_dalek::SigningKey::from_bytes(&[77; 32]);
+    later.commit = sign_commit(
+        &body,
+        &signing,
+        KeyId::new("test:conformance-key".into()).unwrap(),
+    )
+    .unwrap();
+    verify_commit(&later.commit, &signing.verifying_key()).unwrap();
+    let entries: Vec<_> = later
+        .events
+        .iter()
+        .map(|event| CommittedEvent {
+            event,
+            state_type: StateType::UniqueAsset,
+        })
+        .collect();
+    later.projections = projections_for(&later.commit.body.commit_id, &entries);
+    let expected = Snapshot {
+        events: first.events.iter().chain(&later.events).cloned().collect(),
+        commits: vec![first.commit.clone(), later.commit.clone()],
+        projections: later.projections.clone(),
+        outbox: first.outbox.iter().chain(&later.outbox).cloned().collect(),
+        finalized: [&first, &later]
+            .into_iter()
+            .flat_map(|batch| {
+                batch.intents.iter().map(|intent| {
+                    (
+                        intent.tenant_id.clone(),
+                        intent.intent_id.clone(),
+                        canonicalize_and_digest(intent).unwrap(),
+                        batch.commit.body.commit_id.clone(),
+                    )
+                })
+            })
+            .collect(),
+        heads: vec![(
+            later.intents[0].tenant_id.clone(),
+            later.commit.body.commit_id.clone(),
+            later.commit.body.next_state_root.clone(),
+            2,
+        )],
+    };
+    for (mode, oracle) in [
+        (Mode::Correct, None),
+        (Mode::PruneOriginal, Some("batch.retention.membership")),
+        (
+            Mode::PruneBatchMemberAfterHead,
+            Some("batch.retention.membership"),
+        ),
+        (Mode::CurrentProjectionLookup, Some("batch.lookup.original")),
+        (Mode::PendingOutboxLookup, Some("batch.lookup.original")),
+        (Mode::ReplayLatestHead, Some("batch.replay.identity")),
+        (
+            Mode::CorruptOldSecondMemberLookup,
+            Some("batch.lookup.original"),
+        ),
+        (Mode::AppendProjections, Some("batch.retention.effects")),
+    ] {
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            batch::check_delivered_retention(&Backend::new(mode), &first, &later, &expected),
+        )
+        .await
+        .unwrap();
+        if let Some(oracle) = oracle {
+            let error = result.unwrap_err();
+            println!("batch retention {mode:?}: {error}");
+            assert_eq!(error.check, oracle);
+            if mode == Mode::CorruptOldSecondMemberLookup {
+                assert!(error.detail.contains("member 1"));
+            }
+        } else {
+            result.unwrap();
         }
     }
 }

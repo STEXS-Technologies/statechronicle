@@ -105,6 +105,13 @@ async fn compare_batches<B: LedgerBatchTestBackend>(
         effects.heads.extend(rows.heads);
     }
     compare(backend, &effects, check).await?;
+    compare_membership(backend, batches, check).await
+}
+async fn compare_membership<B: LedgerBatchTestBackend>(
+    backend: &B,
+    batches: &[&LedgerBatch],
+    check: &'static str,
+) -> Result<(), Violation> {
     let expected: Vec<_> = batches
         .iter()
         .flat_map(|batch| {
@@ -123,11 +130,11 @@ async fn compare_batches<B: LedgerBatchTestBackend>(
     )
 }
 async fn original<S: LedgerBatchRecovery>(store: &S, batch: &LedgerBatch) -> Result<(), Violation> {
-    for intent in &batch.intents {
+    for (index, intent) in batch.intents.iter().enumerate() {
         require(
             "batch.lookup.original",
             matches!(store.lookup_batch(&intent.tenant_id, &intent.intent_id).await.map_err(operation)?, LedgerBatchLookup::Committed(record) if *record == *batch),
-            "member did not resolve to the exact complete original group",
+            &format!("member {index} did not resolve to the exact complete original group"),
         )?;
         require(
             "batch.lookup.single",
@@ -312,6 +319,14 @@ where
 {
     let store = fresh(backend).await?;
     write(&store, batch).await?;
+    retry_members(&backend.connect().await.map_err(operation)?, batch).await?;
+    compare_batch(backend, Some(batch), "batch.replay.effects").await?;
+    original(&backend.connect().await.map_err(operation)?, batch).await
+}
+async fn retry_members<S: LedgerBatchRecovery>(
+    store: &S,
+    batch: &LedgerBatch,
+) -> Result<(), Violation> {
     for intent in &batch.intents {
         let mut tx = store.begin(&intent.tenant_id).await.map_err(operation)?;
         let digest = canonicalize_and_digest(intent).map_err(operation)?;
@@ -346,8 +361,92 @@ where
         )?;
         tx.rollback().await.map_err(operation)?;
     }
-    compare_batch(backend, Some(batch), "batch.replay.effects").await?;
-    original(&backend.connect().await.map_err(operation)?, batch).await
+    Ok(())
+}
+/// Two sequential single-tenant groups retain complete immutable original
+/// records for every member after the head advances. `effects` is an independent
+/// expected final raw view, including current projections and only the new head.
+/// This is logical storage conformance; fixtures must already be valid/signed.
+pub async fn check_later_head_retention<B: LedgerBatchTestBackend>(
+    backend: &B,
+    first: &LedgerBatch,
+    later: &LedgerBatch,
+    effects: &Snapshot,
+) -> Result<(), Violation>
+where
+    B::Connection: LedgerBatchRecovery,
+{
+    require(
+        "fixture.batch.chain",
+        tenant(first)? == tenant(later)?
+            && first.commit.body.commit_id != later.commit.body.commit_id
+            && later.commit.body.parent_commit_id.as_ref() == Some(&first.commit.body.commit_id)
+            && first.commit.body.sequence.checked_add(1) == Some(later.commit.body.sequence)
+            && later.commit.body.previous_state_root == first.commit.body.next_state_root
+            && first
+                .intents
+                .iter()
+                .all(|a| later.intents.iter().all(|b| a.intent_id != b.intent_id)),
+        "requires consecutive linked groups with distinct member and commit identities",
+    )?;
+    let store = fresh(backend).await?;
+    write(&store, first).await?;
+    original(&backend.connect().await.map_err(operation)?, first).await?;
+    write(&backend.connect().await.map_err(operation)?, later).await?;
+    retained_history(backend, first, later, effects).await
+}
+async fn retained_history<B: LedgerBatchTestBackend>(
+    backend: &B,
+    first: &LedgerBatch,
+    later: &LedgerBatch,
+    effects: &Snapshot,
+) -> Result<(), Violation>
+where
+    B::Connection: LedgerBatchRecovery,
+{
+    compare(backend, effects, "batch.retention.effects").await?;
+    compare_membership(backend, &[first, later], "batch.retention.membership").await?;
+    let reader = backend.connect().await.map_err(operation)?;
+    for group in [first, later] {
+        original(&reader, group).await?;
+        retry_members(&reader, group).await?;
+    }
+    compare(backend, effects, "batch.retention.retry_effects").await?;
+    compare_membership(backend, &[first, later], "batch.retention.retry_membership").await?;
+    for group in [first, later] {
+        original(&backend.connect().await.map_err(operation)?, group).await?;
+    }
+    Ok(())
+}
+/// Optional pending-outbox acknowledgement must preserve both complete groups,
+/// their original projections/outbox and exact/conflicting member retry results.
+pub async fn check_delivered_retention<B: LedgerBatchTestBackend + LedgerOutboxTestBackend>(
+    backend: &B,
+    first: &LedgerBatch,
+    later: &LedgerBatch,
+    effects: &Snapshot,
+) -> Result<(), Violation>
+where
+    B::Connection: LedgerBatchRecovery,
+{
+    require(
+        "fixture.batch.outbox",
+        !first.outbox.is_empty(),
+        "requires original pending outbox rows",
+    )?;
+    check_later_head_retention(backend, first, later, effects).await?;
+    backend
+        .acknowledge_outbox(&first.outbox)
+        .await
+        .map_err(operation)?;
+    let mut delivered = effects.clone();
+    delivered.outbox.retain(|row| {
+        !first
+            .outbox
+            .iter()
+            .any(|old| old.tenant == row.tenant && old.delivery_key == row.delivery_key)
+    });
+    retained_history(backend, first, later, &delivered).await
 }
 /// ACK loss is injected after a real inner commit. The advanced coordinator must
 /// report unknown, and a fresh independent connection must recover the complete
