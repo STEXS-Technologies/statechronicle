@@ -55,6 +55,10 @@ enum Mode {
     IgnoreBatchIdentity,
     IgnoreSuperseded,
     ReleaseSuccessor,
+    FenceFirstMemberOnly,
+    ReuseExpiredToken,
+    SharedExpiry,
+    LieClaimToken,
 }
 #[derive(Default)]
 struct Database {
@@ -121,8 +125,36 @@ impl statechronicle_conformance::LedgerLeaseTestBackend for Backend {
         if !db.leases.contains_key(&key) {
             return Err("no live lease to expire".into());
         }
-        db.expired.insert(key);
+        if self.mode == Mode::SharedExpiry {
+            let keys: Vec<_> = db.leases.keys().cloned().collect();
+            db.expired.extend(keys);
+        } else {
+            db.expired.insert(key);
+        }
         Ok(())
+    }
+}
+#[async_trait]
+impl statechronicle_conformance::batch::LedgerBatchMemberLeaseTestBackend for Backend {
+    async fn configure_member_expiry(
+        &self,
+        batch: &LedgerBatch,
+        member: &IntentId,
+    ) -> Result<(), String> {
+        if self.mode == Mode::SharedExpiry {
+            return Err("shared member deadlines do not support isolated expiry".into());
+        }
+        // This bounded model already expires by key. It changes eligibility
+        // only; normal claim code replaces the token, and all others stay live.
+        if batch
+            .intents
+            .iter()
+            .any(|intent| intent.intent_id == *member)
+        {
+            Ok(())
+        } else {
+            Err("unknown expiry fixture member".into())
+        }
     }
 }
 #[async_trait]
@@ -344,15 +376,25 @@ impl LedgerTransaction for Transaction {
                 });
             }
         }
+        let expired_token = db.leases.get(&key).map(|(_, token)| token.clone());
+        let takeover = expired_token.is_some();
         db.expired.remove(&key);
         db.attempt += 1;
-        let attempt = format!("attempt-{}", db.attempt);
+        let attempt = if self.connection.0.mode == Mode::ReuseExpiredToken {
+            expired_token.unwrap_or_else(|| format!("attempt-{}", db.attempt))
+        } else {
+            format!("attempt-{}", db.attempt)
+        };
         db.leases
             .insert(key.clone(), (digest.clone(), attempt.clone()));
         self.reservations
             .push((key, digest.clone(), attempt.clone(), intent.clone()));
         Ok(IdempotencyClaim::NewReservation {
-            attempt_id: attempt,
+            attempt_id: if self.connection.0.mode == Mode::LieClaimToken && takeover {
+                format!("{attempt}-reported")
+            } else {
+                attempt
+            },
         })
     }
     async fn append_events(&mut self, events: &[Event]) -> Result<(), LedgerStoreError> {
@@ -478,8 +520,10 @@ impl LedgerTransaction for Transaction {
                 .reservations
                 .iter()
                 .any(|(key, digest, token, intent)| {
-                    (self.connection.0.mode != Mode::IgnoreSuperseded
-                        && db.leases.get(key) != Some(&(digest.clone(), token.clone())))
+                    (!matches!(
+                        self.connection.0.mode,
+                        Mode::IgnoreSuperseded | Mode::FenceFirstMemberOnly
+                    ) && db.leases.get(key) != Some(&(digest.clone(), token.clone())))
                         || !self.staged.finalized.contains(&(
                             intent.tenant_id.clone(),
                             intent.intent_id.clone(),
@@ -1075,5 +1119,79 @@ async fn expired_lease_takeover_fences_stale_commit_and_cleanup() {
                 .await
                 .unwrap_err();
         assert_eq!(error.check, check);
+    }
+}
+
+#[tokio::test]
+async fn batch_lease_takeover_preserves_complete_successor_group() {
+    use statechronicle_conformance::batch;
+    let group = batch_fixture(800);
+    for mode in [
+        Mode::Correct,
+        Mode::SharedExpiry,
+        Mode::FenceFirstMemberOnly,
+    ] {
+        tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            batch::check_lease_takeover(&Backend::new(mode), &group),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    }
+    let unsupported = batch::check_member_lease_takeover(&Backend::new(Mode::SharedExpiry), &group)
+        .await
+        .unwrap_err();
+    assert_eq!(unsupported.check, "adapter.operation");
+    assert!(unsupported.detail.contains("shared member deadlines"));
+    for (mode, check) in [
+        (Mode::IgnoreSuperseded, "batch.lease.stale_commit"),
+        (Mode::ReleaseSuccessor, "batch.lease.successor"),
+        (Mode::ReuseExpiredToken, "batch.lease.token"),
+    ] {
+        let error = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            batch::check_lease_takeover(&Backend::new(mode), &group),
+        )
+        .await
+        .unwrap()
+        .unwrap_err();
+        println!("{mode:?}: {error}");
+        assert_eq!(error.check, check, "{mode:?}: {error}");
+    }
+}
+#[tokio::test]
+async fn batch_member_expiry_fences_nonfirst_member_and_stale_cleanup() {
+    use statechronicle_conformance::batch;
+    let group = batch_fixture(800);
+    tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        batch::check_member_lease_takeover(&Backend::new(Mode::Correct), &group),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    for (mode, check) in [
+        (Mode::IgnoreSuperseded, "batch.lease.stale_member_commit"),
+        (
+            Mode::FenceFirstMemberOnly,
+            "batch.lease.stale_member_commit",
+        ),
+        (Mode::LieClaimToken, "batch.lease.claim_token"),
+        (Mode::ReleaseSuccessor, "batch.lease.successor"),
+        (Mode::ReuseExpiredToken, "batch.lease.token"),
+    ] {
+        let error = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            batch::check_member_lease_takeover(&Backend::new(mode), &group),
+        )
+        .await
+        .unwrap()
+        .unwrap_err();
+        println!("{mode:?}: {error}");
+        assert_eq!(error.check, check, "{mode:?}: {error}");
+        if mode == Mode::FenceFirstMemberOnly {
+            assert!(error.detail.contains("Some(1)"), "{error}");
+        }
     }
 }

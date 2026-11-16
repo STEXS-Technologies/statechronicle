@@ -1,6 +1,7 @@
 //! Optional single-tenant batch checks using raw independent observations.
 //! These are logical transaction checks, not physical database crash tests.
 use super::*;
+use statechronicle::Intent;
 use statechronicle::ports::ledger_batch::{LedgerBatch, LedgerBatchLookup, LedgerBatchRecovery};
 
 /// One actual retained membership row. Include duplicates and query the
@@ -774,4 +775,234 @@ where
     )?;
     compare_batch(backend, Some(batch), "batch.identity.effects").await?;
     original(&reader, batch).await
+}
+
+async fn pending_member<S: LedgerBatchRecovery>(
+    store: &S,
+    intent: &Intent,
+    check: &'static str,
+) -> Result<String, Violation> {
+    match store
+        .lookup_batch(&intent.tenant_id, &intent.intent_id)
+        .await
+        .map_err(operation)?
+    {
+        LedgerBatchLookup::InProgress {
+            payload_digest,
+            attempt_id,
+            ..
+        } if payload_digest == canonicalize_and_digest(intent).map_err(operation)?
+            && !attempt_id.is_empty() =>
+        {
+            Ok(attempt_id)
+        }
+        other => Err(failure(
+            check,
+            format!("expected exact pending member, got {other:?}"),
+        )),
+    }
+}
+
+/// Optional schedule control for adapters with independently expirable member
+/// leases. Configure the normal test clock/lease policy BEFORE claims so that
+/// expiring `member` through `expire_reservation` leaves all other members live.
+/// Do not delete reservations, rewrite tokens, or bypass normal claim/takeover
+/// logic. Adapters with one shared group deadline need not implement this hook.
+#[async_trait]
+pub trait LedgerBatchMemberLeaseTestBackend:
+    LedgerBatchTestBackend + LedgerLeaseTestBackend
+{
+    async fn configure_member_expiry(
+        &self,
+        batch: &LedgerBatch,
+        member: &IntentId,
+    ) -> Result<(), String>;
+}
+
+/// Whole-group expiry: every takeover token changes, stale commit/rollback/drop
+/// preserve the winner, and its commit publishes the exact complete original.
+/// Uses the existing lease clock hook; supports shared group deadlines. The
+/// test hook must tolerate already-expired siblings when one clock advance
+/// expires several members. No physical database crash guarantee is implied.
+pub async fn check_lease_takeover<B>(backend: &B, batch: &LedgerBatch) -> Result<(), Violation>
+where
+    B: LedgerBatchTestBackend + LedgerLeaseTestBackend,
+    B::Connection: LedgerBatchRecovery,
+{
+    lease_fixture(batch)?;
+    for cleanup in 0..3 {
+        let store = fresh(backend).await?;
+        lease_takeover_case(backend, &store, batch, None, cleanup).await?;
+    }
+    Ok(())
+}
+
+/// Optional independently expired-member schedule. Replaces each member in
+/// turn, including non-first members, while the rest stay live. Detects adapters
+/// fencing only the first reservation; stale cleanup cannot erase the successor.
+/// This does not require independently expirable leases from every backend.
+pub async fn check_member_lease_takeover<B>(
+    backend: &B,
+    batch: &LedgerBatch,
+) -> Result<(), Violation>
+where
+    B: LedgerBatchMemberLeaseTestBackend,
+    B::Connection: LedgerBatchRecovery,
+{
+    lease_fixture(batch)?;
+    for (index, intent) in batch.intents.iter().enumerate() {
+        for cleanup in 0..3 {
+            let store = fresh(backend).await?;
+            backend
+                .configure_member_expiry(batch, &intent.intent_id)
+                .await
+                .map_err(operation)?;
+            lease_takeover_case(backend, &store, batch, Some(index), cleanup).await?;
+        }
+    }
+    Ok(())
+}
+fn lease_fixture(batch: &LedgerBatch) -> Result<(), Violation> {
+    require(
+        "fixture.batch.lease",
+        batch.intents.len() >= 2,
+        "need at least two members",
+    )
+}
+async fn lease_takeover_case<B>(
+    backend: &B,
+    store: &B::Connection,
+    batch: &LedgerBatch,
+    expired: Option<usize>,
+    cleanup: u8,
+) -> Result<(), Violation>
+where
+    B: LedgerBatchTestBackend + LedgerLeaseTestBackend,
+    B::Connection: LedgerBatchRecovery,
+{
+    let stale = stage(store, batch, steps(batch).len()).await?;
+    let reader = backend.connect().await.map_err(operation)?;
+    let mut old_attempts = Vec::new();
+    let mut observer = reader.begin(tenant(batch)?).await.map_err(operation)?;
+    for intent in &batch.intents {
+        let token = pending_member(&reader, intent, "batch.lease.initial").await?;
+        let claim = observer
+            .claim_idempotency(
+                &intent.tenant_id,
+                intent,
+                &canonicalize_and_digest(intent).map_err(operation)?,
+            )
+            .await
+            .map_err(operation)?;
+        require(
+            "batch.lease.live",
+            matches!(claim, IdempotencyClaim::InProgress { attempt_id, .. } if attempt_id == token),
+            "live member reservation was not retained",
+        )?;
+        old_attempts.push(token);
+    }
+    observer.rollback().await.map_err(operation)?;
+    let selected: Vec<_> =
+        expired.map_or_else(|| (0..batch.intents.len()).collect(), |index| vec![index]);
+    for &index in &selected {
+        let intent = &batch.intents[index];
+        backend
+            .expire_reservation(&intent.tenant_id, &intent.intent_id)
+            .await
+            .map_err(operation)?;
+    }
+    let successor = backend.connect().await.map_err(operation)?;
+    let (winner, reported_token) = if let Some(index) = expired {
+        let mut tx = successor.begin(tenant(batch)?).await.map_err(operation)?;
+        let intent = &batch.intents[index];
+        let claimed = tx
+            .claim_idempotency(
+                &intent.tenant_id,
+                intent,
+                &canonicalize_and_digest(intent).map_err(operation)?,
+            )
+            .await
+            .map_err(operation)?;
+        let reported = match claimed {
+            IdempotencyClaim::NewReservation { attempt_id } if !attempt_id.is_empty() => attempt_id,
+            other => {
+                return Err(failure(
+                    "batch.lease.claim",
+                    format!("expected new member reservation, got {other:?}"),
+                ));
+            }
+        };
+        // Taking one expired member must not expire or acquire others.
+        for (other, intent) in batch
+            .intents
+            .iter()
+            .enumerate()
+            .filter(|(other, _)| *other != index)
+        {
+            require(
+                "batch.lease.other_live",
+                matches!(tx.claim_idempotency(
+                        &intent.tenant_id, intent, &canonicalize_and_digest(intent).map_err(operation)?,
+                    ).await.map_err(operation)?, IdempotencyClaim::InProgress { attempt_id, .. } if attempt_id == old_attempts[other]),
+                "takeover changed a different live member",
+            )?;
+        }
+        (tx, Some(reported))
+    } else {
+        (stage(&successor, batch, steps(batch).len()).await?, None)
+    };
+    let mut new_attempts = Vec::new();
+    for (index, intent) in batch.intents.iter().enumerate() {
+        let token = pending_member(&reader, intent, "batch.lease.pending").await?;
+        require(
+            "batch.lease.token",
+            if selected.contains(&index) {
+                token != old_attempts[index]
+            } else {
+                token == old_attempts[index]
+            },
+            &format!("wrong fenced token for member {index}"),
+        )?;
+        if expired == Some(index) {
+            require(
+                "batch.lease.claim_token",
+                reported_token.as_ref() == Some(&token),
+                "claim reply differs from the pending successor token",
+            )?;
+        }
+        new_attempts.push(token);
+    }
+    match cleanup {
+        0 => require(
+            if expired.is_some() {
+                "batch.lease.stale_member_commit"
+            } else {
+                "batch.lease.stale_commit"
+            },
+            stale.commit().await.is_err(),
+            &format!("superseded group committed after member {expired:?} takeover"),
+        )?,
+        1 => stale.rollback().await.map_err(operation)?,
+        _ => drop(stale),
+    }
+    compare_batch(backend, None, "batch.lease.private").await?;
+    for &index in &selected {
+        require(
+            "batch.lease.successor",
+            pending_member(&reader, &batch.intents[index], "batch.lease.successor").await?
+                == new_attempts[index],
+            "stale cleanup released or changed a successor member",
+        )?;
+    }
+    if expired.is_none() {
+        winner.commit().await.map_err(operation)?;
+        compare_batch(backend, Some(batch), "batch.lease.effects").await?;
+        original(&reader, batch).await?;
+    } else {
+        // A single replaced member is not a committed group. Other
+        // live reservations remain the old writer's until cleanup.
+        winner.rollback().await.map_err(operation)?;
+        compare_batch(backend, None, "batch.lease.partial").await?;
+    }
+    Ok(())
 }

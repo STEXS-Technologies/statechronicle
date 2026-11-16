@@ -86,9 +86,10 @@ separate reference adapter includes nine broken batch controls. The existing
 single-mutation suite still runs. Additional generic checks cover tenant-isolated
 coincident IDs, both directions of the shared single/batch namespace, rejection
 of cross-kind fabricated receipts, and 2/8/32-client same-group contention.
-Four namespace fault variants fail their intended oracles. Lease expiry/takeover
-and non-genesis retention/rebuild remain to be added; backend-specific crash and
-physical persistence qualification are still required. See the consumer instructions for
+Four namespace fault variants fail their intended oracles. Optional batch lease
+schedules are described below; broader lease races and non-genesis
+retention/rebuild remain open. Backend-specific crash and physical persistence
+qualification are still required. See the consumer instructions for
 exact capability and fixture requirements.
 
 ## Optional single-reservation lease takeover
@@ -101,7 +102,34 @@ stale rollback and drop cannot release the successor. Independent lookup and
 raw effects verify the successor commits the exact original once. Two broken
 reference controls fail `lease.stale_commit` and `lease.successor`.
 
-This closes one bounded logical single-reservation schedule. Batch-member lease
-expiry, other fencing interleavings, real database clock/transaction behavior,
-and process/power-loss qualification remain open. Earlier references to open
+This closes one bounded logical single-reservation schedule. The following batch
+extension adds selected member-expiry schedules; other fencing interleavings,
+real database clock/transaction behavior and process/power-loss qualification
+remain open. Earlier references to open
 lease testing should be read with this extension's precise scope.
+
+
+## Optional batch lease takeover
+
+The dev-only batch harness now checks whole-group takeover through the existing
+lease hook: all member tokens change, stale commit/rollback/drop preserve the
+successor, and only its complete original group can publish. Independent raw
+observations include retained membership and all canonical effects. Shared
+lease deadlines are supported. No runtime crate, port or transaction API changes.
+
+A separate optional `LedgerBatchMemberLeaseTestBackend` configures independently
+expirable member deadlines before ordinary claims. Its check replaces each
+member in turn with the others still live. This detects a backend fencing only
+the first member, which whole-group takeover alone cannot establish. Claim
+replies must agree with independent pending lookup. Partial acquisition remains
+pending, publishes nothing, and is rolled back. Shared-deadline-only adapters
+need not implement this optional test capability.
+
+The two-member reference exercises both members and all three stale cleanup
+forms; five fault behaviors fail their named oracles. A shared-deadline model
+passes the applicable whole-group check and rejects isolated configuration as
+an unsupported setup. These are bounded logical schedules, not universal lease,
+large-group, process-reopen or power-loss qualification. Generic later-head
+retention/rebuild, interrupted/corrupt replay, real backend clocks/transactions
+and broader F5/F8 work remain open. See the consumer instructions for exact
+hook and fixture contracts.

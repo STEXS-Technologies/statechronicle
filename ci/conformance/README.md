@@ -110,9 +110,10 @@ returning absence or a plausible record is not sufficient. The exact-group race
 uses independently supplied principals and `Arc`-owned authorizer/verifier
 policies so each task can call the actual verified coordinator.
 
-The batch extension remains bounded logical qualification. Lease expiry/takeover
-races, later-head retention/rebuild and physical database crash/power-loss
-qualification still require additional adapter tests. Do not
+The batch extension remains bounded logical qualification. The optional lease
+checks below add selected expiry/takeover schedules. Broader fencing races,
+later-head retention/rebuild and physical database crash/power-loss qualification
+still require additional adapter tests. Do not
 claim those properties merely because these functions pass.
 
 ## Optional expiring-lease tests
@@ -131,5 +132,59 @@ This optional test assumes concurrent visible reservations and expiring leases.
 Adapters with transaction-local reservations or database locking need their own
 schedule and backend-specific timeouts; they must not simulate this capability
 by deleting locks. The reference uses deterministic logical expiry, not elapsed
-wall time. This does not qualify batch-member expiry, transaction timeout,
-physical recovery or all lease interleavings.
+wall time. The batch extension below supplies separate optional schedules;
+transaction timeout, physical recovery and all lease interleavings remain open.
+
+
+## Optional batch lease schedules
+
+`batch::check_lease_takeover` uses the existing `LedgerLeaseTestBackend` hook
+plus raw `LedgerBatchTestBackend` observations and `LedgerBatchRecovery`. Supply
+a well-formed batch with at least two members and a signed commit. The check
+stages a complete old group, verifies every live reservation, expires every
+member, and acquires/stages the same group through a new connection. Each
+member must have a new nonempty token and the original payload digest.
+Stale commit, rollback and drop are separate schedules. None may publish old
+effects or erase any successor claim. The successor must publish exactly the
+original complete group, including every retained member, projection, outbox,
+finalization and canonical head. Reopened member lookups must resolve the group.
+
+This works with shared group deadlines. When one injected-clock advance expires
+several siblings, `expire_reservation` must tolerate a later callback for an
+already-expired sibling. This is test-hook behavior, not an extra production
+storage method. No callback may manufacture replacement tokens or delete locks.
+
+For adapters that also support independently expirable member leases, implement
+`batch::LedgerBatchMemberLeaseTestBackend::configure_member_expiry`. It is called
+after reset and before any claim. Configure the normal test clock/lease policy
+so the chosen member expires while every other member remains live; do not edit
+reservations or tokens to fake takeover. Shared-deadline-only adapters need not
+implement this capability. Setup errors are `adapter.operation`, distinct from
+a failed contract assertion.
+
+Then run `batch::check_member_lease_takeover`. It replaces each member in turn
+while the others stay live, checks the returned claim token against independent
+pending lookup, and applies stale commit/rollback/drop separately. The partial
+successor remains pending and is rolled back: claiming one member never counts
+as a committed group. Raw effects and retained rows stay empty. The whole-group
+check alone does not establish this independently expired-member property.
+
+The reference exercises a two-member signed-commit fixture. Its shared-expiry
+model passes the whole-group check and explicitly refuses unsupported isolated
+configuration. Five deliberate lease fault behaviors fail named oracles:
+
+| Fault | Required oracle |
+| --- | --- |
+| Accept a superseded whole commit | `batch.lease.stale_commit` |
+| Fence only the first member | `batch.lease.stale_member_commit` for member 1 |
+| Release successor during stale cleanup | `batch.lease.successor` |
+| Reuse the old token on takeover | `batch.lease.token` |
+| Return a claim token different from pending lookup | `batch.lease.claim_token` |
+
+A first-member-only fault deliberately passes whole-group takeover but fails
+isolated takeover of member 1. This is an explicit negative-control boundary,
+not a claim that the smaller check detects every broken adapter. These are
+bounded logical genesis schedules with independent readers, not real database
+clock, process-kill or power-loss qualification. Wrap calls in backend-specific
+timeouts. Broader histories, larger groups, further interleavings and physical
+backend recovery still need qualification.
