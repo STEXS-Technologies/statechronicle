@@ -131,7 +131,7 @@ async fn single_and_durable_registry_failure_precedes_principal_and_policy_failu
         vec!["key:acme.game.alpha:mallory:asset.mint"]
     );
     trace.lock().unwrap().clear();
-    let reason = failure(
+    let durable_reason = failure(
         h.executor
             .execute_player_durable_with_key_registry(
                 &request,
@@ -142,7 +142,10 @@ async fn single_and_durable_registry_failure_precedes_principal_and_policy_failu
             )
             .await,
     );
-    assert_eq!(reason, "key registry unavailable: registry-sentinel");
+    assert_eq!(
+        durable_reason,
+        "key registry unavailable: registry-sentinel"
+    );
     assert_eq!(
         *trace.lock().unwrap(),
         vec!["key:acme.game.alpha:mallory:asset.mint"]
@@ -176,7 +179,7 @@ async fn batch_binding_and_policy_fail_before_registry_in_their_original_order()
     );
     assert!(trace.lock().unwrap().is_empty());
     let matching = principal("alice");
-    let reason = failure(
+    let policy_reason = failure(
         h.executor
             .execute_player_batch_durable_with_key_registry(
                 &[PlayerBatchItem {
@@ -189,7 +192,7 @@ async fn batch_binding_and_policy_fail_before_registry_in_their_original_order()
             )
             .await,
     );
-    assert_eq!(reason, AuthorizationError::Denied.to_string());
+    assert_eq!(policy_reason, AuthorizationError::Denied.to_string());
     assert_eq!(*trace.lock().unwrap(), vec!["authorize"]);
 }
 

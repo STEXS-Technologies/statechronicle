@@ -264,6 +264,59 @@ pub struct Executor {
     intent_verifier: IntentVerifier,
 }
 
+// Shared ingress decisions deliberately do not choose their evaluation order.
+// Single registry lanes check keys before binding/policy; batch checks binding
+// and policy first. Protected preparation also reconstructs structural input.
+fn player_signature(validated: &ValidatedIntent) -> Result<&SignatureBlock, ExecutorError> {
+    validated.signature.as_ref().ok_or_else(|| {
+        ExecutorError::ActorAuthenticationFailed(String::from(
+            "player mutation requires a detached intent signature",
+        ))
+    })
+}
+
+async fn authorize_principal(
+    validated: &ValidatedIntent,
+    principal: &AuthenticatedPrincipal,
+    authorizer: &dyn Authorizer,
+) -> Result<(), ExecutorError> {
+    if principal.tenant != validated.intent.tenant_id || principal.subject != validated.intent.actor
+    {
+        return Err(ExecutorError::ActorAuthenticationFailed(String::from(
+            "authenticated principal is not bound to intent actor and tenant",
+        )));
+    }
+    authorizer
+        .authorize(AuthorizationContext {
+            principal,
+            tenant: &validated.intent.tenant_id,
+            intent: &validated.intent,
+            resource: &validated.intent.resource_id,
+        })
+        .await
+        .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+    Ok(())
+}
+
+async fn check_player_key(
+    validated: &ValidatedIntent,
+    principal: &AuthenticatedPrincipal,
+    signature: &SignatureBlock,
+    key_registry: &dyn KeyRegistry,
+) -> Result<(), ExecutorError> {
+    key_registry
+        .resolve_intent_key(
+            &validated.intent.tenant_id,
+            &principal.subject,
+            &signature.key_id,
+            &validated.intent.operation,
+            validated.intent.created_at,
+        )
+        .await
+        .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+    Ok(())
+}
+
 // Owned checked commitments, produced once by the common preparation stage.
 // Neither event construction nor callbacks can run before this succeeds.
 struct PreparedEventStates {
@@ -493,22 +546,7 @@ impl Executor {
         authorizer: &dyn Authorizer,
         intent_handling: IntentHandling,
     ) -> Result<Vec<Event>, ExecutorError> {
-        if principal.tenant != validated.intent.tenant_id
-            || principal.subject != validated.intent.actor
-        {
-            return Err(ExecutorError::ActorAuthenticationFailed(String::from(
-                "authenticated principal is not bound to intent actor and tenant",
-            )));
-        }
-        authorizer
-            .authorize(AuthorizationContext {
-                principal,
-                tenant: &validated.intent.tenant_id,
-                intent: &validated.intent,
-                resource: &validated.intent.resource_id,
-            })
-            .await
-            .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+        authorize_principal(validated, principal, authorizer).await?;
         self.execute_inner(validated, false, intent_handling).await
     }
 
@@ -539,21 +577,8 @@ impl Executor {
         authorizer: &dyn Authorizer,
         key_registry: &dyn KeyRegistry,
     ) -> Result<PreparedMutation, ExecutorError> {
-        let signature = validated.signature.as_ref().ok_or_else(|| {
-            ExecutorError::ActorAuthenticationFailed(String::from(
-                "player mutation requires a detached intent signature",
-            ))
-        })?;
-        key_registry
-            .resolve_intent_key(
-                &validated.intent.tenant_id,
-                &principal.subject,
-                &signature.key_id,
-                &validated.intent.operation,
-                validated.intent.created_at,
-            )
-            .await
-            .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+        let signature = player_signature(validated)?;
+        check_player_key(validated, principal, signature, key_registry).await?;
         // Public compatibility fields are not a structural-validation seal.
         let request = ValidatedIntent::try_from_intent(
             validated.intent.clone(),
@@ -584,11 +609,7 @@ impl Executor {
         principal: &AuthenticatedPrincipal,
         authorizer: &dyn Authorizer,
     ) -> Result<Vec<Event>, ExecutorError> {
-        if validated.signature.is_none() {
-            return Err(ExecutorError::ActorAuthenticationFailed(String::from(
-                "player mutation requires a detached intent signature",
-            )));
-        }
+        player_signature(validated)?;
         self.execute_authenticated(validated, principal, authorizer)
             .await
     }
@@ -619,11 +640,7 @@ impl Executor {
         authorizer: &dyn Authorizer,
         sink: &dyn DurableMutationSink,
     ) -> Result<Vec<Event>, ExecutorError> {
-        if validated.signature.is_none() {
-            return Err(ExecutorError::ActorAuthenticationFailed(String::from(
-                "player mutation requires a detached intent signature",
-            )));
-        }
+        player_signature(validated)?;
         let events = self
             .execute_authenticated_inner(
                 validated,
@@ -660,21 +677,8 @@ impl Executor {
         authorizer: &dyn Authorizer,
         key_registry: &dyn KeyRegistry,
     ) -> Result<Vec<Event>, ExecutorError> {
-        let signature = validated.signature.as_ref().ok_or_else(|| {
-            ExecutorError::ActorAuthenticationFailed(String::from(
-                "player mutation requires a detached intent signature",
-            ))
-        })?;
-        key_registry
-            .resolve_intent_key(
-                &validated.intent.tenant_id,
-                &principal.subject,
-                &signature.key_id,
-                &validated.intent.operation,
-                validated.intent.created_at,
-            )
-            .await
-            .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+        let signature = player_signature(validated)?;
+        check_player_key(validated, principal, signature, key_registry).await?;
         self.execute_player(validated, principal, authorizer).await
     }
 
@@ -699,21 +703,8 @@ impl Executor {
         key_registry: &dyn KeyRegistry,
         sink: &dyn DurableMutationSink,
     ) -> Result<Vec<Event>, ExecutorError> {
-        let signature = validated.signature.as_ref().ok_or_else(|| {
-            ExecutorError::ActorAuthenticationFailed(String::from(
-                "player mutation requires a detached intent signature",
-            ))
-        })?;
-        key_registry
-            .resolve_intent_key(
-                &validated.intent.tenant_id,
-                &principal.subject,
-                &signature.key_id,
-                &validated.intent.operation,
-                validated.intent.created_at,
-            )
-            .await
-            .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+        let signature = player_signature(validated)?;
+        check_player_key(validated, principal, signature, key_registry).await?;
         self.execute_player_durable(validated, principal, authorizer, sink)
             .await
     }
@@ -741,46 +732,14 @@ impl Executor {
     ) -> Result<Vec<Event>, ExecutorError> {
         let mut intents = Vec::with_capacity(items.len());
         for item in items {
-            let signature = item.validated.signature.as_ref().ok_or_else(|| {
-                ExecutorError::ActorAuthenticationFailed(String::from(
-                    "player mutation requires a detached intent signature",
-                ))
-            })?;
-            if item.principal.tenant != item.validated.intent.tenant_id
-                || item.principal.subject != item.validated.intent.actor
-            {
-                return Err(ExecutorError::ActorAuthenticationFailed(String::from(
-                    "authenticated principal is not bound to intent actor and tenant",
-                )));
-            }
-            authorizer
-                .authorize(AuthorizationContext {
-                    principal: item.principal,
-                    tenant: &item.validated.intent.tenant_id,
-                    intent: &item.validated.intent,
-                    resource: &item.validated.intent.resource_id,
-                })
-                .await
-                .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
-            key_registry
-                .resolve_intent_key(
-                    &item.validated.intent.tenant_id,
-                    &item.principal.subject,
-                    &signature.key_id,
-                    &item.validated.intent.operation,
-                    item.validated.intent.created_at,
-                )
-                .await
-                .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+            let signature = player_signature(item.validated)?;
+            authorize_principal(item.validated, item.principal, authorizer).await?;
+            check_player_key(item.validated, item.principal, signature, key_registry).await?;
             intents.push(item.validated.clone());
         }
         self.execute_batch_durable(&intents, sink).await
     }
 
-    /// Shared execution core. A profile may require a coordinated batch route;
-    /// ordinary single-intent and batch calls reject those requests before
-    /// claiming them. A coordinator validates the required group semantics.
-    #[allow(clippy::collapsible_if)]
     // One owner for both primary and companion event commitments. Complete
     // version/state/hash validation before consuming an event id or timestamp.
     // In particular, overflow precedes unborn-state construction, and an
@@ -807,6 +766,10 @@ impl Executor {
         )
     }
 
+    /// Shared execution core. A profile may require a coordinated batch route;
+    /// ordinary single-intent and batch calls reject those requests before
+    /// claiming them. A coordinator validates the required group semantics.
+    #[allow(clippy::collapsible_if)]
     async fn execute_inner(
         &self,
         validated: &ValidatedIntent,

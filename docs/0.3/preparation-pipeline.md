@@ -49,3 +49,38 @@ This is the first F2 extraction. Remaining work includes the broader typed
 preparation stages, independently frozen multi-fault gate/error traces,
 protected batch composition and F3 native decode-once execution. Neither the
 full F2 phase nor release qualification is complete.
+
+
+## Shared player ingress decisions
+
+Signature presence, principal binding/authorization and key-lifecycle resolution
+now each have one private decision implementation. Callers choose order explicitly;
+a common helper must not silently standardize different compatibility policies.
+
+| Lane | Order before the execution core |
+| --- | --- |
+| Trusted authenticated planning | Principal binding → explicit authorizer |
+| Player planning/durable sink | Required signature → principal binding → authorizer |
+| Single player registry lanes | Required signature → key registry → existing player lane |
+| Player registry batch | Per item: required signature → principal binding → authorizer → registry; then execute the whole batch |
+| Protected preparation | Required signature → registry → reconstruct structural validation → principal binding → authorizer |
+
+Registry calls retain the independently supplied principal subject, intent tenant,
+operation and intent creation time. Key policy does not replace cryptographic
+verification. The helpers add no store writes, dispatch, new default policy,
+public trait or dependency. Legacy wrappers retain their marker/sink behavior.
+
+`tests/ingress_order.rs` freezes multi-fault precedence against the unmodified
+original release: signature absence beats all other failures; registry failure
+beats principal/policy failures in single registry lanes; batch principal
+mismatch beats authorization and registry; batch policy denial beats registry.
+The same test file passes original and candidate. Placeholder signatures are
+intentional because all fixtures must refuse before cryptographic verification.
+The final fixture only renames unrelated local variables for strict Clippy;
+expected errors and callback traces are unchanged. Existing real-signature and
+protected-preparation tests cover accepted ingress and key policy separately.
+
+The event emitter's documentation and lint scope are attached to their intended
+methods again; the prior extraction had left the execution-core comment and
+allowance on the new emitter. This correction changes no runtime behavior.
+Full F2 gate decomposition and the remaining release phases are still open.
