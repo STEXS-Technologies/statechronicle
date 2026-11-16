@@ -1,11 +1,19 @@
 //! Repeated, fixed-workload observations; no universal performance threshold.
 #![deny(unsafe_code)]
+#[path = "common/batch_bench.rs"]
+mod batch_bench;
 #[path = "../tests/common/mod.rs"]
 mod common;
 #[path = "common/domains.rs"]
 mod domains;
 #[path = "../tests/support/durable.rs"]
 mod durable;
+#[path = "common/proof_bench.rs"]
+mod proof_bench;
+#[path = "common/rebuild_bench.rs"]
+mod rebuild_bench;
+#[path = "common/trade_bench.rs"]
+mod trade_bench;
 
 use common::{Harness, fixed_key};
 use domains::{CONFIGURATION, Configuration, ConfigurationCommand, ConfigurationState, registry};
@@ -86,6 +94,16 @@ fn main() {
     let trusted = fixed_key().verifying_key();
     let key = StateKey::for_resource("acme.game.alpha", "asset:wire");
     let absent = StateKey::for_resource("acme.game.alpha", "asset:absent");
+    let current_proofs = proof_bench::service(
+        corpus.state_proof.tenant_id.clone(),
+        &corpus.signed_commit,
+        false,
+    );
+    let stale_proofs = proof_bench::service(
+        corpus.state_proof.tenant_id.clone(),
+        &corpus.signed_commit,
+        true,
+    );
     let native = ConfigurationState {
         revision: 1,
         enabled: false,
@@ -202,6 +220,38 @@ fn main() {
             }
         };
     }
+    let (trade_proof, trade_commits) = runtime.block_on(trade_bench::proof_fixture());
+    bench!("cross_tenant_trade_plan_including_seed_setup", 2, || {
+        runtime.block_on(trade_bench::plan_including_setup());
+    });
+    bench!("trade_state_proof_verification", 10, || {
+        statechronicle::proof::trade::verify_trade_proof(black_box(&trade_proof), &trade_commits)
+            .unwrap();
+    });
+    let history_harness = Harness::with_registry(registry().unwrap());
+    let mut history = Vec::new();
+    for index in 0..256 {
+        let intent = history_harness.accept(
+            &payload(
+                &format!("int_rebuild_{index}"),
+                &format!("config:rebuild:{index}"),
+            ),
+            Some(history_harness.authority()),
+        );
+        history.push(runtime.block_on(history_harness.run(&intent, StateType::Custom)));
+    }
+    let (history_commit, _) = history_harness.commit_events(&history);
+    statechronicle::commit::sign::verify_commit(&history_commit, &trusted).unwrap();
+    let history: Vec<_> = history
+        .into_iter()
+        .map(|event| (event, history_commit.body.commit_id.clone()))
+        .collect();
+    bench!("checkpoint_resume_256_events_chunk_32_and_root", 2, || {
+        runtime.block_on(rebuild_bench::resume_and_check(
+            black_box(&history),
+            history_commit.body.next_state_root.as_bytes(),
+        ));
+    });
     bench!("control", 100, || {
         black_box(());
     });
@@ -269,6 +319,34 @@ fn main() {
         )
         .unwrap();
     });
+    bench!("current_state_proof_reference_read_adapter", 10, || {
+        runtime
+            .block_on(current_proofs.verify_with_key_canonical(
+                black_box(&corpus.state_proof),
+                &trusted,
+                &key,
+            ))
+            .unwrap();
+    });
+    bench!("historical_state_proof_reference_read_adapter", 10, || {
+        runtime
+            .block_on(current_proofs.verify_with_key(
+                black_box(&corpus.state_proof),
+                &trusted,
+                &key,
+            ))
+            .unwrap();
+    });
+    bench!("stale_head_refusal_reference_read_adapter", 10, || {
+        assert!(matches!(
+            runtime.block_on(stale_proofs.verify_with_key_canonical(
+                black_box(&corpus.state_proof),
+                &trusted,
+                &key,
+            )),
+            Err(statechronicle::proof::error::ProofError::NonCanonicalCommit { .. })
+        ));
+    });
     bench!("wrong_key_refusal", 10, || {
         assert!(
             verify_non_membership_bundle(
@@ -307,6 +385,46 @@ fn main() {
     let second = producer.accept(
         &payload("int_bench_second", "config:second"),
         Some(producer.authority()),
+    );
+    let keys = statechronicle::ports::key_registry::MemoryKeyRegistry::new();
+    keys.register(statechronicle::ports::key_registry::KeyRecord {
+        key_id: common::key_id(),
+        tenant: principal.tenant.clone(),
+        subject: Some(principal.subject.clone()),
+        operations: vec![accepted.intent.operation.clone()],
+        valid_from: accepted.intent.created_at,
+        valid_until: None,
+        status: statechronicle::ports::key_registry::KeyStatus::Active,
+    })
+    .unwrap();
+    bench!(
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup",
+        5,
+        || {
+            use statechronicle::executor::pipeline::PlayerBatchItem;
+            let harness = Harness::with_registry(registry().unwrap());
+            let sink = batch_bench::RefuseSink::default();
+            let items = [
+                PlayerBatchItem {
+                    validated: &accepted,
+                    principal: &principal,
+                },
+                PlayerBatchItem {
+                    validated: &second,
+                    principal: &principal,
+                },
+            ];
+            let result = runtime.block_on(
+                harness
+                    .executor
+                    .execute_player_batch_durable_with_key_registry(&items, &Allow, &keys, &sink),
+            );
+            assert!(
+                matches!(result, Err(statechronicle::executor::error::ExecutorError::Store(message))
+            if message == "benchmark refuses persistence")
+            );
+            assert_eq!(sink.0.load(std::sync::atomic::Ordering::Relaxed), 1);
+        }
     );
     bench!("two_intent_planning_including_adapter_setup", 5, || {
         let harness = Harness::with_registry(registry().unwrap());
@@ -377,7 +495,9 @@ fn main() {
         "limitations":["In-memory adapters do not measure disk durability or power-loss safety.",
           "Setup is included where labeled; no cross-workload equivalence is asserted.",
           "p99 is the largest of 31 sample averages, not per-request tail latency.",
-          "No current-head, cross-tenant or large-history performance disposition is implied."]}))
+          "Current-head reads use a fixed in-memory adapter, without concurrent head movement.",
+          "Cross-tenant trade planning uses symbolic transactions, not atomic durable writes.",
+          "Checkpoint resume uses in-memory handles and 256 independent creates, not process crashes."]}))
         .unwrap()
     );
 }

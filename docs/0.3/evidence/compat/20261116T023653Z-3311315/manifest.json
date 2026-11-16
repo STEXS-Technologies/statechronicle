@@ -1,0 +1,224 @@
+{
+  "baseline_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "candidate_commit": "55b010d3a196926bd394758d0121a9e1fc38b669",
+  "runner_sha256": "6ed01c4db393af318f07f98942067c13ee9ae5a28fc1f4d69a5bcc620f67d18f",
+  "fixture_sha256": {
+    "README.md": "03007c2f4dc025058e641f523ec7f641331b44f57f3dd6ab1b23f6f596a3c2a0",
+    "crates/consumer/Cargo.toml": "b4c0bb93c2b465366b2d38ff6b586596aa30c804d6b04f17a43fe8a7cb43e0f9",
+    "crates/consumer/examples/common/domains.rs": "438023bd9d376015ee4621ecffd093e1101c38247e154328592878050cb7625d",
+    "crates/consumer/examples/common/proof_bench.rs": "45d111b5c99a4670cba3bdebf99d87394dabcd92eb766335e79b6a94d1d46ddf",
+    "crates/consumer/examples/refactor_bench.rs": "34b94aa4a3d92fb093f174293fc077ac18632e1c61c01dcf7a6124978cd51fb2",
+    "crates/consumer/examples/wire_producer.rs": "c98efa59c1782001f466de120648a69e5e5c45639d6265f6235875e2811ad062",
+    "crates/consumer/tests/common/harness.rs": "147cf5faacb99121b6889232301657927548cbf163580a2a14e8ffb32e12faa2",
+    "crates/consumer/tests/common/mod.rs": "ab644075bcbcecfe7dddf3f9eb6bae8bbdd4caa5b9fec99474e5063b7238f540",
+    "crates/consumer/tests/custom_domains.rs": "c0dd7b2dc78bda2a9954ac7faecff27ea3413e4684c2a085b9c39de8b6bba5e4",
+    "crates/consumer/tests/e2e.rs": "466071f1a29420bfe2a1a734d4d43249c00f97ec3d5e7e07f09b76a2d521d717",
+    "crates/consumer/tests/exhaustive.rs": "a0e86a86fa4d600986cece07fc12ea5adcc2addb008fbb784e2ad35e9e41b216",
+    "crates/consumer/tests/smoke.rs": "ff2a898b8750728171377647e9dfa4e5fc85566394cbeb386fde9d3cc756b008",
+    "crates/consumer/tests/support/durable.rs": "e40e00836bf1b288ee0848d1e29ac0d8a57441f61ca46f8bcb8dc39dcf688a84",
+    "crates/consumer/tests/support/versioned_recovery.rs": "764eebf0dc13c62819dcf7a9d45add3d8bbcadaf122a17a49f60120cf4e0b963",
+    "crates/consumer/tests/trade_3tenant.rs": "25e990452f75c8d7c1ec30f9a0ad510f7c2aa5e37bded85aada96b09a7a4341e",
+    "crates/consumer/tests/trade_bundle.rs": "877d740e5ee1961a91331bb904757a6d5674b953e14260937a5f58b595112544",
+    "crates/consumer/tests/trade_cross_tenant.rs": "5c394087df7893c5ad4691448f674042abf033a353b77ac2155be3072a3fe238",
+    "crates/consumer/tests/trade_history_proof.rs": "6e7305fb98f610db5c94bed974d7e714dd76923cff690688fa4c6fbf3ca323dc",
+    "crates/consumer/tests/trade_value.rs": "dccaeb29c233f007d0111c0801576cf293ad0820a6fbc409ebc262542f7f54b4",
+    "crates/consumer/tests/wire_compat.rs": "388fe8a4d320d1a9164d72cb139547bfaed8d8439de2d5d38e28febad1b318a5",
+    "crates/portable/Cargo.toml": "4c73e5ee0c2889adbe61750a6a526bb0de942744796033dd1209f46af0dd32d0",
+    "crates/portable/src/lib.rs": "092b945ac09a4e9481bdcca76dbbdf06412ce17104b2baa0e9edd67cb997b3ab",
+    "docs/CONFORMANCE/custom_domains.json": "8dcc8f2cbc705f8c5d126291610913eb8c19cf60039e236a317b9bae0815dd10",
+    "provenance.json": "40a41bffd97557889887a963d66506f8ef56c02ffa1283645d61343414eeb97c"
+  },
+  "toolchain": {
+    "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0\nLLVM version: 23.1.5",
+    "cargo": "cargo 1.100.0 (3acc79c0c 2026-11-05)"
+  },
+  "environment": {
+    "RUSTC_WRAPPER": "",
+    "CARGO_BUILD_JOBS": "8"
+  },
+  "limitations": [
+    "Frozen released tests, not an independent semantic model.",
+    "No performance, fuzz, bare-metal or exhaustive API qualification."
+  ],
+  "checks": [
+    {
+      "label": "baseline-resolve",
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--format-version",
+        "1",
+        "--all-features",
+        "--filter-platform",
+        "x86_64-unknown-linux-gnu"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.1073309969942784,
+      "artifact": "baseline-resolve.log.gz",
+      "sha256": "cc13b25835e89db335c3af3854889543f35305e2ffdc34ce24a837bc25ba4aa0"
+    },
+    {
+      "label": "baseline-bench-build",
+      "command": [
+        "cargo",
+        "build",
+        "--example",
+        "refactor_bench",
+        "--release",
+        "--locked",
+        "--offline"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 7.850553830001445,
+      "artifact": "baseline-bench-build.log.gz",
+      "sha256": "7e4c9b8345e2a916b305930367c913f74a46c93d5d0814f6f6aa8714cc95072e"
+    },
+    {
+      "label": "baseline-latency-0",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T023653Z-3311315/baseline/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.1484691399964504,
+      "artifact": "baseline-latency-0.log.gz",
+      "sha256": "ee44cd358092a7e961f0fbfa4c70ea60fbe22bbedba1c1e167836ea4851f888a"
+    },
+    {
+      "label": "baseline-latency-1",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T023653Z-3311315/baseline/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.14742780700180447,
+      "artifact": "baseline-latency-1.log.gz",
+      "sha256": "76780c5ecbe9d2135624e2ea69db6d5137974c22a6b901b445b494617eeb452e"
+    },
+    {
+      "label": "baseline-latency-2",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T023653Z-3311315/baseline/consumer/crates/consumer/target/release/examples/refactor_bench"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.14680717799637932,
+      "artifact": "baseline-latency-2.log.gz",
+      "sha256": "0d0f9b9d0e8499a2794106ee6ee9d19575df5b5562f6b9fe4b8034e5c2aeac8c"
+    },
+    {
+      "label": "baseline-alloc-control",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T023653Z-3311315/baseline/consumer/crates/consumer/target/release/examples/refactor_bench",
+        "alloc-control___________________"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 1.2568239429965615,
+      "artifact": "baseline-alloc-control.log.gz",
+      "sha256": "92e29e74d73757ccb9ab94f1d5f5d2c04a655b181790a6bf545fe4796465dde6"
+    },
+    {
+      "label": "baseline-alloc-native",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T023653Z-3311315/baseline/consumer/crates/consumer/target/release/examples/refactor_bench",
+        "alloc-native____________________"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.7062119149995851,
+      "artifact": "baseline-alloc-native.log.gz",
+      "sha256": "0c7c7fa77e1efaa3ac9a57a4df035e4c792ed0584c7dd2537773ec18ff19964d"
+    },
+    {
+      "label": "baseline-alloc-portable",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T023653Z-3311315/baseline/consumer/crates/consumer/target/release/examples/refactor_bench",
+        "alloc-portable__________________"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.7083209720003651,
+      "artifact": "baseline-alloc-portable.log.gz",
+      "sha256": "60526b986a0006dcd4e4bab532d0827a776e164ba9061dfc4a4f4e603190473e"
+    },
+    {
+      "label": "baseline-alloc-hosted",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T023653Z-3311315/baseline/consumer/crates/consumer/target/release/examples/refactor_bench",
+        "alloc-hosted____________________"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.746519783999247,
+      "artifact": "baseline-alloc-hosted.log.gz",
+      "sha256": "f2ea803bbc2e408671c62326438532ab0126c6c348b53c5324d0873d8ebe0236"
+    },
+    {
+      "label": "baseline-alloc-proof",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/refactor-compat/20261116T023653Z-3311315/baseline/consumer/crates/consumer/target/release/examples/refactor_bench",
+        "alloc-proof_____________________"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 4.316045366998878,
+      "artifact": "baseline-alloc-proof.log.gz",
+      "sha256": "ded13bb6e2e96ef4d39f1b159d62457bb9eb1cc248394458c2738ff0d588ee12"
+    }
+  ],
+  "status": "passed",
+  "baseline_lock_sha256": "0abd34258d8aefcda2a8eea260d7175de70c13dcc07ae52014711a504160f679",
+  "wire_sha256": "fdccce8e4ce783c27bd0239151930d1e51dc82c7704884731254b8199e991fff",
+  "measurement_cpu": 0,
+  "allocation_profiler": "valgrind-3.27.1",
+  "baseline_binary_sha256": "60fa444e4c9d5df54e789acb422cddb3af761ddea3dc1dc408265a29e8af9f49",
+  "baseline_measurements_sha256": "b9f266835aafdbbd74f059627e589b9a155acd7c2ff91ef41a81af957cac1508"
+}

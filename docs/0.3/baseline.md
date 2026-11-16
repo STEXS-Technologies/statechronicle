@@ -52,10 +52,12 @@ This does not establish doctest, lint, coverage, fuzz or performance gates.
 - [x] Original economy and cold facade build/binary/dependency-graph observations.
 - [x] Reproducers for absence expectations, marker-only durable replay and trade tenant substitution.
 - [x] Complete rustdoc API snapshot, including generated items and public trait signatures.
-- [ ] Workload-specific latency/allocation baseline and variance/control measurements.
+- [x] Workload-specific latency/allocation baseline and initial variance/dependency-control measurements.
 
-F0 remains open for the unchecked requirements. F1–F8 remain pending. No
-production refactor, security fix or release qualification is claimed yet.
+F0 baseline capture is complete, with the explicitly recorded original advisory
+failures and measurement limitations below. F1–F8 remain pending. This is not
+release qualification: final paired performance disposition and exact-candidate
+gates remain required. No production refactor or security fix is claimed yet.
 
 ## Additional local baseline evidence
 
@@ -154,3 +156,15 @@ Native and portable transitions added zero allocations relative to identical
 setup. Hosted typed check/apply added 23 allocations / 362 bytes per operation.
 See the raw reports and explicit remaining comparison scope; these observations
 are not full performance qualification or a universal regression threshold.
+
+The expanded pre-refactor run in
+`evidence/compat/20261116T024032Z-3384369/` passed all twenty measurement checks
+for twenty-two workloads in each lane, including current/head-mismatch proofs,
+authenticated batch preparation, cross-tenant trade planning/verification, and
+a 256-event checkpoint/resume/root workload. The [cost model](performance-baseline.md)
+records precise setup and authority limitations and the final paired-run policy.
+
+The expanded fixture set also passed the complete ten-check hosted/portable
+external matrix in `evidence/compat/20261116T024127Z-3400784/`, including original
+wire readers, legacy consumer tests, independent portable tests and bare-metal
+compilation for both revisions.

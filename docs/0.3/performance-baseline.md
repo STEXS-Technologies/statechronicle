@@ -67,3 +67,53 @@ allocation guard passed. The runs were not alternated across revisions, so
 observed timing differences are not an accepted refactor performance delta.
 Use this starting control, in addition to the original release, for matched
 comparisons after changing code.
+
+## Expanded pre-refactor workload baseline
+
+`evidence/compat/20261116T024032Z-3384369/` captures twenty-two workloads
+against both the immutable original release and starting dependency control
+`55b010d`. All twenty build, latency and allocation checks passed. Production
+Rust sources remain unchanged. These are three sequential process rounds per
+lane on the same pinned CPU, not an alternated candidate comparison.
+
+The added fixtures exercise public original-library methods. Trade setup
+follows the frozen original two-tenant integration scenario, including actual
+asset mint/lock, wallet creation, settlement planning and trade-index assembly.
+Its proof workload verifies the resulting settled asset proof; it does not
+authenticate every summary field or demonstrate durable cross-tenant atomicity.
+The authenticated batch verifies both requests and reaches a sink that checks
+the event bindings and deliberately refuses persistence. The checkpoint workload
+generates 256 independent native configuration creates, signs their enclosing
+commit, rebuilds 32 events, reopens in-memory handles, resumes in chunks of 32,
+and checks the final state root. Signature verification and history generation
+are setup outside that timed rebuild. This does not measure a process crash.
+
+New workload medians and observed process-round median ranges (ns/op):
+
+| Workload | Original median | Original range | Dependency-control median | Control range |
+| --- | ---: | ---: | ---: | ---: |
+| `historical_state_proof_reference_read_adapter` | 42988.10 | 42698.60–46656.20 | 42868.90 | 42680.60–43023.20 |
+| `current_state_proof_reference_read_adapter` | 43032.20 | 42777.80–45938.80 | 42972.10 | 42570.30–43148.40 |
+| `stale_head_refusal_reference_read_adapter` | 239.50 | 238.50–269.50 | 251.50 | 237.50–264.50 |
+| `authenticated_two_intent_batch_to_refusing_sink_including_setup` | 80111.00 | 78798.40–82984.60 | 78938.60 | 77986.80–78960.60 |
+| `cross_tenant_trade_plan_including_seed_setup` | 328695.50 | 323080.00–329242.00 | 320214.00 | 319783.50–321682.00 |
+| `trade_state_proof_verification` | 43207.60 | 42688.50–43345.90 | 42779.80 | 42728.60–42872.90 |
+| `checkpoint_resume_256_events_chunk_32_and_root` | 9949100.00 | 9948273.50–11003163.50 | 9894384.50 | 9788304.00–9906583.00 |
+
+Allocation deltas are unchanged: native/portable zero, hosted 23 allocations
+and 362 bytes/op, historical proof 29 allocations and 41,128 bytes/op. Added
+read adapters increase shared fixture setup to 4,231 allocations, equally in
+control and portable probes; the hard zero-added-allocation guard passes.
+Earlier fixture build failures and the intermediate eighteen-workload run are
+retained separately and are not substituted for this successful run.
+
+The raw reports retain all 31 sample averages in every round. Three sequential
+rounds establish initial observed spread, not a qualified statistical noise
+bound. For final disposition, alternate comparator/candidate process order and
+use paired per-workload differences. Investigate repeatable median/p95 changes
+above the roadmap's 5%/10% review triggers; if observed paired noise overlaps
+those triggers, gather more rounds before accepting or rejecting a regression.
+For tiny native/control timings, report absolute nanosecond differences beside
+percentages. Safety-related additional work needs its own measured disposition.
+This policy records uncertainty rather than inventing an automatic threshold
+from three samples.

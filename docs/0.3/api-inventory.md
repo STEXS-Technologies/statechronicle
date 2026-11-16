@@ -19,9 +19,9 @@ Reference: original release `c418e98b91720188158c531cd5c2c4b8ab71cbcf`.
 
 The umbrella re-exports its underlying protocol crates and selected flat names.
 A new curated facade must preserve promised imports while documenting authority
-boundaries. This map does not yet inventory all signatures, enum variants,
-feature combinations or exhaustive matches. F0 remains open until those are
-captured and the external consumer matrix executes independently.
+boundaries. The compiler snapshot and feature inventory below supply full signatures and
+trait declarations; the frozen external matrix exercises the promised legacy
+imports and selected exhaustive enum matches independently.
 
 The baseline [metrics.json](metrics.json) now includes a parser-derived syntax
 inventory of public declarations and trait member signatures, with source file,
