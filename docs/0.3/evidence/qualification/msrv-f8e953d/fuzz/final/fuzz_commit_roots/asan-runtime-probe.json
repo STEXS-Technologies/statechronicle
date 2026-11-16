@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/home/ac/projects/statechronicle/target/operation-registration/instrumented/x86_64-unknown-linux-gnu/release/fuzz_commit_roots",
+    "-runs=0",
+    "-max_total_time=2",
+    "-seed=20261116"
+  ],
+  "environment": {
+    "ASAN_OPTIONS": "verbosity=1"
+  },
+  "exit_code": 0,
+  "binary_sha256": "607974b9e95af565aee6d757d0d162aabb09f37a1c1e51142c1236afe7aa7457",
+  "result": "AddressSanitizer Init done appears in runtime log",
+  "limitations": "Separate initialization probe, not additional campaign coverage."
+}

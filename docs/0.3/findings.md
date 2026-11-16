@@ -739,3 +739,28 @@ validation paths. Timing has host/order interference and unresolved tail noise;
 no speedup or F8 performance-gate pass is claimed. Full-roadmap simplification,
 remaining F1–F7 work and release qualification remain incomplete. See
 [the exact evidence](evidence/maintenance/profile-guards/candidate-e8500d6/README.md).
+
+
+## One native operation declaration and MSRV tooling correction
+
+`0a302a8` adds the opt-in `command_operations!` convenience. An exhaustive match
+and static fixed operation array come from one mapping; `StateProfile` and the
+existing adapter API stay unchanged. The Configuration/Equipment example removes
+seven repeated operation literals and nine source lines. Tests compare its
+nine command values with frozen models; compile-fail examples cover omitted
+variants, guards and duplicate patterns. Registry validation and decoded command
+binding remain authoritative. This does not infer author permissions or close
+all broader F3 consumer-composition requirements. See
+[registration evidence](evidence/f3/operation-registration-0a302a8/README.md).
+
+An extra MSRV Clippy pass found existing cross-toolchain lint issues and a fuzz
+harness API newer than Rust 1.85. Separate `d20a5cc` and `f8e953d` corrections
+preserve semantic branches, use equivalent lifetime/const forms and test input
+classification, and make fuzz tooling inherit the workspace MSRV. Stable and
+MSRV at exact `f8e953d` each pass 865 finite tests, 13 doctests, strict Clippy,
+strict rustdoc and the native example. The MSRV external/wire/portable/bare-metal
+matrix passes. Four modified fuzz harnesses pass bounded instrumented ASAN
+campaigns; logs retain exact counts and time/run limits. This is partial tooling
+qualification, not completed F8 or release readiness. Failed attempts, final
+corpora and runners remain in
+[MSRV/fuzz evidence](evidence/qualification/msrv-f8e953d/README.md).

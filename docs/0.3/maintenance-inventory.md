@@ -79,3 +79,13 @@ crate-private helper declarations increase the parser's public syntax count
 without changing exported API. See
 [evidence](evidence/maintenance/profile-guards/candidate-e8500d6/README.md)
 for exact metrics, compatibility checks and inconclusive shared-host timings.
+
+
+The following operation-authoring checkpoint adds a public declarative macro
+instead of a new runtime abstraction. Seven example operation names now appear
+once rather than in both mapping and static table. It adds 190 production syntax
+tokens; the subsequent MSRV correction adds 28. At `f8e953d` totals are 16,143
+syntax lines, 118,417 tokens and 1,951 parsed branch nodes. Parser counts do not
+expand macros. This is 299 tokens below the pre-guard-extraction checkpoint,
+but still above the original release; the broader footprint target remains open.
+No source-reduction credit is assigned to the macro or MSRV tooling corrections.

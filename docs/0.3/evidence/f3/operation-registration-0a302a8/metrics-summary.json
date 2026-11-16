@@ -1,0 +1,41 @@
+{
+  "control_commit": "48ff7ac6006b1c81d319dc150828c8859660cd71",
+  "candidate_commit": "0a302a8cb861edc937066a58c91e63600dae4ac7",
+  "production_totals_before": {
+    "tracked_bytes": 1455460,
+    "syntax_lines": 16122,
+    "lexical_tokens": 118199,
+    "branch_nodes": 1950,
+    "public_syntax_items": 1393
+  },
+  "production_totals_after": {
+    "tracked_bytes": 1459003,
+    "syntax_lines": 16140,
+    "lexical_tokens": 118389,
+    "branch_nodes": 1950,
+    "public_syntax_items": 1394
+  },
+  "delta": {
+    "tracked_bytes": 3543,
+    "syntax_lines": 18,
+    "lexical_tokens": 190,
+    "branch_nodes": 0,
+    "public_syntax_items": 1
+  },
+  "control_metrics_provenance": "../../maintenance/profile-guards/candidate-e8500d6/candidate-metrics.json.gz; production source unchanged at 48ff7ac",
+  "example_before": {
+    "lines": 250,
+    "bytes": 8682,
+    "operation_literal_occurrences": 14
+  },
+  "example_after": {
+    "lines": 241,
+    "bytes": 8356,
+    "operation_literal_occurrences": 7
+  },
+  "limitations": [
+    "Macro syntax is not expanded by the parser; branch/public syntax counts do not measure generated consumer code.",
+    "Tracked Rust bytes include comments and tests; syntax counts exclude exact test-only items/comments.",
+    "Example reduction is authoring boilerplate, not a workspace production-code shrink."
+  ]
+}

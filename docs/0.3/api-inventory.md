@@ -75,3 +75,13 @@ External legacy consumers pass on Rust 1.85 and 1.100 at `d1550a9`.
 it returns `(Operation, BTreeMap<String, Value>)` from the adapter's identity,
 schema, operation mapping and bounded BCS encoder. The pair carries no trust
 claim. No existing trait signature, error variant or protocol type changes.
+
+
+`command_operations!` is an additive hosted declarative macro, reachable through
+`statechronicle::command_operations!` and the profiles crate. It emits the
+existing static operation list and an exhaustive discriminator match from one
+mapping; it introduces no trait or wire schema. Existing profile/adapter methods
+and manual registration remain unchanged. Macro-generated consumer API is not
+captured by the syntax metric. In the subsequent MSRV compatibility correction,
+three immutable receipt accessors become `const fn` and `projections_for` elides
+an equivalent lifetime; existing calls and lifetime relationships are unchanged.

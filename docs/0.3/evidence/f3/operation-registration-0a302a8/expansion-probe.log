@@ -1,0 +1,46 @@
+warning: unused macro definition: `status_set`
+ --> target/operation-registration/../../crates/statechronicle-profiles/src/macros.rs:8:14
+  |
+8 | macro_rules! status_set {
+  |              ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_macros)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused macro definition: `op_set`
+  --> target/operation-registration/../../crates/statechronicle-profiles/src/macros.rs:28:14
+   |
+28 | macro_rules! op_set {
+   |              ^^^^^^
+
+warning: unused macro definition: `op_slice`
+  --> target/operation-registration/../../crates/statechronicle-profiles/src/macros.rs:49:14
+   |
+49 | macro_rules! op_slice {
+   |              ^^^^^^^^
+
+warning: struct `Operation` is never constructed
+ --> target/operation-registration/expansion-probe.rs:5:8
+  |
+5 | struct Operation(String);
+  |        ^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `from_static` is never used
+ --> target/operation-registration/expansion-probe.rs:7:8
+  |
+6 | impl Operation {
+  | -------------- associated function in this implementation
+7 |     fn from_static(value: &'static str) -> Self { Self(String::from(value)) }
+  |        ^^^^^^^^^^^
+
+warning: static `OPERATIONS` is never used
+  --> target/operation-registration/expansion-probe.rs:20:12
+   |
+20 |     static OPERATIONS: Operation;
+   |            ^^^^^^^^^^
+   |
+   = note: this warning originates in the macro `command_operations` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: 6 warnings emitted
+
