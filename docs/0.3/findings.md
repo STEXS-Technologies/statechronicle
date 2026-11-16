@@ -314,3 +314,15 @@ previously recorded hosted syntax incompatibility at this checkpoint; final
 release qualification must still run on the exact final candidate. External
 original/candidate durability evidence above remains pinned to `ea988b6`, before
 this separate compiler-compatibility repair.
+
+Exact MSRV-repaired candidate `59ca749` also passes all five external hosted,
+portable and bare-metal checks using `RUSTUP_TOOLCHAIN=1.85.0` in
+`evidence/compat/20261116T035612Z-1366672/`. The retained candidate log executes
+all eleven new recovery scenarios through the public umbrella dependency in
+addition to frozen legacy and proof/preparation fixtures. The minimum-toolchain
+bare-metal target is `riscv32imafc-unknown-none-elf`. Source metrics record one
+additional production syntax line, 29 lexical tokens, 12 AST branch nodes and
+no public syntax changes relative to `ea988b6`. The branch count increase
+reflects explicit nested `if` syntax replacing short-circuited let chains, not
+additional sink calls, retry decisions or domain checks. This compiler repair
+makes no speedup or final-candidate qualification claim.

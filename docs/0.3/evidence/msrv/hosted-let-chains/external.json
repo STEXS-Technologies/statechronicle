@@ -1,0 +1,13 @@
+{
+  "candidate_commit": "59ca749640bb1a95a4a35d460fa846c4c3137c90",
+  "command": "RUSTUP_TOOLCHAIN=1.85.0 RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 python scripts/refactor_compat.py --lane candidate --portable",
+  "manifest": "docs/0.3/evidence/compat/20261116T035612Z-1366672/manifest.json",
+  "manifest_sha256": "a22892f70c988d61a185f8b71cc75444a18e1ab03266e3847811fa71bb7a06cd",
+  "checks": 5,
+  "status": "passed",
+  "new_recovery_scenarios_executed": 11,
+  "limitations": [
+    "Candidate checkpoint only. Original release hosted MSRV incompatibility remains preserved in immutable original source.",
+    "No final release or performance/crash qualification."
+  ]
+}
