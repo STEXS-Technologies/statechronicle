@@ -23,8 +23,9 @@ Source archive hashes must also remain unchanged.
 This qualifies package contents and the internal candidate dependency graph in
 a temporary directory. It is not a crates.io service test, a promise that the
 unreleased APIs exist in published registry versions, or publish approval.
-Workspace package versions still read `0.2.0`; final version changes invalidate
-the affected package evidence and require rerunning the checker before release.
+Workspace packages are versioned `0.3.0`. Version changes invalidate affected
+package evidence; rerun this checker on the committed release candidate before
+release.
 
 ## Fixtures stay inside their package
 

@@ -1,10 +1,9 @@
 # Migration from the original release
 
 This guide maps the original `v0.2.0` at
-`c418e98b91720188158c531cd5c2c4b8ab71cbcf` to the refactoring branch. It does not
-announce a published `0.3.0`. Library qualification is recorded in the
-[qualification summary](qualification.md); workspace versions remain unchanged
-pending versioning and publication. Original protocol fixtures under
+`c418e98b91720188158c531cd5c2c4b8ab71cbcf` to the `0.3.0` release candidate. Tagging and
+registry publication follow release review. Library qualification is recorded in
+the [qualification summary](qualification.md). Original protocol fixtures under
 `ci/wire-0.2` and original consumer sources under `ci/compat-0.2` are frozen.
 
 ## Adopt by workflow

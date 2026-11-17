@@ -526,7 +526,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "statechronicle-accumulator",
  "statechronicle-commit",
@@ -544,7 +544,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-accumulator"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "sha2",
  "statechronicle-core",
@@ -554,7 +554,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-commit"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bcs",
  "chrono",
@@ -572,7 +572,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64",
  "bcs",
@@ -585,7 +585,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-domain"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64",
  "bcs",
@@ -612,7 +612,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-executor"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -629,7 +629,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-index"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "ed25519-dalek",
@@ -646,7 +646,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-intent"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "serde",
@@ -659,7 +659,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-portable"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ed25519-dalek",
  "sha2",
@@ -668,7 +668,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-ports"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -681,11 +681,11 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-profile"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "statechronicle-profiles"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bcs",
  "serde",
@@ -699,7 +699,7 @@ dependencies = [
 
 [[package]]
 name = "statechronicle-proof"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bcs",
  "chrono",
