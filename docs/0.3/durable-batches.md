@@ -99,17 +99,17 @@ group head contention against a separate reference adapter, with nine broken
 batch controls. Its raw inspection includes original group membership, not just
 lookup results. Generic checks additionally cover tenant isolation with coincident
 IDs, cross-lane identity collisions and refusal of fabricated singleton/subset
-receipts, plus 2/8/32-client exact-group contention. Lease expiry/races and
-non-genesis retention/rebuild still need generic qualification.
+receipts, plus 2/8/32-client exact-group contention. The
+[adapter contract](adapter-contract.md) describes additional lease and retention checks.
 This path does not support multi-tenant group commits or
 sequential preparation overlays. Specialized companion/economic event binding
 and cross-tenant settlement require separate authority review and tests; do
 not infer that every legacy batch operation is supported by this protected
-path. Full release fuzz/performance/API review gates remain open.
+path. See the [qualification summary](qualification.md) for completed library checks.
 
 The explicit `Preparer::prepare_player_settlement` route now returns the same
 `PreparedBatch` after complete economic/bundle validation. The protected
-single-tenant path is exercised by [contested canonical purchases](evidence/f1/protected-settlement/contention-7feb9db/README.md),
+single-tenant path is exercised by [contested canonical purchases](https://github.com/STEXS-Technologies/statechronicle/blob/2827f0fe9c3f3945aae2f1a46ffb79670bbd06f7/docs/0.3/evidence/f1/protected-settlement/contention-7feb9db/README.md),
 including ownership plus debit/credit projections, complete roots, original
 winner/loser recovery and injected failures. This supersedes the earlier lack
 of economic-path tests above within that bounded fixture. Cross-tenant

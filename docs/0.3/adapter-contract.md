@@ -57,7 +57,7 @@ Eight deliberately broken variants establish specific negative controls:
 | Finalize with a wrong attempt token | `fencing.attempt` |
 | Acknowledge but discard the mutation | `ack.original` |
 
-This is an initial reusable F5 contract harness, not completion of F5 or F8.
+The harness exercises bounded logical contracts. It does not qualify a production backend.
 Backend-specific tests must still inject failures **inside** database statements,
 exercise actual reopen across process termination, flush/power-loss behavior,
 lease expiry and fencing races, full supported multi-tenant transactions,
@@ -87,8 +87,7 @@ single-mutation suite still runs. Additional generic checks cover tenant-isolate
 coincident IDs, both directions of the shared single/batch namespace, rejection
 of cross-kind fabricated receipts, and 2/8/32-client same-group contention.
 Four namespace fault variants fail their intended oracles. Optional batch lease
-schedules are described below; broader lease races and non-genesis
-retention/rebuild remain open. Backend-specific crash and physical persistence
+schedules and later-head retention/rebuild checks are described below. Backend-specific crash and physical persistence
 qualification are still required. See the consumer instructions for
 exact capability and fixture requirements.
 
@@ -105,8 +104,7 @@ reference controls fail `lease.stale_commit` and `lease.successor`.
 This closes one bounded logical single-reservation schedule. The following batch
 extension adds selected member-expiry schedules; other fencing interleavings,
 real database clock/transaction behavior and process/power-loss qualification
-remain open. Earlier references to open
-lease testing should be read with this extension's precise scope.
+require backend-specific qualification.
 
 
 ## Optional batch lease takeover
@@ -129,9 +127,8 @@ The two-member reference exercises both members and all three stale cleanup
 forms; five fault behaviors fail their named oracles. A shared-deadline model
 passes the applicable whole-group check and rejects isolated configuration as
 an unsupported setup. These are bounded logical schedules, not universal lease,
-large-group, process-reopen or power-loss qualification. Broader later-head
-retention/rebuild, interrupted/corrupt replay, real backend clocks/transactions
-and broader F5/F8 work remain open. See the consumer instructions for exact
+large-group, process-reopen or power-loss qualification. Real backend
+clocks, transactions and persistence require separate qualification. See the consumer instructions for exact
 hook and fixture contracts.
 
 ## Retention after a later canonical head
@@ -217,10 +214,9 @@ while the original group remains exact. Seven fault behaviors fail named checks:
 | Return the latest head for an original exact retry | `batch.replay.identity` |
 | Append rather than replace current projections | `batch.retention.effects` |
 
-This closes selected logical batch-retention schedules. Larger groups, mixed
-single/batch histories, interrupted/corrupt replay, verified projection rebuild,
-real database reopen/process-kill/power-loss behavior and broader F5/F8 gates
-remain open. Fixture signature validity is checked during reference generation;
+These are selected logical batch-retention schedules. Further history and
+rebuild checks are described below; production database reopen, process-kill
+and power-loss behavior require backend-specific qualification. Fixture signature validity is checked during reference generation;
 consumer ingress and signer authorization remain separate authorities.
 
 ## Projection rebuild addressing correction
@@ -256,7 +252,7 @@ verified signed source plus job name; changed sources do not reuse an old offset
 The event-only APIs retain their caller-verified-source contracts. See
 [verified rebuild](verified-rebuild.md) for the external consumer, sink/key
 requirements, historical trust boundaries and remaining physical/performance
-limits. This does not close arbitrary history, database crash or full F5/F8
+limits. This does not establish arbitrary-history or database-crash
 qualification.
 
 
@@ -305,7 +301,8 @@ original identities. Two new cross-kind receipt-loss backends pass the existing
 single history and genesis batch visibility/replay checks, then fail this mixed
 schedule. Both signed per-tenant fixture histories verify before backend use.
 See [consumer setup](../../ci/conformance/README.md#alternating-single-and-batch-histories).
-Randomized concurrency, database crash recovery and full F5/F8 remain open.
+Seeded concurrent schedules are described below. Database crash recovery
+requires backend-specific qualification.
 
 ## Canonical economic contention
 
@@ -315,7 +312,7 @@ Its reader checks complete economic snapshots, signatures, event/projection
 binding and independently addressed full state roots. Loser lookup and retry,
 13 economic failure boundaries, lost ACK/current access checks and unsupported
 cross-tenant scope are covered. Three isolated broken-adapter controls fail the
-intended runtime oracles. See [exact source and limits](evidence/f1/protected-settlement/contention-7feb9db/README.md).
+intended runtime oracles. See [exact source and limits](https://github.com/STEXS-Technologies/statechronicle/blob/2827f0fe9c3f3945aae2f1a46ffb79670bbd06f7/docs/0.3/evidence/f1/protected-settlement/contention-7feb9db/README.md).
 
 This test adapter shares one in-memory authority across fresh handles. Its typed
 subject-held addressing covers the tested balance transfers; it does not model
@@ -325,7 +322,7 @@ remain separate from this protected end-to-end scenario.
 
 ## Migration replay checkpoint
 
-The [authorized configuration migration fixture](evidence/f3/authorized-migration-7489a5f/README.md)
+The [authorized configuration migration fixture](https://github.com/STEXS-Technologies/statechronicle/blob/2827f0fe9c3f3945aae2f1a46ffb79670bbd06f7/docs/0.3/evidence/f3/authorized-migration-7489a5f/README.md)
 uses actual original-release signed BCS history, an independently fixed historical
 tip/key, and a separate host migration grant through protected preparation.
 It retains both schema resources and exercises 44 before-save/after-save-ACK
@@ -353,7 +350,7 @@ This advances the randomized logical-history requirement. It does not replace
 physical crash/power-loss tests, or a proof of every possible interleaving.
 [Consumer contract](../../ci/conformance/README.md#seeded-concurrent-mixed-histories).
 
-The [retained campaign](evidence/conformance/concurrent-mixed-04a1bcd/README.md)
+The [retained campaign](https://github.com/STEXS-Technologies/statechronicle/blob/2827f0fe9c3f3945aae2f1a46ffb79670bbd06f7/docs/0.3/evidence/conformance/concurrent-mixed-04a1bcd/README.md)
 records all 26 conformance tests/static checks, the eight seeded schedules and
 serialized-writer pass, four backend counterexamples, setup refusal checks, and
 both the initially ineffective and corrected harness-deadlock controls. The

@@ -3,7 +3,7 @@
 Executor and the read-only Preparer share `Evaluation::execute_inner`.
 Protected preparation and compatibility planning deliberately differ in ingress
 policy and legacy marker handling. Preparation is not a committed result. This table
-records current order, not a claim that F2 is complete.
+records the current execution order.
 
 | Stage | Authoritative owner and order |
 | --- | --- |
@@ -82,25 +82,6 @@ The final fixture only renames unrelated local variables for strict Clippy;
 expected errors and callback traces are unchanged. Existing real-signature and
 protected-preparation tests cover accepted ingress and key policy separately.
 
-The event emitter's documentation and lint scope are attached to their intended
-methods again; the prior extraction had left the execution-core comment and
-allowance on the new emitter. This correction changes no runtime behavior.
-Full F2 gate decomposition and the remaining release phases are still open.
-
-
-## Execution-core multi-fault characterization
-
-An external 23,544-row consumer now matches the actual original release and
-`f5b922f` exactly on complete errors, canonical events, marker effects and ordered
-callbacks. Six native/built-in templates exercise nine legacy entry points with
-zero, single and pairwise faults. All 54 positive controls emit events. A temporary
-archive mutation that preserves the clock but removes expiry refusal changes
-1,410 expired-case outcomes and fails comparison. See [the complete manifests,
-negative controls and limitations](evidence/f2/executor-order/README.md).
-
-These are sentinel compatibility hosts and sinks. They do not qualify protected
-canonical settlement, real transaction rollback or physical crash recovery.
-
 
 ## Checked profile context
 
@@ -114,11 +95,7 @@ event vector only after any claim. No marker capability enters the profile stage
 
 This is a checked profile record, not an authentication seal or receipt. Signature
 and principal policy remain explicit ingress decisions; clocks and event IDs
-still come from the shared evaluation. The [retained `4c55fe6` evidence](
-evidence/f2/prepared-profile-a52d53f/README.md) records original/control/candidate
-parity, full finite tests, external consumers, source growth and bounded matched
-performance/allocation observations. Broader F2 and release gates remain open.
-
+still come from the shared evaluation.
 
 ## Compatibility coordinator completion
 
@@ -129,8 +106,6 @@ future on sink routes. Success and refusal handling have one owner, while caller
 keep result ownership, group flattening, validation policies and refusal context.
 Tenant partitioning and settle selection also share private deterministic helpers.
 
-The [retained evidence](evidence/f2/batch-completion/README.md) includes 10,128
-original coordinator traces and a negative control detected solely by side
-effects. This does not merge compatibility completion with canonical LedgerStore
-atomicity or recovery. A refusing-sink p95 concern remains open alongside the
-broader F2/F6/F8 requirements.
+Compatibility completion does not establish canonical `LedgerStore` atomicity
+or recovery. See the [qualification summary](qualification.md) for original/current
+trace comparisons, accepted costs and the immutable historical evidence.

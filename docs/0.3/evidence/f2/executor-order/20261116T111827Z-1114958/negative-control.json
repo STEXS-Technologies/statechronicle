@@ -1,7 +1,0 @@
-{
-  "revision": "f5b922fffcf9248b4ce0002c8103089b37b6139e",
-  "path": "crates/statechronicle-executor/src/evaluation.rs",
-  "original_sha256": "efda17227c94c3aea9cd4e1a41d371713d0b46d60b037dacd0b151605c6c71d6",
-  "mutated_sha256": "9192e07bc2fbf9910031e7cb8c561f6c654b2fcd4691a7a0189b4e8ef62a7d82",
-  "removed": "conflict::check_expiry(intent, (self.now)())?;"
-}

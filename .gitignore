@@ -5,3 +5,21 @@ target/
 # fuzz runtime dirs
 fuzz/corpus/
 fuzz/artifacts/
+
+# Local qualification output and completed engineering notes (archived in Git).
+/docs/0.3/evidence/
+/TODO.md
+/docs/0.3/ROADMAP.md
+/docs/0.3/api-inventory.md
+/docs/0.3/baseline.md
+/docs/0.3/dependency-refresh.md
+/docs/0.3/findings.md
+/docs/0.3/maintenance-inventory.md
+/docs/0.3/metrics.json
+/docs/0.3/performance-baseline.md
+/docs/0.3/proof-lookup-performance.md
+
+# Local agent tools and generated knowledge graph.
+/.codex/
+/.opencode/
+/graphify-out/

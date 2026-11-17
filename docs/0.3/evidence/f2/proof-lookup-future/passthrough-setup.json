@@ -1,8 +1,0 @@
-{
-  "base_commit": "5632d008a328c7dfaaf9ce39436474685ba0231d",
-  "experimental_source_sha256": {
-    "service.rs": "dfbc00235fc763e19487e8fe54e629da70022942d1fd9401421784d94c09b743",
-    "claim.rs": "720c9f5b30e1fcc1b54c236a95ac8c7c5e8ac9d8ded6db9148297be861292441"
-  },
-  "patch": "Return adapter future directly and centralize synchronous error/absence interpretation; retain a single lookup owner across six callers. Same candidate lockfile."
-}

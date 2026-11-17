@@ -27,7 +27,7 @@ head, projections and outbox. Unknown acknowledgements must be resolved against
 that ledger using the original intent identity and payload digest before retry.
 The protected signed-plan and receipt/lookup path is described in
 [signed mutation](signed-mutation.md); preparation alone does not complete the
-roadmap's durability requirement.
+durability requirements.
 
 Legacy `execute*` signatures and marker/error ordering remain compatible. In
 particular, the old sink lane can return empty events from a planning marker;
@@ -76,8 +76,7 @@ and an empty-state read adapter for unique-asset mint; it is a test fixture,
 not a durable storage tutorial or production key-management implementation.
 `preparation_parity.rs` separately compares the new and compatibility surfaces.
 
-This change establishes the minimum preparation composition, not the entire
-F4 facade. The [native](../../tutorials/minimal-native-domain/README.md) and
+This is the minimum read-only preparation composition. The [native](../../tutorials/minimal-native-domain/README.md) and
 [durable](../../tutorials/durable-custom-ledger/README.md) standalone tutorials
 now demonstrate the consumer journey. No performance equivalence or
 whole-workspace source reduction is inferred from moving evaluation code.

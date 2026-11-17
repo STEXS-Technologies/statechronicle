@@ -1,5 +1,0 @@
-{
-  "base_commit": "5632d008a328c7dfaaf9ce39436474685ba0231d",
-  "experimental_service_sha256": "34ee65029b4e86ec9857413310fcd32f5ebacb9c13458fe5f9962ca91540121d",
-  "patch": "Inline the lookup at the one measured compatibility caller, removing the shared async frame; retain identical lookup and error semantics. Same candidate lockfile."
-}

@@ -1,8 +1,0 @@
-{
-  "revision": "9c3cb10978d8d20c85ca662a4331b1b03878840c",
-  "path": "crates/statechronicle-executor/src/batch_completion.rs",
-  "original_sha256": "05ad4f45e2aa2db187c05ac7a5d8312620f5265f681d5337134fc1d6df67aed2",
-  "mutated_sha256": "27500f4ca31ff68e9064623b322ca9f4c8a711f765e185a5bb0898ebf5d43e0a",
-  "removed": "handle.rollback().await",
-  "replacement": "handle.commit().await"
-}

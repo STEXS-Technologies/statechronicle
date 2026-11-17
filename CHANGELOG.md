@@ -48,7 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   cached binaries of earlier or deliberately insecure source revisions.
 
 Original 0.2 wire fixtures remain frozen. See the [compatibility matrix](docs/0.3/release-compatibility.md)
-and [qualification record](docs/0.3/evidence/qualification/final-94eb5d4/README.md)
+and [qualification record](docs/0.3/qualification.md)
 for exact tested scopes, accepted costs and retained limitations. Workspace versions remain 0.2.0
 until a separately authorized version/tag/publication step.
 

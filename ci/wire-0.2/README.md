@@ -19,3 +19,7 @@ Initial creation used `scripts/refactor_compat.py --produce-wire`. That flag
 refuses candidate-only generation and refuses to overwrite an existing corpus.
 Ordinary compatibility runs only read the corpus. Add separate new fixtures
 for new behavior; never replace these expectations with candidate output.
+
+The producer and original execution records are available in the
+[immutable evidence archive](https://github.com/STEXS-Technologies/statechronicle/tree/2827f0fe9c3f3945aae2f1a46ffb79670bbd06f7/docs/0.3/evidence/compat/20261116T015951Z-2814374).
+The paths in `provenance.json` refer to that historical tree.

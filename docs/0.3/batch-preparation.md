@@ -35,7 +35,7 @@ prepared value itself into a receipt.
 
 The original independent two-mint batch event hash was produced by the frozen
 original implementation and retained in
-`evidence/f1/batch-preparation/original-characterization.rs`. Candidate tests
+[the archived characterization source](https://github.com/STEXS-Technologies/statechronicle/blob/2827f0fe9c3f3945aae2f1a46ffb79670bbd06f7/docs/0.3/evidence/f1/batch-preparation/original-characterization.rs). Candidate tests
 compare that hash, exercise corrupted cached fields, mutated caller inputs,
 late signature/transition failures, authorization ordering, duplicate and mixed
 scope refusal, missing signatures, size bounds, duplicate event IDs, and a

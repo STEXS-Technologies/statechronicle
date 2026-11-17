@@ -1,7 +1,0 @@
-{
-  "base_commit": "5632d008a328c7dfaaf9ce39436474685ba0231d",
-  "archive_sha256": "947e6404805b45001fdb808dfdb791e66183529380b65545f6571714f06f7d05",
-  "original_service_sha256": "b7a03bc38a6f9eedfa0bce7882662ca7c992c6548c6e85c257472f0d08fe6ca8",
-  "experimental_service_sha256": "7b780290d0ae4b39ff7c5ef7032784000a46d204c56fcf195ddbc552a9f8bf12",
-  "patch": "Add #[inline] to private async load_commit only; same candidate lockfile."
-}

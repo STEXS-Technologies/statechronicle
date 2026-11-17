@@ -1,8 +1,0 @@
-{
-  "revision": "d6aa9f417d765545301261ea9fe8df5aca256b05",
-  "path": "crates/statechronicle-domain/src/validated_string.rs",
-  "original_sha256": "1bec41ada7f0edcac8cbd82f4eab1f6795649dc1cdedee34e70daf058dd5c03e",
-  "mutated_sha256": "824df5adaf58a8dbe16d3218a5f3123a7ec59c650c9073610f896b83001ab0fb",
-  "removed": "Self::new(value).map_err(::serde::de::Error::custom)",
-  "replacement": "Ok(Self(value))"
-}

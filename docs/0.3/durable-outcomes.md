@@ -88,6 +88,6 @@ injection/reopening over shared committed state. They do not qualify process
 crashes, disk recovery or a production database. The separate
 [conformance harness](adapter-contract.md), protected batch path
 and [file tutorial](../../tutorials/durable-custom-ledger/README.md) add scoped
-evidence; full adapter/crash, cross-tenant composition and final exact-candidate
-qualification gates remain open. This path adds readback and verification
+evidence. Production adapter/crash and cross-tenant behavior require
+consumer qualification; see the [library qualification summary](qualification.md). This path adds readback and verification
 work, so legacy persistence timings do not establish equal-work performance.

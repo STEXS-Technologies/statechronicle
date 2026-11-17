@@ -72,8 +72,10 @@ the asset facts. Matching signed payment deltas does not authenticate an
 unsigned declaration or prove an intrinsic cross-tenant trade linkage. Do not
 present this receipt as a global atomic settlement certificate.
 
-Still open: a canonical service that fetches these full witnesses from trusted
-read ports, authenticated full lifecycle/chain verification and its interaction
-with current claims, broader malformed/multi-resource properties, matched cost
-measurements, and the remaining roadmap gates. The historical-fact entry point
-is progress on F1, not a declaration that F1–F8 are complete.
+This API verifies caller-supplied witnesses. Applications must fetch those
+witnesses from trusted sources and choose the historical signer policy and
+commit pins independently. Use [verified history](verified-rebuild.md) for
+chain authentication and [proof claims](proof-claims.md) for current-state
+checks. See the [qualification summary](qualification.md) for tested scope and
+costs; historical settlement facts alone establish neither current ownership
+nor cross-tenant atomicity.

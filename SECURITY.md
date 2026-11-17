@@ -16,7 +16,7 @@ Maintainers will acknowledge a report within seven days, triage severity, and
 coordinate a fix and disclosure timeline with the reporter. Emergency issues
 affecting asset or currency integrity may require an immediate write freeze;
 operators should follow the recovery and signer-compromise procedures in
-`TODO.md` while a patch is prepared.
+[recovery runbook](docs/OPERATIONS/RECOVERY.md) while a patch is prepared.
 
 ## Supported versions
 

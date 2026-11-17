@@ -208,7 +208,7 @@ impl Evaluation<'_> {
         // complete event construction have passed. This prevents malformed or
         // unauthorized requests from poisoning the idempotency namespace.
         // Durable implementations must still make this claim atomic with the
-        // event/commit write (see TODO.md P0-1/P0-2).
+        // event/commit write within the ledger transaction.
         if let IntentHandling::LegacyClaim(store) = intent_handling {
             store
                 .put_intent(tenant, intent)

@@ -2,8 +2,9 @@
 
 This guide maps the original `v0.2.0` at
 `c418e98b91720188158c531cd5c2c4b8ab71cbcf` to the refactoring branch. It does not
-announce a published `0.3.0` or a completed release campaign. Workspace versions
-remain unchanged pending final qualification. Original protocol fixtures under
+announce a published `0.3.0`. Library qualification is recorded in the
+[qualification summary](qualification.md); workspace versions remain unchanged
+pending versioning and publication. Original protocol fixtures under
 `ci/wire-0.2` and original consumer sources under `ci/compat-0.2` are frozen.
 
 ## Adopt by workflow
@@ -61,8 +62,8 @@ Existing umbrella paths, executor builders, legacy verification helpers and
 persistence signatures are retained and exercised by the frozen external
 consumer matrix. Candidate-only overlays exercise additive APIs separately.
 This is selected downstream coverage, not a claim that every possible consumer
-was compiled. See [API inventory](api-inventory.md) and exact
-[compatibility evidence](evidence/compat/) for scope.
+was compiled. See [API inventory](release-compatibility.md) and exact
+[compatibility evidence](https://github.com/STEXS-Technologies/statechronicle/tree/2827f0fe9c3f3945aae2f1a46ffb79670bbd06f7/docs/0.3/evidence/compat) for scope.
 
 The original checkout and the current branch use Ed25519 Dalek major version 3.
 Earlier refactor checkpoints used major version 2; those remain exact historical
@@ -75,7 +76,7 @@ Independent frozen signing/root/proof vectors remain the compatibility oracle.
 Original intent/event/commit/proof encodings, enum indices, signing bytes,
 cryptographic roots and old schema meaning are intended to remain unchanged.
 Frozen wire/proof records and external portable comparisons provide retained
-checkpoint evidence; the final exact-candidate qualification remains open.
+checkpoint evidence; the completed source qualification is summarized in [qualification](qualification.md).
 New receipts, plans, group retention and expectations do not replace historical
 wire records with a new implicit format. Adapter-retained batch metadata is a
 separate optional contract.
@@ -115,7 +116,7 @@ construct the authorization expectation from trusted source evidence before
 considering client input. Retain the old decoder and migrate into a new versioned
 resource when an in-place schema change would reinterpret old bytes.
 
-The [authorized migration checkpoint](evidence/f3/authorized-migration-7489a5f/README.md)
+The [authorized migration checkpoint](https://github.com/STEXS-Technologies/statechronicle/blob/2827f0fe9c3f3945aae2f1a46ffb79670bbd06f7/docs/0.3/evidence/f3/authorized-migration-7489a5f/README.md)
 provides an executable public-API example using original-release BCS history,
 read-only `Preparer`, `SignedMutation`, current authorization on commit/recovery,
 and source-bound interrupted rebuild. Its grant authorizes a pinned historical

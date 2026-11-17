@@ -1,6 +1,0 @@
-{
-  "pid": 2776272,
-  "status": "failed",
-  "checks": [],
-  "error": "AssertionError({'pid': 2776214, 'status': 'failed', 'checks': [], 'error': 'AssertionError({\\'pid\\': 2775333, \\'status\\': \\'failed\\', \\'stage\\': \\'retry-all-path-allocations\\', \\'latency_path\\': \\'docs/0.3/evidence/performance/all-paths-20261116T191314Z-2721740\\', \\'checks\\': [{\\'command\\': [\\'python3\\', \\'/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/all_paths_final.py\\'], \\'exit_code\\': 0, \\'seconds\\': 81.24830351299897, \\'artifact\\': \\'all-paths.log.gz\\', \\'sha256\\': \\'3bd209350a37dc6ec5194ae1f7224477f5ed5a30e8ba0f942794da7f0dd044ab\\'}], \\'failed_attempt\\': \\'complete-performance-failed-allocation-timeout.json\\', \\'error\\': \"RuntimeError(\\'dependency-control checkpoint_resume_256_events_chunk_32_and_root failed\\')\"})'})"
-}

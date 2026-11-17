@@ -31,7 +31,7 @@ permission. Dispatch belongs after authoritative receipt verification.
 This is the protected single-intent composition. The separate
 [batch path](durable-batches.md) supplies complete-group signing and recovery, and
 [read-only preparation](mutation-preparation.md) shares internal evaluation.
-These checkpoints do not complete the broader F4 facade or all F5 adapter gates. Preparation-time state and authorization facts are not
+See the [qualification summary](qualification.md) for tested scope and limits. Preparation-time state and authorization facts are not
 forever-fresh snapshots. See [preparation](mutation-preparation.md) and
 [durable outcomes](durable-outcomes.md) for authority and adapter limitations.
 

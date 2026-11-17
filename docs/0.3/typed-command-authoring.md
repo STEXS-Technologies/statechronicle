@@ -79,6 +79,6 @@ order, canonical envelope bytes, unborn evaluation results and wrong-operation
 refusals. It checks unknown domain/schema and rejects empty names and reserved
 operation prefixes through normal registry validation. Compile-fail doctests
 cover omitted variants, guards and duplicate patterns. Existing frozen consumers
-and wire fixtures remain untouched. Broader signed execution/replay/proof
-composition, compile-fail ergonomics and final performance gates remain separate
-roadmap work; this does not declare all F3/F4/F7 requirements complete.
+and wire fixtures remain untouched. These authoring checks are separate from
+authenticated execution and durable receipt verification; see the
+[qualification summary](qualification.md) for completed checks.

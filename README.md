@@ -55,9 +55,9 @@ The file tutorial demonstrates selected recovery cases, not production database
 qualification. The `StateProfile` contract and portable core support `no_std`;
 the facade and full engine require `std`.
 
-[Consumer guide](docs/0.3/consumer-guide.md) ·
+[Documentation](docs/README.md) · [Consumer guide](docs/0.3/consumer-guide.md) ·
 [Architecture](docs/ARCHITECTURE.md) · [Migration](docs/0.3/migration.md) ·
-[Completed qualification](docs/0.3/evidence/qualification/final-94eb5d4/README.md) ·
+[Completed qualification](docs/0.3/qualification.md) ·
 [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
 
 Licensed under [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE).

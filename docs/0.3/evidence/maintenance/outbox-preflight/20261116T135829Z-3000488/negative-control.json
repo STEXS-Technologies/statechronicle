@@ -1,7 +1,0 @@
-{
-  "revision": "52e8e6fa81167f94998b31ff0980c5549a8d8019",
-  "path": "crates/statechronicle-commit/src/persist.rs",
-  "original_sha256": "344f1b18995753e042ec95ba3b397f8c0534ddd157e18b00abba6d81a6fd3a76",
-  "mutated_sha256": "15d6b31574c89aa63ce6a31083b47a9a66099360bb2df32938bdcf22b1b820db",
-  "removed": "hash_bytes(&record.payload) != record.payload_digest"
-}

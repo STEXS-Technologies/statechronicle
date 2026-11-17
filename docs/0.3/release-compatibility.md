@@ -4,7 +4,7 @@ The candidate remains on branch `refactor/coherence`, with package versions
 `0.2.0`. This matrix describes the additive refactoring APIs, not availability
 in the released 0.2 registry packages. Version bump, tag and publication require
 separate release actions. Exact evidence is linked from the
-[final qualification record](evidence/qualification/final-94eb5d4/README.md).
+[final qualification record](qualification.md).
 
 | Contract | Candidate decision | Evidence |
 |---|---|---|
@@ -32,6 +32,6 @@ supplemented by real external implementers; it is not a promise that every possi
 macro invocation, dependency feature unification or downstream name collision is
 source-compatible.
 
-Current closure requires every final qualification result to pass and every
-performance trigger to be resolved or explicitly justified. A successful narrow
-test or an older checkpoint does not itself establish the full candidate.
+The [qualification summary](qualification.md) records the completed source
+snapshot and accepted costs. New changes require checks appropriate to their
+scope; an older passing checkpoint does not qualify later changes.

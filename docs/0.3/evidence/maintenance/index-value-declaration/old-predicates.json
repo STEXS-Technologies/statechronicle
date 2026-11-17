@@ -1,5 +1,0 @@
-{
-  "original": "fn declares_value_leg(intent: &Intent) -> bool {\n    intent.inputs.contains_key(keys::VALUE_RESOURCE)\n        || intent.inputs.contains_key(keys::VALUE_AMOUNT)\n        || intent.inputs.contains_key(keys::VALUE_TO_SUBJECT)\n}",
-  "control": "fn declares_value_leg(intent: &Intent) -> bool {\n    intent.inputs.contains_key(keys::VALUE_RESOURCE)\n        || intent.inputs.contains_key(keys::VALUE_AMOUNT)\n        || intent.inputs.contains_key(keys::VALUE_TO_SUBJECT)\n}",
-  "owner": "pub fn declares_value_leg(intent: &Intent) -> bool {\n    intent.inputs.contains_key(keys::VALUE_RESOURCE)\n        || intent.inputs.contains_key(keys::VALUE_AMOUNT)\n        || intent.inputs.contains_key(keys::VALUE_TO_SUBJECT)\n}"
-}

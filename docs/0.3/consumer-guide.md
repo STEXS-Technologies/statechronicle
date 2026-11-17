@@ -1,7 +1,7 @@
 # Consumer workflow map
 
 These are APIs on the refactoring branch. Package versions still read `0.2.0`;
-release qualification and publishing are separate work. Add the umbrella crate
+library qualification is complete; versioning and publishing remain separate. Add the umbrella crate
 from this checkout as shown in the standalone tutorials; do not assume these
 additive APIs exist in the released registry package.
 
@@ -80,7 +80,7 @@ Start with [native preparation](../../tutorials/minimal-native-domain/README.md)
 then [durable file ledger](../../tutorials/durable-custom-ledger/README.md).
 The latter covers both models, reopen, unknown ACK, unchanged exact replay,
 native history recomputation and temporal proof expectations. It uses a bounded
-single-writer file contract. [Selected process-termination tests](evidence/conformance/file-process-restart/README.md)
+single-writer file contract. [Selected process-termination tests](https://github.com/STEXS-Technologies/statechronicle/blob/2827f0fe9c3f3945aae2f1a46ffb79670bbd06f7/docs/0.3/evidence/conformance/file-process-restart/README.md)
 exercise reopen at six SIGKILL boundaries; they do not establish database/power-loss
 durability or production key management.
 
