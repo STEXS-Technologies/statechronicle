@@ -54,45 +54,34 @@ complete example using a small file store.
 Requires **Rust 1.88+**. Create a project and add the development version:
 
 ```sh
-cargo new first-item
-cd first-item
+cargo new first-proof
+cd first-proof
 cargo add statechronicle --git https://github.com/STEXS-Technologies/statechronicle --branch refactor/coherence
-cargo add serde_json@1 ed25519-dalek@3
 ```
 
+**An old ownership proof stops working when the owner changes.**
 Replace `src/main.rs` with this complete program:
 
 ```rust
-use ed25519_dalek::SigningKey;
-use serde_json::json;
-use statechronicle::core::{
-    canonicalize::canonicalize,
-    signature::{sign, verify},
-};
-use statechronicle::profiles::{
-    registry::ProfileRules,
-    unique_asset::{UniqueAssetRules, op},
-};
-use std::collections::BTreeMap;
+use statechronicle::portable::integrity::hash;
+use statechronicle::{StateAccumulator, StateKey, StateUpdate};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create an item owned by Alice using the built-in item rules.
-    let inputs = BTreeMap::from([("to_owner".to_owned(), json!("alice"))]);
-    let item = UniqueAssetRules.evaluate(None, op::asset_mint(), &inputs)?;
-    println!("Created: {item}");
+    let sword = StateKey::for_resource("my-game", "sword-1");
+    let mut inventory = StateAccumulator::empty();
 
-    // Sign its canonical bytes. This fixed key is only for the example.
-    let key = SigningKey::from_bytes(&[7; 32]);
-    let bytes = canonicalize(&item)?;
-    let signature = sign(&bytes, &key);
+    // Record Alice as the owner and get a proof of this snapshot.
+    let alice = StateUpdate::new(sword, hash(b"alice"));
+    let before = inventory.insert_batch(&[alice])?;
+    let proof = inventory.prove_inclusion(&sword).ok_or("missing sword")?;
+    assert!(StateAccumulator::verify_inclusion(&before, &proof));
+    println!("Alice's proof: valid");
 
-    // Verify with the public key you trust for this record.
-    verify(&bytes, &key.verifying_key(), &signature)?;
-    println!("Signature verified");
-
-    // The same signature cannot verify changed data.
-    assert!(verify(b"changed data", &key.verifying_key(), &signature).is_err());
-    println!("Changed data rejected");
+    // Change the owner. The old proof no longer matches the new snapshot.
+    let bob = StateUpdate::new(sword, hash(b"bob"));
+    let after = inventory.insert_batch(&[bob])?;
+    assert!(!StateAccumulator::verify_inclusion(&after, &proof));
+    println!("After owner change: Alice's old proof rejected");
     Ok(())
 }
 ```
@@ -100,20 +89,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 Run it with `cargo run`:
 
 ```text
-Created: {"owner":"alice","status":"active"}
-Signature verified
-Changed data rejected
+Alice's proof: valid
+After owner change: Alice's old proof rejected
 ```
 
-This introduces two building blocks: calculate a valid item state and verify
-its signed bytes. It runs in memory. Authentication, saved event history and
-safe retries are added through the protected mutation and storage APIs:
+Each snapshot has a root: a fingerprint of the inventory. A proof can be checked
+against that root without sharing the whole inventory. Alice's proof still
+matches the earlier snapshot, but cannot establish ownership in the updated one.
+
+This small example updates an in-memory tree directly. In an application, use
+the authenticated mutation APIs to enforce transfer permissions, and obtain the
+root from a trusted signed commit. The tutorials add those pieces:
 
 - [Define your own data and authenticate requests](tutorials/minimal-native-domain/README.md).
 - [Save signed changes, recover a lost reply and check proofs](tutorials/durable-custom-ledger/README.md).
 
 The second tutorial uses a temporary file store and requires Rust 1.89+.
-Use real key management instead of the fixed example key in an application.
 
 These instructions use the upcoming 0.3 API on this branch; package versions
 still read `0.2.0`. For the published 0.2 API, use
