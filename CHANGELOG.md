@@ -19,13 +19,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - External native-domain and file-ledger tutorials, reusable dev-only adapter
   conformance checks, selected process-kill/reopen and concurrent history tests.
 - Immutable-source qualification tooling for compiler API catalogs, frozen
-  compatibility, isolated package contents, coverage, fuzz and matched costs.
+  compatibility, isolated package contents, coverage, fuzzing and performance
+  comparisons under matched test conditions.
 
 ### Changed
 
 - Hosted native evaluation shares decoded state/command values; operation mappings,
-  validated string trait shells and equivalent profile/index predicates share
-  their existing semantic owners. Legacy APIs retain their documented contracts.
+  validated string trait implementations and equivalent profile/index checks
+  reuse shared implementations. Legacy APIs retain their documented contracts.
 - The approved toolchain/dependency refresh sets the declared minimum Rust version
   to 1.100 and uses Ed25519 Dalek 3. Consumers exchanging direct dependency key
   types must align their major version. See [migration](docs/0.3/migration.md).
@@ -119,4 +120,6 @@ First production release of StateChronicle, a verifiable state and transaction f
 - Measured protocol-surface LLVM line coverage is ratcheted at a 92.4% minimum, with property, concurrency, and replay tests protecting protocol behavior.
 - The release workflow validates the tag, package graph, coverage evidence, benchmark evidence, package contents, release notes, and published crate availability before completing publication.
 
+[Unreleased]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.2.0...refactor/coherence
+[0.2.0]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/STEXS-Technologies/statechronicle/releases/tag/v0.1.0
