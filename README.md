@@ -1,65 +1,75 @@
 # StateChronicle
 
-Controlled state changes, signed history and verifiable state for Rust. Start
-with your own typed state and commands; add authenticated mutations, durable
-commits, proof verification or replay as needed. Built-in profiles cover
-inventory, currency, access, marketplaces and escrow.
+StateChronicle is a **Rust library for tracking changes to application data,
+keeping a signed history, and checking that the resulting state matches that
+history**.
 
-Mutations prepare a plan before committing it. Durable success requires a
-checked receipt; uncertain writes must be resolved through recovery before retry.
+Use it when knowing the current value is not enough: you also need to know how
+it changed, whether the change followed your rules, and whether someone has
+altered the recorded history.
+
+## What does it do?
+
+Imagine a game where Alice transfers a sword to Bob. Your application needs to
+check that Alice owns it, that she is allowed to transfer it, and that the sword
+is available. After the transfer, it needs a record of what happened.
+
+StateChronicle provides the logic to check the request, calculate the new state,
+and produce events and a signed record for your application to store. Later,
+you can rebuild ownership from those events or verify an ownership proof against
+a trusted signed record. Changing recorded data makes its cryptographic checks
+fail.
+
+You can use the built-in item and balance rules, or define your own data types
+and allowed changes.
+
+## What is it useful for?
+
+- **Game inventories and currencies:** track item ownership, transfers and balances,
+  with a history you can replay after restoring your database.
+- **Licenses and access rights:** record grants, suspensions and revocations, and
+  check who held a right at a particular point in the history.
+- **Configuration and equipment records:** define permitted updates and keep a
+  verifiable history of revisions or recorded status changes.
+
+It fits applications where changes must follow explicit rules and the history
+needs to be checked by another part of the system. Signed records establish
+integrity under keys you trust; your application still decides who may act and
+whether an input reflects something that happened in the real world.
+
+## How does it fit into my application?
+
+StateChronicle runs inside your Rust application. You provide login and access
+policies, signing keys, and a storage adapter for your database. The library
+provides change validation, event and signed-record construction, replay, and
+proof verification.
+
+For reliable writes and retries, your storage adapter must implement the
+[ledger contract](docs/0.3/adapter-contract.md). Start with the
+[durable-ledger tutorial](tutorials/durable-custom-ledger/README.md) to see a
+complete example using a small file store.
 
 ## Get started
 
-This branch contains the upcoming 0.3 API. Workspace package versions remain
-`0.2.0`. The minimum supported Rust version is **1.88**. Repository development
-builds default to the newer toolchain pinned in `rust-toolchain.toml`; that pin
-does not set the minimum compiler for applications using the library.
+Requires **Rust 1.88+**. This development branch contains the upcoming 0.3 API;
+its package versions still read `0.2.0`.
 
 ```sh
-cargo new my-app
-cd my-app
 cargo add statechronicle --git https://github.com/STEXS-Technologies/statechronicle --branch refactor/coherence
 ```
 
-Follow the [native-domain tutorial](tutorials/minimal-native-domain/README.md) for
-complete configuration and equipment models with authenticated preparation.
-The [durable-ledger tutorial](tutorials/durable-custom-ledger/README.md) adds
-signed commits, recovery and proof verification using a bounded file adapter
-(Rust 1.89 or newer for its file-locking API).
+The [first tutorial](tutorials/minimal-native-domain/README.md) defines simple
+configuration and equipment models and checks requests to change them. It
+prepares changes without saving them. The
+[second tutorial](tutorials/durable-custom-ledger/README.md) adds storage, signed
+records, recovery and proof checks; its file store requires Rust 1.89+.
+Both use development keys that must be replaced in a real application.
 
-To try the included example first:
-
-```sh
-git clone --branch refactor/coherence https://github.com/STEXS-Technologies/statechronicle.git
-cd statechronicle
-cargo run --manifest-path tutorials/minimal-native-domain/Cargo.toml --locked
-```
-
-For the published API, use `cargo add statechronicle@0.2.0` and its
-[versioned API reference](https://docs.rs/statechronicle/0.2.0/statechronicle/).
-The tutorials use the unreleased branch and fixed development credentials.
-
-## Choose what you need
-
-| Need | Start here |
-| --- | --- |
-| Define typed state and legal commands | [Native domains](tutorials/minimal-native-domain/README.md) · `StateProfile` and `TypedProfile` |
-| Authenticate, prepare and commit mutations | [Durable ledger](tutorials/durable-custom-ledger/README.md) · `statechronicle::mutation` |
-| Recover an uncertain write or retry a batch | [Recovery and batches](docs/0.3/durable-batches.md) · `mutation::recover` and `SignedBatch` |
-| Verify current state or a pinned historical claim | [Proof claims](docs/0.3/proof-claims.md) · `proof::claim::ClaimVerifier` |
-| Verify signed history and resume projection rebuilds | [Verified rebuild](docs/0.3/verified-rebuild.md) · `index::rebuild::verified` |
-| Run bounded transitions without allocation | [Portable core](crates/statechronicle-portable/README.md) · `statechronicle::portable` |
-
-Applications supply authentication, authorization, key management and storage
-adapters. StateChronicle ships no database or server; durable guarantees depend
-on an adapter satisfying the [ledger contract](docs/0.3/adapter-contract.md).
-The file tutorial demonstrates selected recovery cases, not production database
-qualification. The `StateProfile` contract and portable core support `no_std`;
-the facade and full engine require `std`.
+For the published 0.2 API, use `cargo add statechronicle@0.2.0` and its
+[API reference](https://docs.rs/statechronicle/0.2.0/statechronicle/).
+See [Rust support](docs/0.3/rust-support.md) for compiler details.
 
 [Documentation](docs/README.md) · [Consumer guide](docs/0.3/consumer-guide.md) ·
-[Architecture](docs/ARCHITECTURE.md) · [Migration](docs/0.3/migration.md) · [Rust support](docs/0.3/rust-support.md) ·
-[Completed qualification](docs/0.3/qualification.md) ·
 [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
 
 Licensed under [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE).
