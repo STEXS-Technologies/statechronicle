@@ -1,8 +1,8 @@
 # Documentation
 
-Start with the [consumer guide](0.3/consumer-guide.md) for the development
-branch's prepare, commit, recover and verify workflow. These APIs are intended
-for 0.3; workspace versions remain `0.2.0` until release.
+Start with the [consumer guide](0.3/consumer-guide.md) for the 0.3 prepare,
+commit, recover and verify workflow. Workspace packages are versioned `0.3.0`;
+tagging and registry publication follow release review.
 
 ## Build an application
 
@@ -11,7 +11,7 @@ for 0.3; workspace versions remain `0.2.0` until release.
 - [Adapter contract](0.3/adapter-contract.md): storage atomicity, recovery and conformance responsibilities.
 - [Proof claims](0.3/proof-claims.md): current state versus independently pinned historical evidence.
 - [Verified rebuild](0.3/verified-rebuild.md): verify signed history and resume projection rebuilds.
-- [Migration](0.3/migration.md) and [compatibility](0.3/release-compatibility.md): adopting the development API from 0.2.
+- [Migration](0.3/migration.md) and [compatibility](0.3/release-compatibility.md): upgrading from 0.2 to 0.3.
 
 ## Understand and operate the library
 

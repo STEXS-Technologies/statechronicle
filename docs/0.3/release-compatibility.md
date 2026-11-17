@@ -1,9 +1,8 @@
 # Release candidate compatibility matrix
 
-The candidate remains on branch `refactor/coherence`, with package versions
-`0.2.0`. This matrix describes the additive refactoring APIs, not availability
-in the released 0.2 registry packages. Version bump, tag and publication require
-separate release actions. Exact evidence is linked from the
+The release candidate uses package version `0.3.0`. This matrix describes the
+0.3 APIs, which are unavailable in the released 0.2 registry packages. Tagging
+and publication follow release review. Exact evidence is linked from the
 [final qualification record](qualification.md).
 
 | Contract | Candidate decision | Evidence |

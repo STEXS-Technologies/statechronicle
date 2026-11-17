@@ -114,7 +114,11 @@ def main():
             manifest['isolated_workspace_manifest'] = (unpacked / 'Cargo.toml').read_text()
             manifest['isolation'] = {'source': str(source), 'unpacked': str(unpacked),
                                      'dependency_rule': 'All StateChronicle dependencies resolve to unpacked .crate content; no source paths'}
-            check('resolve', ['generate-lockfile', '--offline'], unpacked)
+            # Resolve the unpacked paths from the candidate's locked graph.
+            # generate-lockfile would select newer cached registry versions,
+            # making qualification depend on unrelated local cache updates.
+            (unpacked / 'Cargo.lock').write_bytes((source / 'Cargo.lock').read_bytes())
+            check('resolve', ['metadata', '--format-version', '1', '--offline'], unpacked)
             lock = (unpacked / 'Cargo.lock').read_bytes()
             (evidence / 'unpacked.lock').write_bytes(lock)
             manifest['unpacked_lock_sha256'] = sha(lock)

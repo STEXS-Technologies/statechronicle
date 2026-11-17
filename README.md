@@ -51,12 +51,12 @@ complete example using a small file store.
 
 ## Quick start
 
-Requires **Rust 1.88+**. Create a project and add the development version:
+Requires **Rust 1.88+**. Create a project and add the 0.3 source from `main`:
 
 ```sh
 cargo new first-proof
 cd first-proof
-cargo add statechronicle --git https://github.com/STEXS-Technologies/statechronicle --branch refactor/coherence
+cargo add statechronicle --git https://github.com/STEXS-Technologies/statechronicle --branch main
 ```
 
 **An old ownership proof stops working when the owner changes.**
@@ -106,10 +106,9 @@ root from a trusted signed commit. The tutorials add those pieces:
 
 The second tutorial uses a temporary file store and requires Rust 1.89+.
 
-These instructions use the upcoming 0.3 API on this branch; package versions
-still read `0.2.0`. For the published 0.2 API, use
-`cargo add statechronicle@0.2.0` and its
-[API reference](https://docs.rs/statechronicle/0.2.0/statechronicle/).
+This checkout prepares version **0.3.0**. After publication, you can use
+`cargo add statechronicle@0.3.0` instead of the Git dependency above.
+For applications upgrading from 0.2, see the [migration guide](docs/0.3/migration.md).
 See [Rust support](docs/0.3/rust-support.md) for compiler details.
 
 [Documentation](docs/README.md) · [Consumer guide](docs/0.3/consumer-guide.md) ·

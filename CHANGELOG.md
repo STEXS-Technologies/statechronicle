@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-17
+
 ### Added
 
 - Protected read-only single, batch and single-tenant settlement preparation;
@@ -33,6 +35,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   [migration](docs/0.3/migration.md) and [Rust support](docs/0.3/rust-support.md).
 - Consumer documentation recommends protected receipt-based composition and
   distinguishes legacy planning/sinks, historical evidence and current claims.
+- Simplify the README and quick start; retain frozen compatibility fixtures and
+  link archived qualification evidence instead of shipping generated work logs.
 
 ### Fixed
 
@@ -47,11 +51,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   identity by tenant, preventing unrelated holders or tenants from colliding.
 - Qualification drivers isolate archived fuzz and unpacked package builds from
   cached binaries of earlier or deliberately insecure source revisions.
+- CI warms the complete locked dependency cache before isolated offline consumers
+  and retains their diagnostic logs when verification fails.
+
+### Security
+
+- Temporarily except Chrono maintenance advisory `RUSTSEC-2026-0543`, with an
+  enforced 2026-12-17 UTC expiry. All other advisory checks remain enabled. See
+  the [dependency maintenance policy](DEPENDENCY_MAINTENANCE.md).
 
 Original 0.2 wire fixtures remain frozen. See the [compatibility matrix](docs/0.3/release-compatibility.md)
 and [qualification record](docs/0.3/qualification.md)
-for exact tested scopes, accepted costs and retained limitations. Workspace versions remain 0.2.0
-until a separately authorized version/tag/publication step.
+for exact tested scopes, accepted costs and retained limitations. Library packages
+and their internal dependency requirements advance together to `0.3.0`.
 
 ## [0.2.0] - 2026-10-10
 
@@ -121,6 +133,7 @@ First production release of StateChronicle, a verifiable state and transaction f
 - Measured protocol-surface LLVM line coverage is ratcheted at a 92.4% minimum, with property, concurrency, and replay tests protecting protocol behavior.
 - The release workflow validates the tag, package graph, coverage evidence, benchmark evidence, package contents, release notes, and published crate availability before completing publication.
 
-[Unreleased]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.2.0...refactor/coherence
+[Unreleased]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.3.0...main
+[0.3.0]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/STEXS-Technologies/statechronicle/releases/tag/v0.1.0

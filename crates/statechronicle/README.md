@@ -7,7 +7,7 @@ protocol surface. It re-exports the twelve underlying library crates under
 collision-safe namespaces and surfaces the most-used types directly at the top
 level. It ships no storage, HTTP, or authority implementation.
 
-## Recommended consumer path on this branch
+## Recommended consumer path in 0.3
 
 Define native rules with `StateProfile` / `TypedProfile`, prepare through
 `mutation::Preparer`, then sign and commit a protected `SignedMutation` against
@@ -20,8 +20,9 @@ The [native tutorial](../../tutorials/minimal-native-domain/README.md) and
 [durable ledger tutorial](../../tutorials/durable-custom-ledger/README.md) are
 standalone applications with their own lockfiles. See the
 [consumer map](../../docs/0.3/consumer-guide.md) and
-[migration guide](../../docs/0.3/migration.md). These are refactoring-checkout
-APIs; package versions remain `0.2.0`, and full release qualification is pending.
+[migration guide](../../docs/0.3/migration.md). Package version `0.3.0` contains
+these APIs; the [qualification summary](../../docs/0.3/qualification.md) records
+the tested scope and limitations.
 
 ## Protocol sections owned
 

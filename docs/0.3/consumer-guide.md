@@ -1,9 +1,9 @@
 # Consumer workflow map
 
-These are APIs on the refactoring branch. Package versions still read `0.2.0`;
-library qualification is complete; versioning and publishing remain separate. Add the umbrella crate
-from this checkout as shown in the standalone tutorials; do not assume these
-additive APIs exist in the released registry package.
+This guide describes the 0.3 API. The release checkout uses package version
+`0.3.0`; tagging and registry publication follow release review. Add the umbrella
+crate from this checkout as shown in the standalone tutorials until publication.
+These additive APIs are unavailable in the 0.2 registry packages.
 
 | Goal | Recommended surface | Result and authority |
 |---|---|---|

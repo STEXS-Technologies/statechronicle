@@ -13,7 +13,9 @@ against the actual unpacked archives, rather than only compiling their libraries
 An isolated workspace patches internal crates exclusively to other unpacked
 archives. Each resolved StateChronicle manifest must live under that unpacked
 root. No application dependency points back at the original source checkout.
-The root lockfile bounds the registry package set; isolated resolution may not
+The isolated workspace starts from the candidate root lockfile to retain
+registry versions while resolving unpacked paths. The root lockfile bounds the
+registry package set; isolated resolution may not
 add an unrecorded registry package, and its resulting lock must remain unchanged
 through compilation. The synthetic workspace copies the committed `clippy.toml`
 so strict lint uses the existing policy rather than different tool defaults.
@@ -23,8 +25,9 @@ Source archive hashes must also remain unchanged.
 This qualifies package contents and the internal candidate dependency graph in
 a temporary directory. It is not a crates.io service test, a promise that the
 unreleased APIs exist in published registry versions, or publish approval.
-Workspace package versions still read `0.2.0`; final version changes invalidate
-the affected package evidence and require rerunning the checker before release.
+Workspace packages are versioned `0.3.0`. Version changes invalidate affected
+package evidence; rerun this checker on the committed release candidate before
+release.
 
 ## Fixtures stay inside their package
 

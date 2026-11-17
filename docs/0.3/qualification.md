@@ -4,8 +4,10 @@ The coherence refactor completed library qualification before delivery commit
 `2827f0f`. The tested library source is `e880a2a`; the qualification record
 establishes equivalent library inputs across the final tooling fixes. This is
 qualification of that source snapshot, not automatic certification of later
-changes. Workspace versions remain `0.2.0`; versioning, tagging and publication
-are separate release actions.
+changes. The release branch advances workspace packages to `0.3.0`; tagging
+and publication remain separate release actions. Checks of the versioned crate
+archives are recorded in the release PR rather than attributed to this historical
+qualification run.
 
 ## Completed checks
 
