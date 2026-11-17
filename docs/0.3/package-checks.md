@@ -13,7 +13,9 @@ against the actual unpacked archives, rather than only compiling their libraries
 An isolated workspace patches internal crates exclusively to other unpacked
 archives. Each resolved StateChronicle manifest must live under that unpacked
 root. No application dependency points back at the original source checkout.
-The root lockfile bounds the registry package set; isolated resolution may not
+The isolated workspace starts from the candidate root lockfile to retain
+registry versions while resolving unpacked paths. The root lockfile bounds the
+registry package set; isolated resolution may not
 add an unrecorded registry package, and its resulting lock must remain unchanged
 through compilation. The synthetic workspace copies the committed `clippy.toml`
 so strict lint uses the existing policy rather than different tool defaults.
