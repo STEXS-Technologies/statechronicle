@@ -56,8 +56,12 @@ class ReleaseDriver(unittest.TestCase):
         self.assertIn(['cargo', 'test', '--workspace', '--exclude', 'statechronicle-fuzz',
                        '--doc', '--all-features', '--locked'], calls)
         for tutorial in ['minimal-native-domain', 'durable-custom-ledger']:
-            self.assertIn(['python3', 'scripts/check_tutorials.py', '--tutorial', tutorial], calls)
+            consumer = ['python3', 'scripts/check_tutorials.py', '--tutorial', tutorial]
+            self.assertIn(consumer, calls)
+            self.assertLess(calls.index(['cargo', 'fetch', '--locked']), calls.index(consumer))
         self.assertIn(['python3', 'scripts/check_native_contracts.py'], calls)
+        self.assertLess(calls.index(['cargo', 'fetch', '--locked']),
+                        calls.index(['python3', 'scripts/check_native_contracts.py']))
         for lock in ['Cargo.lock', 'ci/conformance/Cargo.lock',
                      'tutorials/minimal-native-domain/Cargo.lock',
                      'tutorials/durable-custom-ledger/Cargo.lock']:

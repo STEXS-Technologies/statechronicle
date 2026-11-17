@@ -31,6 +31,17 @@ jobs:
       - name: Run release checks, fuzz smoke, and policy gates
         run: scripts/run_release_checks.sh
 
+      - name: Upload isolated consumer verification logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: statechronicle-consumer-checks-${{ github.sha }}
+          path: |
+            docs/0.3/evidence/tutorials/
+            docs/0.3/evidence/f3/native-contracts/
+          if-no-files-found: ignore
+          retention-days: 30
+
   msrv:
     name: Minimum supported Rust versions
     runs-on: ubuntu-24.04

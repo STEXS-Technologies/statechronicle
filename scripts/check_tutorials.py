@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import time
@@ -107,6 +108,7 @@ def main():
                 save()
                 print(args.toolchain, label, record['status'], flush=True)
                 if result.returncode:
+                    print(result.stdout.decode('utf-8', errors='replace'), file=sys.stderr, end='')
                     raise RuntimeError(label + ' failed; retained log: ' + str(log))
                 if (application / 'Cargo.lock').read_bytes() != original_lock:
                     raise RuntimeError('Tutorial lockfile changed in isolated application')

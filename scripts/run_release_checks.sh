@@ -17,6 +17,9 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo check --workspace --all-targets --all-features --locked
 bash scripts/check_embedded.sh
 RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps --all-features --locked
+# Metadata resolves every target, including packages Linux builds do not fetch.
+# Populate the complete locked graph before the isolated offline consumers run.
+cargo fetch --locked
 # Standalone applications are separate workspaces and must compile outside ours.
 python3 scripts/check_tutorials.py --tutorial minimal-native-domain
 python3 scripts/check_tutorials.py --tutorial durable-custom-ledger

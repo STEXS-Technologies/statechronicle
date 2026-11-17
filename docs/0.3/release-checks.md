@@ -11,6 +11,11 @@ Rustup may install the selected embedded target and nightly fuzz compiler;
 Cargo and advisory checks may require network access. The script does not
 publish packages or dispatch GitHub workflows.
 
+Before isolated offline checks, `cargo fetch --locked` populates the complete
+dependency graph, including platform-specific packages that a Linux-only build
+does not download. The tutorial verifiers then run offline with unchanged locks.
+CI uploads their logs and the native-contract logs even when verification fails.
+
 The driver runs finite workspace tests and doctests, strict Clippy, compilation,
 rustdoc, formatting, isolated tutorials, native-domain contracts, adapter
 conformance, embedded checks, dependency policy and bounded fuzz smoke. It checks
