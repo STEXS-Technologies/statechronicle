@@ -19,7 +19,7 @@ separate release actions. Exact evidence is linked from the
 | Current versus historical claims | Current live full head check; historical independent pin | Expected-claim integration tests, runtime bypass controls |
 | Projection rebuild identities | Preserve independent holder addresses and tenant-scoped event IDs; reject same-address forks and same-tenant duplicates | Rebuild holder/continuity/duplicate regressions and original root vectors |
 | Custom schema migration | Explicit separately authorized transition; no reinterpretation | Original-produced history, protected migration/rebuild tests |
-| Rust compiler | Approved minimum and pinned qualification compiler are Rust 1.100.0 | Root/isolated builds and dependency-refresh decision |
+| Rust compiler | Minimum Rust 1.88; development toolchain and original qualification compiler Rust 1.100.0 | [Minimum-version validation](rust-support.md), root/isolated builds |
 | Direct Ed25519 key dependency types | Use Dalek 3; interim Dalek 2 consumers must align direct key types | Dependency-refresh/migration notes and frozen signature verification |
 | Portable supported profiles | Allocation-free fixed buffers; supported bare-metal compile | Independent no-std consumer and embedded release check |
 | Crate/default feature topology | Thirteen library crates; no new runtime backend/service dependency | Cargo manifests, package archives and dependency/cost catalogs |

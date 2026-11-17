@@ -8,7 +8,7 @@ Its own workspace and lockfile permit building outside the repository.
 
 ## Run
 
-With Rust 1.100 or newer, from the repository root:
+With Rust 1.89 or newer, from the repository root:
 
 ```sh
 cargo run --manifest-path tutorials/durable-custom-ledger/Cargo.toml --locked

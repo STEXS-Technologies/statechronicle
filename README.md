@@ -11,8 +11,9 @@ checked receipt; uncertain writes must be resolved through recovery before retry
 ## Get started
 
 This branch contains the upcoming 0.3 API. Workspace package versions remain
-`0.2.0`. Use Rust 1.100 or newer; repository builds use the toolchain pinned in
-`rust-toolchain.toml`.
+`0.2.0`. The minimum supported Rust version is **1.88**. Repository development
+builds default to the newer toolchain pinned in `rust-toolchain.toml`; that pin
+does not set the minimum compiler for applications using the library.
 
 ```sh
 cargo new my-app
@@ -23,7 +24,8 @@ cargo add statechronicle --git https://github.com/STEXS-Technologies/statechroni
 Follow the [native-domain tutorial](tutorials/minimal-native-domain/README.md) for
 complete configuration and equipment models with authenticated preparation.
 The [durable-ledger tutorial](tutorials/durable-custom-ledger/README.md) adds
-signed commits, recovery and proof verification using a bounded file adapter.
+signed commits, recovery and proof verification using a bounded file adapter
+(Rust 1.89 or newer for its file-locking API).
 
 To try the included example first:
 
@@ -56,7 +58,7 @@ qualification. The `StateProfile` contract and portable core support `no_std`;
 the facade and full engine require `std`.
 
 [Documentation](docs/README.md) · [Consumer guide](docs/0.3/consumer-guide.md) ·
-[Architecture](docs/ARCHITECTURE.md) · [Migration](docs/0.3/migration.md) ·
+[Architecture](docs/ARCHITECTURE.md) · [Migration](docs/0.3/migration.md) · [Rust support](docs/0.3/rust-support.md) ·
 [Completed qualification](docs/0.3/qualification.md) ·
 [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
 

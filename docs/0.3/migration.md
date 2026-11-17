@@ -88,7 +88,10 @@ bytes with a new model. Rebuild from independently pinned verified history,
 retain scoped checkpoints, compare final roots and promote only validated
 projections. Storage schema migration/backup/restore is the adapter owner's job.
 
-The requested toolchain refresh raises MSRV from Rust 1.85 to Rust 1.100.
+The minimum supported Rust version is 1.88, raised from the original 1.85
+baseline by current dependency requirements. The development toolchain remains
+pinned to 1.100; it does not require applications to use that compiler. See
+[Rust support](rust-support.md) for the minimum-version checks.
 The supported portable path remains allocation-free
 and `no_std`. The library manifests currently declare no package-defined feature
 matrix. Do not infer that hosted types or async storage are available on bare

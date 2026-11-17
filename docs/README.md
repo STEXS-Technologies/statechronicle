@@ -21,6 +21,7 @@ for 0.3; workspace versions remain `0.2.0` until release.
 
 ## Contribute and verify
 
+- [Rust support](0.3/rust-support.md): supported application compiler versus development tooling.
 - [Code standards](GOVERNANCE/CODE_STANDARDS.md) and [dependency maintenance](../DEPENDENCY_MAINTENANCE.md).
 - [Local release checks](0.3/release-checks.md), [coverage](0.3/coverage.md) and [package checks](0.3/package-checks.md).
 - [Qualification summary](0.3/qualification.md), [changelog](../CHANGELOG.md) and [security policy](../SECURITY.md).

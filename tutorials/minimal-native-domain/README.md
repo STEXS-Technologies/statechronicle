@@ -13,7 +13,7 @@ before accepting external requests. Nothing here proves physical equipment state
 
 ## Run it
 
-From the repository root, using Rust 1.100 or newer:
+From the repository root, using Rust 1.88 or newer:
 
 ```sh
 cargo run --manifest-path tutorials/minimal-native-domain/Cargo.toml --locked

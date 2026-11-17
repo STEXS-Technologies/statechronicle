@@ -27,9 +27,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Hosted native evaluation shares decoded state/command values; operation mappings,
   validated string trait implementations and equivalent profile/index checks
   reuse shared implementations. Legacy APIs retain their documented contracts.
-- The approved toolchain/dependency refresh sets the declared minimum Rust version
-  to 1.100 and uses Ed25519 Dalek 3. Consumers exchanging direct dependency key
-  types must align their major version. See [migration](docs/0.3/migration.md).
+- The minimum supported Rust version is 1.88; the repository development
+  toolchain is pinned to 1.100. Dependencies use Ed25519 Dalek 3. Consumers
+  exchanging direct dependency key types must align their major version. See
+  [migration](docs/0.3/migration.md) and [Rust support](docs/0.3/rust-support.md).
 - Consumer documentation recommends protected receipt-based composition and
   distinguishes legacy planning/sinks, historical evidence and current claims.
 
