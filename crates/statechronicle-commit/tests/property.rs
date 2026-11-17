@@ -14,8 +14,7 @@
     clippy::unwrap_in_result,
     clippy::panic_in_result_fn,
     clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    clippy::manual_is_multiple_of
+    clippy::arithmetic_side_effects
 )]
 
 use chrono::{DateTime, Utc};
@@ -99,7 +98,7 @@ fn build_event(chunk: &[u8], index: usize) -> Option<Event> {
     let owner = format!("account:example:player_{}", index % 17);
     // Every third event is subject-held, exercising the `for_subject_held`
     // key derivation; the rest are owner-based (`for_resource`).
-    let (state, resource) = if index % 3 == 0 {
+    let (state, resource) = if index.rem_euclid(3) == 0 {
         (
             serde_json::json!({ "subject": &owner, "quantity": "1", "unit": "items" }),
             format!("stack:item_{index}"),

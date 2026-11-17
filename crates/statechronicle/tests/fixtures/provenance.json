@@ -1,0 +1,30 @@
+{
+  "purpose": "Byte-identical local fixtures so published package tests need no repository-external paths.",
+  "files": {
+    "history.json": {
+      "source_path": "ci/wire-0.2/history.json",
+      "source_commit": "4c042e40527334716edb0c280cb81f66562d91c9",
+      "sha256": "fdccce8e4ce783c27bd0239151930d1e51dc82c7704884731254b8199e991fff"
+    },
+    "original_domains.rs": {
+      "source_path": "ci/compat-0.2/crates/consumer/examples/common/domains.rs",
+      "source_commit": "4c042e40527334716edb0c280cb81f66562d91c9",
+      "sha256": "438023bd9d376015ee4621ecffd093e1101c38247e154328592878050cb7625d"
+    },
+    "profile_guards.rs": {
+      "source_path": "ci/characterization/profile_guards.rs",
+      "source_commit": "4c042e40527334716edb0c280cb81f66562d91c9",
+      "sha256": "fec9dd3c975f6b9cd0fde36ed6e4d886ad219f9417b4ad7e8b238245787baff2"
+    },
+    "profile_guards_original.json": {
+      "source_path": "docs/0.3/evidence/maintenance/profile-guards/original-manifest.json",
+      "source_commit": "4c042e40527334716edb0c280cb81f66562d91c9",
+      "sha256": "0e9ff2c5db3ec53ed2fab99a78229dbbc524f18189d30e03b0d4f7ff96bb8578"
+    },
+    "custom_domains.json": {
+      "source_path": "docs/CONFORMANCE/custom_domains.json",
+      "source_commit": "4c042e40527334716edb0c280cb81f66562d91c9",
+      "sha256": "8dcc8f2cbc705f8c5d126291610913eb8c19cf60039e236a317b9bae0815dd10"
+    }
+  }
+}

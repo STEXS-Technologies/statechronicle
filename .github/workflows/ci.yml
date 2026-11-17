@@ -30,3 +30,57 @@ jobs:
 
       - name: Run release checks, fuzz smoke, and policy gates
         run: scripts/run_release_checks.sh
+
+      - name: Upload isolated consumer verification logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: statechronicle-consumer-checks-${{ github.sha }}
+          path: |
+            docs/0.3/evidence/tutorials/
+            docs/0.3/evidence/f3/native-contracts/
+          if-no-files-found: ignore
+          retention-days: 30
+
+  msrv:
+    name: Minimum supported Rust versions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Install minimum supported Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.88.0
+          targets: riscv32imafc-unknown-none-elf
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: statechronicle-msrv-1.88
+
+      - name: Test libraries, examples and doctests on the minimum compiler
+        run: |
+          cargo +1.88.0 test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked
+          cargo +1.88.0 test --workspace --exclude statechronicle-fuzz --doc --all-features --locked
+
+      - name: Test standalone consumers and adapter conformance
+        run: |
+          cargo +1.88.0 test --manifest-path ci/conformance/Cargo.toml --all-targets --locked
+          cargo +1.88.0 test --manifest-path tutorials/minimal-native-domain/Cargo.toml --all-targets --locked
+
+      - name: Install file-ledger tutorial minimum Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+
+      - name: Test file-ledger tutorial on its minimum compiler
+        run: cargo +1.89.0 test --manifest-path tutorials/durable-custom-ledger/Cargo.toml --all-targets --locked
+
+      - name: Check portable cores independently on bare metal
+        run: |
+          cargo +1.88.0 check -p statechronicle-profile --target riscv32imafc-unknown-none-elf --locked
+          cargo +1.88.0 check -p statechronicle-portable --target riscv32imafc-unknown-none-elf --locked
+
+      - name: Reject lockfile drift
+        run: git diff --exit-code -- Cargo.lock ci/conformance/Cargo.lock tutorials/minimal-native-domain/Cargo.lock tutorials/durable-custom-ledger/Cargo.lock

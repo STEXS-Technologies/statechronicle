@@ -14,8 +14,9 @@ use statechronicle_domain::error::DomainError;
 
 /// The crate's root error type.
 ///
-/// Every fallible public function in `statechronicle-commit` returns this
-/// type. Variants are typed and carry structured context so callers can fail
+/// Commit construction and legacy persistence functions return this type.
+/// Verified durable outcomes use [`crate::durable::DurableError`]. These
+/// variants carry structured context so callers can fail
 /// closed without string matching.
 #[derive(Debug, thiserror::Error)]
 pub enum CommitError {

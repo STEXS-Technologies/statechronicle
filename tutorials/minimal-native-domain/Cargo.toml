@@ -1,0 +1,17 @@
+[package]
+name = "statechronicle-native-tutorial"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+[workspace]
+resolver = "3"
+
+[dependencies]
+statechronicle = { path = "../../crates/statechronicle" }
+serde = { version = "1.0.229", features = ["derive"] }
+async-trait = "0.1.92"
+chrono = { version = "0.4.45", default-features = false, features = ["std"] }
+ed25519-dalek = "3.0.0"
+tokio = { version = "1.54.1", features = ["macros", "rt"] }

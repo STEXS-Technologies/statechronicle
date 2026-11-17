@@ -316,8 +316,8 @@ async fn tampered_event_state_fails_verification() {
         .unwrap();
 
     // The tampered commit's next state root must differ from the genuine one.
-    let genuine_root = lifecycle.signed.body.next_state_root.clone();
-    assert_ne!(tampered_commit.next_state_root, genuine_root);
+    let genuine_root = &lifecycle.signed.body.next_state_root;
+    assert_ne!(&tampered_commit.next_state_root, genuine_root);
 
     let tampered_signed = sign_commit(&tampered_commit, &fixed_key(), key_id()).unwrap();
 

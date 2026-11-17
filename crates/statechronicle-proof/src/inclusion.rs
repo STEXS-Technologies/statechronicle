@@ -103,7 +103,7 @@ mod tests {
     use statechronicle_accumulator::key::StateKey;
     use statechronicle_accumulator::sparse_merkle::{StateAccumulator, StateUpdate};
 
-    fn update(key_byte: u8, digest_byte: u8) -> StateUpdate {
+    const fn update(key_byte: u8, digest_byte: u8) -> StateUpdate {
         StateUpdate::new(StateKey::new([key_byte; 32]), [digest_byte; 32])
     }
 

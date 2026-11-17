@@ -11,6 +11,9 @@
 /// The validation pipeline (protocol §18.1).
 pub mod pipeline;
 
+/// Authenticated mutation preparation without persistence.
+pub mod preparation;
+
 /// Deterministic after-state rules.
 pub mod transition;
 

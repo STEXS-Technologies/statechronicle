@@ -34,3 +34,6 @@ pub mod checkpoint;
 
 /// Accumulator error type.
 pub mod error;
+
+/// Ordered event Merkle roots (protocol §13.1).
+pub mod event_tree;

@@ -7,6 +7,22 @@ protocol surface. It re-exports the twelve underlying library crates under
 collision-safe namespaces and surfaces the most-used types directly at the top
 level. It ships no storage, HTTP, or authority implementation.
 
+## Recommended consumer path on this branch
+
+Define native rules with `StateProfile` / `TypedProfile`, prepare through
+`mutation::Preparer`, then sign and commit a protected `SignedMutation` against
+one qualified ledger authority. Resolve unknown writes by original-identity
+recovery. For supplied proofs, use `proof::claim::ClaimVerifier` with an independent
+expectation and trusted key, explicitly choosing current or historical mode.
+Planning, signing and cryptographic proof validity alone are not durable success.
+
+The [native tutorial](../../tutorials/minimal-native-domain/README.md) and
+[durable ledger tutorial](../../tutorials/durable-custom-ledger/README.md) are
+standalone applications with their own lockfiles. See the
+[consumer map](../../docs/0.3/consumer-guide.md) and
+[migration guide](../../docs/0.3/migration.md). These are refactoring-checkout
+APIs; package versions remain `0.2.0`, and full release qualification is pending.
+
 ## Protocol sections owned
 
 | § | Title | Normative summary |
@@ -32,8 +48,7 @@ transition, codec and integrity APIs; the complete standard engine requires `std
 Add `statechronicle` as a dependency and use either the flat top-level names or
 the namespaced `core::`, `domain::`, `executor::`, `commit::`, `proof::`,
 `accumulator::`, `intent::`, `profiles::`, `portable::`, and `ports::` forms. See the root
-`README.md` for a complete end-to-end consumption sketch modeled on
-`crates/statechronicle/tests/e2e.rs`.
+`README.md` for the recommended standalone tutorials and legacy example map.
 
 ```rust
 use statechronicle::{Amount, TenantId, executor::pipeline::Executor};

@@ -20,7 +20,7 @@ use statechronicle_domain::subject::SubjectId;
 
 use crate::consumable_stack::ConsumableStackRules;
 use crate::entitlement::EntitlementRules;
-use crate::error::ProfileError;
+use crate::error::{ProfileError, ProfileEvaluationError};
 use crate::execution::ExecutionPolicy;
 use crate::fungible_balance::FungibleBalanceRules;
 use crate::marketplace::{EscrowRules, ListingRules};
@@ -83,6 +83,26 @@ pub trait ProfileRules: Sync {
         inputs: &BTreeMap<String, serde_json::Value>,
     ) -> Result<ResourceState, ProfileError> {
         transition::apply(current, operation, inputs)
+    }
+
+    /// Checks and reduces one transition, preserving the failure stage.
+    ///
+    /// Existing implementations retain their check-then-apply behavior. Typed
+    /// adapters can share decoded arguments between these deterministic steps.
+    /// Overrides must preserve all checks, reduction and output invariants;
+    /// successful evaluation is still a proposed state, not a durable mutation.
+    /// # Errors
+    /// Returns a check refusal or a reduction/output failure without effects.
+    fn evaluate(
+        &self,
+        current: Option<&StateProjection>,
+        operation: &Operation,
+        inputs: &BTreeMap<String, serde_json::Value>,
+    ) -> Result<ResourceState, ProfileEvaluationError> {
+        self.check(operation, current, inputs)
+            .map_err(ProfileEvaluationError::Check)?;
+        self.apply(current, operation, inputs)
+            .map_err(ProfileEvaluationError::Apply)
     }
 
     /// Schema version for consumer-defined profiles; baseline profiles use zero.
@@ -382,6 +402,40 @@ pub(crate) fn require_from<'projection>(
         });
     }
     Ok(projection)
+}
+
+/// Checks a source status when the caller needs no retained projection.
+/// Keeps the exact `require_from` refusal order and details.
+pub(crate) fn single_from(
+    current: Option<&StateProjection>,
+    operation: &str,
+    allowed_from: &[Status],
+) -> Result<(), ProfileError> {
+    require_from(current, operation, allowed_from).map(|_| ())
+}
+
+/// Requires a strictly positive economic amount, before availability checks.
+pub(crate) const fn require_positive(amount: Amount) -> Result<(), ProfileError> {
+    if amount.is_zero() {
+        return Err(ProfileError::NonPositiveAmount);
+    }
+    Ok(())
+}
+
+/// Enforces `0 < requested <= available` without changing either amount's
+/// scale or the structured refusal fields. Zero takes precedence over shortage.
+pub(crate) fn require_positive_available(
+    requested: Amount,
+    available: Amount,
+) -> Result<(), ProfileError> {
+    require_positive(requested)?;
+    if requested > available {
+        return Err(ProfileError::InsufficientQuantity {
+            available,
+            requested,
+        });
+    }
+    Ok(())
 }
 
 impl ProfileRegistry {

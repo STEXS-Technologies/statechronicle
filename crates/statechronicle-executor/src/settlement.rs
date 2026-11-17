@@ -1,8 +1,7 @@
 //! Optional baseline settlement coordinators using the common executor.
 
 use super::{
-    DurableBatchSink, Event, Executor, ExecutorError, ValidatedIntent, atomicity,
-    map_transaction_manager_error,
+    BatchCompletion, DurableBatchSink, Event, Executor, ExecutorError, ValidatedIntent, atomicity,
 };
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_profiles::unique_asset::op as asset_op;
@@ -51,63 +50,22 @@ impl Executor {
             )));
         };
         let tenant = &first.intent.tenant_id;
-        let handle = if sink.is_none() {
-            Some(
-                self.ports
-                    .transaction_manager
-                    .begin(tenant)
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?,
-            )
-        } else {
-            None
-        };
+        let completion =
+            BatchCompletion::begin(sink, || self.ports.transaction_manager.begin(tenant)).await?;
 
         // Both a leg failure and a validation failure are rolled back atomically.
         // `allow_value_legs` is `true`: the settle batch's value legs are
         // validated by [`atomicity::validate_settle_batch`] below.
         let result = match self.run_batch(intents, true, sink.is_some()).await {
-            Ok(events) => {
-                let settle_intents: Vec<statechronicle_domain::intent::Intent> = intents
-                    .iter()
-                    .filter(|validated| &validated.intent.operation == asset_op::trade_settle())
-                    .map(|validated| validated.intent.clone())
-                    .collect();
-                atomicity::validate_batch_consistency(&events)
-                    .and_then(|()| atomicity::validate_settle_batch(&events, &settle_intents))
-                    .map(|()| events)
-            }
+            Ok(events) => validate_settle(&events, intents.iter()).map(|()| events),
             Err(error) => Err(error),
         };
         match result {
             Ok(events) => {
-                if let Some(sink) = sink.filter(|_| !events.is_empty())
-                    && let Err(error) = sink.persist_batch(intents, &events).await
-                {
-                    if let Some(handle) = handle
-                        && let Err(rollback_error) = handle.rollback().await
-                    {
-                        tracing::warn!(%rollback_error, "durable settle rollback failed");
-                    }
-                    return Err(ExecutorError::Store(error));
-                }
-                if let Some(handle) = handle {
-                    handle
-                        .commit()
-                        .await
-                        .map_err(|err| map_transaction_manager_error(&err))?;
-                }
+                completion.succeed(intents, &events).await?;
                 Ok(events)
             }
-            Err(error) => {
-                let message = error.to_string();
-                if let Some(handle) = handle
-                    && let Err(rollback_error) = handle.rollback().await
-                {
-                    tracing::warn!(rollback = %rollback_error, "settle rollback failed");
-                }
-                Err(ExecutorError::AtomicityViolation(message))
-            }
+            Err(error) => Err(completion.refuse(error, "settle rollback failed").await),
         }
     }
 
@@ -170,32 +128,17 @@ impl Executor {
         // Partition by tenant id, preserving input order within each tenant.
         // Keyed by the tenant id string: `TenantId` is not `Ord`, so sorting by
         // the id string yields the same deterministic sorted-tenant scope.
-        let mut by_name: BTreeMap<String, Vec<ValidatedIntent>> = BTreeMap::new();
-        for validated in intents {
-            by_name
-                .entry(validated.intent.tenant_id.0.clone())
-                .or_default()
-                .push(validated.clone());
-        }
-        let sorted_tenants: Vec<TenantId> =
-            by_name.keys().map(|name| TenantId(name.clone())).collect();
+        let (by_name, sorted_tenants) = partition_tenants(intents);
         if sorted_tenants.len() < 2 {
             return Err(ExecutorError::AtomicityViolation(String::from(
                 "cross-tenant batch requires at least two distinct tenants",
             )));
         }
 
-        let handle = if sink.is_none() {
-            Some(
-                self.ports
-                    .transaction_manager
-                    .begin_multi(&sorted_tenants)
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?,
-            )
-        } else {
-            None
-        };
+        let completion = BatchCompletion::begin(sink, || {
+            self.ports.transaction_manager.begin_multi(&sorted_tenants)
+        })
+        .await?;
 
         // Both a leg failure and an inconsistent-group validation failure are
         // rolled back atomically (a failed validation must not short-circuit
@@ -215,33 +158,12 @@ impl Executor {
                     .iter()
                     .flat_map(|group| group.events.iter().cloned())
                     .collect();
-                if let Some(sink) = sink.filter(|_| !events.is_empty())
-                    && let Err(error) = sink.persist_batch(intents, &events).await
-                {
-                    if let Some(handle) = handle
-                        && let Err(rollback_error) = handle.rollback().await
-                    {
-                        tracing::warn!(%rollback_error, "durable cross-tenant rollback failed");
-                    }
-                    return Err(ExecutorError::Store(error));
-                }
-                if let Some(handle) = handle {
-                    handle
-                        .commit()
-                        .await
-                        .map_err(|err| map_transaction_manager_error(&err))?;
-                }
+                completion.succeed(intents, &events).await?;
                 Ok(groups)
             }
-            Err(error) => {
-                let message = error.to_string();
-                if let Some(handle) = handle
-                    && let Err(rollback_error) = handle.rollback().await
-                {
-                    tracing::warn!(rollback = %rollback_error, "cross-tenant rollback failed");
-                }
-                Err(ExecutorError::AtomicityViolation(message))
-            }
+            Err(error) => Err(completion
+                .refuse(error, "cross-tenant rollback failed")
+                .await),
         }
     }
 
@@ -307,32 +229,17 @@ impl Executor {
         sink: Option<&dyn DurableBatchSink>,
     ) -> Result<Vec<atomicity::TenantEventGroup>, ExecutorError> {
         // Partition by tenant id, preserving input order within each tenant.
-        let mut by_name: BTreeMap<String, Vec<ValidatedIntent>> = BTreeMap::new();
-        for validated in intents {
-            by_name
-                .entry(validated.intent.tenant_id.0.clone())
-                .or_default()
-                .push(validated.clone());
-        }
-        let sorted_tenants: Vec<TenantId> =
-            by_name.keys().map(|name| TenantId(name.clone())).collect();
+        let (by_name, sorted_tenants) = partition_tenants(intents);
         if sorted_tenants.len() < 2 {
             return Err(ExecutorError::AtomicityViolation(String::from(
                 "cross-tenant trade requires at least two distinct tenants",
             )));
         }
 
-        let handle = if sink.is_none() {
-            Some(
-                self.ports
-                    .transaction_manager
-                    .begin_multi(&sorted_tenants)
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?,
-            )
-        } else {
-            None
-        };
+        let completion = BatchCompletion::begin(sink, || {
+            self.ports.transaction_manager.begin_multi(&sorted_tenants)
+        })
+        .await?;
 
         // Both a leg failure and a manifest-validation failure are rolled back
         // atomically (a failed validation must not short-circuit past the
@@ -342,11 +249,7 @@ impl Executor {
             .await
         {
             Ok(groups) => {
-                let settle_intents: Vec<statechronicle_domain::intent::Intent> = intents
-                    .iter()
-                    .filter(|validated| &validated.intent.operation == asset_op::trade_settle())
-                    .map(|validated| validated.intent.clone())
-                    .collect();
+                let settle_intents = settle_requests(intents.iter());
                 atomicity::validate_cross_tenant_trade(&groups, manifest, &settle_intents)
                     .map(|()| groups)
             }
@@ -358,36 +261,12 @@ impl Executor {
                     .iter()
                     .flat_map(|group| group.events.iter().cloned())
                     .collect();
-                if let Some(sink) = sink.filter(|_| !events.is_empty())
-                    && let Err(error) = sink.persist_batch(intents, &events).await
-                {
-                    if let Some(handle) = handle
-                        && let Err(rollback_error) = handle.rollback().await
-                    {
-                        tracing::warn!(%rollback_error, "durable cross-tenant rollback failed");
-                    }
-                    return Err(ExecutorError::Store(error));
-                }
-                if let Some(handle) = handle {
-                    handle
-                        .commit()
-                        .await
-                        .map_err(|err| map_transaction_manager_error(&err))?;
-                }
+                completion.succeed(intents, &events).await?;
                 Ok(groups)
             }
-            Err(error) => {
-                let message = error.to_string();
-                if let Some(handle) = handle
-                    && let Err(rollback_error) = handle.rollback().await
-                {
-                    tracing::warn!(
-                        rollback = %rollback_error,
-                        "cross-tenant trade rollback failed"
-                    );
-                }
-                Err(ExecutorError::AtomicityViolation(message))
-            }
+            Err(error) => Err(completion
+                .refuse(error, "cross-tenant trade rollback failed")
+                .await),
         }
     }
 
@@ -411,4 +290,39 @@ impl Executor {
         self.execute_cross_tenant_trade_inner(intents, manifest, Some(sink))
             .await
     }
+}
+
+// Keep partition/clone order identical for both cross-tenant policies. The
+// caller still owns its minimum-scope error and declared/inferred linkage gate.
+fn partition_tenants(
+    intents: &[ValidatedIntent],
+) -> (BTreeMap<String, Vec<ValidatedIntent>>, Vec<TenantId>) {
+    let mut by_name: BTreeMap<String, Vec<ValidatedIntent>> = BTreeMap::new();
+    for validated in intents {
+        by_name
+            .entry(validated.intent.tenant_id.0.clone())
+            .or_default()
+            .push(validated.clone());
+    }
+    let sorted_tenants = by_name.keys().map(|name| TenantId(name.clone())).collect();
+    (by_name, sorted_tenants)
+}
+
+pub(super) fn validate_settle<'intent>(
+    events: &[Event],
+    intents: impl IntoIterator<Item = &'intent ValidatedIntent>,
+) -> Result<(), ExecutorError> {
+    let settle_intents = settle_requests(intents);
+    atomicity::validate_batch_consistency(events)
+        .and_then(|()| atomicity::validate_settle_batch(events, &settle_intents))
+}
+
+fn settle_requests<'intent>(
+    intents: impl IntoIterator<Item = &'intent ValidatedIntent>,
+) -> Vec<statechronicle_domain::intent::Intent> {
+    intents
+        .into_iter()
+        .filter(|validated| &validated.intent.operation == asset_op::trade_settle())
+        .map(|validated| validated.intent.clone())
+        .collect()
 }

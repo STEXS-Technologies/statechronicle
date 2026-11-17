@@ -14,11 +14,10 @@ use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 
 use crate::error::ProfileError;
-use crate::execution::ExecutionPolicy;
 use crate::registry::{
-    ProfileRules, input_amount, input_str, require_current, require_unborn, state_amount,
+    ProfileRules, input_amount, input_str, require_current, require_positive,
+    require_positive_available, require_unborn, state_amount,
 };
-use crate::resource;
 
 /// Typed operation constants accepted by the fungible balance profile.
 pub mod op {
@@ -76,9 +75,6 @@ pub mod op {
 pub struct FungibleBalanceRules;
 
 impl ProfileRules for FungibleBalanceRules {
-    fn execution_policy(&self) -> &'static dyn ExecutionPolicy {
-        resource::policy(self.state_type())
-    }
     fn state_type(&self) -> StateType {
         StateType::FungibleBalance
     }
@@ -109,15 +105,15 @@ impl ProfileRules for FungibleBalanceRules {
         } else if operation == op::balance_credit() {
             check_credit(current, inputs)
         } else if operation == op::balance_debit() {
-            check_debit(current, inputs)
+            check_decrease(current, inputs, "balance.debit")
         } else if operation == op::balance_transfer() {
             check_transfer(current, inputs)
         } else if operation == op::balance_reserve() {
-            check_reserve(current, inputs)
+            check_decrease(current, inputs, "balance.reserve")
         } else if operation == op::balance_release() {
             check_release(current, inputs)
         } else if operation == op::balance_spend() {
-            check_spend(current, inputs)
+            check_decrease(current, inputs, "balance.spend")
         } else if operation == op::balance_burn() {
             check_burn(current, inputs)
         } else if operation == op::balance_convert() {
@@ -164,7 +160,7 @@ fn check_mint(
     input_str(inputs, "authorized_by")?;
     let amount = input_amount(inputs, "amount")?;
     let _balance = current_balance(current)?;
-    require_positive(amount, "balance.mint")
+    require_positive(amount)
 }
 
 /// Validates `balance.credit`.
@@ -182,10 +178,10 @@ fn check_credit(
     let current = require_current(current, "balance.credit")?;
     let amount = input_amount(inputs, "amount")?;
     let _balance = current_balance(current)?;
-    require_positive(amount, "balance.credit")
+    require_positive(amount)
 }
 
-/// Validates `balance.debit`.
+/// Validates `balance.debit`, `balance.reserve` and `balance.spend` with the same ordered gates.
 ///
 /// # Errors
 ///
@@ -194,14 +190,15 @@ fn check_credit(
 /// [`ProfileError::InsufficientQuantity`] when it exceeds the current balance,
 /// and [`ProfileError::InvalidInput`] / [`ProfileError::FloatForbidden`] for
 /// malformed inputs.
-fn check_debit(
+fn check_decrease(
     current: Option<&StateProjection>,
     inputs: &BTreeMap<String, serde_json::Value>,
+    operation: &str,
 ) -> Result<(), ProfileError> {
-    let current = require_current(current, "balance.debit")?;
+    let current = require_current(current, operation)?;
     let balance = current_balance(current)?;
     let amount = input_amount(inputs, "amount")?;
-    require_positive_available(amount, balance, "balance.debit")
+    require_positive_available(amount, balance)
 }
 
 /// Validates `balance.transfer`.
@@ -222,26 +219,7 @@ fn check_transfer(
     input_str(inputs, "to_subject")?;
     let balance = current_balance(current)?;
     let amount = input_amount(inputs, "amount")?;
-    require_positive_available(amount, balance, "balance.transfer")
-}
-
-/// Validates `balance.reserve`.
-///
-/// # Errors
-///
-/// Returns [`ProfileError::InvalidTransition`] when the balance does not
-/// exist, [`ProfileError::NonPositiveAmount`] when the amount is zero,
-/// [`ProfileError::InsufficientQuantity`] when it exceeds the current balance,
-/// and [`ProfileError::InvalidInput`] / [`ProfileError::FloatForbidden`] for
-/// malformed inputs.
-fn check_reserve(
-    current: Option<&StateProjection>,
-    inputs: &BTreeMap<String, serde_json::Value>,
-) -> Result<(), ProfileError> {
-    let current = require_current(current, "balance.reserve")?;
-    let balance = current_balance(current)?;
-    let amount = input_amount(inputs, "amount")?;
-    require_positive_available(amount, balance, "balance.reserve")
+    require_positive_available(amount, balance)
 }
 
 /// Validates `balance.release`.
@@ -259,22 +237,7 @@ fn check_release(
     let current = require_current(current, "balance.release")?;
     let amount = input_amount(inputs, "amount")?;
     let _balance = current_balance(current)?;
-    require_positive(amount, "balance.release")
-}
-
-/// Validates `balance.spend`, which behaves like `balance.debit`.
-///
-/// # Errors
-///
-/// Same error set as [`check_debit`].
-fn check_spend(
-    current: Option<&StateProjection>,
-    inputs: &BTreeMap<String, serde_json::Value>,
-) -> Result<(), ProfileError> {
-    let current = require_current(current, "balance.spend")?;
-    let balance = current_balance(current)?;
-    let amount = input_amount(inputs, "amount")?;
-    require_positive_available(amount, balance, "balance.spend")
+    require_positive(amount)
 }
 
 /// Validates `balance.burn`.
@@ -295,7 +258,7 @@ fn check_burn(
     input_str(inputs, "authorized_by")?;
     let balance = current_balance(current)?;
     let amount = input_amount(inputs, "amount")?;
-    require_positive_available(amount, balance, "balance.burn")
+    require_positive_available(amount, balance)
 }
 
 /// Validates `balance.convert`, converting `amount` into a new `unit`.
@@ -316,7 +279,7 @@ fn check_convert(
     input_str(inputs, "to_unit")?;
     let balance = current_balance(current)?;
     let amount = input_amount(inputs, "amount")?;
-    require_positive_available(amount, balance, "balance.convert")
+    require_positive_available(amount, balance)
 }
 
 /// Reads the current `balance` from a projection's state payload.
@@ -328,42 +291,6 @@ fn check_convert(
 /// [`ProfileError::FloatForbidden`] for float-formatted values.
 fn current_balance(current: &StateProjection) -> Result<Amount, ProfileError> {
     state_amount(current, "balance")
-}
-
-/// Enforces a strictly positive amount.
-///
-/// # Errors
-///
-/// Returns [`ProfileError::NonPositiveAmount`] when `amount` is zero.
-const fn require_positive(amount: Amount, _operation: &str) -> Result<(), ProfileError> {
-    if amount.is_zero() {
-        return Err(ProfileError::NonPositiveAmount);
-    }
-    Ok(())
-}
-
-/// Enforces `0 < requested <= available`.
-///
-/// # Errors
-///
-/// Returns [`ProfileError::NonPositiveAmount`] when `requested` is zero and
-/// [`ProfileError::InsufficientQuantity`] when `requested` exceeds
-/// `available`.
-fn require_positive_available(
-    requested: Amount,
-    available: Amount,
-    _operation: &str,
-) -> Result<(), ProfileError> {
-    if requested.is_zero() {
-        return Err(ProfileError::NonPositiveAmount);
-    }
-    if requested > available {
-        return Err(ProfileError::InsufficientQuantity {
-            available,
-            requested,
-        });
-    }
-    Ok(())
 }
 
 #[cfg(test)]

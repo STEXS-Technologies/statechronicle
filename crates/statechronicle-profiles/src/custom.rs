@@ -1,5 +1,5 @@
 //! Typed consumer profiles using canonical BCS payloads.
-use crate::error::ProfileError;
+use crate::error::{ProfileError, ProfileEvaluationError};
 use crate::registry::ProfileRules;
 use bcs::{from_bytes, serialize_into};
 use serde::{Serialize, de::DeserializeOwned};
@@ -83,6 +83,40 @@ where
         };
         serialize_into(&mut buffer, value).map_err(invalid)?;
         Ok(buffer.bytes)
+    }
+
+    /// Encodes a native command into its operation and canonical intent inputs.
+    ///
+    /// Domain/schema metadata and the operation come from this registered
+    /// adapter. The returned values are unsigned inputs: callers must still
+    /// authenticate, authorize and evaluate the enclosing intent. This cannot
+    /// validate a transition without its current state.
+    /// # Errors
+    /// Rejects invalid identity/schema/limits, unregistered operations and
+    /// commands that cannot be encoded within the profile's payload bound.
+    pub fn encode_command(
+        &self,
+        command: &P::Command,
+    ) -> Result<(Operation, BTreeMap<String, Value>), ProfileError> {
+        let identity = self.identity()?;
+        let operation =
+            Operation::new(String::from(self.profile.operation(command))).map_err(invalid)?;
+        if !self.operations.contains(&operation) {
+            return Err(ProfileError::UnknownOperation(operation.0));
+        }
+        let bytes = self.encode(command)?;
+        let inputs = BTreeMap::from([
+            (String::from("profile"), Value::String(identity.0)),
+            (
+                String::from("schema_version"),
+                Value::from(P::SCHEMA_VERSION),
+            ),
+            (
+                String::from("command"),
+                serde_json::to_value(bytes).map_err(invalid)?,
+            ),
+        ]);
+        Ok((operation, inputs))
     }
 
     /// Decodes and validates state after checking domain, schema, size and canonicality.
@@ -169,6 +203,22 @@ where
             return Err(invalid("transition commitment mismatch"));
         }
         Ok(())
+    }
+
+    fn reduce(
+        &self,
+        state: Option<&P::State>,
+        command: &P::Command,
+    ) -> Result<ResourceState, ProfileError> {
+        let next = self.profile.apply(state, command).map_err(invalid)?;
+        self.profile.validate_state(&next).map_err(invalid)?;
+        let payload = self.encode(&next)?;
+        self.bound(&payload)?;
+        Ok(ResourceState::Custom(CustomState {
+            domain: self.identity()?,
+            schema_version: P::SCHEMA_VERSION,
+            payload,
+        }))
     }
 
     fn arguments(
@@ -267,18 +317,23 @@ where
         self.profile
             .validate(state.as_ref(), &command)
             .map_err(invalid)?;
-        let next = self
-            .profile
-            .apply(state.as_ref(), &command)
-            .map_err(invalid)?;
-        self.profile.validate_state(&next).map_err(invalid)?;
-        let payload = self.encode(&next)?;
-        self.bound(&payload)?;
-        Ok(ResourceState::Custom(CustomState {
-            domain: self.identity()?,
-            schema_version: P::SCHEMA_VERSION,
-            payload,
-        }))
+        self.reduce(state.as_ref(), &command)
+    }
+    fn evaluate(
+        &self,
+        current: Option<&StateProjection>,
+        operation: &Operation,
+        inputs: &BTreeMap<String, Value>,
+    ) -> Result<ResourceState, ProfileEvaluationError> {
+        let (state, command) = self
+            .arguments(operation, current, inputs)
+            .map_err(ProfileEvaluationError::Check)?;
+        self.profile
+            .validate(state.as_ref(), &command)
+            .map_err(invalid)
+            .map_err(ProfileEvaluationError::Check)?;
+        self.reduce(state.as_ref(), &command)
+            .map_err(ProfileEvaluationError::Apply)
     }
 }
 

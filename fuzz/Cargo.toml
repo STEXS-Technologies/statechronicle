@@ -3,6 +3,7 @@ name = "statechronicle-fuzz"
 version = "0.0.0"
 publish = false
 edition = "2024"
+rust-version.workspace = true
 
 [package.metadata]
 cargo-fuzz = true
@@ -22,8 +23,10 @@ wildcard_enum_match_arm = "allow"
 redundant_clone = "allow"
 
 [dependencies]
+async-trait.workspace = true
+tokio = { workspace = true, features = ["rt"] }
 statechronicle-portable.workspace = true
-libfuzzer-sys = "0.4"
+libfuzzer-sys = "0.4.13"
 hex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -208,5 +211,17 @@ doc = false
 [[bin]]
 name = "fuzz_profile_id"
 path = "fuzz_targets/fuzz_profile_id.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_claim_verifier"
+path = "fuzz_targets/fuzz_claim_verifier.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_durable_recovery"
+path = "fuzz_targets/fuzz_durable_recovery.rs"
 test = false
 doc = false

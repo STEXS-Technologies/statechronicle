@@ -32,3 +32,21 @@ The repository release maintainer owns routine updates and coordinates with
 security/operations for advisories affecting signing, parsing, persistence, or
 authorization. If no maintainer is available, freeze releases except for a
 security patch approved by two reviewers.
+
+## Temporary Chrono maintenance exception
+
+The release maintainer owns the exception for
+[RUSTSEC-2026-0543](https://github.com/RustSec/advisory-db/blob/main/crates/chrono/RUSTSEC-2026-0543.md),
+which reports Chrono as unmaintained with no patched version. This is a
+maintenance warning, not a reported vulnerability. Continuing to depend on it
+carries the risk that future defects will not receive upstream fixes.
+
+Chrono's `DateTime<Utc>` appears in the public API. Replacing it requires a
+planned compatibility migration and wire-format validation. Until that
+migration, only this advisory is ignored by Cargo Audit and Cargo Deny;
+all other advisory checks remain enabled, including audit warnings.
+
+The exception expires on **2026-12-17 (UTC)**. The release driver rejects the
+exception on that date and later, and checks that both tool configurations
+contain exactly the reviewed advisory. Before expiry, the release maintainer
+must complete the migration or explicitly review and document a new deadline.

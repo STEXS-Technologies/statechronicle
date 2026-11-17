@@ -4,6 +4,8 @@ set -euo pipefail
 root_dir="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "${root_dir}"
 
+python3 scripts/test_coverage_ratchet.py
+
 coverage_target_dir="${root_dir}/target/llvm-cov-target"
 export CARGO_TARGET_DIR="${coverage_target_dir}"
 
@@ -13,7 +15,14 @@ cargo llvm-cov \
   --workspace \
   --all-features \
   --all-targets \
+  --locked \
   --exclude statechronicle-fuzz
+
+# Retain the complete measured scope as well as the historical filtered ratchet.
+cargo llvm-cov report \
+  --json \
+  --summary-only \
+  --output-path target/coverage-full.json
 
 # Exclude implementation-heavy protocol paths from the ratchet while keeping
 # the public protocol surface and deterministic indexing paths measured.

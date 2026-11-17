@@ -8,11 +8,8 @@
 //! and typed equality at the boundary so raw string comparison is eliminated
 //! from profile and executor dispatch.
 
-use std::fmt;
+#[cfg(test)]
 use std::str::FromStr;
-
-use serde::de::Error as _;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use statechronicle_core::limits::MAX_ID_LENGTH;
 
@@ -67,72 +64,7 @@ impl Status {
     }
 }
 
-impl fmt::Display for Status {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl FromStr for Status {
-    type Err = DomainError;
-
-    /// Parses a status name, validating it.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidStatus`] when the string is empty or
-    /// exceeds [`MAX_ID_LENGTH`] characters.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_str(s)
-    }
-}
-
-impl TryFrom<String> for Status {
-    type Error = DomainError;
-
-    /// Converts an owned string into a validated status name.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidStatus`] when the string is empty or
-    /// exceeds [`MAX_ID_LENGTH`] characters.
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl TryFrom<&str> for Status {
-    type Error = DomainError;
-
-    /// Converts a borrowed string into a validated status name.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidStatus`] when the string is empty or
-    /// exceeds [`MAX_ID_LENGTH`] characters.
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::try_from_str(value)
-    }
-}
-
-impl Serialize for Status {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for Status {
-    /// Deserializes a status name, validating it.
-    ///
-    /// # Errors
-    ///
-    /// Returns a serde error when the string is empty or exceeds
-    /// [`MAX_ID_LENGTH`] characters.
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = String::deserialize(deserializer)?;
-        Self::new(value).map_err(D::Error::custom)
-    }
-}
+crate::validated_string::impl_validated_string!(Status);
 
 /// Validates a status name: non-empty and within the id length bound.
 ///

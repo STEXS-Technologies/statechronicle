@@ -153,13 +153,11 @@ pub fn validate_settle_batch(
         .count();
     if settle_intents.iter().any(declares_bundle) {
         check_bundle_shape(settle_intents, settle_event_count, events)?;
-    } else {
-        if settle_event_count != settle_intents.len() {
-            return Err(ProfileError::AtomicityViolation(format!(
-                "settle batch has {settle_event_count} trade.settle event(s) for {} settle intent(s)",
-                settle_intents.len()
-            )));
-        }
+    } else if settle_event_count != settle_intents.len() {
+        return Err(ProfileError::AtomicityViolation(format!(
+            "settle batch has {settle_event_count} trade.settle event(s) for {} settle intent(s)",
+            settle_intents.len()
+        )));
     }
 
     // Group ALL events by intent id (for the undeclared-group check below).
@@ -247,7 +245,7 @@ pub fn validate_settle_batch(
 /// The `trade_id` is required by the profile for every settle; the bundle shape
 /// check ([`check_bundle_shape`]) requires all settle intents in a bundle to
 /// declare the same `bundle_size` and `trade_id`.
-fn declares_bundle(intent: &Intent) -> bool {
+pub(crate) fn declares_bundle(intent: &Intent) -> bool {
     intent.inputs.contains_key(keys::BUNDLE_SIZE)
 }
 

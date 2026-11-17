@@ -48,6 +48,9 @@ pub use statechronicle_profiles as profiles;
 /// Proof serving and verification (state, ownership, inclusion, non-membership).
 pub use statechronicle_proof as proof;
 
+/// Protected prepared plans, signing, atomic commit outcomes and recovery.
+pub mod mutation;
+
 // ---- Curated top-level facade ----
 //
 // The most-used protocol types, re-exported directly. Everything here resolves
@@ -135,6 +138,8 @@ pub use statechronicle_executor::pipeline::PlayerBatchItem;
 pub use statechronicle_executor::pipeline::Ports;
 /// The executor's port-bundle builder. See [`executor::pipeline::PortsBuilder`].
 pub use statechronicle_executor::pipeline::PortsBuilder;
+/// An authenticated, uncommitted event plan with protected inputs.
+pub use statechronicle_executor::preparation::{PreparedBatch, PreparedMutation};
 /// A validated intent with its idempotency key. See [`intent::validated::ValidatedIntent`].
 pub use statechronicle_intent::validated::{IdempotencyKey, ValidatedIntent};
 
@@ -165,3 +170,6 @@ pub use statechronicle_profile as profile;
 pub use statechronicle_profile::StateProfile;
 /// Typed adapter for domain registration.
 pub use statechronicle_profiles::custom::TypedProfile;
+
+/// Define a command discriminator and static operation list from one mapping.
+pub use statechronicle_profiles::command_operations;

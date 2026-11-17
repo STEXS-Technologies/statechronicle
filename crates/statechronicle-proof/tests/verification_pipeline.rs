@@ -55,7 +55,7 @@ use statechronicle_domain::trade::{
     TRADE_PROOF_SCHEMA, TradeProof, TradeProofLeg, TradeStatus, TradeSummary,
 };
 
-use statechronicle_ports::commit_store::{CommitStore, CommitStoreError};
+use statechronicle_ports::commit_store::{CanonicalHead, CommitStore, CommitStoreError};
 use statechronicle_ports::proof_index::{ProofIndex, ProofIndexError};
 use statechronicle_ports::snapshot_store::{SnapshotStore, SnapshotStoreError};
 use statechronicle_ports::state_index::{StateIndex, StateIndexError};
@@ -148,15 +148,31 @@ struct Fixture {
 }
 
 fn fixture() -> Fixture {
-    let key = state_key();
+    fixture_for(tenant(), &fixed_key())
+}
+
+fn fixture_for(scope: TenantId, signing_key: &SigningKey) -> Fixture {
+    fixture_state(scope, signing_key, claimed_state())
+}
+
+fn fixture_state(
+    scope: TenantId,
+    signing_key: &SigningKey,
+    state: statechronicle_domain::resource_state::ResourceState,
+) -> Fixture {
+    let key = match state.subject() {
+        Some(subject) => StateKey::for_subject_held(&scope.0, &resource().0, &subject.0),
+        None => StateKey::for_resource(&scope.0, &resource().0),
+    };
+    let digest = canonicalize_and_digest(&state).unwrap();
     let mut acc = StateAccumulator::empty();
-    acc.insert_batch(&[StateUpdate::new(key, *state_hash().as_bytes())])
+    acc.insert_batch(&[StateUpdate::new(key, *digest.as_bytes())])
         .unwrap();
     let root = acc.root();
     let inclusion = acc.prove_inclusion(&key).unwrap();
 
     let commit = Commit::new(
-        CommitScope::tenant(tenant()),
+        CommitScope::tenant(scope.clone()),
         commit_id(),
         None,
         1,
@@ -168,17 +184,17 @@ fn fixture() -> Fixture {
         executor(),
         profile(),
     );
-    let signed = sign_commit(&commit, &fixed_key(), key_id()).unwrap();
+    let signed = sign_commit(&commit, signing_key, key_id()).unwrap();
 
     let projection = StateProjection {
-        tenant_id: tenant(),
+        tenant_id: scope,
         resource_id: resource(),
-        state_type: StateType::UniqueAsset,
+        state_type: state.state_type(),
         version: 42,
         last_event_id: event_id(),
         last_commit_id: commit_id(),
-        state_hash: state_hash(),
-        state: claimed_state(),
+        state_hash: digest,
+        state,
     };
     Fixture {
         signed,
@@ -193,13 +209,28 @@ fn operation() -> Operation {
 }
 
 fn build_proof(fixture: &Fixture) -> ResourceStateProof {
+    let key = fixture.projection.state.subject().map_or_else(
+        || {
+            StateKey::for_resource(
+                &fixture.projection.tenant_id.0,
+                &fixture.projection.resource_id.0,
+            )
+        },
+        |subject| {
+            StateKey::for_subject_held(
+                &fixture.projection.tenant_id.0,
+                &fixture.projection.resource_id.0,
+                &subject.0,
+            )
+        },
+    );
     build_state_proof(
         &fixture.projection,
         &fixture.signed,
         &fixture.inclusion,
         &operation(),
         None,
-        state_key(),
+        key,
     )
     .unwrap()
 }
@@ -343,6 +374,9 @@ type StoredCommit = (TenantId, Signed<Commit>);
 #[derive(Clone, Default)]
 struct FakeCommitStore {
     inner: Arc<Mutex<Vec<StoredCommit>>>,
+    heads: Arc<Mutex<HashMap<String, CanonicalHead>>>,
+    advance_on_lookup: Arc<Mutex<Option<CanonicalHead>>>,
+    head_reads: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 #[async_trait]
@@ -375,10 +409,14 @@ impl CommitStore for FakeCommitStore {
             .inner
             .lock()
             .map_err(|err| CommitStoreError::Unavailable(format!("lock poisoned: {err}")))?;
-        Ok(inner
+        let result = inner
             .iter()
             .find(|(t, c)| t == tenant && c.body.commit_id == *commit_id)
-            .map(|(_, c)| c.clone()))
+            .map(|(_, c)| c.clone());
+        if let Some(head) = self.advance_on_lookup.lock().unwrap().take() {
+            self.heads.lock().unwrap().insert(tenant.0.clone(), head);
+        }
+        Ok(result)
     }
 
     async fn commit_by_sequence(
@@ -394,6 +432,15 @@ impl CommitStore for FakeCommitStore {
             .iter()
             .find(|(t, c)| t == tenant && c.body.sequence == sequence)
             .map(|(_, c)| c.clone()))
+    }
+
+    async fn canonical_head(
+        &self,
+        tenant: &TenantId,
+    ) -> Result<Option<CanonicalHead>, CommitStoreError> {
+        self.head_reads
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        Ok(self.heads.lock().unwrap().get(&tenant.0).cloned())
     }
 }
 
@@ -820,4 +867,627 @@ fn bundle_roundtrips_through_json_and_bcs() {
     assert!(sig_json.starts_with("\"b64u:"));
     let sig_back: Signature = serde_json::from_str(&sig_json).unwrap();
     assert_eq!(sig_back, proof.commit.signature.sig);
+}
+
+fn claim_service(store: FakeCommitStore) -> ProofService {
+    ProofService::new(ProofPorts {
+        proof_index: Box::new(FakeProofIndex::default()),
+        state_index: Box::new(FakeStateIndex::default()),
+        commit_store: Box::new(store),
+        snapshot_store: Box::new(FakeSnapshotStore::default()),
+    })
+}
+
+fn head(signed: &Signed<Commit>) -> CanonicalHead {
+    CanonicalHead {
+        commit_id: signed.body.commit_id.clone(),
+        sequence: signed.body.sequence,
+        state_root: signed.body.next_state_root.clone(),
+    }
+}
+
+#[tokio::test]
+async fn expected_claims_bind_address_owner_signer_kind_and_commit() {
+    use statechronicle_proof::claim::{ClaimProof, ExpectedClaim, VerificationPoint};
+    let fixture = fixture();
+    let proof = build_proof(&fixture);
+    let store = FakeCommitStore::default();
+    store.put_commit(&tenant(), &fixture.signed).await.unwrap();
+    let service = claim_service(store.clone());
+    let expected = ExpectedClaim::ownership(tenant(), resource(), SubjectId(owner()));
+    assert_eq!(expected.key(), state_key());
+    assert_eq!(expected.owner(), Some(&SubjectId(owner())));
+    assert_eq!(expected.resource(), &resource());
+    assert!(!expected.is_absence());
+    let trusted = fixed_key().verifying_key();
+    let historical = service
+        .verify_historical(ClaimProof::State(&proof), &expected, &commit_id(), &trusted)
+        .await
+        .unwrap();
+    assert_eq!(historical.point(), VerificationPoint::Historical);
+    assert_eq!(historical.expectation(), &expected);
+    assert_eq!(historical.commit(), &proof.commit);
+    assert_eq!(
+        store.head_reads.load(std::sync::atomic::Ordering::Relaxed),
+        0
+    );
+    assert!(matches!(
+        service
+            .verify_current(ClaimProof::State(&proof), &expected, &trusted)
+            .await,
+        Err(ProofError::CanonicalHeadUnavailable)
+    ));
+    store
+        .heads
+        .lock()
+        .unwrap()
+        .insert(tenant().0, head(&fixture.signed));
+    let current = service
+        .verify_current(ClaimProof::State(&proof), &expected, &trusted)
+        .await
+        .unwrap();
+    assert_eq!(current.point(), VerificationPoint::Current);
+    assert_eq!(current.commit(), historical.commit());
+    let wrong_owner = ExpectedClaim::ownership(
+        tenant(),
+        resource(),
+        SubjectId(String::from("account:mallory")),
+    );
+    assert!(matches!(
+        service
+            .verify_current(ClaimProof::State(&proof), &wrong_owner, &trusted)
+            .await,
+        Err(ProofError::SubjectMismatch { .. })
+    ));
+    assert!(matches!(
+        service
+            .verify_current(
+                ClaimProof::State(&proof),
+                &expected,
+                &SigningKey::from_bytes(&[43; 32]).verifying_key()
+            )
+            .await,
+        Err(ProofError::CommitSignature(_))
+    ));
+    assert!(matches!(
+        service
+            .verify_current(
+                ClaimProof::State(&proof),
+                &ExpectedClaim::absence(tenant(), resource()),
+                &trusted
+            )
+            .await,
+        Err(ProofError::InvalidState(_))
+    ));
+    let other_commit = CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF6")).unwrap();
+    assert!(matches!(
+        service
+            .verify_historical(
+                ClaimProof::State(&proof),
+                &expected,
+                &other_commit,
+                &trusted
+            )
+            .await,
+        Err(ProofError::CommitRefMismatch { .. })
+    ));
+    let mut swapped = proof.clone();
+    swapped.tenant_id = TenantId(String::from("acme.game.beta"));
+    assert!(matches!(
+        service
+            .verify_current(ClaimProof::State(&swapped), &expected, &trusted)
+            .await,
+        Err(ProofError::TenantMismatch { .. })
+    ));
+    swapped = proof.clone();
+    swapped.resource_id = ResourceId(String::from("asset:other"));
+    assert!(matches!(
+        service
+            .verify_current(ClaimProof::State(&swapped), &expected, &trusted)
+            .await,
+        Err(ProofError::ResourceMismatch { .. })
+    ));
+    // Renaming both the request and unsigned resource metadata cannot move the
+    // actual signed leaf to that resource's independently derived key.
+    let other = ExpectedClaim::state(tenant(), swapped.resource_id.clone());
+    assert!(
+        service
+            .verify_current(ClaimProof::State(&swapped), &other, &trusted)
+            .await
+            .is_err()
+    );
+    swapped = proof.clone();
+    swapped.commit.state_root = hash_bytes(b"forged root");
+    assert!(matches!(
+        service
+            .verify_current(ClaimProof::State(&swapped), &expected, &trusted)
+            .await,
+        Err(ProofError::CommitRefMismatch { .. })
+    ));
+}
+
+#[tokio::test]
+async fn current_claim_rejects_head_advance_during_lookup_and_pins_success() {
+    use statechronicle_proof::claim::{ClaimProof, ExpectedClaim};
+    let fixture = fixture();
+    let proof = build_proof(&fixture);
+    let expected = ExpectedClaim::state(tenant(), resource());
+    let store = FakeCommitStore::default();
+    store.put_commit(&tenant(), &fixture.signed).await.unwrap();
+    let old_head = head(&fixture.signed);
+    store
+        .heads
+        .lock()
+        .unwrap()
+        .insert(tenant().0, old_head.clone());
+    let mut advanced = old_head.clone();
+    advanced.commit_id = CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF6")).unwrap();
+    advanced.sequence += 1;
+    *store.advance_on_lookup.lock().unwrap() = Some(advanced.clone());
+    let service = claim_service(store.clone());
+    assert!(matches!(
+        service
+            .verify_current(
+                ClaimProof::State(&proof),
+                &expected,
+                &fixed_key().verifying_key()
+            )
+            .await,
+        Err(ProofError::NonCanonicalCommit { .. })
+    ));
+    assert_eq!(
+        store.head_reads.load(std::sync::atomic::Ordering::Relaxed),
+        1
+    );
+    store.heads.lock().unwrap().insert(tenant().0, old_head);
+    let verified = service
+        .verify_current(
+            ClaimProof::State(&proof),
+            &expected,
+            &fixed_key().verifying_key(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        store.head_reads.load(std::sync::atomic::Ordering::Relaxed),
+        2
+    );
+    // A later head advance cannot silently retarget an already returned claim.
+    store.heads.lock().unwrap().insert(tenant().0, advanced);
+    assert_eq!(verified.commit(), &proof.commit);
+    assert!(matches!(
+        service
+            .verify_current(
+                ClaimProof::State(&proof),
+                &expected,
+                &fixed_key().verifying_key()
+            )
+            .await,
+        Err(ProofError::NonCanonicalCommit { .. })
+    ));
+    service
+        .verify_historical(
+            ClaimProof::State(&proof),
+            &expected,
+            &commit_id(),
+            &fixed_key().verifying_key(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        store.head_reads.load(std::sync::atomic::Ordering::Relaxed),
+        3
+    );
+}
+
+#[tokio::test]
+async fn expected_subject_claim_uses_the_independent_holder_key() {
+    use statechronicle_proof::claim::{ClaimProof, ExpectedClaim};
+    let holder = SubjectId(String::from("account:holder"));
+    let state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+        StateType::FungibleBalance,
+        serde_json::json!({"subject": holder.0, "unit": "gold_minor", "balance": "10"}),
+    )
+    .unwrap();
+    let fixture = fixture_state(tenant(), &fixed_key(), state);
+    let proof = build_proof(&fixture);
+    let store = FakeCommitStore::default();
+    store.put_commit(&tenant(), &fixture.signed).await.unwrap();
+    store
+        .heads
+        .lock()
+        .unwrap()
+        .insert(tenant().0, head(&fixture.signed));
+    let service = claim_service(store);
+    let expected = ExpectedClaim::subject_state(tenant(), resource(), holder.clone());
+    assert_eq!(expected.subject(), Some(&holder));
+    assert_eq!(
+        expected.key(),
+        StateKey::for_subject_held(&tenant().0, &resource().0, &holder.0)
+    );
+    service
+        .verify_current(
+            ClaimProof::State(&proof),
+            &expected,
+            &fixed_key().verifying_key(),
+        )
+        .await
+        .unwrap();
+    let other = ExpectedClaim::subject_state(
+        tenant(),
+        resource(),
+        SubjectId(String::from("account:other")),
+    );
+    assert!(matches!(
+        service
+            .verify_current(
+                ClaimProof::State(&proof),
+                &other,
+                &fixed_key().verifying_key()
+            )
+            .await,
+        Err(ProofError::KeyMismatch { .. })
+    ));
+    assert!(matches!(
+        service
+            .verify_current(
+                ClaimProof::State(&proof),
+                &ExpectedClaim::state(tenant(), resource()),
+                &fixed_key().verifying_key()
+            )
+            .await,
+        Err(ProofError::KeyMismatch { .. })
+    ));
+}
+
+#[tokio::test]
+async fn verified_claim_never_promotes_unverified_reference_metadata() {
+    use statechronicle_proof::claim::{ClaimProof, ExpectedClaim};
+    let fixture = fixture();
+    let mut proof = build_proof(&fixture);
+    let store = FakeCommitStore::default();
+    store.put_commit(&tenant(), &fixture.signed).await.unwrap();
+    store
+        .heads
+        .lock()
+        .unwrap()
+        .insert(tenant().0, head(&fixture.signed));
+    let service = claim_service(store);
+    let expected = ExpectedClaim::state(tenant(), resource());
+    let verified = service
+        .verify_current(
+            ClaimProof::State(&proof),
+            &expected,
+            &fixed_key().verifying_key(),
+        )
+        .await
+        .unwrap();
+    let authentic = proof.claimed_state.clone();
+    proof.claimed_state = statechronicle_domain::resource_state::ResourceState::from_legacy_json(
+        StateType::UniqueAsset,
+        serde_json::json!({"owner":"account:mallory", "status":"active"}),
+    )
+    .unwrap();
+    assert_eq!(verified.state(), Some(&authentic));
+    proof.claimed_state = authentic;
+    proof.commit.signature.sig = Signature::from_bytes([0; 64]);
+    // The compatibility helper verifies the stored signature; the redundant
+    // signature in the supplied reference was never part of its guarantee.
+    service
+        .verify_with_key(&proof, &fixed_key().verifying_key(), &state_key())
+        .await
+        .unwrap();
+    assert!(matches!(
+        service
+            .verify_current(
+                ClaimProof::State(&proof),
+                &expected,
+                &fixed_key().verifying_key()
+            )
+            .await,
+        Err(ProofError::CommitSignature(_))
+    ));
+    assert!(matches!(
+        service
+            .verify_historical(
+                ClaimProof::State(&proof),
+                &expected,
+                &commit_id(),
+                &fixed_key().verifying_key()
+            )
+            .await,
+        Err(ProofError::CommitSignature(_))
+    ));
+
+    let mut malformed = fixture.signed.body.clone();
+    malformed.scope.kind = statechronicle_domain::commit::ScopeKind::GlobalCheckpoint;
+    let signed = sign_commit(&malformed, &fixed_key(), key_id()).unwrap();
+    let mut malformed_proof = build_proof(&fixture);
+    malformed_proof.commit.signature = signed.signature.clone();
+    let malformed_store = FakeCommitStore::default();
+    malformed_store
+        .put_commit(&tenant(), &signed)
+        .await
+        .unwrap();
+    let malformed_service = claim_service(malformed_store);
+    assert!(matches!(
+        malformed_service
+            .verify_historical(
+                ClaimProof::State(&malformed_proof),
+                &expected,
+                &commit_id(),
+                &fixed_key().verifying_key()
+            )
+            .await,
+        Err(ProofError::CommitScope(_))
+    ));
+}
+
+/// A genuine state proof must not establish a different tenant's trade leg.
+#[tokio::test]
+async fn trade_verifier_rejects_state_proof_under_a_different_leg_tenant() {
+    use statechronicle_domain::trade::TradeSide;
+    use std::collections::BTreeMap;
+    let fixture = fixture();
+    let mut state_proof = build_proof(&fixture);
+    // Operation metadata is not included in the signed commit/state root.
+    state_proof.latest_event.operation = Operation::from_static("trade.settle");
+    let other_tenant = TenantId(String::from("acme.game.beta"));
+    let mut trade = TradeProof {
+        schema: String::from(TRADE_PROOF_SCHEMA),
+        trade_id: String::from("trade_audit"),
+        summary: TradeSummary {
+            trade_id: String::from("trade_audit"),
+            status: TradeStatus::Settled,
+            sides: vec![TradeSide {
+                tenant: other_tenant.clone(),
+                settle_assets: vec![resource()],
+                from_owner: String::from("unverified_previous_owner"),
+                to_owner: owner(),
+                settle_commit: state_proof.commit.clone(),
+                settle_commits_by_asset: BTreeMap::from([(resource(), state_proof.commit.clone())]),
+                settle_event_ids: vec![state_proof.latest_event.event_id.clone()],
+            }],
+            value_legs: Vec::new(),
+        },
+        legs: vec![TradeProofLeg {
+            tenant: other_tenant,
+            commit: state_proof.commit.clone(),
+            state_proofs: vec![state_proof],
+        }],
+    };
+    let commits = BTreeMap::from([(
+        fixture.signed.body.commit_id.0.clone(),
+        (fixture.signed.clone(), fixed_key().verifying_key()),
+    )]);
+    assert!(matches!(
+        statechronicle_proof::trade::verify_trade_proof(&trade, &commits),
+        Err(ProofError::TenantMismatch { .. })
+    ));
+    // A genuine alpha leg primes the service's commit-id-only cache. The beta
+    // leg reuses it without loading a beta commit or resolving a beta signer.
+    let mut alpha_side = trade.summary.sides[0].clone();
+    alpha_side.tenant = tenant();
+    trade.summary.sides.insert(0, alpha_side);
+    let mut alpha_leg = trade.legs[0].clone();
+    alpha_leg.tenant = tenant();
+    trade.legs.insert(0, alpha_leg);
+    let service = service(trade.legs[0].state_proofs[0].clone(), &fixture).await;
+    let resolved = Mutex::new(Vec::new());
+    let result = service
+        .verify_trade(&trade, &|requested| {
+            resolved.lock().unwrap().push(requested.clone());
+            (requested == &tenant()).then(|| fixed_key().verifying_key())
+        })
+        .await;
+    assert!(matches!(result, Err(ProofError::TenantMismatch { .. })));
+    assert_eq!(*resolved.lock().unwrap(), vec![tenant()]);
+}
+
+/// Tenant-local commit identifiers can coincide while roots and signers differ.
+#[tokio::test]
+async fn trade_service_resolves_coincident_commit_ids_in_each_tenant() {
+    use statechronicle_domain::trade::TradeSide;
+    use statechronicle_proof::trade::{verify_trade_proof, verify_trade_proof_scoped};
+    use std::collections::BTreeMap;
+
+    let alpha = fixture();
+    let beta_tenant = TenantId(String::from("acme.game.beta"));
+    let beta_key = SigningKey::from_bytes(&[43; 32]);
+    let beta = fixture_for(beta_tenant.clone(), &beta_key);
+    assert_eq!(alpha.signed.body.commit_id, beta.signed.body.commit_id);
+    assert_ne!(
+        alpha.signed.body.next_state_root,
+        beta.signed.body.next_state_root
+    );
+
+    let mut trade = TradeProof {
+        schema: String::from(TRADE_PROOF_SCHEMA),
+        trade_id: String::from("trade_scoped"),
+        summary: TradeSummary {
+            trade_id: String::from("trade_scoped"),
+            status: TradeStatus::Settled,
+            sides: Vec::new(),
+            value_legs: Vec::new(),
+        },
+        legs: Vec::new(),
+    };
+    let commits = FakeCommitStore::default();
+    let mut scoped = BTreeMap::new();
+    for (fixture, signer) in [(&alpha, fixed_key()), (&beta, beta_key.clone())] {
+        let mut proof = build_proof(fixture);
+        // This test establishes tenant-bound signed state only. Operation
+        // metadata is unsigned; it is not evidence of actual settlement.
+        proof.latest_event.operation = Operation::from_static("trade.settle");
+        let scope = proof.tenant_id.clone();
+        trade.summary.sides.push(TradeSide {
+            tenant: scope.clone(),
+            settle_assets: vec![resource()],
+            from_owner: String::from("unverified_previous_owner"),
+            to_owner: owner(),
+            settle_commit: proof.commit.clone(),
+            settle_commits_by_asset: BTreeMap::from([(resource(), proof.commit.clone())]),
+            settle_event_ids: vec![proof.latest_event.event_id.clone()],
+        });
+        trade.legs.push(TradeProofLeg {
+            tenant: scope.clone(),
+            commit: proof.commit.clone(),
+            state_proofs: vec![proof],
+        });
+        commits.put_commit(&scope, &fixture.signed).await.unwrap();
+        scoped.insert(
+            (scope.0, fixture.signed.body.commit_id.0.clone()),
+            (fixture.signed.clone(), signer.verifying_key()),
+        );
+    }
+    verify_trade_proof_scoped(&trade, &scoped).unwrap();
+    let legacy = BTreeMap::from([(
+        alpha.signed.body.commit_id.0.clone(),
+        (alpha.signed.clone(), fixed_key().verifying_key()),
+    )]);
+    assert!(matches!(
+        verify_trade_proof(&trade, &legacy),
+        Err(ProofError::TenantMismatch { .. })
+    ));
+    let beta_scope = (beta_tenant.0.clone(), beta.signed.body.commit_id.0.clone());
+    let mut swapped = scoped.clone();
+    swapped.get_mut(&beta_scope).unwrap().1 = fixed_key().verifying_key();
+    assert!(matches!(
+        verify_trade_proof_scoped(&trade, &swapped),
+        Err(ProofError::CommitSignature(_))
+    ));
+    swapped.insert(
+        beta_scope.clone(),
+        (alpha.signed.clone(), fixed_key().verifying_key()),
+    );
+    assert!(matches!(
+        verify_trade_proof_scoped(&trade, &swapped),
+        Err(ProofError::TenantMismatch { .. })
+    ));
+    swapped.remove(&beta_scope);
+    assert!(matches!(
+        verify_trade_proof_scoped(&trade, &swapped),
+        Err(ProofError::KeyNotFound(_))
+    ));
+
+    let service = ProofService::new(ProofPorts {
+        proof_index: Box::new(FakeProofIndex::default()),
+        state_index: Box::new(FakeStateIndex::default()),
+        commit_store: Box::new(commits),
+        snapshot_store: Box::new(FakeSnapshotStore::default()),
+    });
+    let resolved = Mutex::new(Vec::new());
+    service
+        .verify_trade(&trade, &|requested| {
+            resolved.lock().unwrap().push(requested.clone());
+            if requested == &tenant() {
+                Some(fixed_key().verifying_key())
+            } else if requested == &beta_tenant {
+                Some(beta_key.verifying_key())
+            } else {
+                None
+            }
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        *resolved.lock().unwrap(),
+        vec![tenant(), beta_tenant.clone()]
+    );
+    assert!(matches!(
+        service
+            .verify_trade(&trade, &|requested| {
+                (requested == &tenant()).then(|| fixed_key().verifying_key())
+            })
+            .await,
+        Err(ProofError::KeyNotFound(_))
+    ));
+}
+
+#[tokio::test]
+async fn commit_reader_bridge_matches_compatibility_claim_checks() {
+    use statechronicle_proof::claim::{ClaimProof, ClaimVerifier, ExpectedClaim};
+    let fixture = fixture();
+    let proof = build_proof(&fixture);
+    let valid = ExpectedClaim::ownership(tenant(), resource(), SubjectId(owner()));
+    let expectations = [
+        valid.clone(),
+        ExpectedClaim::ownership(
+            tenant(),
+            resource(),
+            SubjectId(String::from("account:other")),
+        ),
+        ExpectedClaim::state(tenant(), ResourceId(String::from("asset:other"))),
+        ExpectedClaim::absence(tenant(), resource()),
+    ];
+    for head_mode in ["matching", "missing", "changed", "advance_during_lookup"] {
+        for expected in &expectations {
+            let store = FakeCommitStore::default();
+            store.put_commit(&tenant(), &fixture.signed).await.unwrap();
+            let mut canonical = head(&fixture.signed);
+            if head_mode != "missing" {
+                store
+                    .heads
+                    .lock()
+                    .unwrap()
+                    .insert(tenant().0, canonical.clone());
+            }
+            if head_mode == "changed" {
+                canonical.sequence = canonical.sequence.saturating_add(1);
+                store
+                    .heads
+                    .lock()
+                    .unwrap()
+                    .insert(tenant().0, canonical.clone());
+            }
+            if head_mode == "advance_during_lookup" {
+                canonical.sequence = canonical.sequence.saturating_add(1);
+                *store.advance_on_lookup.lock().unwrap() = Some(canonical.clone());
+            }
+            let service = claim_service(store.clone());
+            let reader = ClaimVerifier::new(Box::new(store.clone()));
+            let key = fixed_key().verifying_key();
+            let old = service
+                .verify_current(ClaimProof::State(&proof), expected, &key)
+                .await
+                .map_err(|error| error.to_string());
+            let old_reads = store
+                .head_reads
+                .swap(0, std::sync::atomic::Ordering::Relaxed);
+            // Re-arm the same head race for the second independent invocation.
+            if head_mode == "advance_during_lookup" {
+                store
+                    .heads
+                    .lock()
+                    .unwrap()
+                    .insert(tenant().0, head(&fixture.signed));
+                *store.advance_on_lookup.lock().unwrap() = Some(canonical);
+            }
+            let new = reader
+                .verify_current(ClaimProof::State(&proof), expected, &key)
+                .await
+                .map_err(|error| error.to_string());
+            assert_eq!(new, old, "{head_mode}");
+            assert_eq!(
+                store
+                    .head_reads
+                    .swap(0, std::sync::atomic::Ordering::Relaxed),
+                old_reads,
+                "{head_mode}"
+            );
+            let historical_old = service
+                .verify_historical(ClaimProof::State(&proof), expected, &commit_id(), &key)
+                .await
+                .map_err(|error| error.to_string());
+            let historical_new = reader
+                .verify_historical(ClaimProof::State(&proof), expected, &commit_id(), &key)
+                .await
+                .map_err(|error| error.to_string());
+            assert_eq!(historical_new, historical_old);
+            assert_eq!(
+                store.head_reads.load(std::sync::atomic::Ordering::Relaxed),
+                0
+            );
+        }
+    }
 }

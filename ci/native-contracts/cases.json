@@ -1,0 +1,51 @@
+[
+  {
+    "name": "mixed_command",
+    "replace": "let _ = CONFIGURATION.encode_command(&ConfigurationCommand::Create { enabled: true });",
+    "with_text": "let _ = CONFIGURATION.encode_command(&EquipmentCommand::Install);",
+    "error_code": "E0308",
+    "diagnostic_contains": "EquipmentCommand"
+  },
+  {
+    "name": "mixed_state",
+    "replace": "fn state_type() -> ConfigurationState {",
+    "with_text": "fn state_type() -> EquipmentState {",
+    "error_code": "E0308",
+    "diagnostic_contains": "EquipmentState"
+  },
+  {
+    "name": "owned_batch_leg",
+    "replace": "fn batch_leg(batch: &PreparedBatch) -> &PreparedMutation {\n    &batch.mutations()[0]",
+    "with_text": "fn batch_leg(batch: &PreparedBatch) -> PreparedMutation {\n    batch.mutations()[0]",
+    "error_code": "E0508",
+    "diagnostic_contains": "PreparedMutation"
+  },
+  {
+    "name": "historical_claim_without_pin",
+    "replace": "verifier.verify_historical(proof, expected, pin, key)",
+    "with_text": "verifier.verify_historical(proof, expected, key)",
+    "error_code": "E0061",
+    "diagnostic_contains": "verify_historical"
+  },
+  {
+    "name": "history_without_pin",
+    "replace": "verify_history(witnesses, pin, verifier)",
+    "with_text": "verify_history(witnesses, verifier)",
+    "error_code": "E0061",
+    "diagnostic_contains": "verify_history"
+  },
+  {
+    "name": "unmapped_operation",
+    "replace": "    Command::Disable => \"configuration.disable\",\n",
+    "with_text": "",
+    "error_code": "E0004",
+    "diagnostic_contains": "Disable"
+  },
+  {
+    "name": "event_as_native_state",
+    "replace": "-> Result<ConfigurationState, Self::Error> {\n        Configuration.apply(current, command)",
+    "with_text": "-> Result<statechronicle::Event, Self::Error> {\n        unreachable!()",
+    "error_code": "E0053",
+    "diagnostic_contains": "apply"
+  }
+]

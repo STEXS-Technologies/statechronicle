@@ -13,11 +13,10 @@ use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 
 use crate::error::ProfileError;
-use crate::execution::ExecutionPolicy;
 use crate::registry::{
-    ProfileRules, input_amount, input_str, require_current, require_unborn, state_amount,
+    ProfileRules, input_amount, input_str, require_current, require_positive,
+    require_positive_available, require_unborn, state_amount,
 };
-use crate::resource;
 
 /// Typed operation constants accepted by the consumable stack profile.
 pub mod op {
@@ -70,9 +69,6 @@ pub mod op {
 pub struct ConsumableStackRules;
 
 impl ProfileRules for ConsumableStackRules {
-    fn execution_policy(&self) -> &'static dyn ExecutionPolicy {
-        resource::policy(self.state_type())
-    }
     fn state_type(&self) -> StateType {
         StateType::ConsumableStack
     }
@@ -101,13 +97,13 @@ impl ProfileRules for ConsumableStackRules {
         } else if operation == op::stack_credit() {
             check_credit(current, inputs)
         } else if operation == op::stack_debit() {
-            check_debit(current, inputs)
+            check_decrease(current, inputs, "stack.debit")
         } else if operation == op::stack_consume() {
-            check_consume(current, inputs)
+            check_decrease(current, inputs, "stack.consume")
         } else if operation == op::stack_transfer() {
             check_transfer(current, inputs)
         } else if operation == op::stack_reserve() {
-            check_reserve(current, inputs)
+            check_decrease(current, inputs, "stack.reserve")
         } else if operation == op::stack_release() {
             check_release(current, inputs)
         } else if operation == op::stack_expire() {
@@ -156,7 +152,7 @@ fn check_credit(
     Ok(())
 }
 
-/// Validates `stack.debit`.
+/// Validates `stack.debit`, `stack.reserve` and `stack.consume` with the same ordered gates.
 ///
 /// # Errors
 ///
@@ -165,29 +161,15 @@ fn check_credit(
 /// [`ProfileError::InsufficientQuantity`] when it exceeds the current
 /// quantity, and [`ProfileError::InvalidInput`] /
 /// [`ProfileError::FloatForbidden`] for malformed inputs.
-fn check_debit(
+fn check_decrease(
     current: Option<&StateProjection>,
     inputs: &BTreeMap<String, serde_json::Value>,
+    operation: &str,
 ) -> Result<(), ProfileError> {
-    let current = require_current(current, "stack.debit")?;
+    let current = require_current(current, operation)?;
     let available = current_quantity(current)?;
     let requested = input_amount(inputs, "quantity")?;
-    require_positive_available(requested, available, "stack.debit")
-}
-
-/// Validates `stack.consume`, which behaves exactly like `stack.debit`.
-///
-/// # Errors
-///
-/// Same error set as [`check_debit`].
-fn check_consume(
-    current: Option<&StateProjection>,
-    inputs: &BTreeMap<String, serde_json::Value>,
-) -> Result<(), ProfileError> {
-    let current = require_current(current, "stack.consume")?;
-    let available = current_quantity(current)?;
-    let requested = input_amount(inputs, "quantity")?;
-    require_positive_available(requested, available, "stack.consume")
+    require_positive_available(requested, available)
 }
 
 /// Validates `stack.transfer`.
@@ -208,26 +190,7 @@ fn check_transfer(
     input_str(inputs, "to_subject")?;
     let available = current_quantity(current)?;
     let requested = input_amount(inputs, "quantity")?;
-    require_positive_available(requested, available, "stack.transfer")
-}
-
-/// Validates `stack.reserve`.
-///
-/// # Errors
-///
-/// Returns [`ProfileError::InvalidTransition`] when the stack does not exist,
-/// [`ProfileError::NonPositiveAmount`] when the amount is zero,
-/// [`ProfileError::InsufficientQuantity`] when it exceeds the current
-/// quantity, and [`ProfileError::InvalidInput`] /
-/// [`ProfileError::FloatForbidden`] for malformed inputs.
-fn check_reserve(
-    current: Option<&StateProjection>,
-    inputs: &BTreeMap<String, serde_json::Value>,
-) -> Result<(), ProfileError> {
-    let current = require_current(current, "stack.reserve")?;
-    let available = current_quantity(current)?;
-    let requested = input_amount(inputs, "quantity")?;
-    require_positive_available(requested, available, "stack.reserve")
+    require_positive_available(requested, available)
 }
 
 /// Validates `stack.release`.
@@ -244,10 +207,7 @@ fn check_release(
 ) -> Result<(), ProfileError> {
     require_current(current, "stack.release")?;
     let requested = input_amount(inputs, "quantity")?;
-    if requested.is_zero() {
-        return Err(ProfileError::NonPositiveAmount);
-    }
-    Ok(())
+    require_positive(requested)
 }
 
 /// Validates `stack.expire`, the terminal operation for a stack.
@@ -285,30 +245,6 @@ fn check_adjust(
 /// [`ProfileError::FloatForbidden`] for float-formatted values.
 fn current_quantity(current: &StateProjection) -> Result<Amount, ProfileError> {
     state_amount(current, "quantity")
-}
-
-/// Enforces `0 < requested <= available`.
-///
-/// # Errors
-///
-/// Returns [`ProfileError::NonPositiveAmount`] when `requested` is zero and
-/// [`ProfileError::InsufficientQuantity`] when `requested` exceeds
-/// `available`.
-fn require_positive_available(
-    requested: Amount,
-    available: Amount,
-    _operation: &str,
-) -> Result<(), ProfileError> {
-    if requested.is_zero() {
-        return Err(ProfileError::NonPositiveAmount);
-    }
-    if requested > available {
-        return Err(ProfileError::InsufficientQuantity {
-            available,
-            requested,
-        });
-    }
-    Ok(())
 }
 
 #[cfg(test)]

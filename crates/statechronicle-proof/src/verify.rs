@@ -701,7 +701,7 @@ mod tests {
         ));
     }
 
-    fn absent_key() -> StateKey {
+    const fn absent_key() -> StateKey {
         StateKey::new([0xabu8; 32])
     }
 

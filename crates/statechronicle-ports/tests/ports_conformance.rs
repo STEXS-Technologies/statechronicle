@@ -395,8 +395,8 @@ fn all_ports_are_dyn_compatible() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn port_trait_objects_are_send() {
-    fn assert_send<T: Send>() {}
+const fn port_trait_objects_are_send() {
+    const fn assert_send<T: Send>() {}
 
     // `Box<dyn Trait + Send>` is the unit that gets moved across tasks; it is
     // `Send` exactly when the port's trait object carries the `Send` bound.

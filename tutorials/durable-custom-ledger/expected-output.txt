@@ -1,0 +1,7 @@
+Commit acknowledgement: unknown; retain original identity and signed plan.
+Recovery after reopen: original committed mutation verified.
+Exact retry: replay; one original event, commit and outbox row.
+Historical configuration: ConfigurationState { revision: 1, enabled: true }
+Current configuration: ConfigurationState { revision: 2, enabled: false }
+Stale current proof: refused; independently pinned historical proof: verified.
+File journal: 4 commits; no notification dispatched.

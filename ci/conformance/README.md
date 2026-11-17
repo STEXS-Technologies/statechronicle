@@ -1,0 +1,383 @@
+# StateChronicle adapter conformance support
+
+This unpublished **dev-only** package checks `LedgerStore`/`LedgerRecovery`
+implementations. It is an isolated workspace, adds no root library dependency,
+and is never linked into the normal StateChronicle facade.
+
+Run the reference and negative controls locally:
+
+```sh
+RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 cargo +1.100.0 test \
+  --manifest-path ci/conformance/Cargo.toml --all-targets --locked --offline
+```
+
+For an adapter's test crate, add this checkout's `ci/conformance` directory as a
+path dev dependency named `statechronicle-conformance`. Implement
+`LedgerTestBackend` with three operations:
+
+- `reset`: clear a dedicated disposable test database, including reservations.
+- `connect`: open a fresh independent connection to that same database.
+- `inspect`: read the raw committed event/commit/projection/outbox/finalization
+  rows and the actual canonical-head index through an independent reader.
+
+Do not implement inspection by calling `lookup_mutation` or reconstructing a
+snapshot from a cached receipt. Return every row, including duplicates. The
+harness compares canonical multisets, so row ordering does not matter. It never
+deduplicates an observation before checking it.
+
+Use well-formed, genuinely signed immutable `LedgerMutation` fixtures. The basic
+checks use genesis mutations; the head-contention fixtures need distinct intent
+and commit ids in one tenant, all prepared against the same genesis head. The
+tenant check needs the same textual intent/commit ids in distinct tenants. See
+`tests/reference.rs` for a complete external integration using only public
+StateChronicle and harness APIs; it generates fixtures separately from its
+storage implementation and verifies their signatures.
+
+Call the check functions independently on an isolated backend instance:
+
+| Function | Required input |
+| --- | --- |
+| `check_atomic_visibility` | One genesis mutation |
+| `check_rollback` | Same mutation; every individual write prefix |
+| `check_cancellation` | Same mutation; drop after each completed stage |
+| `check_replay` | Exact retry and changed-payload conflict |
+| `check_tenant_isolation` | Two independent tenant genesis mutations with coincident ids |
+| `check_head_contention` | 2, 8, then 32 distinct competing genesis mutations |
+| `check_idempotency_contention` | One mutation, 2, 8, then 32 exact concurrent requests |
+| `check_attempt_fencing` | Wrong reservation token must refuse |
+| `check_lease_takeover` | Optional `LedgerLeaseTestBackend`; live lease stays pending, expired lease gets a new token, stale commit/rollback/drop cannot invalidate successor |
+| `check_lost_ack` | Mutation plus independent principal, authorizer and signer verifier |
+| `check_unsupported_multi` | Only when the backend declares multi-tenant atomicity unsupported |
+
+Every check resets the test database. Wrap the async call in a backend-appropriate
+timeout so a deadlock fails qualification. Head and identity races use a barrier
+and separate handles; assertions inspect the winner and every committed effect,
+not timing. Pending exact requests are not counted as committed receipts; new
+reads after the winner finishes must resolve the original record.
+
+`Violation.check` identifies the assertion that failed. Operation/setup errors
+are reported separately as `adapter.operation`. Broken variants in the reference
+integration must fail their *specific intended* check, proving the suite has an
+active oracle rather than merely compiling a mock.
+
+The fixed signing key, fixture authorizer and storage code in `tests/reference.rs`
+are test-only. They are not deployment adapters or trust-policy examples. The
+reference supports bounded single-tenant transactions and retained history, not
+a general storage engine. `faults::LoseCommitAck` injects response loss after an underlying
+successful commit; it does not kill a process or simulate disk flush behavior.
+
+The [adapter contract and remaining qualification](../../docs/0.3/adapter-contract.md)
+lists the precise scope and backend-specific work still required.
+
+## Optional batch tests
+
+For an adapter that supports `LedgerTransaction::retain_batch`, its connection
+must also implement `LedgerBatchRecovery`. Implement `batch::LedgerBatchTestBackend`
+in addition to `LedgerTestBackend`. Its `inspect_batches` reads actual retained
+membership rows through an independent connection and returns a `RetainedBatch`
+for **each** member, including any duplicates. Do not build these observations
+from `lookup_batch`, an expected fixture or a cached receipt. Each row includes
+the exact ordered original intent bodies and complete immutable effects.
+
+Use well-formed, genuinely signed `LedgerBatch` fixtures with at least two
+members, distinct member identities, complete deterministic projections and
+outbox, all in one tenant. The independent fixture builder in `tests/reference.rs`
+combines two intent/event pairs under a newly signed commit. It does not import
+the root mutation-test adapter.
+
+| Function in `batch` | Checks |
+| --- | --- |
+| `check_atomic_visibility` | Every write prefix, retained metadata and all member finalizations remain private; complete publication and reopened lookup |
+| `check_rollback` | Roll back each prefix, then retry every exact member successfully without resetting first |
+| `check_cancellation` | Drop each completed prefix; no effects or committed group receipt; unfinished leases may remain |
+| `check_replay` | Each member replays the original commit; changed payload conflicts; original complete group remains unchanged |
+| `check_head_contention` | 2, 8, then 32 distinct complete groups against one genesis head; exactly one whole winner |
+| `check_idempotency_contention` | 2, 8, then 32 exact concurrent groups; one writer and only complete replay or pending results |
+| `check_tenant_isolation` | Distinct tenant genesis groups with coincident member/event/resource/commit IDs; no lookup leak or identity conflict |
+| `check_single_namespace` | A standalone mutation whose full intent exactly matches one batch member; shared claim status in both directions and no cross-kind receipt fabrication |
+| `check_lost_ack` | Independent principals/policy/verifier; post-commit response loss, unknown complete identity, fresh-handle recovery and exact replay |
+
+The reference integration includes nine deliberately broken batch behaviors:
+early event publication, early membership publication, forgotten outbox,
+forgotten membership, forgotten finalization, filtered single-leg lookup,
+duplicate accepted identity, ignored head CAS, and discarded commits. Each must
+fail its named oracle. All older single-mutation controls still run.
+
+Namespace checks add four deliberate fault cases: global tenant keys, fabricated
+singleton groups, group members returned as standalone mutations, and ignored
+committed batch identities. Wrong-kind lookup must return an invariant error;
+returning absence or a plausible record is not sufficient. The exact-group race
+uses independently supplied principals and `Arc`-owned authorizer/verifier
+policies so each task can call the actual verified coordinator.
+
+The batch extension remains bounded logical qualification. The optional lease
+checks below add selected expiry/takeover schedules. Broader fencing races,
+later-head retention/rebuild and physical database crash/power-loss qualification
+still require additional adapter tests. Do not
+claim those properties merely because these functions pass.
+
+## Optional expiring-lease tests
+
+Implement `LedgerLeaseTestBackend::expire_reservation` using an injected clock
+and the backend's normal expiry machinery. It must not delete the reservation,
+replace its token, or release the original transaction. The next ordinary claim
+must perform the takeover. `check_lease_takeover` keeps two independent write
+transactions alive, stages the complete mutation in each, and independently
+checks stale commit rejection, stale rollback and stale drop. Each scenario
+requires the successor reservation and complete committed original to survive.
+Two deliberately broken controls accept a superseded commit or release the
+successor during stale cleanup; both must fail their specific assertion.
+
+This optional test assumes concurrent visible reservations and expiring leases.
+Adapters with transaction-local reservations or database locking need their own
+schedule and backend-specific timeouts; they must not simulate this capability
+by deleting locks. The reference uses deterministic logical expiry, not elapsed
+wall time. The batch extension below supplies separate optional schedules;
+transaction timeout, physical recovery and all lease interleavings remain open.
+
+
+## Optional batch lease schedules
+
+`batch::check_lease_takeover` uses the existing `LedgerLeaseTestBackend` hook
+plus raw `LedgerBatchTestBackend` observations and `LedgerBatchRecovery`. Supply
+a well-formed batch with at least two members and a signed commit. The check
+stages a complete old group, verifies every live reservation, expires every
+member, and acquires/stages the same group through a new connection. Each
+member must have a new nonempty token and the original payload digest.
+Stale commit, rollback and drop are separate schedules. None may publish old
+effects or erase any successor claim. The successor must publish exactly the
+original complete group, including every retained member, projection, outbox,
+finalization and canonical head. Reopened member lookups must resolve the group.
+
+This works with shared group deadlines. When one injected-clock advance expires
+several siblings, `expire_reservation` must tolerate a later callback for an
+already-expired sibling. This is test-hook behavior, not an extra production
+storage method. No callback may manufacture replacement tokens or delete locks.
+
+For adapters that also support independently expirable member leases, implement
+`batch::LedgerBatchMemberLeaseTestBackend::configure_member_expiry`. It is called
+after reset and before any claim. Configure the normal test clock/lease policy
+so the chosen member expires while every other member remains live; do not edit
+reservations or tokens to fake takeover. Shared-deadline-only adapters need not
+implement this capability. Setup errors are `adapter.operation`, distinct from
+a failed contract assertion.
+
+Then run `batch::check_member_lease_takeover`. It replaces each member in turn
+while the others stay live, checks the returned claim token against independent
+pending lookup, and applies stale commit/rollback/drop separately. The partial
+successor remains pending and is rolled back: claiming one member never counts
+as a committed group. Raw effects and retained rows stay empty. The whole-group
+check alone does not establish this independently expired-member property.
+
+The reference exercises a two-member signed-commit fixture. Its shared-expiry
+model passes the whole-group check and explicitly refuses unsupported isolated
+configuration. Five deliberate lease fault behaviors fail named oracles:
+
+| Fault | Required oracle |
+| --- | --- |
+| Accept a superseded whole commit | `batch.lease.stale_commit` |
+| Fence only the first member | `batch.lease.stale_member_commit` for member 1 |
+| Release successor during stale cleanup | `batch.lease.successor` |
+| Reuse the old token on takeover | `batch.lease.token` |
+| Return a claim token different from pending lookup | `batch.lease.claim_token` |
+
+A first-member-only fault deliberately passes whole-group takeover but fails
+isolated takeover of member 1. This is an explicit negative-control boundary,
+not a claim that the smaller check detects every broken adapter. These are
+bounded logical genesis schedules with independent readers, not real database
+clock, process-kill or power-loss qualification. Wrap calls in backend-specific
+timeouts. Broader histories, larger groups, further interleavings and physical
+backend recovery still need qualification.
+
+## Retention after a later canonical head
+
+Run `check_later_head_retention` with two independently constructed, signed,
+consecutive mutations in one tenant, distinct intent/commit identities, and an
+independent expected final `Snapshot`. The expected view must include retained
+history/finalizations, current projections, pending outbox rows and only the new
+canonical head. It must not be reconstructed from adapter lookups. Fresh
+connections must retrieve both exact original records; retrying the first key
+must identify its original commit and leave the final view unchanged.
+
+Adapters with removable pending outbox rows can additionally implement
+`LedgerOutboxTestBackend::acknowledge_outbox` and run
+`check_delivered_retention`. Use the normal delivery acknowledgement path, not
+receipt mutation. The check removes the first commit's pending rows from its
+expected raw view and requires both immutable receipts to remain exact. This
+is not an exactly-once delivery claim.
+
+The bounded reference checks both different resources and an asset transfer
+that replaces the current projection at the same resource key. Native profile
+checks/reduction generate the transfer state; the commit builder recomputes
+signed event/state roots. Both exact original receipts must survive the updated
+owner/version and acknowledgement of the first outbox. A separate two-holder
+currency fixture proves that subject-held projection keys preserve both holders
+under the same tenant/resource. Owner-based keys exclude owner identity, while
+subject-held keys include the subject. The reference upserts current rows under
+these keys, checks monotonic versions before publishing any rows, and retains
+immutable original projection sets separately. A deliberately invalid equal-
+version projection is refused without changing any original committed effect.
+
+Five deliberately faulty retention/projection modes exercise the oracles:
+
+| Fault | Required oracle |
+| --- | --- |
+| Discard the old receipt after another commit | `lookup.original` |
+| Substitute current projections into the original receipt | `lookup.original` |
+| Reconstruct original outbox from remaining pending rows | `lookup.original` |
+| Append rather than replace a current projection | `retention.effects` |
+| Key subject-held projections only by resource | `retention.effects` |
+
+These are bounded two-commit schedules. They do not establish
+long-history projection rebuild, interrupted/corrupt replay, real database
+reopen, process kill or power-loss guarantees. Callers must supply valid signed
+fixtures; storage checks do not establish ingress or signer authorization. The
+equal-version refusal test deliberately supplies invalid storage input.
+
+## Batch retention after head advance and delivery
+
+Use `batch::check_later_head_retention` for two consecutive signed single-tenant
+batches with distinct commit/member identities and an independently supplied
+final `Snapshot`. The final snapshot contains both append-only histories and all
+finalizations, current projections, pending outbox rows, and only the later head.
+The harness separately inspects every raw retained membership row and compares
+its complete original group. Neither raw inspection nor expected effects may be
+reconstructed from lookup results.
+
+Every member in both groups must resolve to its complete original batch;
+standalone lookup must still refuse the batch namespace. Each exact member
+retry must return its original commit, while a changed nonce must conflict.
+Fresh independent connections and repeated raw observations check that retries
+change no effects or retained membership. These checks reuse the existing exact/
+conflicting-retry logic, rather than introducing another interpretation.
+
+If the adapter implements the optional `LedgerOutboxTestBackend`, also run
+`batch::check_delivered_retention`. It acknowledges only the first group's
+pending rows, then repeats all original lookup, namespace, exact retry,
+conflicting retry and raw membership/effect checks. Original immutable receipt
+outbox and projection sets must stay intact. Acknowledgement is not proof of
+exactly-once external delivery or physical durability.
+
+The reference uses two two-member groups in one tenant. Native profile checks
+and reduction produce two asset transfers, replacing both current projections
+while the original group remains exact. Seven fault behaviors fail named checks:
+
+| Fault | Required oracle |
+| --- | --- |
+| Drop the old group | `batch.retention.membership` |
+| Drop only its second member row | `batch.retention.membership` |
+| Substitute current projections into a historical lookup | `batch.lookup.original` |
+| Corrupt only the second old member lookup after head advance | `batch.lookup.original` with `member 1` |
+| Reconstruct original outbox from pending rows | `batch.lookup.original` |
+| Return the latest head for an original exact retry | `batch.replay.identity` |
+| Append rather than replace current projections | `batch.retention.effects` |
+
+This closes selected logical batch-retention schedules. Larger groups, mixed
+single/batch histories, interrupted/corrupt replay, verified projection rebuild,
+real database reopen/process-kill/power-loss behavior and broader F5/F8 gates
+remain open. Fixture signature validity is checked during reference generation;
+consumer ingress and signer authorization remain separate authorities.
+
+
+## Ordered mixed histories
+
+Run `check_history(backend, mutations, expected_snapshots)` with at least three
+valid signed mutations and one independently constructed raw `Snapshot` after
+each mutation. Each tenant starts at genesis and advances by one linked commit;
+scoped intent and commit identities must be distinct. Interleave tenants,
+update existing resource keys, and include separate holders at the same resource.
+Do not derive expected rows from the adapter's lookup/inspection implementation.
+Malformed length/chain/identity setup refuses before destructive reset.
+
+The check resets once. Before each mutation it stages and rolls back every
+completed write prefix, checking prior effects and the absence of a committed
+receipt. Rollback must remove that reservation. It then commits on a fresh
+connection and compares the complete prefix against its independent snapshot.
+Every previous mutation must still have its exact original record; exact retry
+must return its original commit, changed-payload retry must conflict, and these
+checks must leave all committed effects unchanged. Connection handles are fresh;
+this does not restart the database or application process.
+
+The reference uses 32 commits across two interleaved tenants, with coincident
+textual IDs, two repeatedly transferred assets and two independently credited
+balance holders per tenant. All signed chains, event roots, state roots and
+continuity are verified before the backend is opened. There are 224 rollback
+prefixes and 528 original-identity replay/conflict checks in the passing schedule.
+Three faulty modes pass the older genesis-rollback/two-commit schedules but
+fail this one: pruning receipts after head four, substituting the latest commit
+after head four, and clearing existing event history during rollback.
+
+This is a bounded single-mutation history schedule. It does not qualify mixed
+single/batch histories, randomized interleavings, cross-tenant transactions,
+real database reopen, physical crash/power loss or production signer policy.
+Keep the existing race, batch, lease, lost-ACK and delivery checks as well.
+
+## Alternating single and batch histories
+
+`batch::history::check` accepts owned `HistoryEntry::Single(Box<LedgerMutation>)`
+and `HistoryEntry::Batch(Box<LedgerBatch>)` values plus an independently built
+`Snapshot` for every committed prefix. Implement the existing
+`LedgerBatchTestBackend` and `LedgerBatchRecovery` capabilities; no runtime
+production dependency or new storage port is needed. Supply valid signed
+fixtures with distinct scoped identities and one consecutive per-tenant chain
+across both transaction kinds. Shape/chain errors refuse before destructive reset.
+Use a dedicated isolated database and wrap the call in a backend timeout.
+
+The harness rolls back every staged prefix while retaining earlier transactions,
+compares independent raw effects and complete batch membership, then commits and
+checks all previous exact original lookups, payload conflicts, original commit
+IDs and single/batch namespace refusal through fresh connections. It never
+manufactures a standalone receipt from a group member.
+
+The reference schedule has 22 transactions (12 singles and 10 two-member batches)
+with 32 intents/events, two interleaved tenants, coincident cross-tenant textual
+IDs, 8 final resource/subject projection keys and 64 outbox rows. Each tenant
+alternates singles and batches over one head chain; signed history verification
+runs before adapter use. It exercises 224 rollback prefixes and 368 retained
+original identity checks across the growing committed prefixes. Two incorrect
+adapters pass the existing single-only history and genesis batch checks but lose
+single receipts on a batch commit or batch membership on a single commit; the
+mixed harness rejects both. Setup-negative cases preserve pre-existing data.
+
+These are deterministic logical histories. They do not replace randomized
+concurrency, independent database process restart, projection rebuild/proof
+serving, physical crash or power-loss qualification.
+
+## Seeded concurrent mixed histories
+
+`batch::history::check_concurrent(backend, waves, expected_snapshots, seed)`
+accepts the same signed `HistoryEntry` fixtures grouped into concurrent waves.
+Each wave has at most one next transaction per tenant; chains remain consecutive
+across waves. Supply one independently built complete raw snapshot after each
+wave, both singles and batches, and at least one multi-tenant wave. Invalid
+shape/chain/scope input refuses before destructive reset. Keep using the separate
+2/8/32 same-tenant head and idempotency contention checks.
+
+The harness starts each wave through a barrier on independent connections. A
+fixed portable PRNG injects cooperative yields after claims and every staged
+write boundary. Each completed staged writer is independently inspected and
+released to commit: it never waits for all writers to stage, so a storage engine
+that serializes writers can progress. A staged tenant must retain its prior raw
+state, issue no committed receipt in either namespace, and publish no group
+membership. Reader observations after commit completions allow independently
+linearized tenants, but every tenant's complete row set must be wholly before or
+wholly after its current transaction. Foreign rows and partial publication
+refuse. Wave completion checks the full independent snapshot, all raw retained
+membership, and every prior exact/conflicting retry and namespace boundary.
+
+The reference runs eight recorded seeds (including zero and both maximum-edge
+values) over 22 transactions, 32 intents/events, 64 outbox rows and two tenant
+chains. Seeded wave composition varies tenant lead/lag and transaction-kind
+coincidence. A separate single-writer semaphore adapter passes the same schedule;
+this guards against a harness-induced deadlock. Four broken modes fail named
+oracles: early event visibility, discarded single receipts, discarded batch
+membership, and appended duplicate current projections. Four malformed schedule
+cases preserve a pre-existing independent anchor across all raw row classes.
+
+Seeds reproduce fixture grouping and cooperative yield counts, not an exact
+Tokio/OS/database schedule. The reference uses asynchronous tasks and independently
+opened handles over one in-memory authority, with consistent raw snapshot reads.
+These bounded campaigns supplement deterministic rollback/cancellation, lease,
+ACK-loss and same-identity races; they do not establish database process reopen,
+physical power-loss behavior, all interleavings, or production signer policy.
+Wrap the complete check in a backend-appropriate timeout and retain seeds and logs.

@@ -1,0 +1,61 @@
+{
+  "baseline_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "files": {
+    "crates/consumer/examples/common/domains.rs": {
+      "original_path": "crates/statechronicle/examples/common/domains.rs",
+      "sha256": "438023bd9d376015ee4621ecffd093e1101c38247e154328592878050cb7625d"
+    },
+    "crates/consumer/tests/common/harness.rs": {
+      "original_path": "crates/statechronicle/tests/common/harness.rs",
+      "sha256": "147cf5faacb99121b6889232301657927548cbf163580a2a14e8ffb32e12faa2"
+    },
+    "crates/consumer/tests/common/mod.rs": {
+      "original_path": "crates/statechronicle/tests/common/mod.rs",
+      "sha256": "ab644075bcbcecfe7dddf3f9eb6bae8bbdd4caa5b9fec99474e5063b7238f540"
+    },
+    "crates/consumer/tests/custom_domains.rs": {
+      "original_path": "crates/statechronicle/tests/custom_domains.rs",
+      "sha256": "c0dd7b2dc78bda2a9954ac7faecff27ea3413e4684c2a085b9c39de8b6bba5e4"
+    },
+    "crates/consumer/tests/e2e.rs": {
+      "original_path": "crates/statechronicle/tests/e2e.rs",
+      "sha256": "466071f1a29420bfe2a1a734d4d43249c00f97ec3d5e7e07f09b76a2d521d717"
+    },
+    "crates/consumer/tests/smoke.rs": {
+      "original_path": "crates/statechronicle/tests/smoke.rs",
+      "sha256": "ff2a898b8750728171377647e9dfa4e5fc85566394cbeb386fde9d3cc756b008"
+    },
+    "crates/consumer/tests/support/durable.rs": {
+      "original_path": "crates/statechronicle/tests/support/durable.rs",
+      "sha256": "e40e00836bf1b288ee0848d1e29ac0d8a57441f61ca46f8bcb8dc39dcf688a84"
+    },
+    "crates/consumer/tests/support/versioned_recovery.rs": {
+      "original_path": "crates/statechronicle/tests/support/versioned_recovery.rs",
+      "sha256": "764eebf0dc13c62819dcf7a9d45add3d8bbcadaf122a17a49f60120cf4e0b963"
+    },
+    "crates/consumer/tests/trade_3tenant.rs": {
+      "original_path": "crates/statechronicle/tests/trade_3tenant.rs",
+      "sha256": "25e990452f75c8d7c1ec30f9a0ad510f7c2aa5e37bded85aada96b09a7a4341e"
+    },
+    "crates/consumer/tests/trade_bundle.rs": {
+      "original_path": "crates/statechronicle/tests/trade_bundle.rs",
+      "sha256": "877d740e5ee1961a91331bb904757a6d5674b953e14260937a5f58b595112544"
+    },
+    "crates/consumer/tests/trade_cross_tenant.rs": {
+      "original_path": "crates/statechronicle/tests/trade_cross_tenant.rs",
+      "sha256": "5c394087df7893c5ad4691448f674042abf033a353b77ac2155be3072a3fe238"
+    },
+    "crates/consumer/tests/trade_history_proof.rs": {
+      "original_path": "crates/statechronicle/tests/trade_history_proof.rs",
+      "sha256": "6e7305fb98f610db5c94bed974d7e714dd76923cff690688fa4c6fbf3ca323dc"
+    },
+    "crates/consumer/tests/trade_value.rs": {
+      "original_path": "crates/statechronicle/tests/trade_value.rs",
+      "sha256": "dccaeb29c233f007d0111c0801576cf293ad0820a6fbc409ebc262542f7f54b4"
+    },
+    "docs/CONFORMANCE/custom_domains.json": {
+      "original_path": "docs/CONFORMANCE/custom_domains.json",
+      "sha256": "8dcc8f2cbc705f8c5d126291610913eb8c19cf60039e236a317b9bae0815dd10"
+    }
+  }
+}

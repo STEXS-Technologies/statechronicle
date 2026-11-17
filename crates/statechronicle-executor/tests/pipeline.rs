@@ -1509,3 +1509,290 @@ async fn execute_batch_fails_closed_on_partial_replay() {
             .is_none()
     );
 }
+
+/// A legacy intent marker is not a signed ledger receipt. Preserve this old
+/// behavior explicitly while the new canonical API is designed separately.
+#[tokio::test]
+async fn legacy_intent_marker_bypasses_durable_sink_without_commit_evidence() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let request = with_signature(
+        mint("legacy_marker", "asset:sword_001", "alice"),
+        &fixed_key(),
+    );
+    let principal = AuthenticatedPrincipal {
+        subject: SubjectId(String::from("alice")),
+        credential_id: String::from("session-1"),
+        tenant: tenant(),
+    };
+    // This is planning only: no ledger and no durable sink are involved.
+    assert_eq!(harness.executor.execute(&request).await.unwrap().len(), 1);
+    // If the sink ran it would reject. The legacy marker alone returns Ok([]).
+    let result = harness
+        .executor
+        .execute_player_durable(
+            &request,
+            &principal,
+            &AllowAuthorizer,
+            &RejectingDurableSink,
+        )
+        .await
+        .unwrap();
+    assert!(result.is_empty());
+}
+
+fn preparation_context(
+    request: &statechronicle_intent::validated::ValidatedIntent,
+) -> (AuthenticatedPrincipal, MemoryKeyRegistry) {
+    let principal = AuthenticatedPrincipal {
+        subject: request.intent.actor.clone(),
+        credential_id: String::from("preparation-session"),
+        tenant: request.intent.tenant_id.clone(),
+    };
+    let registry = MemoryKeyRegistry::new();
+    registry
+        .register(KeyRecord {
+            key_id: request.signature.as_ref().unwrap().key_id.clone(),
+            tenant: principal.tenant.clone(),
+            subject: Some(principal.subject.clone()),
+            operations: vec![request.intent.operation.clone()],
+            valid_from: request.intent.created_at,
+            valid_until: None,
+            status: KeyStatus::Active,
+        })
+        .unwrap();
+    (principal, registry)
+}
+
+#[tokio::test]
+async fn preparation_ignores_legacy_markers_and_owns_uncommitted_inputs() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let mut request = with_signature(
+        mint("prepare_marker", "asset:sword_001", "alice"),
+        &fixed_key(),
+    );
+    let (mut principal, registry) = preparation_context(&request);
+    assert_eq!(harness.executor.execute(&request).await.unwrap().len(), 1);
+    let prepared = harness
+        .executor
+        .prepare_player(&request, &principal, &AllowAuthorizer, &registry)
+        .await
+        .unwrap();
+    assert_eq!(prepared.events().len(), 1);
+    assert_eq!(
+        prepared.payload_digest(),
+        &canonicalize_and_digest(&request.intent).unwrap()
+    );
+    assert_eq!(prepared.validated(), &request);
+    assert_eq!(prepared.principal(), &principal);
+    request.intent.actor = SubjectId(String::from("mallory"));
+    principal.subject = request.intent.actor.clone();
+    assert_eq!(prepared.validated().intent.actor.0.as_str(), "alice");
+    assert_eq!(prepared.principal().subject.0.as_str(), "alice");
+    assert_eq!(prepared.events()[0].actor.0.as_str(), "alice");
+}
+
+#[tokio::test]
+async fn preparation_does_not_claim_intents_or_modify_projection_or_transaction() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let mut request = with_signature(
+        mint("prepare_no_claim", "asset:sword_001", "alice"),
+        &fixed_key(),
+    );
+    let (principal, registry) = preparation_context(&request);
+    // Public legacy fields can be inconsistent; the prepared identity is
+    // derived from the verified body, never from a caller-supplied cache.
+    request.idempotency_key.actor = SubjectId(String::from("mallory"));
+    let first = harness
+        .executor
+        .prepare_player(&request, &principal, &AllowAuthorizer, &registry)
+        .await
+        .unwrap();
+    let second = harness
+        .executor
+        .prepare_player(&request, &principal, &AllowAuthorizer, &registry)
+        .await
+        .unwrap();
+    assert_eq!(first.validated().idempotency_key.actor, principal.subject);
+    assert_eq!(first.payload_digest(), second.payload_digest());
+    assert_eq!(first.events().len(), 1);
+    assert_eq!(second.events().len(), 1);
+    assert!(
+        IntentStore::get_intent(&harness.intent_store, &tenant(), &request.intent.intent_id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        harness
+            .index
+            .get_state(&tenant(), &request.intent.resource_id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(harness.transactions.log().is_empty());
+}
+
+#[tokio::test]
+async fn preparation_reverifies_signature_even_after_legacy_marker() {
+    let key = fixed_key();
+    let verifying = key.verifying_key();
+    let harness = Harness::with_verifier(
+        FakeTrustGrant::allow(),
+        Arc::new(move |block, bytes| {
+            verify(bytes, &verifying, &block.sig)
+                .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))
+        }),
+    );
+    let mut request = with_signature(mint("prepare_auth", "asset:sword_001", "alice"), &key);
+    let (principal, registry) = preparation_context(&request);
+    assert_eq!(harness.executor.execute(&request).await.unwrap().len(), 1);
+    request.signature =
+        with_signature(request.clone(), &SigningKey::from_bytes(&[7; 32])).signature;
+    assert!(matches!(
+        harness
+            .executor
+            .prepare_player(&request, &principal, &AllowAuthorizer, &registry)
+            .await,
+        Err(ExecutorError::ActorAuthenticationFailed(_))
+    ));
+}
+
+#[tokio::test]
+async fn preparation_refuses_missing_signature_untrusted_key_and_denied_policy() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let mut request = with_signature(
+        mint("prepare_policy", "asset:sword_001", "alice"),
+        &fixed_key(),
+    );
+    let (mut principal, registry) = preparation_context(&request);
+    assert!(matches!(
+        harness
+            .executor
+            .prepare_player(&request, &principal, &DenyAllAuthorizer, &registry)
+            .await,
+        Err(ExecutorError::ActorAuthenticationFailed(_))
+    ));
+    assert!(matches!(
+        harness
+            .executor
+            .prepare_player(
+                &request,
+                &principal,
+                &AllowAuthorizer,
+                &MemoryKeyRegistry::new()
+            )
+            .await,
+        Err(ExecutorError::ActorAuthenticationFailed(_))
+    ));
+    principal.tenant = statechronicle_domain::tenant::TenantId(String::from("other"));
+    assert!(matches!(
+        harness
+            .executor
+            .prepare_player(&request, &principal, &AllowAuthorizer, &registry)
+            .await,
+        Err(ExecutorError::ActorAuthenticationFailed(_))
+    ));
+    request.signature = None;
+    assert!(matches!(
+        harness
+            .executor
+            .prepare_player(&request, &principal, &AllowAuthorizer, &registry)
+            .await,
+        Err(ExecutorError::ActorAuthenticationFailed(_))
+    ));
+    assert!(
+        IntentStore::get_intent(&harness.intent_store, &tenant(), &request.intent.intent_id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+}
+
+struct ForbiddenPreparationIntentStore;
+
+#[async_trait]
+impl IntentStore for ForbiddenPreparationIntentStore {
+    async fn put_intent(
+        &self,
+        _tenant: &statechronicle_domain::tenant::TenantId,
+        _intent: &statechronicle_domain::intent::Intent,
+    ) -> Result<(), statechronicle_ports::intent_store::IntentStoreError> {
+        panic!("preparation must not write an intent marker");
+    }
+
+    async fn get_intent(
+        &self,
+        _tenant: &statechronicle_domain::tenant::TenantId,
+        _intent_id: &statechronicle_domain::ids::IntentId,
+    ) -> Result<
+        Option<statechronicle_domain::intent::Intent>,
+        statechronicle_ports::intent_store::IntentStoreError,
+    > {
+        panic!("preparation must not consult intent markers");
+    }
+}
+
+#[tokio::test]
+async fn preparation_never_calls_the_independent_intent_store() {
+    let mut harness = Harness::new(FakeTrustGrant::allow());
+    let ports = statechronicle_executor::pipeline::Ports::builder()
+        .intent_store(Box::new(ForbiddenPreparationIntentStore))
+        .state_index(Box::new(harness.index.clone()))
+        .tenant_store(Box::new(harness.tenant_store.clone()))
+        .trustgrant(vec![Box::new(FakeTrustGrant::allow())])
+        .transaction_manager(Box::new(harness.transactions.clone()))
+        .build()
+        .unwrap();
+    harness.executor = statechronicle_executor::pipeline::Executor::builder()
+        .ports(ports)
+        .executor(executor_subject())
+        .clock(common::fixed_now)
+        .event_id_gen(|| {
+            statechronicle_domain::ids::EventId::new(String::from("evt_preparation_no_store"))
+                .unwrap()
+        })
+        .intent_verifier(Arc::new(|_, _| Ok(())))
+        .build()
+        .unwrap();
+    let request = with_signature(
+        mint("prepare_forbidden_store", "asset:sword_001", "alice"),
+        &fixed_key(),
+    );
+    let (principal, registry) = preparation_context(&request);
+    assert_eq!(
+        harness
+            .executor
+            .prepare_player(&request, &principal, &AllowAuthorizer, &registry)
+            .await
+            .unwrap()
+            .events()
+            .len(),
+        1
+    );
+    assert!(harness.transactions.log().is_empty());
+}
+
+#[tokio::test]
+async fn preparation_rechecks_public_validated_intent_structure() {
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let mut request = with_signature(
+        mint("prepare_schema", "asset:sword_001", "alice"),
+        &fixed_key(),
+    );
+    let (principal, registry) = preparation_context(&request);
+    request.intent.schema = String::from("unrecognized.intent.schema");
+    assert!(matches!(
+        harness
+            .executor
+            .prepare_player(&request, &principal, &AllowAuthorizer, &registry)
+            .await,
+        Err(ExecutorError::Intent(_))
+    ));
+    assert!(
+        IntentStore::get_intent(&harness.intent_store, &tenant(), &request.intent.intent_id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+}

@@ -10,7 +10,7 @@
 //! to the pure [`crate::verify`] functions; the service itself holds no
 //! verification logic.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, future::Future};
 
 use ed25519_dalek::VerifyingKey;
 use statechronicle_accumulator::key::StateKey;
@@ -26,14 +26,14 @@ use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_domain::trade::TradeProof;
 
-use statechronicle_ports::commit_store::CommitStore;
+use statechronicle_ports::commit_store::{CommitStore, CommitStoreError};
 use statechronicle_ports::proof_index::ProofIndex;
 use statechronicle_ports::snapshot_store::SnapshotStore;
 use statechronicle_ports::state_index::StateIndex;
 
 use crate::bundle::{SnapshotProof, build_snapshot_proof, derive_state_key};
 use crate::error::ProofError;
-use crate::trade::verify_trade_proof;
+use crate::trade::verify_trade_proof_scoped;
 use crate::verify::{verify_bundle, verify_non_membership_bundle};
 
 /// Backend-agnostic store set used by [`ProofService`].
@@ -192,6 +192,8 @@ impl ProofService {
     /// `StateKey` (or use the pure `verify_non_membership(bundle, root, key)`
     /// with an independent key), since the service has no independent key with
     /// which to detect a forged or swapped `claimed_key`.
+    /// Prefer [`Self::verify_current`] or [`Self::verify_historical`] with an
+    /// independent [`ExpectedClaim`](crate::claim::ExpectedClaim) for new code.
     ///
     /// # Errors
     ///
@@ -205,15 +207,10 @@ impl ProofService {
         verifying_key: &VerifyingKey,
     ) -> Result<(), ProofError> {
         let key = StateKey::new(*bundle.claimed_key.as_bytes());
-        let Some(signed) = self
-            .ports
-            .commit_store
-            .commit_by_id(&bundle.tenant_id, &bundle.commit.commit_id)
-            .await
-            .map_err(|err| ProofError::Store(err.to_string()))?
-        else {
-            return Err(ProofError::NotFound);
-        };
+        let signed = Self::require_commit(
+            self.load_commit(&bundle.tenant_id, &bundle.commit.commit_id)
+                .await,
+        )?;
         verify_non_membership_bundle(bundle, &signed, verifying_key, &key)
     }
 
@@ -255,6 +252,9 @@ impl ProofService {
     /// runs the full [`verify_bundle`] pipeline (schema, tenant scope, commit
     /// reference, commit signature, sparse Merkle inclusion, claimed-state
     /// hash) under the supplied verifying key and state key.
+    /// This compatibility helper derives its address from the bundle and does
+    /// not require an independently selected historical commit or current head.
+    /// Prefer [`Self::verify_current`] or [`Self::verify_historical`] for new code.
     ///
     /// # Errors
     ///
@@ -267,16 +267,7 @@ impl ProofService {
         verifying_key: &VerifyingKey,
     ) -> Result<(), ProofError> {
         let key = derive_state_key(proof)?;
-        let Some(signed) = self
-            .ports
-            .commit_store
-            .commit_by_id(&proof.tenant_id, &proof.commit.commit_id)
-            .await
-            .map_err(|err| ProofError::Store(err.to_string()))?
-        else {
-            return Err(ProofError::NotFound);
-        };
-        verify_bundle(proof, &signed, verifying_key, &key)
+        self.verify_with_key(proof, verifying_key, &key).await
     }
 
     /// Verifies a proof bundle end-to-end with an explicit state key.
@@ -294,23 +285,19 @@ impl ProofService {
         verifying_key: &VerifyingKey,
         key: &StateKey,
     ) -> Result<(), ProofError> {
-        let Some(signed) = self
-            .ports
-            .commit_store
-            .commit_by_id(&proof.tenant_id, &proof.commit.commit_id)
-            .await
-            .map_err(|err| ProofError::Store(err.to_string()))?
-        else {
-            return Err(ProofError::NotFound);
-        };
+        let signed = Self::require_commit(
+            self.load_commit(&proof.tenant_id, &proof.commit.commit_id)
+                .await,
+        )?;
         verify_bundle(proof, &signed, verifying_key, key)
     }
 
     /// Verifies a proof and additionally requires its commit to be the
     /// adapter's current canonical tenant head.
     ///
-    /// This is the recommended method for serving player-facing proofs when
-    /// the caller means "current" state. Plain [`Self::verify`] remains
+    /// This compatibility method derives its address from the proof. Prefer
+    /// [`Self::verify_current`] with an independent expected claim when the
+    /// caller means "current" state. Plain [`Self::verify`] remains
     /// useful for historical proofs pinned to an explicitly selected commit.
     ///
     /// # Errors
@@ -325,15 +312,10 @@ impl ProofService {
         verifying_key: &VerifyingKey,
     ) -> Result<(), ProofError> {
         let key = derive_state_key(proof)?;
-        let Some(signed) = self
-            .ports
-            .commit_store
-            .commit_by_id(&proof.tenant_id, &proof.commit.commit_id)
-            .await
-            .map_err(|err| ProofError::Store(err.to_string()))?
-        else {
-            return Err(ProofError::NotFound);
-        };
+        let signed = Self::require_commit(
+            self.load_commit(&proof.tenant_id, &proof.commit.commit_id)
+                .await,
+        )?;
         self.ensure_canonical(&proof.tenant_id, &signed).await?;
         verify_bundle(proof, &signed, verifying_key, &key)
     }
@@ -350,41 +332,39 @@ impl ProofService {
         verifying_key: &VerifyingKey,
         key: &StateKey,
     ) -> Result<(), ProofError> {
-        let Some(signed) = self
-            .ports
-            .commit_store
-            .commit_by_id(&proof.tenant_id, &proof.commit.commit_id)
-            .await
-            .map_err(|err| ProofError::Store(err.to_string()))?
-        else {
-            return Err(ProofError::NotFound);
-        };
+        let signed = Self::require_commit(
+            self.load_commit(&proof.tenant_id, &proof.commit.commit_id)
+                .await,
+        )?;
         self.ensure_canonical(&proof.tenant_id, &signed).await?;
         verify_bundle(proof, &signed, verifying_key, key)
     }
 
-    async fn ensure_canonical(
-        &self,
-        tenant: &TenantId,
-        signed: &Signed<Commit>,
-    ) -> Result<(), ProofError> {
-        let head = self
-            .ports
-            .commit_store
-            .canonical_head(tenant)
-            .await
-            .map_err(|err| ProofError::Store(err.to_string()))?
-            .ok_or(ProofError::CanonicalHeadUnavailable)?;
-        if head.commit_id != signed.body.commit_id
-            || head.sequence != signed.body.sequence
-            || head.state_root != signed.body.next_state_root
-        {
-            return Err(ProofError::NonCanonicalCommit {
-                tenant: tenant.0.clone(),
-                commit_id: signed.body.commit_id.0.clone(),
-            });
-        }
-        Ok(())
+    // Forward the shared head-check future without another async state machine.
+    pub(crate) fn ensure_canonical<'read>(
+        &'read self,
+        tenant: &'read TenantId,
+        signed: &'read Signed<Commit>,
+    ) -> impl Future<Output = Result<(), ProofError>> + Send + 'read {
+        crate::claim::ensure_canonical(self.ports.commit_store.as_ref(), tenant, signed)
+    }
+
+    // Return the adapter's existing future directly: do not add another
+    // async state machine to the short lookup/refusal path.
+    pub(crate) fn load_commit<'store>(
+        &'store self,
+        tenant: &'store TenantId,
+        commit: &'store CommitId,
+    ) -> impl Future<Output = Result<Option<Signed<Commit>>, CommitStoreError>> + Send + 'store
+    {
+        self.ports.commit_store.commit_by_id(tenant, commit)
+    }
+
+    // One synchronous owner for lookup error/absence interpretation.
+    pub(crate) fn require_commit(
+        result: Result<Option<Signed<Commit>>, CommitStoreError>,
+    ) -> Result<Signed<Commit>, ProofError> {
+        crate::claim::require_commit(result)
     }
 
     /// Verifies a trade proof end-to-end.
@@ -392,7 +372,7 @@ impl ProofService {
     /// Loads every distinct signed settle commit each leg's state proofs pin
     /// (a tenant may settle two assets of one trade in two different commits)
     /// through the [`CommitStore`] port, resolves each leg's tenant verifying
-    /// key through `key_for_tenant`, and runs the pure [`verify_trade_proof`]
+    /// key through `key_for_tenant`, and runs the pure [`verify_trade_proof_scoped`]
     /// pipeline, which resolves each proof against the commit its own
     /// `commit_ref` names.
     ///
@@ -401,16 +381,22 @@ impl ProofService {
     /// Returns [`ProofError::Store`] when the commit store cannot be reached,
     /// [`ProofError::NotFound`] when a state proof's own commit is not stored,
     /// [`ProofError::KeyNotFound`] when `key_for_tenant` resolves no key for a
-    /// leg's tenant, and every [`ProofError`] variant of [`verify_trade_proof`].
+    /// leg's tenant, and every [`ProofError`] variant of [`verify_trade_proof_scoped`].
     pub async fn verify_trade(
         &self,
         proof: &TradeProof,
         key_for_tenant: &dyn Fn(&TenantId) -> Option<VerifyingKey>,
     ) -> Result<(), ProofError> {
-        let mut commits_by_id: BTreeMap<String, (Signed<Commit>, VerifyingKey)> = BTreeMap::new();
+        let mut commits_by_id = BTreeMap::new();
         for leg in &proof.legs {
             for state_proof in &leg.state_proofs {
-                let commit_id = state_proof.commit.commit_id.0.clone();
+                if state_proof.tenant_id != leg.tenant {
+                    return Err(ProofError::TenantMismatch {
+                        expected: leg.tenant.0.clone(),
+                        actual: state_proof.tenant_id.0.clone(),
+                    });
+                }
+                let commit_id = (leg.tenant.0.clone(), state_proof.commit.commit_id.0.clone());
                 if commits_by_id.contains_key(&commit_id) {
                     continue;
                 }
@@ -428,6 +414,6 @@ impl ProofService {
                 commits_by_id.insert(commit_id, (signed, verifying_key));
             }
         }
-        verify_trade_proof(proof, &commits_by_id)
+        verify_trade_proof_scoped(proof, &commits_by_id)
     }
 }

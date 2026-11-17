@@ -389,7 +389,7 @@ async fn independent_domains_execute_replay_commit_and_prove() {
                 custom.schema_version = 2;
             }
             assert!(verify_bundle(&tampered, &signed, &fixed_key().verifying_key(), &key).is_err());
-            let mut retargeted = proof.clone();
+            let mut retargeted = proof;
             retargeted.resource_id = ResourceId(String::from("config:other"));
             assert!(
                 verify_custom_bundle(
@@ -848,10 +848,8 @@ async fn custom_domain_uses_atomic_ledger_port_with_rollback_and_replay() {
 
 #[test]
 fn custom_domain_conformance_vectors() {
-    let fixture: Value = serde_json::from_str(include_str!(
-        "../../../docs/CONFORMANCE/custom_domains.json"
-    ))
-    .unwrap();
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/custom_domains.json")).unwrap();
     let natives = [
         canonicalize(&domains::ConfigurationState {
             revision: 1,
@@ -872,10 +870,11 @@ fn custom_domain_conformance_vectors() {
         });
         let bytes = canonicalize(&state).unwrap();
         let hex = |value: &[u8]| {
-            value
-                .iter()
-                .map(|byte| format!("{byte:02x}"))
-                .collect::<String>()
+            value.iter().fold(String::new(), |mut output, byte| {
+                use std::fmt::Write as _;
+                write!(output, "{byte:02x}").unwrap();
+                output
+            })
         };
         assert_eq!(hex(&bytes), vector["state_bcs_hex"]);
         let digest = canonicalize_and_digest(&state).unwrap();

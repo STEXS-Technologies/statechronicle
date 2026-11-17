@@ -35,6 +35,7 @@ use statechronicle_domain::tenant::TenantId;
 use statechronicle_domain::trade::{
     TradeEventRef, TradeRecord, TradeSide, TradeStatus, TradeValueLeg,
 };
+use statechronicle_profiles::atomicity::declares_value_leg;
 use statechronicle_profiles::keys;
 use statechronicle_profiles::unique_asset::op as asset_op;
 
@@ -361,15 +362,20 @@ fn recover_value_pairs(events: &[Event]) -> Result<Vec<RecoveredValuePair>, Inde
         for event in &group {
             let before = commitment_amount(&event.before.state);
             let after = commitment_amount(&event.after.state);
-            if before > after {
-                let delta = before
-                    .checked_sub(after)
-                    .ok_or_else(|| IndexError::MalformedValue(String::from("debit overflow")))?;
-                debit = debit
-                    .checked_add(delta)
-                    .ok_or_else(|| IndexError::MalformedValue(String::from("debit overflow")))?;
-            } else if after > before {
-                credited_subject = state_str_opt(&event.after.state, keys::SUBJECT).map(SubjectId);
+            match before.cmp(&after) {
+                std::cmp::Ordering::Greater => {
+                    let delta = before.checked_sub(after).ok_or_else(|| {
+                        IndexError::MalformedValue(String::from("debit overflow"))
+                    })?;
+                    debit = debit.checked_add(delta).ok_or_else(|| {
+                        IndexError::MalformedValue(String::from("debit overflow"))
+                    })?;
+                }
+                std::cmp::Ordering::Less => {
+                    credited_subject =
+                        state_str_opt(&event.after.state, keys::SUBJECT).map(SubjectId);
+                }
+                std::cmp::Ordering::Equal => {}
             }
         }
         let mut event_ids: Vec<EventId> =
@@ -433,7 +439,7 @@ fn match_value_legs(
             IndexError::MalformedValue(format!("malformed value_amount `{amount}`"))
         })?;
         declared.push(DeclaredValueLeg {
-            key: (amount_amt, resource.clone(), Some(to_subject.clone())),
+            key: (amount_amt, resource, Some(to_subject.clone())),
             trade_id,
             amount_str: amount,
             to_subject: SubjectId(to_subject),
@@ -483,14 +489,6 @@ fn cmp_key(left: &ValuePairKey, right: &ValuePairKey) -> std::cmp::Ordering {
         .cmp(&right.0)
         .then_with(|| left.1.cmp(&right.1))
         .then_with(|| left.2.cmp(&right.2))
-}
-
-/// Returns whether a settle intent declares a value leg (any of the three
-/// value-leg inputs present).
-fn declares_value_leg(intent: &Intent) -> bool {
-    intent.inputs.contains_key(keys::VALUE_RESOURCE)
-        || intent.inputs.contains_key(keys::VALUE_AMOUNT)
-        || intent.inputs.contains_key(keys::VALUE_TO_SUBJECT)
 }
 
 /// Reads a required string input from an intent.
@@ -813,6 +811,47 @@ mod tests {
             None,
             Nonce::from_bytes(vec![0]).unwrap(),
         )
+    }
+
+    // Preserve the original presence-only contract, including malformed values.
+    // Parsing and complete-tuple validation belong to the downstream validator.
+    #[test]
+    fn value_leg_declaration_presence_contract() {
+        let values = [
+            None,
+            Some(Value::Null),
+            Some(serde_json::json!("")),
+            Some(serde_json::json!("valid")),
+            Some(serde_json::json!(0)),
+            Some(serde_json::json!(false)),
+            Some(serde_json::json!([])),
+            Some(serde_json::json!({})),
+        ];
+        for resource in &values {
+            for amount in &values {
+                for recipient in &values {
+                    let mut intent = value_settle_intent("trade", "currency", "1", "buyer");
+                    for (key, value) in [
+                        (keys::VALUE_RESOURCE, resource),
+                        (keys::VALUE_AMOUNT, amount),
+                        (keys::VALUE_TO_SUBJECT, recipient),
+                    ] {
+                        intent.inputs.remove(key);
+                        if let Some(value) = value {
+                            intent.inputs.insert(String::from(key), value.clone());
+                        }
+                    }
+                    // Unrelated inputs cannot turn a declaration on or off.
+                    intent.inputs.insert(String::from("unrelated"), Value::Null);
+                    let expected = resource.is_some() || amount.is_some() || recipient.is_some();
+                    assert_eq!(declares_value_leg(&intent), expected);
+                    assert_eq!(
+                        statechronicle_profiles::atomicity::declares_value_leg(&intent),
+                        expected
+                    );
+                }
+            }
+        }
     }
 
     #[test]
@@ -1201,16 +1240,15 @@ mod tests {
 
     /// Derives a deterministic batch from a byte slice using fixed event
     /// templates, so the builder is exercised over arbitrary shapes.
-    #[allow(clippy::manual_is_multiple_of)]
     fn batch_from_bytes(data: &[u8]) -> IngestBatch {
-        let tenant_name = if data.first().copied().unwrap_or(0) % 2 == 0 {
+        let tenant_name = if data.first().copied().unwrap_or(0).rem_euclid(2) == 0 {
             "acme.game.alpha"
         } else {
             "acme.game.beta"
         };
         let trade = format!("trade_{:03}", data.get(1).copied().unwrap_or(0) % 7);
         let mut events = Vec::new();
-        if data.len() > 2 && data[2] % 3 != 0 {
+        if data.len() > 2 && data[2].rem_euclid(3) != 0 {
             events.push(lock_event(
                 "f1",
                 tenant_name,
@@ -1219,7 +1257,7 @@ mod tests {
                 "alice",
             ));
         }
-        if data.len() > 3 && data[3] % 2 == 0 {
+        if data.len() > 3 && data[3].rem_euclid(2) == 0 {
             events.push(settle_event(
                 "f2",
                 tenant_name,
@@ -1238,7 +1276,7 @@ mod tests {
             ));
         }
         let mut settle_intents = Vec::new();
-        if data.len() > 4 && data[4] % 2 == 0 {
+        if data.len() > 4 && data[4].rem_euclid(2) == 0 {
             let amount = (data.get(5).copied().unwrap_or(0) % 100).to_string();
             settle_intents.push(value_settle_intent(&trade, "wallet:gold", &amount, "alice"));
         }

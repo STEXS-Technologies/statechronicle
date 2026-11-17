@@ -1,0 +1,23 @@
+[package]
+name = "statechronicle-conformance"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+[workspace]
+resolver = "3"
+
+[dependencies]
+statechronicle = { path = "../../crates/statechronicle" }
+async-trait = "0.1.92"
+serde = "1.0.229"
+tokio = { version = "1.54.1", features = ["rt", "macros", "sync", "time"] }
+
+[dev-dependencies]
+chrono = "0.4.45"
+ed25519-dalek = "3.0.0"
+serde_json = "1.0.154"
+
+[lints.rust]
+unsafe_code = "forbid"

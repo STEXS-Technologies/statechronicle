@@ -6,6 +6,20 @@
 
 use statechronicle_core::amount::Amount;
 
+/// Failure stage of a combined profile check and reduction.
+///
+/// The executor preserves the legacy distinction between a rule refusal and
+/// a reducer failure. The underlying profile error remains available in both.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ProfileEvaluationError {
+    /// Input or transition rules refused the command before reduction.
+    #[error(transparent)]
+    Check(ProfileError),
+    /// Reduction, resulting-state validation or encoding failed.
+    #[error(transparent)]
+    Apply(ProfileError),
+}
+
 /// Errors raised by profile rule evaluation.
 ///
 /// Returned by [`crate::registry::ProfileRules::check`] when an operation is

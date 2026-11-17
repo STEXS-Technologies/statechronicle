@@ -33,7 +33,7 @@ fn check_size_rejects_values_over_limit_with_fields() {
 }
 
 #[test]
-fn provisional_defaults_are_bounded() {
+const fn provisional_defaults_are_bounded() {
     // Protocol §30 mandates bounded input sizes; these are the provisional
     // defaults to be finalized in ADR-004 §7.
     const _: () = assert!(MAX_INTENT_BYTES > 0);

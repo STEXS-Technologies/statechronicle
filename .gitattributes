@@ -1,0 +1,2 @@
+# Fixed fuzz inputs are protocol/test bytes, including single control characters.
+fuzz/seed-corpus/** binary

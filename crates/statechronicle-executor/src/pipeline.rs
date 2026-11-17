@@ -24,20 +24,19 @@ use chrono::{DateTime, Utc};
 use async_trait::async_trait;
 use statechronicle_core::canonicalize::{canonicalize, canonicalize_and_digest};
 use statechronicle_core::digest::ContentDigest;
-use statechronicle_core::limits::{MAX_INTENT_BYTES, check_size};
+use statechronicle_core::limits::{MAX_EVENTS_PER_COMMIT, MAX_INTENT_BYTES, check_size};
 use statechronicle_domain::authority::{
     AggregationPolicy, AuthorityProof, EvaluationResult, TRUSTGRANT_EVALUATION_KIND,
     TrustGrantOutcome, aggregate_evaluation_digest,
 };
 use statechronicle_domain::commit::ProfileId;
 use statechronicle_domain::event::{Event, StateCommitment};
-use statechronicle_domain::ids::EventId;
-use statechronicle_domain::intent::SignatureBlock;
+use statechronicle_domain::ids::{EventId, IntentId};
 #[cfg(test)]
-use statechronicle_domain::intent::{Intent, Operation};
+use statechronicle_domain::intent::Operation;
+use statechronicle_domain::intent::{Intent, SignatureBlock};
 use statechronicle_domain::resource::ResourceId;
 use statechronicle_domain::resource_state::ResourceState;
-#[cfg(test)]
 use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::state_type::StateType;
 use statechronicle_domain::subject::SubjectId;
@@ -52,15 +51,21 @@ use statechronicle_ports::state_index::StateIndex;
 use statechronicle_ports::tenant_store::TenantStore;
 use statechronicle_ports::transaction_manager::{TransactionManager, TransactionManagerError};
 use statechronicle_ports::trustgrant_evaluator::TrustGrantError;
+use statechronicle_profiles::error::ProfileEvaluationError;
+use statechronicle_profiles::execution::ExecutionPolicy;
 use statechronicle_profiles::registry::ProfileRegistry;
 
 use crate::atomicity;
 use crate::conflict;
 use crate::error::{ExecutorBuildError, ExecutorError, PortsBuildError};
+use crate::preparation::{PreparedBatch, PreparedMutation};
 #[cfg(test)]
 use statechronicle_profiles::resource::{
     destination_holder, holder_for, is_transfer_operation, subject_for,
 };
+#[path = "batch_completion.rs"]
+mod batch_completion;
+use batch_completion::BatchCompletion;
 #[path = "settlement.rs"]
 mod settlement;
 
@@ -246,21 +251,125 @@ impl PortsBuilder {
 /// ADR-006 §36 Q5).
 pub struct Executor {
     ports: Ports,
-    profiles: ProfileRegistry,
-    /// The executor identity recorded on every emitted event.
-    executor: SubjectId,
-    /// The injected wall clock used for expiry checks and `created_at`.
-    now: Box<dyn Fn() -> DateTime<Utc> + Send + Sync>,
-    /// The injected event-id generator. The executor never invents randomness:
-    /// event ids are supplied by the composition root (a counter, a ULID
-    /// service, or a sharded sequence). The function must return a valid
-    /// `evt_`-prefixed id (the `EventId` newtype enforces this at construction).
-    event_id_fn: Box<dyn Fn() -> EventId + Send + Sync>,
-    /// Verifies a present detached intent signature against the BCS canonical
-    /// bytes of the intent body (protocol §18.1 step 4, ADR-004 §5). The
-    /// composition root wires `key_id` → public-key resolution into this
-    /// closure.
-    intent_verifier: IntentVerifier,
+    preparation: PreparationConfig,
+}
+
+// Shared ingress decisions deliberately do not choose their evaluation order.
+// Single registry lanes check keys before binding/policy; batch checks binding
+// and policy first. Protected preparation also reconstructs structural input.
+fn player_signature(validated: &ValidatedIntent) -> Result<&SignatureBlock, ExecutorError> {
+    validated.signature.as_ref().ok_or_else(|| {
+        ExecutorError::ActorAuthenticationFailed(String::from(
+            "player mutation requires a detached intent signature",
+        ))
+    })
+}
+
+async fn authorize_principal(
+    validated: &ValidatedIntent,
+    principal: &AuthenticatedPrincipal,
+    authorizer: &dyn Authorizer,
+) -> Result<(), ExecutorError> {
+    if principal.tenant != validated.intent.tenant_id || principal.subject != validated.intent.actor
+    {
+        return Err(ExecutorError::ActorAuthenticationFailed(String::from(
+            "authenticated principal is not bound to intent actor and tenant",
+        )));
+    }
+    authorizer
+        .authorize(AuthorizationContext {
+            principal,
+            tenant: &validated.intent.tenant_id,
+            intent: &validated.intent,
+            resource: &validated.intent.resource_id,
+        })
+        .await
+        .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+    Ok(())
+}
+
+async fn check_player_key(
+    validated: &ValidatedIntent,
+    principal: &AuthenticatedPrincipal,
+    signature: &SignatureBlock,
+    key_registry: &dyn KeyRegistry,
+) -> Result<(), ExecutorError> {
+    key_registry
+        .resolve_intent_key(
+            &validated.intent.tenant_id,
+            &principal.subject,
+            &signature.key_id,
+            &validated.intent.operation,
+            validated.intent.created_at,
+        )
+        .await
+        .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+    Ok(())
+}
+
+// Owned checked commitments, produced once by the common preparation stage.
+// Neither event construction nor callbacks can run before this succeeds.
+struct PreparedEventStates {
+    before: StateCommitment,
+    after: StateCommitment,
+}
+
+impl PreparedEventStates {
+    fn new(
+        current: Option<&StateProjection>,
+        after_state: ResourceState,
+        policy: &dyn ExecutionPolicy,
+    ) -> Result<Self, ExecutorError> {
+        let version = current.map(|c| c.version).unwrap_or(0);
+        let next_version = version
+            .checked_add(1)
+            .ok_or_else(|| ExecutorError::TransitionInvalid(String::from("version overflow")))?;
+        let before_state = current
+            .map(|c| Ok(c.state.clone()))
+            .unwrap_or_else(|| policy.unborn_state(&after_state))?;
+        let before_hash = match current {
+            Some(projection) => projection.state_hash.clone(),
+            None => canonicalize_and_digest(&before_state)?,
+        };
+        let after_hash = canonicalize_and_digest(&after_state)?;
+        Ok(Self {
+            before: StateCommitment {
+                version,
+                state_hash: before_hash,
+                state: before_state,
+            },
+            after: StateCommitment {
+                version: next_version,
+                state_hash: after_hash,
+                state: after_state,
+            },
+        })
+    }
+}
+
+// Legacy lanes retain their historical marker lookup and optional write.
+// Preparation neither observes nor creates non-authoritative replay markers.
+#[derive(Clone, Copy)]
+enum IntentHandling<'ports> {
+    LegacyClaim(&'ports dyn IntentStore),
+    LegacyReadOnly(&'ports dyn IntentStore),
+    Prepare,
+}
+
+impl<'ports> IntentHandling<'ports> {
+    const fn marker_store(self) -> Option<&'ports dyn IntentStore> {
+        match self {
+            Self::LegacyClaim(store) | Self::LegacyReadOnly(store) => Some(store),
+            Self::Prepare => None,
+        }
+    }
+    const fn legacy(persist_marker: bool, store: &'ports dyn IntentStore) -> Self {
+        if persist_marker {
+            Self::LegacyClaim(store)
+        } else {
+            Self::LegacyReadOnly(store)
+        }
+    }
 }
 
 /// Persistence boundary for player-facing execution.
@@ -395,7 +504,12 @@ impl Executor {
     /// Returns every [`ExecutorError`] variant in fail-closed order above. No
     /// event is emitted when any check fails.
     pub async fn execute(&self, validated: &ValidatedIntent) -> Result<Vec<Event>, ExecutorError> {
-        self.execute_inner(validated, false, true).await
+        self.execute_inner(
+            validated,
+            false,
+            IntentHandling::LegacyClaim(self.ports.intent_store.as_ref()),
+        )
+        .await
     }
 
     /// Executes only after an authenticated principal is explicitly bound to
@@ -416,8 +530,13 @@ impl Executor {
         principal: &AuthenticatedPrincipal,
         authorizer: &dyn Authorizer,
     ) -> Result<Vec<Event>, ExecutorError> {
-        self.execute_authenticated_inner(validated, principal, authorizer, true)
-            .await
+        self.execute_authenticated_inner(
+            validated,
+            principal,
+            authorizer,
+            IntentHandling::LegacyClaim(self.ports.intent_store.as_ref()),
+        )
+        .await
     }
 
     async fn execute_authenticated_inner(
@@ -425,25 +544,96 @@ impl Executor {
         validated: &ValidatedIntent,
         principal: &AuthenticatedPrincipal,
         authorizer: &dyn Authorizer,
-        persist_intent: bool,
+        intent_handling: IntentHandling<'_>,
     ) -> Result<Vec<Event>, ExecutorError> {
-        if principal.tenant != validated.intent.tenant_id
-            || principal.subject != validated.intent.actor
-        {
-            return Err(ExecutorError::ActorAuthenticationFailed(String::from(
-                "authenticated principal is not bound to intent actor and tenant",
-            )));
-        }
-        authorizer
-            .authorize(AuthorizationContext {
-                principal,
-                tenant: &validated.intent.tenant_id,
-                intent: &validated.intent,
-                resource: &validated.intent.resource_id,
-            })
+        authorize_principal(validated, principal, authorizer).await?;
+        self.execute_inner(validated, false, intent_handling).await
+    }
+
+    /// Authenticates and prepares a player mutation without persistence.
+    ///
+    /// Requires a detached signature, trusted key metadata, a matching
+    /// principal and explicit authorization. Uses the ordinary single-intent
+    /// profile gates, but never reads or writes the independent intent store,
+    /// begins a transaction, or dispatches a persistence sink. A legacy marker
+    /// cannot suppress authentication or become an empty-event replay.
+    ///
+    /// Reads and injected callbacks must not perform durable writes or external
+    /// effect dispatch. The clock and event-id generator are still invoked;
+    /// a local id counter may advance. Repeated preparation may produce new
+    /// event ids, so this is neither a durable retry nor a replay receipt.
+    /// Resolve durable retries by the original intent identity and digest.
+    /// State can change after preparation: commit must enforce concurrency,
+    /// current authorization and the complete atomic ledger boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns authentication/key-policy failures or normal profile/transition
+    /// errors. Returns no committed outcome, including on success.
+    pub async fn prepare_player(
+        &self,
+        validated: &ValidatedIntent,
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+    ) -> Result<PreparedMutation, ExecutorError> {
+        self.evaluation()
+            .prepare_player(validated, principal, authorizer, key_registry)
             .await
-            .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
-        self.execute_inner(validated, false, persist_intent).await
+    }
+
+    /// Authenticate and prepare every leg without claims or persistence.
+    ///
+    /// Like the legacy player batch lane, each item's signature presence,
+    /// principal/authorization and key policy are checked before execution.
+    /// Public validated fields are reconstructed, then duplicate identities
+    /// and mixed tenants refuse before state reads. Every leg uses the shared
+    /// preparation core, including real signature verification and all profile
+    /// gates; all resulting groups pass the shared batch validator.
+    ///
+    /// No intent-store call, transaction-manager operation or sink dispatch is
+    /// made. No successful subset escapes on failure. Event ids and clock
+    /// callbacks may advance; repeated preparation is not a durable replay.
+    /// This prepares one tenant scope and does not supply durable group commit
+    /// or recovery. Host callbacks/reads must obey the same effect restrictions
+    /// as [`Self::prepare_player`].
+    /// # Errors
+    /// Refuses empty, oversized, duplicate or mixed-tenant batches, ingress
+    /// failures and any leg or group invariant failure, without durable writes.
+    pub async fn prepare_player_batch(
+        &self,
+        items: &[PlayerBatchItem<'_>],
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+    ) -> Result<PreparedBatch, ExecutorError> {
+        self.evaluation()
+            .prepare_player_batch(items, authorizer, key_registry)
+            .await
+    }
+
+    /// Prepare one authenticated single-tenant settlement as an owned batch.
+    ///
+    /// Every member passes the same ingress and preparation gates as
+    /// [`Self::prepare_player_batch`], with coordinated baseline resource routes
+    /// enabled. The complete event set must additionally pass the existing
+    /// settlement validator: declared value legs and bundle membership cannot
+    /// escape as a successful subset. No claim, transaction or sink is invoked.
+    ///
+    /// Bind the result with `SignedBatch` in the public facade and commit it
+    /// through one supported ledger transaction. Preparation alone supplies no
+    /// durable authority, freshness guarantee or cross-tenant atomicity.
+    /// Reads/callbacks obey [`Self::prepare_player`]'s effect restrictions.
+    /// # Errors
+    /// Refuses ingress, scope, profile, transfer, value-leg or bundle failures.
+    pub async fn prepare_player_settlement(
+        &self,
+        items: &[PlayerBatchItem<'_>],
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+    ) -> Result<PreparedBatch, ExecutorError> {
+        self.evaluation()
+            .prepare_player_settlement(items, authorizer, key_registry)
+            .await
     }
 
     /// Executes a player-originated mutation with the strict public-ingress
@@ -465,11 +655,7 @@ impl Executor {
         principal: &AuthenticatedPrincipal,
         authorizer: &dyn Authorizer,
     ) -> Result<Vec<Event>, ExecutorError> {
-        if validated.signature.is_none() {
-            return Err(ExecutorError::ActorAuthenticationFailed(String::from(
-                "player mutation requires a detached intent signature",
-            )));
-        }
+        player_signature(validated)?;
         self.execute_authenticated(validated, principal, authorizer)
             .await
     }
@@ -477,14 +663,16 @@ impl Executor {
     /// Executes a signed player mutation and hands its events to the required
     /// durable persistence boundary before returning success.
     ///
-    /// This is the recommended public-ingress route. It preserves the strict
+    /// This is a compatibility sink route. It preserves the strict
     /// authentication and authorization checks of [`Self::execute_player`],
     /// then invokes the deployment's sink exactly once for the constructed
     /// event set. The sink is responsible for calling the commit crate's
     /// `persist_durable_verified` (or metrics variant) with an atomic ledger
     /// transaction. No events are returned when persistence fails.
     /// Idempotent replays (an empty event set) are returned without invoking
-    /// the sink.
+    /// the sink. An empty result is not evidence of a committed mutation;
+    /// the independent intent store may contain a planning marker only.
+    /// Use [`Self::prepare_player`] to prepare without those markers.
     ///
     /// # Errors
     ///
@@ -498,13 +686,14 @@ impl Executor {
         authorizer: &dyn Authorizer,
         sink: &dyn DurableMutationSink,
     ) -> Result<Vec<Event>, ExecutorError> {
-        if validated.signature.is_none() {
-            return Err(ExecutorError::ActorAuthenticationFailed(String::from(
-                "player mutation requires a detached intent signature",
-            )));
-        }
+        player_signature(validated)?;
         let events = self
-            .execute_authenticated_inner(validated, principal, authorizer, false)
+            .execute_authenticated_inner(
+                validated,
+                principal,
+                authorizer,
+                IntentHandling::LegacyReadOnly(self.ports.intent_store.as_ref()),
+            )
             .await?;
         // An empty event set is the executor's idempotent replay signal. Do
         // not rebuild or hand a replay to the persistence sink.
@@ -534,21 +723,8 @@ impl Executor {
         authorizer: &dyn Authorizer,
         key_registry: &dyn KeyRegistry,
     ) -> Result<Vec<Event>, ExecutorError> {
-        let signature = validated.signature.as_ref().ok_or_else(|| {
-            ExecutorError::ActorAuthenticationFailed(String::from(
-                "player mutation requires a detached intent signature",
-            ))
-        })?;
-        key_registry
-            .resolve_intent_key(
-                &validated.intent.tenant_id,
-                &principal.subject,
-                &signature.key_id,
-                &validated.intent.operation,
-                validated.intent.created_at,
-            )
-            .await
-            .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+        let signature = player_signature(validated)?;
+        check_player_key(validated, principal, signature, key_registry).await?;
         self.execute_player(validated, principal, authorizer).await
     }
 
@@ -573,21 +749,8 @@ impl Executor {
         key_registry: &dyn KeyRegistry,
         sink: &dyn DurableMutationSink,
     ) -> Result<Vec<Event>, ExecutorError> {
-        let signature = validated.signature.as_ref().ok_or_else(|| {
-            ExecutorError::ActorAuthenticationFailed(String::from(
-                "player mutation requires a detached intent signature",
-            ))
-        })?;
-        key_registry
-            .resolve_intent_key(
-                &validated.intent.tenant_id,
-                &principal.subject,
-                &signature.key_id,
-                &validated.intent.operation,
-                validated.intent.created_at,
-            )
-            .await
-            .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+        let signature = player_signature(validated)?;
+        check_player_key(validated, principal, signature, key_registry).await?;
         self.execute_player_durable(validated, principal, authorizer, sink)
             .await
     }
@@ -615,37 +778,9 @@ impl Executor {
     ) -> Result<Vec<Event>, ExecutorError> {
         let mut intents = Vec::with_capacity(items.len());
         for item in items {
-            let signature = item.validated.signature.as_ref().ok_or_else(|| {
-                ExecutorError::ActorAuthenticationFailed(String::from(
-                    "player mutation requires a detached intent signature",
-                ))
-            })?;
-            if item.principal.tenant != item.validated.intent.tenant_id
-                || item.principal.subject != item.validated.intent.actor
-            {
-                return Err(ExecutorError::ActorAuthenticationFailed(String::from(
-                    "authenticated principal is not bound to intent actor and tenant",
-                )));
-            }
-            authorizer
-                .authorize(AuthorizationContext {
-                    principal: item.principal,
-                    tenant: &item.validated.intent.tenant_id,
-                    intent: &item.validated.intent,
-                    resource: &item.validated.intent.resource_id,
-                })
-                .await
-                .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
-            key_registry
-                .resolve_intent_key(
-                    &item.validated.intent.tenant_id,
-                    &item.principal.subject,
-                    &signature.key_id,
-                    &item.validated.intent.operation,
-                    item.validated.intent.created_at,
-                )
-                .await
-                .map_err(|error| ExecutorError::ActorAuthenticationFailed(error.to_string()))?;
+            let signature = player_signature(item.validated)?;
+            authorize_principal(item.validated, item.principal, authorizer).await?;
+            check_player_key(item.validated, item.principal, signature, key_registry).await?;
             intents.push(item.validated.clone());
         }
         self.execute_batch_durable(&intents, sink).await
@@ -654,385 +789,15 @@ impl Executor {
     /// Shared execution core. A profile may require a coordinated batch route;
     /// ordinary single-intent and batch calls reject those requests before
     /// claiming them. A coordinator validates the required group semantics.
-    #[allow(clippy::collapsible_if)]
     async fn execute_inner(
         &self,
         validated: &ValidatedIntent,
         allow_coordinated: bool,
-        persist_intent: bool,
+        intent_handling: IntentHandling<'_>,
     ) -> Result<Vec<Event>, ExecutorError> {
-        let intent = &validated.intent;
-        let tenant = &intent.tenant_id;
-        let resource = &intent.resource_id;
-        let operation = &intent.operation;
-
-        // §18.1 steps 1–2: schema/size are enforced upstream by the intent
-        // crate; re-check the canonical size here as a defense-in-depth gate.
-        let bytes = canonicalize(intent)?;
-        check_size("intent", MAX_INTENT_BYTES, bytes.len())?;
-
-        // §18.2: an intent expired before acceptance is rejected before any
-        // claim is recorded or any authority evaluated.
-        conflict::check_expiry(intent, (self.now)())?;
-
-        // §18.1 step 3: idempotency. Replays succeed; conflicting intents fail.
-        let existing = self
-            .ports
-            .intent_store
-            .get_intent(tenant, &intent.intent_id)
+        self.evaluation()
+            .execute_inner(validated, allow_coordinated, intent_handling)
             .await
-            .map_err(|err| map_intent_store_error(err, &intent.intent_id.0))?;
-        if let Some(existing) = existing {
-            conflict::check_idempotency_existing(&existing, intent)?;
-            tracing::debug!(intent_id = %intent.intent_id.as_str(), "idempotent replay");
-            return Ok(Vec::new());
-        }
-        // §18.1 step 4: actor authentication. Signature presence is the
-        // platform's submission policy; the executor verifies a present
-        // signature against the BCS canonical bytes of the intent body via the
-        // injected verifier (which resolves key_id → public key). An absent
-        // signature follows the v0 policy: unsigned intents are allowed only
-        // for operations the active profile does not require authority for
-        // (gated downstream by the TrustGrant step and profiles' authorized_by
-        // inputs). Revocation freshness is re-checked here on the client-
-        // provided proof when present (v0 behavior); the aggregate proof is
-        // checked for freshness in step 8.
-        if let Some(block) = &validated.signature {
-            (self.intent_verifier)(block, &bytes)?;
-        }
-        if let Some(proof) = &intent.authority {
-            if let Some(primary) = self.ports.trustgrant.first() {
-                primary
-                    .check_revocation_freshness(proof)
-                    .await
-                    .map_err(map_trustgrant_error)?;
-            }
-        }
-
-        // §18.1 step 5: tenant scope.
-        conflict::check_tenant_scope(intent)?;
-        let tenant_exists = self
-            .ports
-            .tenant_store
-            .tenant_exists(tenant)
-            .await
-            .map_err(|err| ExecutorError::Store(err.to_string()))?;
-        if !tenant_exists {
-            return Err(ExecutorError::TenantNotFound {
-                tenant: tenant.0.clone(),
-            });
-        }
-
-        // Resolve profile-owned storage addressing before loading the state.
-        let state_type = intent.state_type.ok_or(ExecutorError::StateTypeRequired)?;
-        let rules = self.profiles.resolve(state_type, &intent.inputs)?;
-        let execution_policy = rules.execution_policy();
-        execution_policy.validate_route(intent, allow_coordinated)?;
-        let mut current = match execution_policy.primary_subject(intent) {
-            Some(subject) => self
-                .ports
-                .state_index
-                .get_subject_state(tenant, subject, resource)
-                .await
-                .map_err(|err| ExecutorError::Store(err.to_string()))?,
-            None => self
-                .ports
-                .state_index
-                .get_state(tenant, resource)
-                .await
-                .map_err(|err| ExecutorError::Store(err.to_string()))?,
-        };
-
-        // A profile may make the existing state's address authoritative over
-        // the initial lookup's creation default.
-        if let Some(holder) = execution_policy.current_subject(intent, current.as_ref()) {
-            let queried = execution_policy.primary_subject(intent);
-            if queried.is_some() && Some(&holder) != queried {
-                current = self
-                    .ports
-                    .state_index
-                    .get_subject_state(tenant, &holder, resource)
-                    .await
-                    .map_err(|err| ExecutorError::Store(err.to_string()))?;
-            }
-        }
-
-        if let Some(projection) = &current {
-            if projection.state_type != state_type || projection.state.state_type() != state_type {
-                return Err(ExecutorError::TransitionInvalid(String::from(
-                    "state type mismatch",
-                )));
-            }
-        }
-
-        // §18.1 step 7 + §18.2 conflict gates.
-        conflict::check_expected_version(intent, current.as_ref())?;
-        execution_policy.check_access(intent, current.as_ref())?;
-
-        // §18.1 step 8: TrustGrant authority. The active profile's rule set is
-        // resolved here (before the gate) so `requires_authority` and
-        // `authority_policy` can drive the mandatory-binding rule and the
-        // aggregation policy; `rules.check` still runs at step 9.
-        if state_type == StateType::Custom {
-            let identity = ProfileId::new(String::from(rules.profile_id()))?;
-            if !rules.allowed_operations().contains(operation) {
-                return Err(ExecutorError::TransitionInvalid(String::from(
-                    "unregistered operation",
-                )));
-            }
-            if let Some(projection) = &current {
-                let ResourceState::Custom(custom) = &projection.state else {
-                    return Err(ExecutorError::TransitionInvalid(String::from(
-                        "custom state required",
-                    )));
-                };
-                if custom.domain != identity || custom.schema_version != rules.schema_version() {
-                    return Err(ExecutorError::TransitionInvalid(String::from(
-                        "domain/schema mismatch",
-                    )));
-                }
-            }
-        }
-        let required = rules.requires_authority(operation);
-        let policy = rules.authority_policy(operation);
-
-        let authority = if intent.authority.is_none() && required {
-            // Authority-required operations MUST carry a binding (protocol
-            // §11.2, ADR-006 §36 Q5 / deferral item 4).
-            return Err(ExecutorError::AuthorityMissing {
-                operation: String::from(operation.as_str()),
-            });
-        } else if intent.authority.is_none() {
-            // Not authority-required and no binding: proceed WITHOUT authority.
-            // The profile's transition and consent rules govern this path
-            // (profile-owned fallback; the event carries no authority).
-            None
-        } else {
-            // Authority is present: evaluate every member of the deployment's
-            // authority set and aggregate under the profile's policy. An empty
-            // set with authority present fails closed.
-            if self.ports.trustgrant.is_empty() {
-                return Err(ExecutorError::AuthorityUnavailable(String::from(
-                    "no authority configured",
-                )));
-            }
-            let mut outcomes: Vec<TrustGrantOutcome> = Vec::new();
-            let mut denied = false;
-            let mut stale = false;
-            let mut unavailable: Option<String> = None;
-            for trustgrant in &self.ports.trustgrant {
-                match trustgrant
-                    .evaluate(tenant, &intent.actor, operation.as_str(), resource)
-                    .await
-                {
-                    Ok(outcome) if outcome.result == EvaluationResult::Allow => {
-                        outcomes.push(outcome)
-                    }
-                    Ok(_outcome) => denied = true,
-                    Err(TrustGrantError::Denied) => denied = true,
-                    Err(TrustGrantError::Stale) => stale = true,
-                    Err(TrustGrantError::Unavailable(message)) => unavailable = Some(message),
-                }
-            }
-            let pass = match policy {
-                AggregationPolicy::RequireAll => !denied && !stale && unavailable.is_none(),
-                AggregationPolicy::AnyOf => !outcomes.is_empty(),
-                // Unknown policies fail closed as require-all.
-                _ => !denied && !stale && unavailable.is_none(),
-            };
-            if !pass {
-                // Error precedence when multiple members fail: a member's
-                // explicit deny is masked by another member's unavailability.
-                // Ordering is unavailable > stale > denied. Fail-closed is
-                // preserved regardless of which error surfaces.
-                if let Some(message) = unavailable {
-                    return Err(ExecutorError::AuthorityUnavailable(message));
-                }
-                if stale {
-                    return Err(ExecutorError::AuthorityStale);
-                }
-                return Err(ExecutorError::AuthorityDenied);
-            }
-            let sub_digests: Vec<ContentDigest> = outcomes
-                .iter()
-                .map(|outcome| outcome.evaluation_digest.clone())
-                .collect();
-            let evaluation_digest = aggregate_evaluation_digest(policy, &sub_digests);
-            let evaluated_at = outcomes
-                .iter()
-                .map(|outcome| outcome.evaluated_at)
-                .min()
-                .unwrap_or_else(|| (self.now)());
-            let proof = AuthorityProof {
-                kind: String::from(TRUSTGRANT_EVALUATION_KIND),
-                evaluation_digest,
-                result: EvaluationResult::Allow,
-                evaluated_at,
-            };
-            // Freshness of the aggregate proof (the stalest member's
-            // `evaluated_at`), checked against the primary authority.
-            if let Some(primary) = self.ports.trustgrant.first() {
-                primary
-                    .check_revocation_freshness(&proof)
-                    .await
-                    .map_err(map_trustgrant_error)?;
-            }
-            Some(proof)
-        };
-
-        // §18.1 step 9: profile rules.
-        rules.check(operation, current.as_ref(), &intent.inputs)?;
-
-        // §18.1 step 10: deterministic after-state.
-        let after_state = rules
-            .apply(current.as_ref(), operation, &intent.inputs)
-            .map_err(|error| ExecutorError::TransitionInvalid(error.to_string()))?;
-        if after_state.state_type() != state_type {
-            return Err(ExecutorError::TransitionInvalid(String::from(
-                "reducer state type mismatch",
-            )));
-        }
-
-        if let ResourceState::Custom(custom) = &after_state {
-            let identity = ProfileId::new(String::from(rules.profile_id()))?;
-            if custom.domain != identity || custom.schema_version != rules.schema_version() {
-                return Err(ExecutorError::TransitionInvalid(String::from(
-                    "reducer domain/schema mismatch",
-                )));
-            }
-        }
-
-        // §18.1 step 11: emit the event.
-        let version = current.as_ref().map(|c| c.version).unwrap_or(0);
-        let next_version = version
-            .checked_add(1)
-            .ok_or_else(|| ExecutorError::TransitionInvalid(String::from("version overflow")))?;
-        let before_state = current
-            .as_ref()
-            .map(|c| Ok(c.state.clone()))
-            .unwrap_or_else(|| execution_policy.unborn_state(&after_state))?;
-        let before_hash = match current.as_ref() {
-            Some(projection) => projection.state_hash.clone(),
-            None => canonicalize_and_digest(&before_state)?,
-        };
-        let after_hash = canonicalize_and_digest(&after_state)?;
-        let event = Event::new(
-            tenant.clone(),
-            (self.event_id_fn)(),
-            intent.intent_id.clone(),
-            operation.clone(),
-            resource.clone(),
-            intent.actor.clone(),
-            StateCommitment {
-                version,
-                state_hash: before_hash,
-                state: before_state,
-            },
-            StateCommitment {
-                version: next_version,
-                state_hash: after_hash,
-                state: after_state,
-            },
-            authority.clone(),
-            self.executor.clone(),
-            (self.now)(),
-        );
-
-        tracing::debug!(event_id = %event.event_id.as_str(), "emitted event");
-
-        // Construct a profile-declared companion mutation, then claim the
-        // intent only after every event has been validated and constructed.
-        if let Some(target) = execution_policy.companion_target(intent)? {
-            let destination_current = match &target.subject {
-                Some(subject) => {
-                    self.ports
-                        .state_index
-                        .get_subject_state(tenant, subject, &target.resource)
-                        .await
-                }
-                None => {
-                    self.ports
-                        .state_index
-                        .get_state(tenant, &target.resource)
-                        .await
-                }
-            }
-            .map_err(|err| ExecutorError::Store(err.to_string()))?;
-            let source = current.as_ref().ok_or_else(|| {
-                ExecutorError::TransitionInvalid(String::from(
-                    "companion transition requires an existing primary state",
-                ))
-            })?;
-            let destination_after_state = execution_policy
-                .apply_companion(intent, source, destination_current.as_ref())
-                .map_err(|error| ExecutorError::TransitionInvalid(error.to_string()))?;
-
-            let destination_version = destination_current.as_ref().map(|c| c.version).unwrap_or(0);
-            let destination_next_version = destination_version.checked_add(1).ok_or_else(|| {
-                ExecutorError::TransitionInvalid(String::from("version overflow"))
-            })?;
-            let destination_before_state = destination_current
-                .as_ref()
-                .map(|c| Ok(c.state.clone()))
-                .unwrap_or_else(|| execution_policy.unborn_state(&destination_after_state))?;
-            let destination_before_hash = match destination_current.as_ref() {
-                Some(projection) => projection.state_hash.clone(),
-                None => canonicalize_and_digest(&destination_before_state)?,
-            };
-            let destination_after_hash = canonicalize_and_digest(&destination_after_state)?;
-
-            let destination_event = Event::new(
-                tenant.clone(),
-                (self.event_id_fn)(),
-                intent.intent_id.clone(),
-                operation.clone(),
-                target.resource.clone(),
-                intent.actor.clone(),
-                StateCommitment {
-                    version: destination_version,
-                    state_hash: destination_before_hash,
-                    state: destination_before_state,
-                },
-                StateCommitment {
-                    version: destination_next_version,
-                    state_hash: destination_after_hash,
-                    state: destination_after_state,
-                },
-                authority,
-                self.executor.clone(),
-                (self.now)(),
-            );
-
-            tracing::debug!(
-                event_id = %destination_event.event_id.as_str(),
-                "emitted companion event"
-            );
-            // Claim only after both profile mutations have been fully validated and
-            // constructed. Durable implementations must make this claim
-            // atomic with persistence of both events and their commit.
-            if persist_intent {
-                self.ports
-                    .intent_store
-                    .put_intent(tenant, intent)
-                    .await
-                    .map_err(|err| map_intent_store_error(err, &intent.intent_id.0))?;
-            }
-            return Ok(vec![event, destination_event]);
-        }
-
-        // Claim only after authentication, authority, profile, transition, and
-        // complete event construction have passed. This prevents malformed or
-        // unauthorized requests from poisoning the idempotency namespace.
-        // Durable implementations must still make this claim atomic with the
-        // event/commit write (see TODO.md P0-1/P0-2).
-        if persist_intent {
-            self.ports
-                .intent_store
-                .put_intent(tenant, intent)
-                .await
-                .map_err(|err| map_intent_store_error(err, &intent.intent_id.0))?;
-        }
-        Ok(vec![event])
     }
 
     /// Runs a batch of intents atomically (protocol §18.3).
@@ -1076,17 +841,8 @@ impl Executor {
             )));
         };
         let tenant = &first.intent.tenant_id;
-        let handle = if sink.is_none() {
-            Some(
-                self.ports
-                    .transaction_manager
-                    .begin(tenant)
-                    .await
-                    .map_err(|err| map_transaction_manager_error(&err))?,
-            )
-        } else {
-            None
-        };
+        let completion =
+            BatchCompletion::begin(sink, || self.ports.transaction_manager.begin(tenant)).await?;
 
         // Both a leg failure and an inconsistent-batch validation failure are
         // rolled back atomically (a failed validation must not short-circuit
@@ -1102,33 +858,10 @@ impl Executor {
         };
         match result {
             Ok(events) => {
-                if let Some(sink) = sink.filter(|_| !events.is_empty())
-                    && let Err(error) = sink.persist_batch(intents, &events).await
-                {
-                    if let Some(handle) = handle
-                        && let Err(rollback_error) = handle.rollback().await
-                    {
-                        tracing::warn!(%rollback_error, "durable batch rollback failed");
-                    }
-                    return Err(ExecutorError::Store(error));
-                }
-                if let Some(handle) = handle {
-                    handle
-                        .commit()
-                        .await
-                        .map_err(|err| map_transaction_manager_error(&err))?;
-                }
+                completion.succeed(intents, &events).await?;
                 Ok(events)
             }
-            Err(error) => {
-                let message = error.to_string();
-                if let Some(handle) = handle
-                    && let Err(rollback_error) = handle.rollback().await
-                {
-                    tracing::warn!(rollback = %rollback_error, "batch rollback failed");
-                }
-                Err(ExecutorError::AtomicityViolation(message))
-            }
+            Err(error) => Err(completion.refuse(error, "batch rollback failed").await),
         }
     }
 
@@ -1156,41 +889,23 @@ impl Executor {
         intents: &[ValidatedIntent],
         events: &[Event],
     ) -> Result<(), ExecutorError> {
-        let mut identities = BTreeSet::new();
-        let mut groups = BTreeMap::new();
-        let mut tenant = None;
-        for event in events {
-            if !identities.insert(&event.event_id) {
-                return Err(ExecutorError::AtomicityViolation(String::from(
-                    "duplicate event id in batch",
-                )));
-            }
-            if tenant.is_some_and(|first| first != &event.tenant_id) {
-                return Err(ExecutorError::AtomicityViolation(String::from(
-                    "mixed tenant scopes in batch",
-                )));
-            }
-            tenant = Some(&event.tenant_id);
-            groups
-                .entry(&event.intent_id)
-                .or_insert_with(Vec::new)
-                .push(event);
-        }
-        for (identity, group) in groups {
-            let validated = intents
-                .iter()
-                .find(|entry| &entry.intent.intent_id == identity)
-                .ok_or_else(|| {
-                    ExecutorError::AtomicityViolation(String::from("event has no accepted intent"))
-                })?;
-            let intent = &validated.intent;
-            let state_type = intent.state_type.ok_or(ExecutorError::StateTypeRequired)?;
-            self.profiles
-                .resolve(state_type, &intent.inputs)?
-                .execution_policy()
-                .validate_events(&group)?;
-        }
-        Ok(())
+        self.validate_profile_groups(
+            |identity| {
+                intents
+                    .iter()
+                    .find(|request| &request.intent.intent_id == identity)
+            },
+            events,
+        )
+    }
+
+    fn validate_profile_groups<'event>(
+        &self,
+        intent_for: impl Fn(&IntentId) -> Option<&'event ValidatedIntent>,
+        events: impl IntoIterator<Item = &'event Event>,
+    ) -> Result<(), ExecutorError> {
+        self.evaluation()
+            .validate_profile_groups(intent_for, events)
     }
 
     /// Executes intents in order under the caller's coordination policy.
@@ -1203,8 +918,12 @@ impl Executor {
         let mut events = Vec::new();
         for validated in intents {
             events.extend(
-                self.execute_inner(validated, allow_coordinated, persist_intent)
-                    .await?,
+                self.execute_inner(
+                    validated,
+                    allow_coordinated,
+                    IntentHandling::legacy(persist_intent, self.ports.intent_store.as_ref()),
+                )
+                .await?,
             );
         }
         Ok(events)
@@ -1233,7 +952,13 @@ impl Executor {
     ) -> Result<Vec<Event>, ExecutorError> {
         let mut events = Vec::new();
         for validated in intents {
-            let produced = self.execute_inner(validated, false, persist_intent).await?;
+            let produced = self
+                .execute_inner(
+                    validated,
+                    false,
+                    IntentHandling::legacy(persist_intent, self.ports.intent_store.as_ref()),
+                )
+                .await?;
             if produced.is_empty() {
                 return Err(ExecutorError::AtomicityViolation(format!(
                     "partial replay detected in batch: intent `{}` was already claimed and replayed idempotently; the batch fails closed so no partial results escape",
@@ -1358,11 +1083,13 @@ impl ExecutorBuilder {
             .ok_or(ExecutorBuildError::MissingIntentVerifier)?;
         Ok(Executor {
             ports,
-            profiles,
-            executor,
-            now,
-            event_id_fn,
-            intent_verifier,
+            preparation: PreparationConfig {
+                profiles,
+                executor,
+                now,
+                event_id_fn,
+                intent_verifier,
+            },
         })
     }
 }
@@ -1564,5 +1291,164 @@ mod tests {
         let inputs = BTreeMap::from([(String::from("to_subject"), serde_json::json!("bob"))]);
         assert_eq!(destination_holder(&inputs).unwrap().0, "bob");
         assert!(destination_holder(&BTreeMap::new()).is_err());
+    }
+}
+
+#[path = "evaluation.rs"]
+mod evaluation;
+
+impl Executor {
+    fn evaluation(&self) -> evaluation::Evaluation<'_> {
+        evaluation::Evaluation {
+            state_index: self.ports.state_index.as_ref(),
+            tenant_store: self.ports.tenant_store.as_ref(),
+            trustgrant: &self.ports.trustgrant,
+            profiles: &self.preparation.profiles,
+            executor: &self.preparation.executor,
+            now: self.preparation.now.as_ref(),
+            event_id_fn: self.preparation.event_id_fn.as_ref(),
+            intent_verifier: &self.preparation.intent_verifier,
+        }
+    }
+}
+
+/// Required domain policy, identity and callbacks for protected preparation.
+///
+/// Callbacks must not perform durable writes or external effect dispatch.
+/// The verifier must resolve trusted keys and verify canonical intent bytes;
+/// key metadata is independently checked by each player preparation call.
+pub struct PreparationConfig {
+    /// Registered domain semantics and execution policies.
+    pub profiles: ProfileRegistry,
+    /// The executor identity recorded on every emitted event.
+    pub executor: SubjectId,
+    /// The injected wall clock used for expiry checks and `created_at`.
+    pub now: Box<dyn Fn() -> DateTime<Utc> + Send + Sync>,
+    /// The injected event-id generator. The executor never invents randomness:
+    /// event ids are supplied by the composition root (a counter, a ULID
+    /// service, or a sharded sequence). The function must return a valid
+    /// `evt_`-prefixed id (the `EventId` newtype enforces this at construction).
+    pub event_id_fn: Box<dyn Fn() -> EventId + Send + Sync>,
+    /// Verifies a present detached intent signature against the BCS canonical
+    /// bytes of the intent body (protocol §18.1 step 4, ADR-004 §5). The
+    /// composition root wires `key_id` → public-key resolution into this
+    /// closure.
+    pub intent_verifier: IntentVerifier,
+}
+
+/// Read capabilities needed to prepare an authenticated mutation.
+///
+/// Implementations and injected callbacks must obey the no-persistence/no-dispatch
+/// contract of [`Preparer::prepare_player`]. A read can become stale before commit.
+/// This bundle does not require an intent store or symbolic transaction manager.
+pub struct PreparationPorts {
+    /// Current derived resource and subject projections.
+    pub state_index: Box<dyn StateIndex + Send + Sync>,
+    /// Tenant existence within the deployment.
+    pub tenant_store: Box<dyn TenantStore + Send + Sync>,
+    /// Delegated-authority evaluators, aggregated by the owning profile policy.
+    pub trustgrant: Vec<Box<dyn TrustGrantPort + Send + Sync>>,
+}
+
+/// Authenticated preparation using only read capabilities.
+///
+/// Produces uncommitted plans, never replay receipts. Shares all ingress,
+/// transition and event construction with [`Executor`]'s protected preparation.
+/// No legacy execution, intent marker or transaction-manager API is exposed.
+/// Commit through an authoritative ledger and recover by original identity.
+///
+/// ```compile_fail
+/// # fn check(preparer: statechronicle_executor::preparation::Preparer) {
+/// preparer.execute(todo!());
+/// # }
+/// ```
+pub struct Preparer {
+    ports: PreparationPorts,
+    config: PreparationConfig,
+}
+
+impl Preparer {
+    /// Compose required read ports and explicit domain/security callbacks.
+    pub const fn new(ports: PreparationPorts, config: PreparationConfig) -> Self {
+        Self { ports, config }
+    }
+
+    fn evaluation(&self) -> evaluation::Evaluation<'_> {
+        evaluation::Evaluation {
+            state_index: self.ports.state_index.as_ref(),
+            tenant_store: self.ports.tenant_store.as_ref(),
+            trustgrant: &self.ports.trustgrant,
+            profiles: &self.config.profiles,
+            executor: &self.config.executor,
+            now: self.config.now.as_ref(),
+            event_id_fn: self.config.event_id_fn.as_ref(),
+            intent_verifier: &self.config.intent_verifier,
+        }
+    }
+
+    /// Prepare a signed request with key policy, principal binding and authorization.
+    ///
+    /// Uses the exact gates and callback order of [`Executor::prepare_player`].
+    /// Reads/callbacks must not write durable state or dispatch external effects.
+    /// Clock and local event-id counters may advance. Success grants no durable
+    /// authority or state freshness; commit must enforce current authorization,
+    /// concurrency, canonical head and complete atomic effects.
+    ///
+    /// # Errors
+    /// Returns ingress, key, policy, state or profile refusal with no owned plan.
+    pub async fn prepare_player(
+        &self,
+        validated: &ValidatedIntent,
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+    ) -> Result<PreparedMutation, ExecutorError> {
+        self.evaluation()
+            .prepare_player(validated, principal, authorizer, key_registry)
+            .await
+    }
+
+    /// Prepare one complete authenticated single-tenant batch without persistence.
+    ///
+    /// Uses [`Executor::prepare_player_batch`]'s ingress, identity and group gates.
+    /// No successful subset escapes on refusal. Reads and callbacks obey the same
+    /// effect restrictions as [`Self::prepare_player`]; this supplies no atomic commit.
+    ///
+    /// # Errors
+    /// Refuses invalid batch identity/size, ingress, transition or group invariants.
+    pub async fn prepare_player_batch(
+        &self,
+        items: &[PlayerBatchItem<'_>],
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+    ) -> Result<PreparedBatch, ExecutorError> {
+        self.evaluation()
+            .prepare_player_batch(items, authorizer, key_registry)
+            .await
+    }
+
+    /// Prepare one authenticated single-tenant settlement as an owned batch.
+    ///
+    /// Every member passes the same ingress and preparation gates as
+    /// [`Self::prepare_player_batch`], with coordinated baseline resource routes
+    /// enabled. The complete event set must additionally pass the existing
+    /// settlement validator: declared value legs and bundle membership cannot
+    /// escape as a successful subset. No claim, transaction or sink is invoked.
+    ///
+    /// Bind the result with `SignedBatch` in the public facade and commit it
+    /// through one supported ledger transaction. Preparation alone supplies no
+    /// durable authority, freshness guarantee or cross-tenant atomicity.
+    /// Reads/callbacks obey [`Self::prepare_player`]'s effect restrictions.
+    /// # Errors
+    /// Refuses ingress, scope, profile, transfer, value-leg or bundle failures.
+    pub async fn prepare_player_settlement(
+        &self,
+        items: &[PlayerBatchItem<'_>],
+        authorizer: &dyn Authorizer,
+        key_registry: &dyn KeyRegistry,
+    ) -> Result<PreparedBatch, ExecutorError> {
+        self.evaluation()
+            .prepare_player_settlement(items, authorizer, key_registry)
+            .await
     }
 }

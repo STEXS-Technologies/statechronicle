@@ -5,7 +5,9 @@
 all-features = true
 
 [advisories]
-ignore = []
+# Maintenance-only exception; expiry enforced by the release driver.
+# See DEPENDENCY_MAINTENANCE.md.
+ignore = ["RUSTSEC-2026-0543"]
 
 [licenses]
 confidence-threshold = 0.93

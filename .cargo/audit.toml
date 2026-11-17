@@ -1,0 +1,4 @@
+[advisories]
+# Maintenance-only exception; enforced expiry in check_advisory_exceptions.py.
+# Rationale and owner: DEPENDENCY_MAINTENANCE.md.
+ignore = ["RUSTSEC-2026-0543"]
