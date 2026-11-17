@@ -4,6 +4,8 @@ set -euo pipefail
 workspace_root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "${workspace_root}"
 
+python3 scripts/check_advisory_exceptions.py
+python3 scripts/test_advisory_exceptions.py
 cargo fmt --all -- --check
 python3 scripts/test_release_driver.py
 # Dev-only adapter harness is an isolated workspace; root --workspace omits it.

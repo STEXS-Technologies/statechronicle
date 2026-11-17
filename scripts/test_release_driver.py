@@ -53,6 +53,8 @@ class ReleaseDriver(unittest.TestCase):
         result, calls = self.execute()
         self.assertEqual(result.returncode, 0, result.stdout.decode())
         self.assertIn(b'release checks passed', result.stdout)
+        self.assertEqual(calls[0], ['python3', 'scripts/check_advisory_exceptions.py'])
+        self.assertIn(['python3', 'scripts/test_advisory_exceptions.py'], calls)
         self.assertIn(['cargo', 'test', '--workspace', '--exclude', 'statechronicle-fuzz',
                        '--doc', '--all-features', '--locked'], calls)
         for tutorial in ['minimal-native-domain', 'durable-custom-ledger']:
