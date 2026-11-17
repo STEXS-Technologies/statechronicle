@@ -49,68 +49,75 @@ For reliable writes and retries, your storage adapter must implement the
 [durable-ledger tutorial](tutorials/durable-custom-ledger/README.md) to see a
 complete example using a small file store.
 
-## Run your first example
+## Quick start
 
-You need Rust and Git installed. These examples use this development branch's
-upcoming 0.3 API; its package versions still read `0.2.0`.
-
-**1. Define data and check a change.** This example creates configuration and
-equipment records using your own Rust types. It checks the requests and shows
-the proposed results, without saving anything. No database or service is needed.
+Requires **Rust 1.88+**. Create a project and add the development version:
 
 ```sh
-git clone --branch refactor/coherence https://github.com/STEXS-Technologies/statechronicle.git
-cd statechronicle
-rustup toolchain install 1.88.0 --profile minimal
-cargo +1.88.0 run --manifest-path tutorials/minimal-native-domain/Cargo.toml --locked
-```
-
-Expected output:
-
-```text
-Prepared configuration: ConfigurationState { revision: 1, enabled: true }
-Prepared equipment: EquipmentState { mode: Idle, cycles: 0 }
-Uncommitted: no intent claim, ledger write, outbox dispatch or durable receipt.
-```
-
-See the [data types and rules](tutorials/minimal-native-domain/src/domains.rs),
-[application code](tutorials/minimal-native-domain/src/main.rs) and
-[step-by-step explanation](tutorials/minimal-native-domain/README.md).
-
-**2. Save changes and recover a lost reply.** From the same checkout, run:
-
-```sh
-rustup toolchain install 1.89.0 --profile minimal
-cargo +1.89.0 run --manifest-path tutorials/durable-custom-ledger/Cargo.toml --locked
-```
-
-This example saves signed changes to a temporary file, simulates losing the
-save confirmation, then reopens the file to find out what happened. Retrying
-the same request returns the original result without saving it twice. It also
-updates the configuration and checks proofs of its old and new state.
-
-The output includes:
-
-```text
-Commit acknowledgement: unknown; retain original identity and signed plan.
-Recovery after reopen: original committed mutation verified.
-Exact retry: replay; one original event, commit and outbox row.
-```
-
-See the [application code](tutorials/durable-custom-ledger/src/main.rs) and
-[walkthrough](tutorials/durable-custom-ledger/README.md). Its file store needs
-Rust 1.89+; the library itself supports Rust 1.88+. Both examples use development
-keys that must be replaced in a real application.
-
-## Add it to your project
-
-For the development API used above:
-
-```sh
+cargo new first-item
+cd first-item
 cargo add statechronicle --git https://github.com/STEXS-Technologies/statechronicle --branch refactor/coherence
+cargo add serde_json@1 ed25519-dalek@3
 ```
 
-For the published 0.2 API, use `cargo add statechronicle@0.2.0` and its
+Replace `src/main.rs` with this complete program:
+
+```rust
+use ed25519_dalek::SigningKey;
+use serde_json::json;
+use statechronicle::core::{
+    canonicalize::canonicalize,
+    signature::{sign, verify},
+};
+use statechronicle::profiles::{
+    registry::ProfileRules,
+    unique_asset::{UniqueAssetRules, op},
+};
+use std::collections::BTreeMap;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create an item owned by Alice using the built-in item rules.
+    let inputs = BTreeMap::from([("to_owner".to_owned(), json!("alice"))]);
+    let item = UniqueAssetRules.evaluate(None, op::asset_mint(), &inputs)?;
+    println!("Created: {item}");
+
+    // Sign its canonical bytes. This fixed key is only for the example.
+    let key = SigningKey::from_bytes(&[7; 32]);
+    let bytes = canonicalize(&item)?;
+    let signature = sign(&bytes, &key);
+
+    // Verify with the public key you trust for this record.
+    verify(&bytes, &key.verifying_key(), &signature)?;
+    println!("Signature verified");
+
+    // The same signature cannot verify changed data.
+    assert!(verify(b"changed data", &key.verifying_key(), &signature).is_err());
+    println!("Changed data rejected");
+    Ok(())
+}
+```
+
+Run it with `cargo run`:
+
+```text
+Created: {"owner":"alice","status":"active"}
+Signature verified
+Changed data rejected
+```
+
+This introduces two building blocks: calculate a valid item state and verify
+its signed bytes. It runs in memory. Authentication, saved event history and
+safe retries are added through the protected mutation and storage APIs:
+
+- [Define your own data and authenticate requests](tutorials/minimal-native-domain/README.md).
+- [Save signed changes, recover a lost reply and check proofs](tutorials/durable-custom-ledger/README.md).
+
+The second tutorial uses a temporary file store and requires Rust 1.89+.
+Use real key management instead of the fixed example key in an application.
+
+These instructions use the upcoming 0.3 API on this branch; package versions
+still read `0.2.0`. For the published 0.2 API, use
+`cargo add statechronicle@0.2.0` and its
 [API reference](https://docs.rs/statechronicle/0.2.0/statechronicle/).
 See [Rust support](docs/0.3/rust-support.md) for compiler details.
 
