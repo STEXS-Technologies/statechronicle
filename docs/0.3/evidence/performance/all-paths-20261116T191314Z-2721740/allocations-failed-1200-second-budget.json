@@ -1,0 +1,1450 @@
+{
+  "status": "failed",
+  "source_manifest_sha256": "6b9b4d97ce4e0e8732ea4e98c96e8182859417f6cd2172b474f381132cb8b395",
+  "actions_per_probe": 1000,
+  "timeout_seconds_per_probe": 1200,
+  "parallel_lanes": 4,
+  "cpu_by_lane": {
+    "original": 0,
+    "dependency-control": 1,
+    "completion-control": 2,
+    "candidate": 3
+  },
+  "valgrind": "valgrind-3.27.1",
+  "retry_of": "allocations-failed-timeout.json",
+  "checks": [
+    {
+      "lane": "completion-control",
+      "workload": "cross_tenant_trade_plan_including_seed_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "cross_tenant_trade_plan_including_seed_setup____________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 20.8573096649925,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-cross_tenant_trade_plan_including_seed_setup.log.gz",
+      "sha256": "24f8aeb600a79cc078faa01bcf1554ace2bbed485f5176855262f0c92a9df1a9"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "trade_state_proof_verification",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "trade_state_proof_verification__________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 4.547959928007913,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-trade_state_proof_verification.log.gz",
+      "sha256": "0eeb6555d6bf0c2ff9385f618afe49c0f31b17aa87bb58fe4d0f2631c665a310"
+    },
+    {
+      "lane": "candidate",
+      "workload": "cross_tenant_trade_plan_including_seed_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "cross_tenant_trade_plan_including_seed_setup____________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 29.78893982700538,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-cross_tenant_trade_plan_including_seed_setup.log.gz",
+      "sha256": "30d9879179918268daaa23b2ca7a6114c4b77fe5d78e84955cbc0f66932114f4"
+    },
+    {
+      "lane": "candidate",
+      "workload": "trade_state_proof_verification",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "trade_state_proof_verification__________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 6.679220142992563,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-trade_state_proof_verification.log.gz",
+      "sha256": "644c7a6ace0e0dc19937dfe7663deff8c243aa60ba2b16d1b010ae86acae67b1"
+    },
+    {
+      "lane": "dependency-control",
+      "workload": "cross_tenant_trade_plan_including_seed_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "1",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-1-bench",
+        "cross_tenant_trade_plan_including_seed_setup____________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 46.93562162699527,
+      "artifact": "allocation-retry-20261116T192121Z/dependency-control-cross_tenant_trade_plan_including_seed_setup.log.gz",
+      "sha256": "1fe4af10a2b78ce87693d383ada16363aa5687b849210224c7017c796e059799"
+    },
+    {
+      "lane": "original",
+      "workload": "cross_tenant_trade_plan_including_seed_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-0-bench",
+        "cross_tenant_trade_plan_including_seed_setup____________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 50.41473774900078,
+      "artifact": "allocation-retry-20261116T192121Z/original-cross_tenant_trade_plan_including_seed_setup.log.gz",
+      "sha256": "20de64805aed1ede5e45a8cd5903cbf8f5d028ce4f693729d3bc59d85a230a02"
+    },
+    {
+      "lane": "dependency-control",
+      "workload": "trade_state_proof_verification",
+      "command": [
+        "taskset",
+        "-c",
+        "1",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-1-bench",
+        "trade_state_proof_verification__________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 12.825403505994473,
+      "artifact": "allocation-retry-20261116T192121Z/dependency-control-trade_state_proof_verification.log.gz",
+      "sha256": "15a26270ee5d7235b8960b136de412b6a1e2b784003db4fc4034c5d1d9fe583c"
+    },
+    {
+      "lane": "original",
+      "workload": "trade_state_proof_verification",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-0-bench",
+        "trade_state_proof_verification__________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 12.916549098998075,
+      "artifact": "allocation-retry-20261116T192121Z/original-trade_state_proof_verification.log.gz",
+      "sha256": "c2d01eea79cb3aea681900385832bb0d891ee494fcab20580a97acbfaf4afe47"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "checkpoint_resume_256_events_chunk_32_and_root",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "checkpoint_resume_256_events_chunk_32_and_root__________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 837.3597251570027,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-checkpoint_resume_256_events_chunk_32_and_root.log.gz",
+      "sha256": "31a80ec6f7b52072965bb136dc8d213973910a2c29891b7f90003022160dd642"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "control",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "control_________________________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 3.8604633109935094,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-control.log.gz",
+      "sha256": "e3b621a99884f8c69adca901aa4921a3a7a8a41cfb9ed21b48c577cb0006fa93"
+    },
+    {
+      "lane": "candidate",
+      "workload": "checkpoint_resume_256_events_chunk_32_and_root",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "checkpoint_resume_256_events_chunk_32_and_root__________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 833.0766901729949,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-checkpoint_resume_256_events_chunk_32_and_root.log.gz",
+      "sha256": "2320af7ada66ca5c8bc9cfd7dda93eb80fd2d45d622d45fe2aca6d83d6fb3d50"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "native_validate_reduce",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "native_validate_reduce__________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 3.1536312290118076,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-native_validate_reduce.log.gz",
+      "sha256": "d97e8f80f996d5b04e04115cb78b69525dd33b3ceb65dd7e0f4ee15fbd1d88a3"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "hosted_typed_check_apply",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "hosted_typed_check_apply________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 3.190098957013106,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-hosted_typed_check_apply.log.gz",
+      "sha256": "8833573dc7d6953a47ec90cc3b0c5a2d867447de6559d1319b271566030a39bd"
+    },
+    {
+      "lane": "candidate",
+      "workload": "control",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "control_________________________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 3.666758656007005,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-control.log.gz",
+      "sha256": "9c3d67ccca40feb5418add77150aeb8cd667c1d8d8bc825c1cfb4c15016a0e0a"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "portable_validate_reduce_hash___________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 3.194591854000464,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-portable_validate_reduce_hash.log.gz",
+      "sha256": "dc018cd0b17aa5e2098e91fd9a005c0be67af1756964b3817390f691572924cc"
+    },
+    {
+      "lane": "candidate",
+      "workload": "native_validate_reduce",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "native_validate_reduce__________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 3.191193052000017,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-native_validate_reduce.log.gz",
+      "sha256": "3569997a263dc5287fc84a86c7edbf2abbca30db0f6d78994dad2fd1cc72c08f"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "canonical_commit_bytes",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "canonical_commit_bytes__________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 3.188545092998538,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-canonical_commit_bytes.log.gz",
+      "sha256": "7690032f0be25e78e87d1970db3f23740eb5b52d7c0d461014d17d1f470de567"
+    },
+    {
+      "lane": "candidate",
+      "workload": "hosted_typed_check_apply",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "hosted_typed_check_apply________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 3.1980484369996702,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-hosted_typed_check_apply.log.gz",
+      "sha256": "0911054264c9adb337bcf0862fcca8bd564edc56256f2a3ca7fc04abc0c74e69"
+    },
+    {
+      "lane": "candidate",
+      "workload": "portable_validate_reduce_hash",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "portable_validate_reduce_hash___________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 3.1792692890012404,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-portable_validate_reduce_hash.log.gz",
+      "sha256": "f91c39830f2ff23ca017a2a0bcdd6a22ce062abff8f88528350510f46a0cacac"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "sign_commit",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "sign_commit_____________________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 4.086478144003195,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-sign_commit.log.gz",
+      "sha256": "71d47012fd7e55c5ba034842796c60cb4d20d20fdef28c09f5a37adeec4553d1"
+    },
+    {
+      "lane": "candidate",
+      "workload": "canonical_commit_bytes",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "canonical_commit_bytes__________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 3.176016619996517,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-canonical_commit_bytes.log.gz",
+      "sha256": "586102bbf724e0a99e146d9058c081ebb6f6ff650643a32e31054d3da5143f28"
+    },
+    {
+      "lane": "candidate",
+      "workload": "sign_commit",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "sign_commit_____________________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 4.095736064002267,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-sign_commit.log.gz",
+      "sha256": "7f206a3bd8e06b7f4974b8446b95a282786c9dd533696d5ca969fb6b8a994cc8"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "historical_state_proof",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "historical_state_proof__________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 6.776788505012519,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-historical_state_proof.log.gz",
+      "sha256": "3e86704fd64130ddf61a2e232dc288695102ad0ac6e1cf1d7d07744b059f0740"
+    },
+    {
+      "lane": "candidate",
+      "workload": "historical_state_proof",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "historical_state_proof__________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 6.8111181179992855,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-historical_state_proof.log.gz",
+      "sha256": "6f3676d0577e9ca716b0df05d909336cccd9e7ed894171f03b323e29527d846e"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "historical_absence_proof",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "historical_absence_proof________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 6.822668861001148,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-historical_absence_proof.log.gz",
+      "sha256": "0be70c1e8ff6fb26e10f1d2490920c9e2b62c64a7a8eee2eb5ca3d0817db9133"
+    },
+    {
+      "lane": "candidate",
+      "workload": "historical_absence_proof",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "historical_absence_proof________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 6.7765183730080025,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-historical_absence_proof.log.gz",
+      "sha256": "934cdd2f1bae739532d5bad8e90c939f340f12f3b62a9d986f75980fbdbec253"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "current_state_proof_reference_read_adapter______________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 6.8268045779987006,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "e020779ba336a59f34ad6964eb5bc581bbe0874751c853f64a26fb944e30a190"
+    },
+    {
+      "lane": "candidate",
+      "workload": "current_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "current_state_proof_reference_read_adapter______________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 6.824153721987386,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-current_state_proof_reference_read_adapter.log.gz",
+      "sha256": "137dda219825541de26443547b7a9c8a1ece6ef76ad122ccafd33b516a380ab5"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "historical_state_proof_reference_read_adapter___________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 6.790851244004443,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "2aee7e65532d8ac0d90befe4214cf1b2cbe30204821353c4316766d9f4e7fb5b"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "stale_head_refusal_reference_read_adapter_______________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 3.1969110679929145,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "31c18c9e3fea7cc395748f579ada6645468925334e33bb21e28e5dd93f0df9d3"
+    },
+    {
+      "lane": "candidate",
+      "workload": "historical_state_proof_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "historical_state_proof_reference_read_adapter___________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 6.824823957998888,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-historical_state_proof_reference_read_adapter.log.gz",
+      "sha256": "9cdc69ec72e4e9ce9c7134fbcb1fb8791ba81abf4ba251bf21f90920fc32f421"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "wrong_key_refusal_______________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 5.165414844013867,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-wrong_key_refusal.log.gz",
+      "sha256": "7aafe5acd9711075cbd6bc8e554873c0c431ebcbefbf3c8fc270a12b7d268db9"
+    },
+    {
+      "lane": "candidate",
+      "workload": "stale_head_refusal_reference_read_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "stale_head_refusal_reference_read_adapter_______________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 3.187742681009695,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-stale_head_refusal_reference_read_adapter.log.gz",
+      "sha256": "44f2ef5636b766fc70ec084ce6637d5b51444ce304cc70a250235177163c2043"
+    },
+    {
+      "lane": "candidate",
+      "workload": "wrong_key_refusal",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "wrong_key_refusal_______________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 5.102884626001469,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-wrong_key_refusal.log.gz",
+      "sha256": "48f527f716afc134c8ffa908bebf0f4806a0c8344529f8b32c3b4ae1e5aa0ce1"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "replay_two_event_state_root",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "replay_two_event_state_root_____________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 7.980245746992296,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-replay_two_event_state_root.log.gz",
+      "sha256": "c33cdb6ffdb68cba7758b215be76e13f97d53ffa975f1414267c7e58df85286a"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "authenticated_prepare_including_adapter_setup___________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 5.739606614006334,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "86cca24b79eb505c1ef3126034a8178309a68a8c234ba05d9340aae8186baebd"
+    },
+    {
+      "lane": "candidate",
+      "workload": "replay_two_event_state_root",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "replay_two_event_state_root_____________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 7.86083979299292,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-replay_two_event_state_root.log.gz",
+      "sha256": "17e454f156896a549ba37825eb0178253acb6357f2742cd5224788e60aa28c6c"
+    },
+    {
+      "lane": "candidate",
+      "workload": "authenticated_prepare_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "authenticated_prepare_including_adapter_setup___________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 5.849349495008937,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-authenticated_prepare_including_adapter_setup.log.gz",
+      "sha256": "4207ac51470f9755259d726599549d36090b5226a90456ad2ce871a770b43c79"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup_________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 8.467855435999809,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "ac2db157efaed54c4c600b10533b64fd79165686db095f7805b3321337f62489"
+    },
+    {
+      "lane": "candidate",
+      "workload": "authenticated_two_intent_batch_to_refusing_sink_including_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "authenticated_two_intent_batch_to_refusing_sink_including_setup_________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 8.539969814009964,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-authenticated_two_intent_batch_to_refusing_sink_including_setup.log.gz",
+      "sha256": "56c8912ccdad0db8831759ba7031017e3b134ea354571b55e96056096c4a20f9"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "two_intent_planning_including_adapter_setup_____________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 8.427803970000241,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "135147b2924dcf0e004c5c83a6609c61ef56ee75ad60f4eedcef012affd2da42"
+    },
+    {
+      "lane": "candidate",
+      "workload": "two_intent_planning_including_adapter_setup",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "two_intent_planning_including_adapter_setup_____________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 8.543870134992176,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-two_intent_planning_including_adapter_setup.log.gz",
+      "sha256": "2af63defb301a6cb23f71595687949e7cb0a2c3f70910df7d3c45ddeae7c5629"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "verified_durable_write_reference_memory_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "verified_durable_write_reference_memory_adapter_________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 9.522557529999176,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-verified_durable_write_reference_memory_adapter.log.gz",
+      "sha256": "951ea2d6da1b4add12f2ee43e1824d862905e5907bd4ba5d07f8300867163a57"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "verified_exact_retry_reference_memory_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "verified_exact_retry_reference_memory_adapter___________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 5.945810865989188,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-verified_exact_retry_reference_memory_adapter.log.gz",
+      "sha256": "ca78f3bf9cb200cbdf1b33400335f5d717e544a8d64b11d3ba6045c669209192"
+    },
+    {
+      "lane": "candidate",
+      "workload": "verified_durable_write_reference_memory_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "verified_durable_write_reference_memory_adapter_________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 9.412074978012242,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-verified_durable_write_reference_memory_adapter.log.gz",
+      "sha256": "52a791318a62fb8dc25153c5c7c29cf9b2d5be776ad28f2561396cf952504d31"
+    },
+    {
+      "lane": "candidate",
+      "workload": "verified_exact_retry_reference_memory_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "verified_exact_retry_reference_memory_adapter___________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 5.957003389994497,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-verified_exact_retry_reference_memory_adapter.log.gz",
+      "sha256": "89a157679b78ce99c1c17753db376bda501cdad95961550222a80a325ce084ca"
+    },
+    {
+      "lane": "completion-control",
+      "workload": "ambiguous_ack_reference_memory_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-2-bench",
+        "ambiguous_ack_reference_memory_adapter__________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 9.484673845989164,
+      "artifact": "allocation-retry-20261116T192121Z/completion-control-ambiguous_ack_reference_memory_adapter.log.gz",
+      "sha256": "37c00f44e2889d6871d3f50e5fd9cdd008b6f9c357654a3b1fa1f0f58a2dc069"
+    },
+    {
+      "lane": "candidate",
+      "workload": "ambiguous_ack_reference_memory_adapter",
+      "command": [
+        "taskset",
+        "-c",
+        "3",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-3-bench",
+        "ambiguous_ack_reference_memory_adapter__________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 9.921757733012782,
+      "artifact": "allocation-retry-20261116T192121Z/candidate-ambiguous_ack_reference_memory_adapter.log.gz",
+      "sha256": "525ab28eb32b7b27e94791ca60c302a4a349dc10ba2d0eff7b24a771ade398ab"
+    },
+    {
+      "lane": "dependency-control",
+      "workload": "checkpoint_resume_256_events_chunk_32_and_root",
+      "command": [
+        "taskset",
+        "-c",
+        "1",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-1-bench",
+        "checkpoint_resume_256_events_chunk_32_and_root__________________________________________________________________________________"
+      ],
+      "exit_code": -9,
+      "timed_out": true,
+      "seconds": 1200.142079060999,
+      "artifact": "allocation-retry-20261116T192121Z/dependency-control-checkpoint_resume_256_events_chunk_32_and_root.log.gz",
+      "sha256": "b7b053ea791f8b720ce6cf26f34af34a21dd818d33ef0d85b3d76a4d04a4bbe6"
+    },
+    {
+      "lane": "original",
+      "workload": "checkpoint_resume_256_events_chunk_32_and_root",
+      "command": [
+        "taskset",
+        "-c",
+        "0",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/target/per-request/20261116T191314Z-2721740/lane-0-bench",
+        "checkpoint_resume_256_events_chunk_32_and_root__________________________________________________________________________________"
+      ],
+      "exit_code": -9,
+      "timed_out": true,
+      "seconds": 1200.1143737340026,
+      "artifact": "allocation-retry-20261116T192121Z/original-checkpoint_resume_256_events_chunk_32_and_root.log.gz",
+      "sha256": "56163dffdbec4a34bdf7b78982e0f2f009d9205a97bc3a7f8edcb01da1015cc5"
+    }
+  ],
+  "results": {
+    "original": {
+      "cross_tenant_trade_plan_including_seed_setup": {
+        "allocations": 909578,
+        "frees": 908413,
+        "bytes": 62490688
+      },
+      "trade_state_proof_verification": {
+        "allocations": 36578,
+        "frees": 35413,
+        "bytes": 41652688
+      }
+    },
+    "dependency-control": {
+      "cross_tenant_trade_plan_including_seed_setup": {
+        "allocations": 909578,
+        "frees": 908413,
+        "bytes": 62491456
+      },
+      "trade_state_proof_verification": {
+        "allocations": 36578,
+        "frees": 35413,
+        "bytes": 41653456
+      }
+    },
+    "completion-control": {
+      "cross_tenant_trade_plan_including_seed_setup": {
+        "allocations": 909571,
+        "frees": 908406,
+        "bytes": 62491891,
+        "control_subtracted_per_action": {
+          "allocations": 830.084,
+          "bytes": 55422.191
+        }
+      },
+      "trade_state_proof_verification": {
+        "allocations": 40571,
+        "frees": 39406,
+        "bytes": 42245891,
+        "control_subtracted_per_action": {
+          "allocations": -38.916,
+          "bytes": 35176.191
+        }
+      },
+      "checkpoint_resume_256_events_chunk_32_and_root": {
+        "allocations": 14451487,
+        "frees": 14439287,
+        "bytes": 983321700,
+        "control_subtracted_per_action": {
+          "allocations": 14372.0,
+          "bytes": 976252.0
+        }
+      },
+      "control": {
+        "allocations": 79487,
+        "frees": 67287,
+        "bytes": 7069700,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "native_validate_reduce": {
+        "allocations": 79487,
+        "frees": 67287,
+        "bytes": 7069700,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "hosted_typed_check_apply": {
+        "allocations": 102487,
+        "frees": 90287,
+        "bytes": 7431700,
+        "control_subtracted_per_action": {
+          "allocations": 23.0,
+          "bytes": 362.0
+        }
+      },
+      "portable_validate_reduce_hash": {
+        "allocations": 79487,
+        "frees": 67287,
+        "bytes": 7069700,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "canonical_commit_bytes": {
+        "allocations": 88487,
+        "frees": 76287,
+        "bytes": 7908700,
+        "control_subtracted_per_action": {
+          "allocations": 9.0,
+          "bytes": 839.0
+        }
+      },
+      "sign_commit": {
+        "allocations": 97487,
+        "frees": 85287,
+        "bytes": 8286700,
+        "control_subtracted_per_action": {
+          "allocations": 18.0,
+          "bytes": 1217.0
+        }
+      },
+      "historical_state_proof": {
+        "allocations": 108487,
+        "frees": 96287,
+        "bytes": 48197700,
+        "control_subtracted_per_action": {
+          "allocations": 29.0,
+          "bytes": 41128.0
+        }
+      },
+      "historical_absence_proof": {
+        "allocations": 105487,
+        "frees": 93287,
+        "bytes": 48654700,
+        "control_subtracted_per_action": {
+          "allocations": 26.0,
+          "bytes": 41585.0
+        }
+      },
+      "current_state_proof_reference_read_adapter": {
+        "allocations": 121487,
+        "frees": 109287,
+        "bytes": 48726700,
+        "control_subtracted_per_action": {
+          "allocations": 42.0,
+          "bytes": 41657.0
+        }
+      },
+      "historical_state_proof_reference_read_adapter": {
+        "allocations": 118487,
+        "frees": 106287,
+        "bytes": 48607700,
+        "control_subtracted_per_action": {
+          "allocations": 39.0,
+          "bytes": 41538.0
+        }
+      },
+      "stale_head_refusal_reference_read_adapter": {
+        "allocations": 94487,
+        "frees": 82287,
+        "bytes": 7642700,
+        "control_subtracted_per_action": {
+          "allocations": 15.0,
+          "bytes": 573.0
+        }
+      },
+      "wrong_key_refusal": {
+        "allocations": 106487,
+        "frees": 94287,
+        "bytes": 48254700,
+        "control_subtracted_per_action": {
+          "allocations": 27.0,
+          "bytes": 41185.0
+        }
+      },
+      "replay_two_event_state_root": {
+        "allocations": 85487,
+        "frees": 73287,
+        "bytes": 8109700,
+        "control_subtracted_per_action": {
+          "allocations": 6.0,
+          "bytes": 1040.0
+        }
+      },
+      "authenticated_prepare_including_adapter_setup": {
+        "allocations": 212487,
+        "frees": 200287,
+        "bytes": 14860700,
+        "control_subtracted_per_action": {
+          "allocations": 133.0,
+          "bytes": 7791.0
+        }
+      },
+      "authenticated_two_intent_batch_to_refusing_sink_including_setup": {
+        "allocations": 385604,
+        "frees": 373375,
+        "bytes": 27268892,
+        "control_subtracted_per_action": {
+          "allocations": 306.117,
+          "bytes": 20199.192
+        }
+      },
+      "two_intent_planning_including_adapter_setup": {
+        "allocations": 338604,
+        "frees": 326375,
+        "bytes": 22368892,
+        "control_subtracted_per_action": {
+          "allocations": 259.117,
+          "bytes": 15299.192
+        }
+      },
+      "verified_durable_write_reference_memory_adapter": {
+        "allocations": 329604,
+        "frees": 317375,
+        "bytes": 36184892,
+        "control_subtracted_per_action": {
+          "allocations": 250.117,
+          "bytes": 29115.192
+        }
+      },
+      "verified_exact_retry_reference_memory_adapter": {
+        "allocations": 260863,
+        "frees": 248590,
+        "bytes": 20008174,
+        "control_subtracted_per_action": {
+          "allocations": 181.376,
+          "bytes": 12938.474
+        }
+      },
+      "ambiguous_ack_reference_memory_adapter": {
+        "allocations": 331854,
+        "frees": 319581,
+        "bytes": 36287998,
+        "control_subtracted_per_action": {
+          "allocations": 252.367,
+          "bytes": 29218.298
+        }
+      }
+    },
+    "candidate": {
+      "cross_tenant_trade_plan_including_seed_setup": {
+        "allocations": 909571,
+        "frees": 908406,
+        "bytes": 62491891,
+        "control_subtracted_per_action": {
+          "allocations": 830.084,
+          "bytes": 55422.191
+        }
+      },
+      "trade_state_proof_verification": {
+        "allocations": 40571,
+        "frees": 39406,
+        "bytes": 42245891,
+        "control_subtracted_per_action": {
+          "allocations": -38.916,
+          "bytes": 35176.191
+        }
+      },
+      "checkpoint_resume_256_events_chunk_32_and_root": {
+        "allocations": 14451487,
+        "frees": 14439287,
+        "bytes": 983321700,
+        "control_subtracted_per_action": {
+          "allocations": 14372.0,
+          "bytes": 976252.0
+        }
+      },
+      "control": {
+        "allocations": 79487,
+        "frees": 67287,
+        "bytes": 7069700,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "native_validate_reduce": {
+        "allocations": 79487,
+        "frees": 67287,
+        "bytes": 7069700,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "hosted_typed_check_apply": {
+        "allocations": 102487,
+        "frees": 90287,
+        "bytes": 7431700,
+        "control_subtracted_per_action": {
+          "allocations": 23.0,
+          "bytes": 362.0
+        }
+      },
+      "portable_validate_reduce_hash": {
+        "allocations": 79487,
+        "frees": 67287,
+        "bytes": 7069700,
+        "control_subtracted_per_action": {
+          "allocations": 0.0,
+          "bytes": 0.0
+        }
+      },
+      "canonical_commit_bytes": {
+        "allocations": 88487,
+        "frees": 76287,
+        "bytes": 7908700,
+        "control_subtracted_per_action": {
+          "allocations": 9.0,
+          "bytes": 839.0
+        }
+      },
+      "sign_commit": {
+        "allocations": 97487,
+        "frees": 85287,
+        "bytes": 8286700,
+        "control_subtracted_per_action": {
+          "allocations": 18.0,
+          "bytes": 1217.0
+        }
+      },
+      "historical_state_proof": {
+        "allocations": 108487,
+        "frees": 96287,
+        "bytes": 48197700,
+        "control_subtracted_per_action": {
+          "allocations": 29.0,
+          "bytes": 41128.0
+        }
+      },
+      "historical_absence_proof": {
+        "allocations": 105487,
+        "frees": 93287,
+        "bytes": 48654700,
+        "control_subtracted_per_action": {
+          "allocations": 26.0,
+          "bytes": 41585.0
+        }
+      },
+      "current_state_proof_reference_read_adapter": {
+        "allocations": 121487,
+        "frees": 109287,
+        "bytes": 48726700,
+        "control_subtracted_per_action": {
+          "allocations": 42.0,
+          "bytes": 41657.0
+        }
+      },
+      "historical_state_proof_reference_read_adapter": {
+        "allocations": 118487,
+        "frees": 106287,
+        "bytes": 48607700,
+        "control_subtracted_per_action": {
+          "allocations": 39.0,
+          "bytes": 41538.0
+        }
+      },
+      "stale_head_refusal_reference_read_adapter": {
+        "allocations": 94487,
+        "frees": 82287,
+        "bytes": 7642700,
+        "control_subtracted_per_action": {
+          "allocations": 15.0,
+          "bytes": 573.0
+        }
+      },
+      "wrong_key_refusal": {
+        "allocations": 106487,
+        "frees": 94287,
+        "bytes": 48254700,
+        "control_subtracted_per_action": {
+          "allocations": 27.0,
+          "bytes": 41185.0
+        }
+      },
+      "replay_two_event_state_root": {
+        "allocations": 85487,
+        "frees": 73287,
+        "bytes": 8109700,
+        "control_subtracted_per_action": {
+          "allocations": 6.0,
+          "bytes": 1040.0
+        }
+      },
+      "authenticated_prepare_including_adapter_setup": {
+        "allocations": 212487,
+        "frees": 200287,
+        "bytes": 14860700,
+        "control_subtracted_per_action": {
+          "allocations": 133.0,
+          "bytes": 7791.0
+        }
+      },
+      "authenticated_two_intent_batch_to_refusing_sink_including_setup": {
+        "allocations": 385604,
+        "frees": 373375,
+        "bytes": 27268892,
+        "control_subtracted_per_action": {
+          "allocations": 306.117,
+          "bytes": 20199.192
+        }
+      },
+      "two_intent_planning_including_adapter_setup": {
+        "allocations": 338604,
+        "frees": 326375,
+        "bytes": 22368892,
+        "control_subtracted_per_action": {
+          "allocations": 259.117,
+          "bytes": 15299.192
+        }
+      },
+      "verified_durable_write_reference_memory_adapter": {
+        "allocations": 329604,
+        "frees": 317375,
+        "bytes": 36184892,
+        "control_subtracted_per_action": {
+          "allocations": 250.117,
+          "bytes": 29115.192
+        }
+      },
+      "verified_exact_retry_reference_memory_adapter": {
+        "allocations": 260863,
+        "frees": 248590,
+        "bytes": 20008174,
+        "control_subtracted_per_action": {
+          "allocations": 181.376,
+          "bytes": 12938.474
+        }
+      },
+      "ambiguous_ack_reference_memory_adapter": {
+        "allocations": 331854,
+        "frees": 319581,
+        "bytes": 36287998,
+        "control_subtracted_per_action": {
+          "allocations": 252.367,
+          "bytes": 29218.298
+        }
+      }
+    }
+  },
+  "live_probes": {},
+  "limitations": [
+    "All 22 workloads, all four unchanged binaries, 1000 actions per probe. The initial 180-second timeout is retained as a failed attempt.",
+    "Four allocation-only processes may run concurrently on distinct recorded CPUs; no latency inference is made from instrumentation.",
+    "Fixed setup and process exit/destruction limitations match the original driver; equal-length executable paths and padded arguments control startup allocation."
+  ],
+  "error": "RuntimeError('dependency-control checkpoint_resume_256_events_chunk_32_and_root failed')"
+}

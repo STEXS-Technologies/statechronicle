@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "verified_campaigns": [
+    "docs/0.3/evidence/performance/matrix-20261116T190518Z-2504159",
+    "docs/0.3/evidence/performance/per-request-20261116T190644Z-2518005",
+    "docs/0.3/evidence/performance/all-paths-20261116T191314Z-2721740",
+    "docs/0.3/evidence/performance/allocations-20261116T190742Z-2532444",
+    "docs/0.3/evidence/qualification/final-94eb5d4/canonical-performance"
+  ],
+  "allocation_probes": 222,
+  "limitations": [
+    "Numerical/source/log verification is separate from performance acceptance. Review thresholds and functionality/host effects in performance-review.md.",
+    "Native benchmark binaries are local verification inputs; hashes and reproducible source/logs are committed, executable build products are excluded."
+  ]
+}

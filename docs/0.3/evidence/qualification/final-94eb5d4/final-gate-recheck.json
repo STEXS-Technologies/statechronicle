@@ -1,0 +1,208 @@
+{
+  "status": "passed",
+  "head": "e880a2a36bb37ca5d2a52e68721c5b9e4ec40e9b",
+  "checks": [
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/local-release-f5e9b2c/verify.py",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/local-release-94eb5d4"
+      ],
+      "exit_code": 0,
+      "seconds": 0.7312708999961615,
+      "artifact": "final-recheck-00-verify.log.gz",
+      "sha256": "cbcdd8deb85cb6c91dec6fb7614e6e13c62b262d576f71489e074ae8a8db79d8",
+      "verifier_sha256": "bc2f070a3d77de5b96b2665d117127e33172a58dc7dfdaffaf9bdf5fb6f602ed"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_baseline.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.061655420999159105,
+      "artifact": "final-recheck-01-verify_baseline.log.gz",
+      "sha256": "239e30151365535a3b84c4fed116f7180be9935f372eb4ec7bf2f39d628609c2",
+      "verifier_sha256": "cd91de0a57a2c3a6f9ee4ffab801003961b1f9e66d6d6e303361e7d1a95aede6"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_api.py"
+      ],
+      "exit_code": 0,
+      "seconds": 3.8532418249960756,
+      "artifact": "final-recheck-02-verify_api.log.gz",
+      "sha256": "b661ba316c361ac7ae5e046d10209466f3762ece095a3566b3799f8d592d6de2",
+      "verifier_sha256": "d0de3e0517e2790339765bf380a544285f3ad28bf19a58e803b2aa0fdfb8f729"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/review_api.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.5831977790076053,
+      "artifact": "final-recheck-03-review_api.log.gz",
+      "sha256": "caa137b4da116cc0dbed097974f9a0aee7063eca781d75d3c116d5519b55c8a6",
+      "verifier_sha256": "f1903e9644dab3f2b5a7c4ebfacb25425d1c29e044b23534b468de8b1d0f321e"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_packages.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.21040465999976732,
+      "artifact": "final-recheck-04-verify_packages.log.gz",
+      "sha256": "cff5cbfaf2170219517913653df534a5e90696bed4ef1b00823682b32d60b9e5",
+      "verifier_sha256": "1b74d9ff08821dc8b6750cc08385328f8475e3a70cd83579c42eda2217f32828"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_compat_coverage.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.1077480719977757,
+      "artifact": "final-recheck-05-verify_compat_coverage.log.gz",
+      "sha256": "562d6b8767bd2e9957c61687c31d53e4e8d28cfe2a820b4b9e12548cfe45e0a1",
+      "verifier_sha256": "854213037c2b11e8d1116a117bcfef4a47b7af08427c1abd582afe182f793244"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_controls.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.1316816780017689,
+      "artifact": "final-recheck-06-verify_controls.log.gz",
+      "sha256": "88635dfefee0a78b98258318fc2cffede6fe447039bc6efaf0fc9c4dc363945d",
+      "verifier_sha256": "66212203e25beb3f76b1e2011b281d5423a1eb803331aae35dbea7ee815b7ac9"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_semantic_parity.py"
+      ],
+      "exit_code": 0,
+      "seconds": 6.049364752994734,
+      "artifact": "final-recheck-07-verify_semantic_parity.log.gz",
+      "sha256": "53297bbd06ea78a04b625040b450ce7bf374835e010a98fea445e320b8875f5f",
+      "verifier_sha256": "0632ad73a2d6a66dd3f9fce7e588dfb4d39acbd193f8edb15447f533b9af7026"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_properties.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.06789866299368441,
+      "artifact": "final-recheck-08-verify_properties.log.gz",
+      "sha256": "567644cf061b70c3e48aa4ee7a7d5218320d9b64de27a7a7e3a3ba3554a15b99",
+      "verifier_sha256": "c47adb166e6041f13bfab47d4ea9b4fb7141f94ad92dc113fc8010a5ca1c5eed"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_extended_fuzz.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.34903638598916586,
+      "artifact": "final-recheck-09-verify_extended_fuzz.log.gz",
+      "sha256": "4eab5e6d4f68652c9a389f3a8fb6a102e85fa1cbce1f2f4c5226a15b6d6591bc",
+      "verifier_sha256": "1c47bc9bce2c466beaac9c5858bfa27a46f430ca5500c29165273294f64bdf24"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_metrics.py"
+      ],
+      "exit_code": 0,
+      "seconds": 2.583534953009803,
+      "artifact": "final-recheck-10-verify_metrics.log.gz",
+      "sha256": "ca38f9c5d79c6bd46e11f48914ffeb7143b0723ffceeedd3fb4cb39f2288bc14",
+      "verifier_sha256": "8c4bf31b4fe72f5777062b9d07382391e67f7b88c28492e1b056efa9d6b372cc"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_performance.py"
+      ],
+      "exit_code": 0,
+      "seconds": 1.600149918012903,
+      "artifact": "final-recheck-11-verify_performance.log.gz",
+      "sha256": "daff5562f24a403dce3bc0fdb2cfdc892cfcea48d8db25dd102fb783dce21f12",
+      "verifier_sha256": "2496e978effbaa3611d4c8298b04cc8d161e7799d3d656a29057b7bb6c4eae9e"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_build_costs.py"
+      ],
+      "exit_code": 0,
+      "seconds": 3.5758996509975987,
+      "artifact": "final-recheck-12-verify_build_costs.log.gz",
+      "sha256": "7095e246a3bb13b91150f0121f730942077f3d53fcf8cf45b76f99ae22d2a5f1",
+      "verifier_sha256": "22c81df088ed003878f509cd73868b69bbfd5e08a30020a4ef2ecbc2a98a62bc"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_portable_size.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.1183967010001652,
+      "artifact": "final-recheck-13-verify_portable_size.log.gz",
+      "sha256": "be515c751082235538c498daf8c0aeada64959d446ecca393c86368448652c62",
+      "verifier_sha256": "9029d72015bb2c0ff94fd7f92827d4ff74956351f0dd83f3e65c2bc67ff79842"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_history_performance.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.20991884100658353,
+      "artifact": "final-recheck-14-verify_history_performance.log.gz",
+      "sha256": "56f1424c64749c47bb766737d84749874f9f9b866f6ce1d79608a93867792414",
+      "verifier_sha256": "5c5ed4e73b48db66ac2ee49f0d156a778775c29c086f326f4f54eda193f5fa4f"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_fuzz.py",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/fuzz/claim-final-0799afe"
+      ],
+      "exit_code": 0,
+      "seconds": 0.08324604699737392,
+      "artifact": "final-recheck-15-verify_fuzz.log.gz",
+      "sha256": "1ef345e12901e1cc90c567eca91745669a03e085079dc2f35a9a3863c2401b6d",
+      "verifier_sha256": "d8effaa40da3dd74a49254b48bf472c0c55df282e169a0afa7bc67e65f48a5c7"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_fuzz.py",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/fuzz/durable-final-0799afe"
+      ],
+      "exit_code": 0,
+      "seconds": 0.07461383599729743,
+      "artifact": "final-recheck-16-verify_fuzz.log.gz",
+      "sha256": "3da1d31cd5b36a7d31ede5c2627837f5cc2f92db32dcacd7ceb8357de4952c96",
+      "verifier_sha256": "d8effaa40da3dd74a49254b48bf472c0c55df282e169a0afa7bc67e65f48a5c7"
+    }
+  ],
+  "scope": "Independent retained-evidence recheck. Manual requirement and regression acceptance remain separate.",
+  "unchanged_qualified_scopes": [
+    "crates",
+    "Cargo.toml",
+    "Cargo.lock",
+    "fuzz",
+    "ci",
+    "tutorials",
+    "rust-toolchain.toml",
+    "clippy.toml",
+    ".cargo"
+  ]
+}

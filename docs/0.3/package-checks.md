@@ -1,5 +1,7 @@
 # Isolated crate archive checks
 
+Current qualification is tracked in the [final release audit](evidence/qualification/final-94eb5d4/README.md). Dated results and pending statements below describe their original checkpoints; the final audit records subsequent evidence and remaining work.
+
 Run `python3 scripts/check_packages.py` from a committed checkout with Rust 1.100,
 Python 3.12+, full local Git history and populated Cargo caches. It uses locked,
 offline Cargo operations and creates no PR, workflow run, tag or publication.

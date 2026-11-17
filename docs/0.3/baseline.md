@@ -4,6 +4,12 @@ The authoritative plan is [ROADMAP.md](ROADMAP.md). This file tracks execution;
 unchecked work is not release evidence. Publishing, tags, GitHub CI dispatch and
 pull requests require separate approval. Local checks are permitted.
 
+This is a historical baseline capture. Later phase status and the approved
+Rust 1.100 / Dalek 3 dependency decision supersede the dated pending statements
+below; see the [current candidate audit](evidence/qualification/final-94eb5d4/README.md)
+and [dependency decision](dependency-refresh.md). Original failed gates remain
+failed evidence, not retroactively qualified.
+
 ## Reference revisions
 
 - Original release: `v0.2.0`, `c418e98b91720188158c531cd5c2c4b8ab71cbcf`.

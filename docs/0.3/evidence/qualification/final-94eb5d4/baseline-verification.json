@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "baseline_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "checks": [
+    {
+      "path": "docs/0.3/evidence/baseline/20261116T014840Z-2747068",
+      "status": "passed",
+      "manifest_sha256": "37b37f6a6164e56309d5ff0f43ffcb133e0f5426523326a9803defe9734c88d5"
+    },
+    {
+      "path": "docs/0.3/evidence/baseline/20261116T015301Z-2774962",
+      "status": "failed",
+      "manifest_sha256": "61e7286d4540333f14c646e9928413baaaff7825cc29462246cec9c13e149d93"
+    },
+    {
+      "path": "docs/0.3/evidence/baseline/20261116T020259Z-2851508",
+      "status": "passed",
+      "manifest_sha256": "187c157292b2815bdeecf849bf2314c121a9f3985e967233194ea6dc6eca64ee"
+    }
+  ],
+  "limitations": [
+    "Original release dependency-policy failure is preserved, not a successful old release gate.",
+    "Candidate security policy is qualified separately with the approved dependency refresh."
+  ]
+}

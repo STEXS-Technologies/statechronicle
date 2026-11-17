@@ -1,0 +1,118 @@
+{
+  "status": "passed",
+  "objective_scope": "Full roadmap qualification, documentation/evidence commit and normal branch push. This record closes qualification; final Git commit/push verification is a separate final delivery action.",
+  "roadmap_sha256": "1903d1c66c67109b5991ff928bc9c99d06ad75d61f1f6cb5cf79b949b6b2ef52",
+  "inventories": [
+    {
+      "path": "requirement-inventory.json",
+      "sha256": "4af97421aa6c5e24ee0d0213b867cba7fd3832ebc594d99b704babb14ba59ee3",
+      "rows": 138
+    },
+    {
+      "path": "supplemental-requirements.json",
+      "sha256": "8a664e79e35001763b854247bb672596ae61ee649475c8db1d37cf186036e244",
+      "rows": 84
+    },
+    {
+      "path": "design-requirements.json",
+      "sha256": "021f22dba2879b473faccfb9b69da9f4c02f09097e963318a77d674c9908a206",
+      "rows": 85
+    }
+  ],
+  "reviewed_clauses": 306,
+  "separate_release_actions": [
+    "F8-9"
+  ],
+  "manual_review_sha256": {
+    "requirement-review.md": "648fdea3b4e72bbf7f4099d4763302814980c733afee69bf828b23a599b71e8a",
+    "maintenance-review.md": "99a272ddf4c999c4373380f891f9bdec3374255dadaa4134c04d23b1b68969fd",
+    "api-review.md": "c10dc52454829fe38ff4c088ddda9c47b502fef900041d77090eb4179a043ef5",
+    "finding-disposition.md": "87cee19937282b1dd173fca42d57420e8da3e08873e849ab4f60c070039c48b0",
+    "performance-review.md": "744fdcc2384ccc0ccda08defcb98e66ec47c460994d6ce1e225c4c77118699f4"
+  },
+  "final_gate_recheck_sha256": "c4bc7cbb97680c6d80e8b41ef908ef67e74fc0fa1140295e318436e70ef35e14",
+  "evidence": {
+    "docs/0.3/baseline.md": "83587984a2ebb87909aa5df72ca856890d470483fc94615b0c94025fc5772e4c",
+    "docs/0.3/evidence/api/compiler-c418e98/manifest.json": "c09bd4cb9e71ed769ed3a17d6280b1d5e1b6036acba9736b0ff08689302fa3ec",
+    "ci/compat-0.2/provenance.json": "40a41bffd97557889887a963d66506f8ef56c02ffa1283645d61343414eeb97c",
+    "ci/wire-0.2/provenance.json": "26fa18bc2992d431bcabe8d087f2cc3e869696f7949cd840f6a3fbb90f5286f8",
+    "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json": "efb228a56cd1efd50c841736914768143245d491a6df9a17e7fe916a0afe461c",
+    "docs/0.3/evidence/qualification/final-94eb5d4/baseline-source-metrics.json": "6bdcc9fcabb9e8c285bb9205be83b40a689561a9769b5dd8256ab623bfc70723",
+    "docs/0.3/evidence/qualification/final-94eb5d4/after-fuzz.json": "5b1f54ba0520d7058e3d8cfeac1e4eba41f5fff31de29d56af02ea01851304b8",
+    "docs/0.3/evidence/qualification/final-94eb5d4/complexity-metrics.json": "c550ced60ae0335a1181e603ef159ba516d03b9f00192bdd28838a263495dfa9",
+    "docs/0.3/evidence/qualification/final-94eb5d4/metrics-verification.json": "2ce621fe11fd56f84bbb0180f1f14ce795c14daaf04239aca684145dd7553a96",
+    "docs/0.3/evidence/qualification/final-94eb5d4/../local-release-94eb5d4/release.log.gz": "b134bea72f0477a89455bad9b24bfdb7e219e944592a3b5e2d343fdfeae8dfdc",
+    "docs/0.3/evidence/qualification/final-94eb5d4/../../fuzz/claim-final-0799afe/manifest.json": "d1896913cb758b3c68f3b250fd74d6036982bf7588c2bafd8b1e728b02762c07",
+    "docs/0.3/evidence/qualification/final-94eb5d4/../../fuzz/durable-final-0799afe/manifest.json": "eb95f7655708cc0cc3d7a4af34e7a5369cee3c5c7d1f60a4d02866c16c7f4a38",
+    "docs/0.3/durable-outcomes.md": "1df4ffe25424c6655e9eb11b914e2bdb465892afbd3a5827867bfc9b1607a5c8",
+    "docs/0.3/proof-claims.md": "2cba3ee143d835af3b783358fb74643cede1c421a185785c0f0e745e496b2f1d",
+    "docs/0.3/evidence/qualification/final-94eb5d4/maintenance-review.md": "99a272ddf4c999c4373380f891f9bdec3374255dadaa4134c04d23b1b68969fd",
+    "docs/0.3/preparation-pipeline.md": "04d45417ef50a03dedee27281e389c55039929dd0126fe78ca10877489cb2e0e",
+    "docs/0.3/batch-preparation.md": "35af25adf953f4e72cef19d68ef6ecd92b53b4a00b21e39cbc548e188c702f7d",
+    "docs/0.3/evidence/qualification/final-94eb5d4/../local-release-94eb5d4/verification.json": "327aa5b054059a0065d7ac78fba147466a9ea82d84b9c64c8a447246de1581eb",
+    "docs/0.3/evidence/qualification/final-94eb5d4/../local-release-94eb5d4/nested/": {
+      "directory": true
+    },
+    "docs/0.3/typed-command-authoring.md": "5dede3d499a217d00caa9147cdc46fbbabfc59cd3e21793d394efcc8490330ca",
+    "docs/0.3/evidence/qualification/final-94eb5d4/../../compat/20261116T180227Z-1914823/manifest.json": "efb228a56cd1efd50c841736914768143245d491a6df9a17e7fe916a0afe461c",
+    "docs/0.3/evidence/qualification/final-94eb5d4/api-review.md": "c10dc52454829fe38ff4c088ddda9c47b502fef900041d77090eb4179a043ef5",
+    "docs/0.3/evidence/qualification/final-94eb5d4/canonical-performance/manifest.json": "332df0362ddae6c6e2d8b50002938f4d465598cf40e3395ca5146b1c5a0c4b74",
+    "docs/0.3/consumer-guide.md": "01db03e28e39a668d26b990db27a1278db38da7973bdd39dea31e34164cc912a",
+    "docs/0.3/migration.md": "53e8aa3764051b5ead00d576f7d5ca934cc755136b59fdb86927610d2b1cebfe",
+    "docs/0.3/evidence/qualification/final-94eb5d4/../../conformance/concurrent-mixed-0799afe/all-tests.log.gz": "adbd32ef31c179f1a9de11513bebc420aaf2e6f177de3a8c516f77efe622279e",
+    "docs/0.3/evidence/qualification/final-94eb5d4/../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json": "b0d68ab89b8e8db51e7c286a35b2e1f0cd39343dfe785214a5e4e9f03d482698",
+    "docs/0.3/evidence/qualification/final-94eb5d4/process-lock-control/lock-negative.json": "677e59d0e3fadff83efcc0e247c99d35d43ff7e1e2f0404a0d54fd07f3a51705",
+    "docs/0.3/evidence/qualification/final-94eb5d4/history-performance-verification.json": "26e6dfef453a28b4d1f8442a8568fce7bbccd169f2e78ecbacdf39f6a48905cd",
+    "docs/0.3/evidence/qualification/final-94eb5d4/source-metrics.json": "d2f5893ffb674ad44461399b6be865fb3338669a979b5d80d58bc87e0cdae95c",
+    "docs/0.3/evidence/qualification/final-94eb5d4/layer-review.json": "fb82898dee715303761215d480e2ab2ed6917cd9a2e56c46592c4e44924bee81",
+    "docs/0.3/evidence/maintenance/": {
+      "directory": true
+    },
+    "docs/0.3/evidence/qualification/final-94eb5d4/portable-size-verification.json": "95a94551b24520a2904148a96424943643f3ec0e9e6bbdd31a072085851aeaf3",
+    "docs/0.3/evidence/qualification/final-94eb5d4/build-cost-verification.json": "46765cd8c765793d754ef6a7ef2b0b061879bb404597c1f633822d463bc7d92f",
+    "CHANGELOG.md": "90f1e1202c8a4f53482125d8d18690b114f8640529b24e719a57471703627d23",
+    "docs/0.3/release-compatibility.md": "452b1098830c224ae61b5ae097ab99345359f9871b9a54495e48da44209d757a",
+    "docs/OPERATIONS/RECOVERY.md": "3757dcb724e04c997f7bd7e2358dd0cb00d8b4ccf633779d1c097a49a2f4eb7b",
+    "docs/0.3/evidence/qualification/final-94eb5d4/../../packages/20261116T180422Z-1975357/manifest.json": "c0a65033c30dab0085debe03813818774c33e8bfa0e07a272d1b949ebbfc6250",
+    "docs/0.3/evidence/qualification/final-94eb5d4/../../coverage/hosted-94eb5d4/manifest.json": "27573e128e4af9a476d11c2050f4b1fdabf02ebe18245a1e1cdedd840a999d9e",
+    "docs/0.3/evidence/qualification/final-94eb5d4/../../fuzz/extended-94eb5d4/manifest.json": "9c108e42168d57146f746957b60a3020ee47dd4bc1f879e0de21c50cb57bc0b6",
+    "docs/0.3/evidence/qualification/final-94eb5d4/properties/manifest.json": "f0ddff4f903e4ade032e9dece2f7b15caee8e37e6417641a03afc672922c5c63",
+    "docs/0.3/evidence/qualification/final-94eb5d4/candidate-equivalence.json": "a1ca40423056971a2320944e079dbb50271b255ae78e380d8574b45284d2d481",
+    "docs/0.3/evidence/qualification/final-94eb5d4/finding-disposition.md": "87cee19937282b1dd173fca42d57420e8da3e08873e849ab4f60c070039c48b0",
+    "docs/0.3/evidence/qualification/final-94eb5d4/performance-verification.json": "263b0d791533f6e2b5ea77c0c8037f50bc9502ba0f3d28b76cc39cb0e26aa30b",
+    "docs/0.3/evidence/qualification/final-94eb5d4/control-verification.json": "e7c472d691627b4e9bc90cf5bbc6a994076bd6bf2601f38e2967808ed8db10b4",
+    "docs/0.3/evidence/qualification/final-94eb5d4/semantic-verification.json": "eb9e1e84f4581625940a4c344abbef004d91bc433b38e7bde4d05400c104abb4",
+    "docs/0.3/evidence/qualification/final-94eb5d4/consumer-setup-metrics.json": "f2a6f701ca9828cfaa4ecb75381c236edc7715ce03054309fa958652e00db93d",
+    "docs/0.3/evidence/qualification/final-94eb5d4/api-comparison.json": "957464afe8c7ca50ab2044de600fe729453cb04df2244732f54f94e2d0964728",
+    "docs/0.3/evidence/qualification/final-94eb5d4/api-structural-diff.json": "ca55808f7ccbe47a12cc73c47a5c3c56fe42c04634eacb59753e8d17fc80b952",
+    "docs/0.3/evidence/qualification/final-94eb5d4/requirement-inventory.json": "4af97421aa6c5e24ee0d0213b867cba7fd3832ebc594d99b704babb14ba59ee3",
+    "docs/0.3/evidence/qualification/final-94eb5d4/complete-performance.json": "c1bdfcda4a676e6be5e8d9f7aec0c4b25202a7d7b9eb2d56ddbe5dcb98a2b58f",
+    "docs/0.3/evidence/qualification/final-94eb5d4/baseline-verification.json": "3ff57dc4c9e19e7c3c1db77581f68f0fa671d643344a641c11a97e5b12860447",
+    "docs/0.3/adapter-contract.md": "75c45f590fe6ca5b9ecabb1af9de47557a8ec1744c7a0bd51014196a544049d0",
+    "docs/0.3/maintenance-inventory.md": "03720014dbb29bf9ab9c7edc14e92fb3845ba827bebbdd47fc8c4d478341fa8b",
+    "docs/0.3/findings.md": "d356a43665044d7eafcece0950534e7fc6a846b120ddd466fbff7891e37af51d",
+    "docs/0.3/evidence/f2/": {
+      "directory": true
+    },
+    "docs/0.3/evidence/qualification/final-94eb5d4/requirement-review.md": "648fdea3b4e72bbf7f4099d4763302814980c733afee69bf828b23a599b71e8a",
+    "docs/0.3/evidence/qualification/final-94eb5d4/performance-review.md": "744fdcc2384ccc0ccda08defcb98e66ec47c460994d6ce1e225c4c77118699f4",
+    "docs/0.3/evidence/qualification/final-94eb5d4/source-growth-accounting.json": "59120e6e7032e320bf197c8e5eea4f5076d82d89468f460309b4d4efe9885b6f"
+  },
+  "qualified_scopes": [
+    "crates",
+    "Cargo.toml",
+    "Cargo.lock",
+    "fuzz",
+    "ci",
+    "tutorials",
+    "rust-toolchain.toml",
+    "clippy.toml",
+    ".cargo"
+  ],
+  "qualification_source_head": "e880a2a36bb37ca5d2a52e68721c5b9e4ec40e9b",
+  "limitations": [
+    "307 literal inventory rows overlap; they are not 307 independent test results.",
+    "Original policy failure, timeout/interruption attempts and invalid/ineffective controls remain unqualified and retained.",
+    "No registry release, physical backend certification, arbitrary downstream compatibility, human signoff or gap-free claim."
+  ]
+}

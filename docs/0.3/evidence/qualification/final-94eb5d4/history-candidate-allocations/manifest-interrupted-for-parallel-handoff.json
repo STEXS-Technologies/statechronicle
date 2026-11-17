@@ -1,0 +1,158 @@
+{
+  "pid": 25470,
+  "status": "failed",
+  "lane": "candidate",
+  "cpu": 2,
+  "timeout_seconds": 3600,
+  "checks": [
+    {
+      "label": "allocation-candidate-control-1000",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-candidate",
+        "control_________________________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 314.31117079498654,
+      "artifact": "allocation-candidate-control-1000.log.gz",
+      "sha256": "18d53f1222d103499877ead89bf3b705f23d4e98a14efc8abe1c12de49f228b9",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "1000"
+      }
+    },
+    {
+      "label": "allocation-candidate-control-100",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-candidate",
+        "control_________________________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 307.4123585519992,
+      "artifact": "allocation-candidate-control-100.log.gz",
+      "sha256": "d7f67c0509c100fb59dd2f2d3ef87fdb33cc0d0076273d9a32dbd47afcfb9917",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "100"
+      }
+    },
+    {
+      "label": "allocation-candidate-control-10",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-candidate",
+        "control_________________________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 317.6309520490031,
+      "artifact": "allocation-candidate-control-10.log.gz",
+      "sha256": "2eb0e9d04dfe15390d8f36caff6c11df53a1dce708afeb9ac67fdeb5a3c5b12e",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "10"
+      }
+    },
+    {
+      "label": "allocation-candidate-verify_signed_history_1-1000",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-candidate",
+        "verify_signed_history_1_________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 328.57151778700063,
+      "artifact": "allocation-candidate-verify_signed_history_1-1000.log.gz",
+      "sha256": "46264c3dec303373e21bfa35f6a5aac39d5d560087570c8efb5e9228ed9b8ff2",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "1000"
+      }
+    },
+    {
+      "label": "allocation-candidate-checkpoint_ack_loss_resume_and_root_1-1000",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-candidate",
+        "checkpoint_ack_loss_resume_and_root_1___________________________________________________________________________________________"
+      ],
+      "exit_code": -15,
+      "timed_out": false,
+      "seconds": 119.3372447629954,
+      "artifact": "allocation-candidate-checkpoint_ack_loss_resume_and_root_1-1000.log.gz",
+      "sha256": "00373d391d257fac964956d3510c72a1ede0d1bf076e1b50545c2cb32175f169",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "1000"
+      }
+    }
+  ],
+  "allocations": {
+    "control@1000": {
+      "allocations": 87562,
+      "frees": 76556,
+      "bytes": 48586669,
+      "actions": 1000
+    },
+    "control@100": {
+      "allocations": 87562,
+      "frees": 76556,
+      "bytes": 48586668,
+      "actions": 100
+    },
+    "control@10": {
+      "allocations": 87562,
+      "frees": 76556,
+      "bytes": 48586667,
+      "actions": 10
+    },
+    "verify_signed_history_1@1000": {
+      "allocations": 241562,
+      "frees": 230556,
+      "bytes": 66318669,
+      "actions": 1000
+    }
+  },
+  "binary_sha256": "1dcae0a7af14cf6b09a7f517f2711d9623144a989ff97fe3f78ccf0822df9379",
+  "build_manifest_sha256": "cafb7ece0c2b4a4fbc2b7f79361872c58787c4659f09073c0238aa6539b23e88",
+  "summary_sha256": "bf510d81ce84c4430c656e4324761411dd2912ebf72db132a87f44ca498f7cbc",
+  "driver_sha256": "5316b90cd3b3f0d9a364747293f9843f675126ab3c8efdacf82c22226c9246d1",
+  "started_utc": "2026-11-16T20:58:07Z",
+  "review": "Independent allocation-only lane on CPU2 (core2); original control remains on CPU6 (core6). All timing processes already finished. Same binary, three fixtures, 128-byte arguments, matched count controls and full 1000/100/10 action budgets. No live control process restarted or shortened.",
+  "error": "AssertionError('allocation-candidate-checkpoint_ack_loss_resume_and_root_1-1000')",
+  "finished_utc": "2026-11-16T21:21:14Z"
+}

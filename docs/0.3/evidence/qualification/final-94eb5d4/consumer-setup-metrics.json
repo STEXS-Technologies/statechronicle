@@ -1,0 +1,61 @@
+{
+  "runner_sha256": "16a45721c692042c8ab75971e38a411d5e0fbc77d076827f69bb456eb409e63f",
+  "shared_metric_runner_sha256": "862681ee03bd51f4b4c446d980ec746b9a28a6ee8063a84f3173e2922a863038",
+  "lanes": {
+    "original": {
+      "revision": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+      "files": {
+        "crates/statechronicle/examples/custom_domains.rs": {
+          "source_sha256": "4fa8da8e1d69dc03b9547edd7f30973d377db521937c62353b83ad49a9a04114",
+          "physical_lines": 26,
+          "syntax_lines": 24,
+          "lexical_tokens": 242
+        },
+        "crates/statechronicle/examples/common/domains.rs": {
+          "source_sha256": "438023bd9d376015ee4621ecffd093e1101c38247e154328592878050cb7625d",
+          "physical_lines": 250,
+          "syntax_lines": 241,
+          "lexical_tokens": 1716
+        }
+      },
+      "operation_literal_occurrences": 14,
+      "distinct_operations": 7
+    },
+    "candidate": {
+      "revision": "e880a2a36bb37ca5d2a52e68721c5b9e4ec40e9b",
+      "files": {
+        "crates/statechronicle/examples/custom_domains.rs": {
+          "source_sha256": "bcfce3d873c9bcb9a892f35e075dc4fd728bc814dbd3876d8898cdc52ab462bd",
+          "physical_lines": 15,
+          "syntax_lines": 13,
+          "lexical_tokens": 135
+        },
+        "crates/statechronicle/examples/common/domains.rs": {
+          "source_sha256": "379f425573343b70a71d8baade28dec0734b28d7977a27661deaa46e847d3a58",
+          "physical_lines": 241,
+          "syntax_lines": 232,
+          "lexical_tokens": 1643
+        }
+      },
+      "operation_literal_occurrences": 7,
+      "distinct_operations": 7
+    }
+  },
+  "command_construction_steps": {
+    "original": [
+      "canonicalize native command",
+      "assemble profile/schema/command envelope",
+      "derive operation separately"
+    ],
+    "candidate": [
+      "encode_command returns checked operation and canonical envelope"
+    ]
+  },
+  "limitations": [
+    "Same pure planning example, not a claim that signed durable setup requires fewer total trust decisions than original planning.",
+    "Counts include native rule/codec implementation; macro expansion is not counted as handwritten boilerplate.",
+    "Physical lines include comments/blanks; syntax lines exclude them using the pinned existing metric parser.",
+    "Operation mapping and envelope equivalence are compiled/behavior-tested by frozen external command overlays; this measurement does not replace those tests.",
+    "Human onboarding time is not measured."
+  ]
+}

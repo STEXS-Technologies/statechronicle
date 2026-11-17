@@ -1,0 +1,197 @@
+{
+  "status": "passed",
+  "observations": [
+    {
+      "lane": "original",
+      "revision": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+      "path": "docs/0.3/evidence/costs/20261116T191209Z-2699231",
+      "manifest_sha256": "c26518add26e6c723934493db97cbfeb959678efd0318e98640005c7b56623c7",
+      "wall_seconds": 7.6,
+      "max_rss_kib": 297996,
+      "binary_bytes": 333392,
+      "text_bytes": 251237,
+      "compiled_packages": 74,
+      "binary_sections_sha256": "7f207ad22336e6b487ebe04b37327b8d9bd82c800cefa8880aa3c70ea5ee8349"
+    },
+    {
+      "lane": "candidate",
+      "revision": "0799afe4ce45c84d5827ec6497ebc4d88ea1db58",
+      "path": "docs/0.3/evidence/costs/20261116T191217Z-2702881",
+      "manifest_sha256": "3979215ec73fc70e899e256a22441c6f121c4a84de66fd8ee84bf403d099ffa9",
+      "wall_seconds": 7.75,
+      "max_rss_kib": 301632,
+      "binary_bytes": 332864,
+      "text_bytes": 250789,
+      "compiled_packages": 64,
+      "binary_sections_sha256": "c91f35fa366432ae4dd35b02651cb482553ccd807996e83af42dbc0cdb6052b0"
+    },
+    {
+      "lane": "candidate",
+      "revision": "0799afe4ce45c84d5827ec6497ebc4d88ea1db58",
+      "path": "docs/0.3/evidence/costs/20261116T191233Z-2709320",
+      "manifest_sha256": "492e072c5f0354773f1a7694eb0192ef85f2dd1324668f8bf525041bdb14d459",
+      "wall_seconds": 7.5,
+      "max_rss_kib": 305028,
+      "binary_bytes": 332864,
+      "text_bytes": 250789,
+      "compiled_packages": 64,
+      "binary_sections_sha256": "0da12d95bbc2e8755ad1c174e1a52016bb43cd27c7b8057a4787a36f4d89ed04"
+    },
+    {
+      "lane": "original",
+      "revision": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+      "path": "docs/0.3/evidence/costs/20261116T191242Z-2712803",
+      "manifest_sha256": "957043d7ce1c2d800b023f0a3573836f53a82bf488346bc5b8b00334e3c6c2f7",
+      "wall_seconds": 7.45,
+      "max_rss_kib": 299072,
+      "binary_bytes": 333392,
+      "text_bytes": 251237,
+      "compiled_packages": 74,
+      "binary_sections_sha256": "574249189984736d4807818f251b58028d57aabca6b984d13cd22dbd995e512b"
+    },
+    {
+      "lane": "original",
+      "revision": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+      "path": "docs/0.3/evidence/costs/20261116T191250Z-2716000",
+      "manifest_sha256": "dd2cf38457528c73553dcd191bb43b38a5bb69cb92618163df8e22bbc7c33be7",
+      "wall_seconds": 7.32,
+      "max_rss_kib": 299460,
+      "binary_bytes": 333392,
+      "text_bytes": 251237,
+      "compiled_packages": 74,
+      "binary_sections_sha256": "570bc4423f86dda85489fa0b4ae64a02b70209c0909823e3bdeccda7226f9f48"
+    },
+    {
+      "lane": "candidate",
+      "revision": "0799afe4ce45c84d5827ec6497ebc4d88ea1db58",
+      "path": "docs/0.3/evidence/costs/20261116T191258Z-2718819",
+      "manifest_sha256": "42fe3d84f64a579ad0b7d2e80e787377a890f013f8f5fad988e9358142157d9d",
+      "wall_seconds": 7.38,
+      "max_rss_kib": 303080,
+      "binary_bytes": 332864,
+      "text_bytes": 250789,
+      "compiled_packages": 64,
+      "binary_sections_sha256": "665ddaa5b6bb90233e203f3c301482d132e7b59704065b12d89e8c89f7645ed7"
+    }
+  ],
+  "summary": {
+    "original": {
+      "wall_seconds": {
+        "values": [
+          7.6,
+          7.45,
+          7.32
+        ],
+        "median": 7.45,
+        "minimum": 7.32,
+        "maximum": 7.6
+      },
+      "max_rss_kib": {
+        "values": [
+          297996,
+          299072,
+          299460
+        ],
+        "median": 299072,
+        "minimum": 297996,
+        "maximum": 299460
+      },
+      "binary_bytes": {
+        "values": [
+          333392,
+          333392,
+          333392
+        ],
+        "median": 333392,
+        "minimum": 333392,
+        "maximum": 333392
+      },
+      "text_bytes": {
+        "values": [
+          251237,
+          251237,
+          251237
+        ],
+        "median": 251237,
+        "minimum": 251237,
+        "maximum": 251237
+      },
+      "compiled_packages": {
+        "values": [
+          74,
+          74,
+          74
+        ],
+        "median": 74,
+        "minimum": 74,
+        "maximum": 74
+      }
+    },
+    "candidate": {
+      "wall_seconds": {
+        "values": [
+          7.75,
+          7.5,
+          7.38
+        ],
+        "median": 7.5,
+        "minimum": 7.38,
+        "maximum": 7.75
+      },
+      "max_rss_kib": {
+        "values": [
+          301632,
+          305028,
+          303080
+        ],
+        "median": 303080,
+        "minimum": 301632,
+        "maximum": 305028
+      },
+      "binary_bytes": {
+        "values": [
+          332864,
+          332864,
+          332864
+        ],
+        "median": 332864,
+        "minimum": 332864,
+        "maximum": 332864
+      },
+      "text_bytes": {
+        "values": [
+          250789,
+          250789,
+          250789
+        ],
+        "median": 250789,
+        "minimum": 250789,
+        "maximum": 250789
+      },
+      "compiled_packages": {
+        "values": [
+          64,
+          64,
+          64
+        ],
+        "median": 64,
+        "minimum": 64,
+        "maximum": 64
+      }
+    }
+  },
+  "median_percent_deltas": {
+    "wall_seconds": 0.6711409395973034,
+    "max_rss_kib": 1.340145516798641,
+    "binary_bytes": -0.15837212650573473,
+    "text_bytes": -0.178317684099083,
+    "compiled_packages": -13.513513513513509
+  },
+  "limitations": [
+    "Cold target directories; registry and filesystem caches remain warm.",
+    "Three observations per lane on a shared host, not an isolated hardware performance guarantee.",
+    "Baseline/candidate package graphs differ by the approved dependency refresh; report total cost without attributing it solely to refactoring.",
+    "The tiny fixed facade binary is not full workflow binary size or runtime memory. Max RSS is the build process peak reported by /usr/bin/time.",
+    "Observed extrema of three samples are descriptive ranges, not confidence bounds or a universal regression threshold."
+  ]
+}

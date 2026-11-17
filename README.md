@@ -21,7 +21,8 @@ adapter satisfying the durable `LedgerStore` contract.
 
 This branch contains the proposed coherence refactor. Workspace package versions
 remain `0.2.0`; the APIs below are checkout APIs, not an announcement of a
-published `0.3.0`. Final release qualification is incomplete.
+published `0.3.0`. Library release qualification is complete; see the
+[exact-candidate audit](docs/0.3/evidence/qualification/final-94eb5d4/README.md).
 
 1. **Define your model.** Implement `StateProfile` with native state/command types,
    deterministic validation/reduction, domain identity and schema version.

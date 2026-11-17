@@ -1,0 +1,2716 @@
+{
+  "roadmap_path": "docs/0.3/ROADMAP.md",
+  "roadmap_sha256": "1903d1c66c67109b5991ff928bc9c99d06ad75d61f1f6cb5cf79b949b6b2ef52",
+  "requirements": [
+    {
+      "id": "F0-1",
+      "requirement": "Create an isolated, immutable checkout of tag `v0.2.0` at `c418e98b`. Record exact `Cargo.lock`, toolchain, OS, target, CPU, feature set, package SHA-256, and baseline Git commit.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Actual original peeled tag commit/archive/lock/toolchain/system evidence is independently checked by verify_baseline.py; annotated tag object is not confused with the commit.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F0-2",
+      "requirement": "Export the **public Rust API inventory**: modules, trait signatures, associated types, feature combinations, example compilation, errors and exhaustive-match exposure. Include current `StateProfile`, `ProfileRules`, `TypedProfile`, `Executor`, sinks, ledger ports and proofs.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Thirteen same-compiler rustdoc catalogs, real old implementers/exhaustive matches, examples and separate no-std consumer cover promised API; no custom feature matrix exists.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F0-3",
+      "requirement": "Generate **independent** protocol goldens for canonical BCS, pre-existing state/command/event/commit schemas, signed commit input bytes, Ed25519 signatures, sparse-Merkle inclusion/non-membership roots, per-tenant canonical head, domain/schema migration, identity and retry receipts. Pin the fixture producer to the original revision; do not regenerate expectations with candidate code.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Original producer/provenance and immutable wire corpus supply old BCS/signature/root/history bytes. New receipt semantics are candidate overlays because original 0.2 had no canonical receipt type.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F0-4",
+      "requirement": "Produce frozen **external consumer crates**: (a) basic built-in inventory; (b) native configuration/equipment; (c) trusted planning; (d) signed, authenticated durable single/batch; (e) custom ledger adapter; (f) proof/current/historical verification; (g) no-std portable profile; (h) legacy 0.2 imports and exhaustive enum matches.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Frozen hosted/portable consumers plus separately identified new canonical overlays exercise all requested use cases; legacy imports remain original and independently compiled.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F0-5",
+      "requirement": "Record source-footprint and cost metrics using reproducible scripts. Capture production-only LOC/tokens, file/module counts, dependency graph, duplicate code inventory, build-time, binary size, memory and benchmark baselines. Track per module and whole workspace.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json",
+        "complexity-metrics.json",
+        "metrics-verification.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Pinned syntax/complexity metrics, semantic owner review, six cold builds, complete workload matrix, dependency graph and portable archive costs report both whole-project and per-file data.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F0-6",
+      "requirement": "Run the full frozen baseline suite: existing 794 finite workspace tests, script checks, strict Clippy/rustdoc, dependency policy, portability, all applicable fuzz campaigns, proofs/signatures, fixed regression seeds, recovery and economy benchmarks. **Use actual current toolchain/security dependency conditions** and document any pre-existing warnings or blocked builds; do not silently reinterpret old results as green.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Original 794-test success and original dependency-policy failure are independently retained, with original 25-target ASAN campaign. Current approved dependency policy is a separate passing gate.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F0-7",
+      "requirement": "List **observed limitations vs suspected risks** and record each as an issue with a reproducer requirement. Especially evaluate duplicate acknowledgement, proof-key substitution, current head races, trade verification map scope and custom-profile double work.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Original acceptance probes reproduce supplied-key/freshness, marker-only durable success and tenant/cache problems; finding-disposition.md maps fixes and retained legacy limits.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F1-1",
+      "requirement": "Design and prototype independent expected-claim verification (`ExpectedStateClaim`, `ExpectedAbsenceClaim`, etc.; names provisional). Require caller expected key, tenant/resource, and any owner/subject binding, instead of trusting a key derived from the bundle.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "ExpectedClaim carries independently selected address/key/owner/kind; current and original-proof external tests reject substitution and failed reads.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F1-2",
+      "requirement": "Separate **historical** and **current** verification and require canonical-head check for current claims. Decide explicit head consistency contract for multi-read proof serving.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Current mode performs a final full-head authoritative comparison; historical mode requires a pin. Results document the observed verification point and do not promise later immutability.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F1-3",
+      "requirement": "Audit `verify_trade` tenant/commit lookup and signature trust policy; reproduce collisions or prove the existing identity rule globally excludes them, then test that rule.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Tenant/commit scoped lookup and leg-tenant checks reject the reproduced substitution; genuine same-ID/different-tenant proofs and independent signer keys remain supported.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F1-4",
+      "requirement": "Audit durable ingress and replay shortcut against authoritative ledger idempotency, including `Ok(vec![])` and independent `IntentStore` semantics. Ensure the primary API cannot report committed solely because a planning duplicate was observed.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Canonical protected mutation returns only verified retained ledger receipts; planning markers/empty vectors cannot qualify success. Original compatibility marker behavior stays labeled.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F1-5",
+      "requirement": "Define distinguishable success, replay, conflict, unknown and corruption outcomes. Verify that new result semantics cannot authorize dispatch before durable authority exists.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Committed/replayed, refusal/conflict, unknown and corrupt readback are distinct checked outcomes; dispatch authority comes from the receipt/outbox contract.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F1-6",
+      "requirement": "Add adversarial tests before implementation changes; retain old APIs as clearly marked compatibility helpers if their existing behavior cannot be changed safely within 0.3.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Before-fix original probes and retained chronological regressions precede fixes; old helper semantics remain explicitly documented where preserved.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F2-1",
+      "requirement": "Use a small `Prepared*` internal representation for already checked identity, interpreted state, authorized command, reduced candidate, event facts and original payload references. **Do not** pre-assume which stage owns authorization and timestamps; their provenance must remain explicit.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "maintenance-review.md",
+        "docs/0.3/preparation-pipeline.md",
+        "docs/0.3/batch-preparation.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F2: ordered shared preparation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Private shared evaluation owns checked identity/state/command/candidate/event facts; protected preparation types preserve signer, timestamp and authorization provenance.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F2-2",
+      "requirement": "Map the real current pipeline's ordered gates and error precedence into a table. Freeze transition counts, emitted events, errors, and any legacy state changes using independent 0.2 reference execution.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "maintenance-review.md",
+        "docs/0.3/preparation-pipeline.md",
+        "docs/0.3/batch-preparation.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F2: ordered shared preparation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Ordered gate tables and 348621 exact original/current characterization cases preserve event/error/callback order, including string diagnostic equality.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F2-3",
+      "requirement": "Introduce a single private `prepare`/`evaluate` entry that is reused by single, batch and cross-tenant planning where the semantics truly match. Keep specialized trade settlement and multi-resource atomicity as explicit policy operations.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "maintenance-review.md",
+        "docs/0.3/preparation-pipeline.md",
+        "docs/0.3/batch-preparation.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F2: ordered shared preparation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Single/batch/read-only executor forwards use one evaluation owner where equivalent; settlement/economic and whole-group atomicity remain explicit specialized policies.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F2-4",
+      "requirement": "Make preparation non-persistent: eliminate accidental legacy claims from the canonical path, while preserving old `execute()` semantics in a separately named compatibility adapter until callers migrate.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "maintenance-review.md",
+        "docs/0.3/preparation-pipeline.md",
+        "docs/0.3/batch-preparation.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F2: ordered shared preparation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Preparer receives only read capabilities and makes no durable intent/ledger claim; legacy Executor semantics remain characterized separately.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F2-5",
+      "requirement": "Ensure the prepared candidate contains enough authenticated scope, profile/schema, revision and identity to be safely committed; do not store unchecked bearer authentication in the candidate.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "maintenance-review.md",
+        "docs/0.3/preparation-pipeline.md",
+        "docs/0.3/batch-preparation.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F2: ordered shared preparation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Protected signed plans bind the complete prepared event set, tenant/scope/profile/schema/identity before persistence, with substitution and reauthorization tests.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F2-6",
+      "requirement": "Improve error propagation: type-preserve model failures, separate stale state from invalid command, and never map uncertain storage outcomes to a normal \u201cretry from scratch\u201d signal.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "maintenance-review.md",
+        "docs/0.3/preparation-pipeline.md",
+        "docs/0.3/batch-preparation.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F2: ordered shared preparation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Model, stale/invalid, policy unavailable, unknown and corrupt conditions retain typed/actionable causes; unknown storage never becomes safe fresh retry.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F2-7",
+      "requirement": "Split `executor/pipeline.rs` along private ownership boundaries *only after* passing the differential gate; prefer a handful of focused modules over a framework of dozens of traits.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "maintenance-review.md",
+        "docs/0.3/preparation-pipeline.md",
+        "docs/0.3/batch-preparation.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F2: ordered shared preparation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Focused private pipeline owners retain earlier differential controls; no generic framework or new published crate was added.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F3-1",
+      "requirement": "Build a fresh external consumer using only `statechronicle` (plus separately supplied adapter traits where essential). Record each currently duplicated concept and required import.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json",
+        "api-review.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Standalone native and file-ledger consumers compile against the public umbrella; concept/setup accounting names application decisions and imports without equating aliases with concepts.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F3-2",
+      "requirement": "Remove repeat decoding of `current` and `command` across `TypedProfile::check` / `apply` on the canonical path. Preserve the original `StateProfile` trait for existing profiles where possible; use compatible default forwarding if a new entry method is necessary.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "TypedProfile combined evaluation shares decoded state/command while preserving validate/apply/output validation; default forwarding supports old StateProfile implementations.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F3-3",
+      "requirement": "Prototype one typed registration approach: ordinary Rust structs/enums, one command discriminator, static registry, explicit schema identity and bounded canonical codec. Compare complexity with current manual `TypedProfile::new + operations + with_custom` path before choosing.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json",
+        "api-review.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Ordinary native enums plus static command_operations registration are compared with frozen manual assembly; seven literals replace fourteen occurrences without runtime registry mutation.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F3-4",
+      "requirement": "Preserve operation string values and canonical bytes at wire boundaries; avoid data-driven dynamic registry changes during live requests. For schema upgrades, make migration explicit and auditable.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "External command overlays compare exact old operations/envelopes and schema checks; schema migration requires separately authorized versioned policy.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F3-5",
+      "requirement": "Keep `StateProfile` completely portable and dependency-light. Default hosted BCS adapter may allocate, but the portable fixed-buffer executor must remain allocation-free under its supported profile.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Portable runtime has no new service/runtime/serializer dependency, bare-metal compilation succeeds, and all allocation probes must independently meet the hard zero-allocation condition.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F3-6",
+      "requirement": "Add compile-fail tests for invalid schema, unsupported operation, mixed domain, incompatible state/event types and unpinned migration. Keep runtime validation where Rust types cannot prove correctness.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Native-contract compiler diagnostics reject mixed types, omitted mappings, owned batch-leg misuse and omitted pins; dynamic schema/operation numbers are runtime-validated where Rust cannot prove them.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F3-7",
+      "requirement": "Reassess all built-in profile wrappers for redundant call/parse chains after improving custom domains; share validation helpers where they enforce genuinely common semantics.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "All eight built-in profiles are reviewed; equivalent field guards/forwarding overrides share owners, while different error ordering and reducer visibility remain separate.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F4-1",
+      "requirement": "Define the canonical consumer usage map. Separate `mutation::prepare`, `mutation::commit`, `proof::verify_current`, `proof::verify_historical`, `history::rebuild` in documentation even if exact Rust namespace design differs.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Consumer guide/root README identify prepare, signed atomic commit, current/historical claims and verified rebuild as separate intent paths without requiring exact provisional namespaces.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F4-2",
+      "requirement": "Keep one explicit transaction authority (`LedgerStore`). Wrap the real `LedgerTransaction` sequence with an owned coordinator/typed request that cannot accidentally omit idempotency, event, commit, projection or outbox steps.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "LedgerTransaction alone owns canonical atomic effects; protected coordinator checks identity, complete events, commit, head, projections and outbox under one supported transaction.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F4-3",
+      "requirement": "Use a verified, immutable **commit receipt/lookup result**, not `Result<(), String>` or an unqualified `Vec<Event>`, as the main durable success representation. The receipt should bind exact scope, intent/commit digest, committed head and replay/first-commit disposition as supported by the actual protocol.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Private-field CommittedMutation/CommittedBatch bind original signed records and complete membership, with first/replay disposition and exact readback validation.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F4-4",
+      "requirement": "Preserve read-only services as read-only; provide an ergonomic adapter bundle/builder, not a universal port interface that lets proof queries mutate records.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "ClaimVerifier needs only CommitReader and historical-only readers need no live head; external read-only consumer compiles without write ports.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F4-5",
+      "requirement": "Keep `TransactionManager` as legacy symbolic planning where required, but remove it from canonical durable examples and rename/document semantics to prevent misuse.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "TransactionManager and sink shortcuts are explicitly advanced symbolic planning/compatibility; canonical durable examples use protected receipts.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F4-6",
+      "requirement": "Make custom storage setup concise: one documented composition root, one explicit signer policy, one mandatory auth boundary and optional read/dispatch capabilities.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "File tutorial provides one composition root with explicit principal/auth/key/signer/ledger policy and selected read/dispatch capabilities; API review counts required setup groups.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F4-7",
+      "requirement": "Add migration docs for source compatibility. Old imports continue; old names receive deprecation guidance where useful. If a deliberate break cannot be avoided, list every changed signature and an exact replacement example.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Compiler structural diff and migration/release matrix document default method additions, unchanged original imports and approved Rust/Dalek dependency-type boundary.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F5-1",
+      "requirement": "Define a `LedgerTestBackend`/factory abstraction with ability to create independent connections, inject failures, reopen and inspect authority. Keep it a test/dev capability, not a runtime dependency for all users.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Unpublished conformance factory supports independent handles/failures/reopen/raw inspection and remains a dev tool, not a mandatory runtime dependency.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F5-2",
+      "requirement": "Provide deterministic core test vectors for the contract, with backend-specific optional subprocess/process-kill harnesses.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Deterministic single/batch conformance vectors and separately scoped file subprocess/SIGKILL tutorial cover logical and selected process boundaries.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F5-3",
+      "requirement": "Exercise every durable boundary: begin \u2192 claim \u2192 events \u2192 signed commit \u2192 projections \u2192 outbox \u2192 finalize \u2192 commit, plus rollback and ambiguous ACK. Verify no cross-tenant partial success.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Full durable and conformance tests inject failures at each named stage, rollback and ambiguous ACK, inspect independent authority, and refuse unsupported partial cross-tenant effects.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F5-4",
+      "requirement": "Test stale/canonical-head CAS across 2, 8 and 32 contending clients, same/different idempotency identities, payload conflicts and tenant separation. Use independent reader checks; never assume timing is a correctness oracle.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "2/8/32 contender tests and mixed seeded schedules inspect exact same/conflicting identity results, CAS winners and tenant separation without timing as correctness oracle.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F5-5",
+      "requirement": "Test corrupt/reordered/missing bytes, duplicate events, broken root/chain, nonce/id reuse and arbitrary replay after reopen. Ensure zero unchecked side effects on failures.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Corrupt/missing/reordered/replaced/duplicate records and reopened replay are checked by history/receipt/conformance tests; failed attempts expose no accepted partial canonical authority.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F5-6",
+      "requirement": "Verify read-side projection rebuild, snapshot checkpoint boundaries, interrupted/resumed replay, proof consistency and historical signer policy.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/",
+        "history-performance-verification.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Verified history binds chain/event/root/signature/trust/pin; original upgrade and checkpoint-interruption schedules recover expected roots, with additional signed-history cost checks.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F5-7",
+      "requirement": "Keep producer history on the frozen 0.2 version while running the **0.3 verifier** against it. Add new schema tests without rewriting the frozen originals.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Frozen original producer and bytes remain unchanged; current verifier consumes original migration history and separately versioned new schema fixtures.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F5-8",
+      "requirement": "Add a purposely incorrect fake backend as a **negative control**, proving the harness actually catches partial commits, replay/duplicate mismatches and incorrect ACK semantics.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Broken partial/replay/ACK fakes, corrected deadlock barrier and OS-lock bypass controls fail at runtime; ineffective first control remains failed.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F6-1",
+      "requirement": "Enumerate actual duplicate behavior: command parsing/decode, state projection derivation, schema checks, authority-freshness comparison, key resolving, commit lookup and signature verification, resource routing, error translations, canonical digest calculation, and legacy facade forwarding.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Maintenance inventory names decode, projection/schema, freshness, key/commit lookup, routing, error/string/digest and facade owners and their semantic differences.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F6-2",
+      "requirement": "For each candidate, list both callers, exact contracts, error precedence, allocation/portability requirements, and failure tests. If semantics differ, document why two implementations remain.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Per-extraction source/parity/control evidence and owner tables record both callers, refusal order, portability/allocation limits and deliberate non-equivalence.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F6-3",
+      "requirement": "Extract one shared authoritative implementation (private helper or existing crate owner) with tests that compare all previous callers. Delete old implementations only once parity passes.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Actual deleted duplicate guards/string shells/evaluator/read wrappers are paired with original/current trace and targeted negative controls; moves alone are not counted as simplification.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F6-4",
+      "requirement": "Reduce the internal layers of `pipeline.rs`, `profiles/atomicity.rs`, `profiles/transition.rs`, `index/build.rs` and `commit/persist.rs` as needed. Avoid turning each helper into its own generic trait or new published crate.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Hotspot path/body metrics and complete-project growth are reported; private owner extraction retains persist/settlement/atomicity obligations without new generic frameworks.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F6-5",
+      "requirement": "Review public re-export surface for redundant aliases. Keep compatibility aliases as a small stable shell; don't duplicate behavior behind them.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "API structural review and four retained duplicate forwarding/error groups document compatibility shells with no duplicated authority implementation.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F6-6",
+      "requirement": "Review `clone`, `String` conversion, BTree allocations, JSON roundtrips, hashing, signature verification and redundant async dynamic dispatch in hot-path code. Optimize where measured; never remove domain separation, invariant validation or trust checks.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Measured allocations/latency/build costs and source review cover decoding, strings, BTree coverage checks, hashes/signatures and forwarding; no trust check is removed to meet a cost target.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F6-7",
+      "requirement": "Investigate build graph: drop unused dependencies/features, move dev-only dependencies out of production, preserve minimal portable paths, and avoid umbrella pulling in optional services when not needed.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/",
+        "portable-size-verification.json",
+        "build-cost-verification.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Thirteen-crate acyclic internal normal graph is preserved, unused production SHA-2 moved to dev, portable coupling remains minimal; matched RISC-V archive costs are measured.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F6-8",
+      "requirement": "Set a source-code budget: compare total and **semantic** duplication at every PR; any net-new abstraction must remove duplicated logic, enforce an invariant, or demonstrably improve the external consumer path.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/",
+        "complexity-metrics.json",
+        "metrics-verification.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Existing-path net shrink and added-owner growth are separated; every new trust owner and retained duplicate is justified with concrete consumer/invariant benefit.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F6-9",
+      "requirement": "Do not split `accumulator/sparse_merkle.rs` unless a clear internal owner boundary and unchanged known-answer vectors are established; code reorganization is not inherently simplification.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Sparse-Merkle representation/algorithm is preserved with original known-answer vectors; no stylistic file split is claimed as simplification.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F7-1",
+      "requirement": "Rewrite the root README around three user goals: define a custom state model; make an authenticated durable mutation; verify a claimed state. Introduce specialized inventory/trade examples afterwards.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "CHANGELOG.md",
+        "docs/0.3/release-compatibility.md",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md",
+        "docs/OPERATIONS/RECOVERY.md",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Root README leads through native domain, protected durable mutation and independently expected proof; inventory/trade appears as specialized usage.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F7-2",
+      "requirement": "Provide two **complete external examples**, not just workspace harnesses: `minimal-native-domain` and `durable-custom-ledger`. Keep trusted planning and historical-only examples explicitly named.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "CHANGELOG.md",
+        "docs/0.3/release-compatibility.md",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md",
+        "docs/OPERATIONS/RECOVERY.md",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Two complete standalone locked applications are copied/fresh-built by the release driver, including four native and twelve file tests and execution/lint/format checks.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F7-3",
+      "requirement": "Publish a short API decision table: when to use profile vs registry, plan vs commit, current vs historical proof, transaction vs ledger transaction, outbox vs event publisher, index vs canonical history.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "CHANGELOG.md",
+        "docs/0.3/release-compatibility.md",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md",
+        "docs/OPERATIONS/RECOVERY.md",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Consumer guide decision table separates all requested profile/registry, plan/commit, proof mode, transaction, outbox/publisher and projection/history concepts.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F7-4",
+      "requirement": "Document each durable operation's exact persistence and failure boundaries; show how to recover after an ambiguous commit ACK without changing the identity.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "CHANGELOG.md",
+        "docs/0.3/release-compatibility.md",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md",
+        "docs/OPERATIONS/RECOVERY.md",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Durable outcome/operator docs name every persistence/failure boundary and require same-identity lookup/recovery after unknown ACK.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F7-5",
+      "requirement": "Provide migration guide from 0.2.0 with before/after imports, method mapping, intentional changes, old BCS fixture coverage, schema evolution, and optional deprecation timetable.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "CHANGELOG.md",
+        "docs/0.3/release-compatibility.md",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md",
+        "docs/OPERATIONS/RECOVERY.md",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Migration/release matrix map old imports/methods, frozen old BCS, explicit schema evolution and the approved Rust/Dalek type boundary; versions/tags/publication remain separate.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F7-6",
+      "requirement": "Ensure examples demonstrate default-deny auth, signer/key verification, tenant scope, canonical head and independently asserted proof expectations. Never introduce permissive examples without clear test-only labeling.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "CHANGELOG.md",
+        "docs/0.3/release-compatibility.md",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md",
+        "docs/OPERATIONS/RECOVERY.md",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Tutorial host policy is default-deny for unrecognized authority and examples bind tenant/principal/key/head/expectations; fixed development keys/policies are explicitly test/tutorial scope.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F7-7",
+      "requirement": "Include installation and toolchain verification in a fresh temporary consumer; cargo feature combinations and portable builds must not accidentally include unneeded components.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "CHANGELOG.md",
+        "docs/0.3/release-compatibility.md",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md",
+        "docs/OPERATIONS/RECOVERY.md",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Fresh unpacked thirteen-package tests/docs/lint plus standalone consumer locks, separate portable and bare-metal gates demonstrate clean declared-dependency builds.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F7-8",
+      "requirement": "Remove or annotate stale protocol documentation, duplicate READMEs, contradictory design snippets and obsolete TODO claims. Preserve normative ADRs as historical records; supersede rather than silently rewriting earlier decisions.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "CHANGELOG.md",
+        "docs/0.3/release-compatibility.md",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md",
+        "docs/OPERATIONS/RECOVERY.md",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Current audit links supersede dated pending evidence without rewriting historical ADRs; root/TODO/changelog/migration reflect current branch and unpublised version scope.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F7-9",
+      "requirement": "Add an operator-facing recovery and corruption decision tree: **retry exact identity**, **lookup**, **reconcile**, **stop/repair**, **restore from verified backup**.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "CHANGELOG.md",
+        "docs/0.3/release-compatibility.md",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md",
+        "docs/OPERATIONS/RECOVERY.md",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F4 and F7: canonical path and documentation"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Operator recovery guide distinguishes exact retry, lookup, reconciliation, stop/repair and verified restore with explicit authority/policy limits.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F8-1",
+      "requirement": "Freeze the exact candidate commit and lockfile; no simultaneous source edits while the final campaign is running. Each later change invalidates the affected evidence and triggers appropriate reruns.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Full runtime/test/build/lock scopes are byte-identical across all tested candidate commits and current tree; only affected checker gates are rerun after two checker-only fixes.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F8-2",
+      "requirement": "Run full stable and MSRV workspace/all-target/all-feature tests, rustdoc/doctests, strict Clippy, formatting, audit/deny, source/layer checks, and portability checks against exact candidate source.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Exact-source stable/MSRV 1.100 local driver passes all required tests/lint/docs/audit/deny/source/layer/portable gates; 955 named test executions include standalone tutorials.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F8-3",
+      "requirement": "Execute all existing fuzz targets plus added stateful/durable/proof-target campaigns with recorded seeds, corpora, time/count budgets and real exit codes. Do not count an interrupted run as a pass.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "All 27 ASAN targets complete full recorded budgets plus fixed seeded claim/durable campaigns and runtime bypass controls; original 25-target evidence is separately retained.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F8-4",
+      "requirement": "Run all frozen old-version wire/golden, external consumer, semantic parity, old-database upgrade/reopen and signed commitment tests. Verify 0.3 newly generated history using the intended new-version readers, and old history without reinterpretation.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Actual-original/current compatibility, 348621 strict semantic cases, original-produced history/reopen/migration and current signed receipts/history tests preserve intended old/new contracts.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F8-5",
+      "requirement": "Run a matched isolated performance matrix: pure profile transitions; typed custom hosted/portable; authenticated single/batch; canonical BCS; signing/root update; inclusion/non-membership proof; history replay/rebuild; concurrent adapter; error/refusal paths. Record latency distributions, allocations, source/binary hashes and system conditions.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Four-lane 22-path paired matrix, all-path individual samples/88 full allocations plus 88 matched setup controls, heavy larger sample sets, canonical 13-path and complete 1/32/256 signed-history campaigns cover every named workload class.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F8-6",
+      "requirement": "Evaluate measured source/maintenance reduction and build cost; justify any retained complexity or performance regressions by explicit functionality/trust benefit. Do not accept hand-wavy \u201cmore abstraction means better\u201d claims.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Whole-project source growth, specific deletions, repeated build/RSS/size data and every measured trigger have explicit invariant/consumer-cost disposition; no universal shrink/speedup is claimed.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F8-7",
+      "requirement": "Package all publishable crates from a clean registry/temporary directory in dependency order, verify no hidden workspace/test-file reliance, generate full changelog and compatibility matrix.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Thirteen actual crate archives pass fresh unpacked tests/docs/lint in dependency order; changelog and compatibility matrix describe the unpublished candidate.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F8-8",
+      "requirement": "Require a final **public API review** by someone implementing an external consumer. Ensure the canonical path has no ambiguous outcome types or undocumented implicit policies.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Codex implemented and compiled external native/ledger/read-only consumers and reviewed outcome/trust/implicit-policy decisions; review is explicitly agent-authored, not human signoff.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "F8-9",
+      "requirement": "Only then update workspace version to `0.3.0`, tag and publish as separately authorized actions. Do not treat branch completion or green CI alone as publishing approval.",
+      "status": "separate_release_action",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "reason": "User authorized qualification, commit and push. Version bump, tag and registry publishing are separate actions under the roadmap.",
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Separate authorization is required for a version bump, tag or registry publication; current goal authorizes qualification, commit and normal branch push only."
+    },
+    {
+      "id": "7.1-1",
+      "requirement": "All original BCS canonical vectors unchanged, including baseline enum variant indices and custom-domain appended indices.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Original producer hashes and frozen byte comparisons preserve BCS indices/envelopes and append-only custom variants.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.1-2",
+      "requirement": "Signature payload bytes, SHA-256 digests, key derivation, sparse-Merkle root calculation, inclusion and non-membership proofs unchanged for old records.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Original independent signature payloads/digests/key/root/inclusion/absence vectors verify in candidate and packaged consumers.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.1-3",
+      "requirement": "Exact old event/commit/proof schemas decode and verify; old historical records never silently receive new semantics.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Original event/commit/proof records decode with original meanings; new claim/history authority is an additional API, not reinterpretation.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.1-4",
+      "requirement": "Source compatibility fixtures compile where promised; exhaustive-match and intentional source breaks identified in migration guide.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Frozen imports/implementers/exhaustive matches compile; migration names intentional toolchain/dependency-type decisions.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.1-5",
+      "requirement": "Custom schema 1/2 coexistence, explicit migration and historical replay remain correct.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Original schema history plus schema-one/two rejection and separately authorized migration/checkpoint tests preserve coexistence.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.1-6",
+      "requirement": "Old frozen corpus and independent portable/hosted transition comparisons pass.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Frozen hosted and no-std portable consumers execute original/current transition comparisons independently.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.1-7",
+      "requirement": "No unapproved change to MSRV or default feature set; compile on selected bare-metal target without `alloc` for supported portable profiles.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "docs/0.3/baseline.md",
+        "docs/0.3/evidence/api/compiler-c418e98/manifest.json",
+        "ci/compat-0.2/provenance.json",
+        "ci/wire-0.2/provenance.json",
+        "docs/0.3/evidence/compat/20261116T180227Z-1914823/manifest.json",
+        "baseline-source-metrics.json",
+        "after-fuzz.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F0: original reference and current conditions"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Approved Rust 1.100 decision is documented; no new default feature coupling; supported no-alloc bare-metal consumer compiles.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.2-1",
+      "requirement": "Authentication + authorized principal + tenant/resource/operation scope cannot be skipped through the canonical durable API.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Protected preparation binds signed ingress/principal/tenant/resource/operation before constructing canonical signed plans; signer and policy refusal precede ledger access.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.2-2",
+      "requirement": "Signature and signer trust are checked independently; digest equality is never presented as cryptographic authorization.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Ed25519 verification and separately selected signer policy both run; digest equality is never promoted into authorization.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.2-3",
+      "requirement": "Preparation has no durable claim or external dispatch; failed/rejected attempts leave state and outbox unchanged.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Preparer lacks write/dispatch capability and refusal/cancellation tests inspect unchanged effects; signing alone creates no receipt.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.2-4",
+      "requirement": "Exact successful commit binds idempotency, entire event set, signed commit, canonical head, projection changes and outbox atomically.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Ledger transaction and retained readback bind the exact whole effect set under one supported atomic authority.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.2-5",
+      "requirement": "Duplicate same-key/same-payload returns verified original committed outcome; conflicting payload never succeeds.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Same identity/payload recovers original receipt; altered payload/group/member/event scope refuses without new canonical effects.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.2-6",
+      "requirement": "Lost ACK yields explicit unknown until authoritative lookup; no new identity or blind replay creates a second accepted mutation.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Lost ACK/readback remain explicit unknown until same-identity lookup; control mutation that returns false success is detected.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.2-7",
+      "requirement": "Canonical proof verification rejects stale historical head. Historical proof mode is explicitly pinned and doesn't pretend to prove current ownership.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Current claims reject stale full heads while historical claims require explicit independent pins and preserve original evidence.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.2-8",
+      "requirement": "Proof verification demands independent expected key/subject/resource; key substitution and cross-tenant/commit substitution fail.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Independent address/key/subject/kind/signer expectations reject relabeling and cross-tenant/commit substitution.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.2-9",
+      "requirement": "Unsupported cross-tenant atomicity refuses operation without partial effects.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Unsupported atomic scope/cross-tenant topology refuses before partial persistence; separate orchestration cannot fabricate canonical success.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.2-10",
+      "requirement": "Projection rebuild from verified history agrees with final canonical root and survives interruptions/resumption.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md",
+        "history-performance-verification.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Original/current verified-source rebuild, 44 interrupted migration schedules and ACK-loss resume assertions agree with expected canonical roots.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.2-11",
+      "requirement": "Crash/concurrency/error-path negative controls fail when deliberately incorrect adapters are supplied.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F1 and correctness gate 7.2: independent authority"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Intentionally partial/replay/ACK/deadlock/lock-bypass implementations produce intended runtime failures, not unrelated compiler failures.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.3-1",
+      "requirement": "One documented canonical example each for native domain, durable mutation, current proof, historical proof and custom adapter.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Consumer guide and standalone apps show each requested native/mutation/proof/adapter intent explicitly.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.3-2",
+      "requirement": "No required internal crate imports in the ordinary use path beyond separately selected port/runtime packages.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Ordinary examples use public umbrella APIs with selected public adapter/runtime dependencies; no private module import is required.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.3-3",
+      "requirement": "Consumer-defined state and command types are not duplicated as application-maintained JSON schema/operation tables where avoidable.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Native models are defined once; static mapping removes seven duplicate operation literals and encode_command removes manual envelope assembly.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.3-4",
+      "requirement": "`StateProfile` / `ProfileRules` / `TypedProfile` responsibilities are explainable in one short diagram, with a single canonical consumer pattern.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Short diagram/table separates pure StateProfile, addressing/economic ProfileRules and hosted TypedProfile adapter responsibilities.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.3-5",
+      "requirement": "Result/error variants unambiguously distinguish uncommitted, committed/replayed, refused, unknown and verified.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Private verified success types and distinct rejected/conflict/unknown/corrupt/recovery variants have explicit action semantics.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.3-6",
+      "requirement": "Existing legacy APIs are explicitly described as planning, compatibility or advanced operations; no ambiguous default path in the README.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Legacy sinks/TransactionManager remain labeled planning/compatibility/advanced and are absent from the recommended durable path.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.3-7",
+      "requirement": "Every new public abstraction has a concrete misuse it prevents or an actual repetition it eliminates.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "API review names the specific misuse prevented by protected plans, complete receipts/batches, read-only claims and verified history; no alias count stands in for concepts.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.3-8",
+      "requirement": "A fresh external application builds all tutorial code using only a declared public dependency and lockfile.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "api-review.md",
+        "canonical-performance/manifest.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/consumer-guide.md",
+        "docs/0.3/migration.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F3 and usability gate 7.3: native consumers"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Standalone apps use independent Cargo manifests/locks and fresh copied builds; unpacked crate consumers have no hidden workspace source dependency.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.4-1",
+      "requirement": "Each invariant has one named authoritative owner; no two implementations differ accidentally in error precedence or validation coverage.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Ownership map names native evaluation, preparation, commit validation, ledger, receipt/batch, claim and verified-history authorities with non-equivalent checks retained.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.4-2",
+      "requirement": "Repeated state/command decode and profile reduction paths removed or justified with matching evidence.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Decode instrumentation/parity demonstrates shared native work; different output validation and economic addressing checks remain justified.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.4-3",
+      "requirement": "Source LOC/tokens, executable branch complexity, public item count and duplicate code groups measured at baseline and exact candidate.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/",
+        "complexity-metrics.json",
+        "metrics-verification.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Exact original/current syntax reports plus physical/body/per-function approximation measure all requested source dimensions with explicit macro limits.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.4-4",
+      "requirement": "At least the planned duplicate-hotspot reductions are substantiated by actual deletions and fewer execution paths\u2014not just moving code into helpers.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Per-extraction removals/string guards/default forwards and original-path negative token/branch accounting substantiate bounded deletions; moves and generated branches are not relabeled as savings.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.4-5",
+      "requirement": "No unnecessary increase in published crates, default dependencies, feature coupling or runtime allocation requirements.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/",
+        "portable-size-verification.json",
+        "build-cost-verification.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Thirteen published crates and internal normal graph unchanged; no new portable runtime/allocator/service edge; remaining hosted allocations have explicit safety reasons.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.4-6",
+      "requirement": "Cold-build time/binary size/memory remain within baseline variance or have documented, measured justification.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/",
+        "portable-size-verification.json",
+        "build-cost-verification.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Six fresh cold builds and tiny/full/portable artifacts report overlapping time range, accepted 4MiB RSS growth and consumer-specific binary effects.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "7.4-7",
+      "requirement": "Stale/duplicate docs cleaned; normative historical decisions remain traceable.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "source-metrics.json",
+        "baseline-source-metrics.json",
+        "maintenance-review.md",
+        "layer-review.json",
+        "after-fuzz.json",
+        "docs/0.3/evidence/maintenance/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F6 and maintenance gate 7.4"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Changed current docs pass file-link checks and old evidence/ADR chronology is retained with current-audit pointers.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-A-1",
+      "requirement": "Consumer defines `ConfigurationState` and `ConfigurationCommand` exactly once.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Configuration native state/command declarations occur once in the standalone model.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-A-2",
+      "requirement": "Registers domain identity, schema and operation matching via the canonical API.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Static command_operations mapping, schema constants/codecs and typed registry bind the domain.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-A-3",
+      "requirement": "Authenticated request produces one prepared transition; no persistence yet.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Signed ingress/authenticated preparation produces private protected events without persistence.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-A-4",
+      "requirement": "Consumer ledger adapter atomically writes event, signed commit, canonical head, projection and outbox under exact idempotency key.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Canonical tutorial/reference ledger writes complete signed effects atomically under exact identity.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-A-5",
+      "requirement": "A duplicate identical request resolves to the original commit without re-reducing or duplicating effects.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Exact retry returns retained original receipt without reduction or new outbox effects.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-A-6",
+      "requirement": "A conflicting duplicate is rejected; history and current state remain unchanged.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Changed payload same identity refuses and independent raw inspection preserves previous authority.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-A-7",
+      "requirement": "Proved current configuration verifies against independently expected tenant/resource/key and canonical head.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Current proof uses independently expected configuration address/owner/key/head through public claim APIs.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-B-1",
+      "requirement": "Generate valid historical non-membership of resource A, followed by a commit creating A.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Original frozen absence followed by signed creation supplies independent historical/current evidence.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-B-2",
+      "requirement": "Request *current absence of A*: it must fail canonicality or absence checks.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Current absence rejects the old valid absent root after head advance.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-B-3",
+      "requirement": "Generate valid absence of B but ask for absence of A: it must fail expected-key binding.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Expected absent address derives an independent key and rejects proof of another resource.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-B-4",
+      "requirement": "Substitute subject, tenant, resource or verifying key: fail closed.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Expected tenant/resource/subject/key and stored signed reference checks refuse substitution.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-B-5",
+      "requirement": "Historical verification of the original pre-creation absence continues to succeed when pinned to the correct commit and trusted signer policy.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/release.log.gz",
+        "../../fuzz/claim-final-0799afe/manifest.json",
+        "../../fuzz/durable-final-0799afe/manifest.json",
+        "docs/0.3/durable-outcomes.md",
+        "docs/0.3/proof-claims.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Historical mode preserves original pre-creation absence under selected pin and trusted signer.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-C-1",
+      "requirement": "Prepare a signed inventory mutation with immutable identity.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Protected signed mutation binds immutable idempotency and exact payload/event identity.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-C-2",
+      "requirement": "Inject failure after database commit but before client acknowledgement.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Failure injection occurs after authority commit and before caller ACK, including reopened adapters.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-C-3",
+      "requirement": "Client receives **unknown**, not a confirmed failure or a fabricated receipt.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Caller receives Unknown with no fabricated committed receipt or safe fresh-retry classification.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-C-4",
+      "requirement": "Reopen a new adapter and lookup by the same identity and payload digest.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Fresh handle lookup verifies exact retained identity/digest/original effects.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-C-5",
+      "requirement": "Verify the originally committed outcome and return a replay receipt; canonical head advanced exactly once, outbox has one row.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Original committed replay is returned while raw head/outbox inspection proves one accepted effect set.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-C-6",
+      "requirement": "Repeat with failure *before* commit; confirm no side effects and allow only the correct exact-identity retry.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Precommit failures expose no accepted effects; only supported exact-identity retry is allowed after authoritative resolution.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-D-1",
+      "requirement": "Submit contested purchase/transfer requests against the same resource.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Settlement contention/conformance schedules exercise competing supported requests.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-D-2",
+      "requirement": "At most the supported canonical transition wins; loser sees conflict/refusal, never partially transferred ownership or currency.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "CAS/identity/whole-group authority checks allow at most the supported winner; losers receive refusal/conflict with no accepted partial transfer.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-D-3",
+      "requirement": "Multi-resource settlement verifies every event/projection/root under one atomic backend scope.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Protected settlement/group readback binds every event/projection/root under one supported scope.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-D-4",
+      "requirement": "Unsupported multi-tenant storage topology refuses before partial persistence.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Unsupported multi-tenant authority refuses before partial writes; independent signed legs do not imply distributed atomicity.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-D-5",
+      "requirement": "A separate Penelope workflow may orchestrate retries/reconciliation, but cannot change the canonical StateChronicle result without a newly authorized operation.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../../conformance/concurrent-mixed-0799afe/all-tests.log.gz",
+        "../../conformance/concurrent-mixed-0799afe/deadlock-control/manifest.json",
+        "process-lock-control/lock-negative.json",
+        "../local-release-94eb5d4/nested/"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "External Penelope coordination is optional and cannot override canonical state results; any new operation needs its own authorization.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-E-1",
+      "requirement": "Produce old history with the original v0.2 implementation and BCS vectors.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Actual original commit producer provides unchanged four-commit configuration history and wire bytes.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-E-2",
+      "requirement": "Rebuild projections with candidate 0.3 in bounded chunks, injecting interruption after each checkpoint.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Current verifier/rebuilder consumes old history in bounded chunks across every retained checkpoint interruption schedule.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-E-3",
+      "requirement": "Resume using pinned history and prove final state root equals expected canonical root.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Resumed verified history reproduces signed canonical roots with explicit source identity/pin.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-E-4",
+      "requirement": "Register two schema versions of a native domain; reject reinterpretation of old payload under new schema.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Schema-one/two registry tests reject reinterpretation of old bytes as a new schema.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "Scenario-E-5",
+      "requirement": "Migrate via a separately authorized/versioned event or resource policy, preserving historical verification.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../local-release-94eb5d4/nested/",
+        "docs/0.3/typed-command-authoring.md",
+        "../../compat/20261116T180227Z-1914823/manifest.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F5 and scenarios A\u2013E: bounded backend and history checks"
+      },
+      "review_state": "Reviewed against current tests/documents and bounded source provenance; final aggregate closure remains pending.",
+      "acceptance_basis": "Separately bound host migration grant authorizes new version/resource policy while original source remains historically verifiable.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "DoD-1",
+      "requirement": "The main consumer journey is obvious: typed domain \u2192 prepare \u2192 verified atomic commit \u2192 authoritative receipt/recovery \u2192 canonical or historical proof as requested.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Root/consumer guide/tutorials present one typed-domain to protected receipt and explicit proof-mode journey.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "DoD-2",
+      "requirement": "Core logic is simpler to inspect: fewer duplicated control paths, fewer redundant profile decodes and fewer equivalent store/proof wrappers\u2014not just files moved around.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Parity-backed evaluator/decode/guard/string/read-owner deletions reduce duplicated true control paths; macro/file moves do not stand in for simplification.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "DoD-3",
+      "requirement": "No security, cryptographic, wire, canonical-history, idempotency, transaction or portable guarantee is knowingly weakened.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Original byte/crypto/history/identity/transaction/portable gates plus adversarial controls preserve documented guarantees and deliberate fixes.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "DoD-4",
+      "requirement": "A custom storage implementation has a published conformance test mechanism and explicit scope of guarantees.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Public dev conformance contract/vectors and independent inspection support custom backend qualification within explicit logical/process limits.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "DoD-5",
+      "requirement": "All old release fixtures, cross-version histories, signatures, roots, proof vectors and documented source-compatibility obligations are satisfied.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Actual-original cross-version schemas/signatures/roots/proofs/import obligations and new separately versioned history/migration all pass.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "DoD-6",
+      "requirement": "Full exact-candidate property/fuzz/crash/concurrency/MSRV/coverage/performance/package gates pass with independently reproducible evidence.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Full frozen candidate gates include stable/MSRV/property/all-target fuzz/coverage/crash/concurrency/performance/package plus independent artifact verification.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "DoD-7",
+      "requirement": "Production code footprint and build/maintenance cost are *reported honestly*. The committed simplifications are observable in source and consumer usability\u2014not merely asserted by an architecture document.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Source growth, target-local reductions, compiler/API concept counts, retained duplicates and repeated consumer-specific costs are reported honestly with ownership benefits.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    },
+    {
+      "id": "DoD-8",
+      "requirement": "All P0/P1 findings are closed, with unresolved P2 issues either resolved or individually justified and scheduled. Any remaining limitation is clearly documented; \u201cgap-free\u201d is **not** a release claim.",
+      "status": "reviewed_and_verified",
+      "evidence": [
+        "../local-release-94eb5d4/verification.json",
+        "../../packages/20261116T180422Z-1975357/manifest.json",
+        "../../coverage/hosted-94eb5d4/manifest.json",
+        "../../fuzz/extended-94eb5d4/manifest.json",
+        "properties/manifest.json",
+        "after-fuzz.json",
+        "api-review.md",
+        "candidate-equivalence.json",
+        "finding-disposition.md"
+      ],
+      "review": {
+        "path": "requirement-review.md",
+        "section": "F8 and definition of done"
+      },
+      "review_state": "Reviewed; final performance, build cost or aggregate acceptance evidence remains pending.",
+      "acceptance_basis": "Finding disposition closes known canonical trust defects and distinguishes migrated legacy limits; no known P0/P1 or unnamed deferred P2 implementation defect is waived.",
+      "final_disposition": "Accepted within the literal clause, cited evidence, specific acceptance basis and documented consumer/backend/measurement limits. No stronger guarantee is inferred."
+    }
+  ],
+  "requirement_count": 138,
+  "limitations": [
+    "Inventory preserves literal numbered tasks and checklist clauses; provisional names and optional design choices are assessed against final documented equivalents.",
+    "No completion is implied by a path or this inventory: raw evidence and every active gate require independent final review."
+  ],
+  "review_policy": "Review references interpret scope; they do not turn pending gates into passing results. Final closure requires direct terminal evidence and measured performance disposition.",
+  "final_audit": {
+    "status": "reviewed_and_verified",
+    "roadmap_sha256": "1903d1c66c67109b5991ff928bc9c99d06ad75d61f1f6cb5cf79b949b6b2ef52",
+    "scope": "Qualification only; version/tag/publication separate.",
+    "reviewer": "Codex implementing and reviewing external public consumers; not human maintainer signoff."
+  }
+}

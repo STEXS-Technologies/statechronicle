@@ -1,0 +1,121 @@
+{
+  "status": "passed",
+  "manifest_sha256": "03ddea6bddb8d42297c9a34f534ecec903b1f125837c84d300e7046c4ef31a04",
+  "binary_sha256": "1dcae0a7af14cf6b09a7f517f2711d9623144a989ff97fe3f78ccf0822df9379",
+  "probes": 9,
+  "cpu_by_label": {
+    "allocation-candidate-control-1000": 2,
+    "allocation-candidate-control-100": 2,
+    "allocation-candidate-control-10": 2,
+    "allocation-candidate-verify_signed_history_1-1000": 2,
+    "allocation-candidate-checkpoint_ack_loss_resume_and_root_1-1000": 2,
+    "allocation-candidate-verify_signed_history_32-100": 3,
+    "allocation-candidate-checkpoint_ack_loss_resume_and_root_32-100": 4,
+    "allocation-candidate-verify_signed_history_256-10": 5,
+    "allocation-candidate-checkpoint_ack_loss_resume_and_root_256-10": 7
+  },
+  "raw_log_sha256": {
+    "allocation-candidate-control-1000": "18d53f1222d103499877ead89bf3b705f23d4e98a14efc8abe1c12de49f228b9",
+    "allocation-candidate-control-100": "d7f67c0509c100fb59dd2f2d3ef87fdb33cc0d0076273d9a32dbd47afcfb9917",
+    "allocation-candidate-control-10": "2eb0e9d04dfe15390d8f36caff6c11df53a1dce708afeb9ac67fdeb5a3c5b12e",
+    "allocation-candidate-verify_signed_history_1-1000": "46264c3dec303373e21bfa35f6a5aac39d5d560087570c8efb5e9228ed9b8ff2",
+    "allocation-candidate-checkpoint_ack_loss_resume_and_root_1-1000": "202d2a257063c71e9951aa165fba029adbcd3db7e75c9134a0cb160b8fd4afcc",
+    "allocation-candidate-verify_signed_history_32-100": "aab88f427a20da7f35a03209c6976231e3af1263f87d4b6fd8b70800267b340a",
+    "allocation-candidate-checkpoint_ack_loss_resume_and_root_32-100": "ad2337abd263a73bad6149b335deba705438e2e87f4b0bf176e9c49036c323cc",
+    "allocation-candidate-verify_signed_history_256-10": "95bf67a881d1e10bcbd392adef19738d78d5bb64ae1c4f5e0d90de512829a00d",
+    "allocation-candidate-checkpoint_ack_loss_resume_and_root_256-10": "eece3d886fa1973ebcab9941613cc3d91d6050453962f7e4b6631676ceff917e"
+  },
+  "allocations": {
+    "control@1000": {
+      "allocations": 87562,
+      "frees": 76556,
+      "bytes": 48586669,
+      "actions": 1000,
+      "control_subtracted_per_action": {
+        "allocations": 0.0,
+        "bytes": 0.0
+      }
+    },
+    "control@100": {
+      "allocations": 87562,
+      "frees": 76556,
+      "bytes": 48586668,
+      "actions": 100,
+      "control_subtracted_per_action": {
+        "allocations": 0.0,
+        "bytes": 0.0
+      }
+    },
+    "control@10": {
+      "allocations": 87562,
+      "frees": 76556,
+      "bytes": 48586667,
+      "actions": 10,
+      "control_subtracted_per_action": {
+        "allocations": 0.0,
+        "bytes": 0.0
+      }
+    },
+    "verify_signed_history_1@1000": {
+      "allocations": 241562,
+      "frees": 230556,
+      "bytes": 66318669,
+      "actions": 1000,
+      "control_subtracted_per_action": {
+        "allocations": 154.0,
+        "bytes": 17732.0
+      }
+    },
+    "checkpoint_ack_loss_resume_and_root_1@1000": {
+      "allocations": 203562,
+      "frees": 192556,
+      "bytes": 67535669,
+      "actions": 1000,
+      "control_subtracted_per_action": {
+        "allocations": 116.0,
+        "bytes": 18949.0
+      }
+    },
+    "verify_signed_history_32@100": {
+      "allocations": 511262,
+      "frees": 500256,
+      "bytes": 123089168,
+      "actions": 100,
+      "control_subtracted_per_action": {
+        "allocations": 4237.0,
+        "bytes": 745025.0
+      }
+    },
+    "checkpoint_ack_loss_resume_and_root_32@100": {
+      "allocations": 319762,
+      "frees": 308756,
+      "bytes": 63044868,
+      "actions": 100,
+      "control_subtracted_per_action": {
+        "allocations": 2322.0,
+        "bytes": 144582.0
+      }
+    },
+    "verify_signed_history_256@10": {
+      "allocations": 510762,
+      "frees": 499756,
+      "bytes": 318511877,
+      "actions": 10,
+      "control_subtracted_per_action": {
+        "allocations": 42320.0,
+        "bytes": 26992521.0
+      }
+    },
+    "checkpoint_ack_loss_resume_and_root_256@10": {
+      "allocations": 270932,
+      "frees": 259926,
+      "bytes": 60120887,
+      "actions": 10,
+      "control_subtracted_per_action": {
+        "allocations": 18337.0,
+        "bytes": 1153422.0
+      }
+    }
+  },
+  "scope": "Full independent candidate allocation lane only. Control-lane completion, integrated history provenance and aggregate qualification remain separate."
+}

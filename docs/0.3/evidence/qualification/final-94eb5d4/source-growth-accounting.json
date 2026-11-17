@@ -1,0 +1,139 @@
+{
+  "added_files": [
+    {
+      "path": "crates/statechronicle-accumulator/src/event_tree.rs",
+      "counts": {
+        "syntax_lines": 37,
+        "lexical_tokens": 326,
+        "branch_nodes": 5,
+        "public_syntax_items": 1
+      }
+    },
+    {
+      "path": "crates/statechronicle-commit/src/durable.rs",
+      "counts": {
+        "syntax_lines": 336,
+        "lexical_tokens": 1958,
+        "branch_nodes": 41,
+        "public_syntax_items": 16
+      }
+    },
+    {
+      "path": "crates/statechronicle-commit/src/durable_batch.rs",
+      "counts": {
+        "syntax_lines": 538,
+        "lexical_tokens": 3589,
+        "branch_nodes": 87,
+        "public_syntax_items": 23
+      }
+    },
+    {
+      "path": "crates/statechronicle-domain/src/validated_string.rs",
+      "counts": {
+        "syntax_lines": 41,
+        "lexical_tokens": 343,
+        "branch_nodes": 0,
+        "public_syntax_items": 1
+      }
+    },
+    {
+      "path": "crates/statechronicle-executor/src/batch_completion.rs",
+      "counts": {
+        "syntax_lines": 56,
+        "lexical_tokens": 379,
+        "branch_nodes": 6,
+        "public_syntax_items": 4
+      }
+    },
+    {
+      "path": "crates/statechronicle-executor/src/evaluation.rs",
+      "counts": {
+        "syntax_lines": 223,
+        "lexical_tokens": 1616,
+        "branch_nodes": 48,
+        "public_syntax_items": 14
+      }
+    },
+    {
+      "path": "crates/statechronicle-executor/src/preparation.rs",
+      "counts": {
+        "syntax_lines": 67,
+        "lexical_tokens": 434,
+        "branch_nodes": 6,
+        "public_syntax_items": 11
+      }
+    },
+    {
+      "path": "crates/statechronicle-executor/src/prepared_profile.rs",
+      "counts": {
+        "syntax_lines": 254,
+        "lexical_tokens": 1790,
+        "branch_nodes": 55,
+        "public_syntax_items": 3
+      }
+    },
+    {
+      "path": "crates/statechronicle-index/src/rebuild/verified.rs",
+      "counts": {
+        "syntax_lines": 161,
+        "lexical_tokens": 1140,
+        "branch_nodes": 31,
+        "public_syntax_items": 11
+      }
+    },
+    {
+      "path": "crates/statechronicle-ports/src/ledger_batch.rs",
+      "counts": {
+        "syntax_lines": 30,
+        "lexical_tokens": 168,
+        "branch_nodes": 0,
+        "public_syntax_items": 9
+      }
+    },
+    {
+      "path": "crates/statechronicle-proof/src/claim.rs",
+      "counts": {
+        "syntax_lines": 331,
+        "lexical_tokens": 2078,
+        "branch_nodes": 35,
+        "public_syntax_items": 27
+      }
+    },
+    {
+      "path": "crates/statechronicle-proof/src/settlement.rs",
+      "counts": {
+        "syntax_lines": 297,
+        "lexical_tokens": 2003,
+        "branch_nodes": 53,
+        "public_syntax_items": 27
+      }
+    },
+    {
+      "path": "crates/statechronicle/src/mutation.rs",
+      "counts": {
+        "syntax_lines": 189,
+        "lexical_tokens": 1183,
+        "branch_nodes": 12,
+        "public_syntax_items": 14
+      }
+    }
+  ],
+  "removed_files": [],
+  "added_file_totals": {
+    "syntax_lines": 2560,
+    "lexical_tokens": 17007,
+    "branch_nodes": 379,
+    "public_syntax_items": 161
+  },
+  "existing_file_net_delta": {
+    "syntax_lines": -446,
+    "lexical_tokens": -3671,
+    "branch_nodes": -114,
+    "public_syntax_items": 76
+  },
+  "limitations": [
+    "New files include functionality and extracted owners; not every added-file token is new functionality.",
+    "Existing-file delta includes moves, safety tightening and simplification; it is not a pure equivalence-only reduction.",
+    "Macros preserve generated public/runtime implementations, so source token savings are not runtime branch/API savings."
+  ]
+}

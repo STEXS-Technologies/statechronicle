@@ -1,0 +1,82 @@
+{
+  "status": "passed",
+  "build_manifest_sha256": "cafb7ece0c2b4a4fbc2b7f79361872c58787c4659f09073c0238aa6539b23e88",
+  "checks": [
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "6",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-control__",
+        "verify_signed_history_256_______________________________________________________________________________________________________"
+      ],
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "1"
+      },
+      "binary_sha256": "1db4267046ee343ba7e75d79cf1d57679c68a4b597b95db820614dcfff0a8ce1",
+      "exit_code": 0,
+      "seconds": 6.5139311399980215,
+      "artifact": "history-smoke-control-verify_signed_history_256.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "6",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-control__",
+        "checkpoint_ack_loss_resume_and_root_256_________________________________________________________________________________________"
+      ],
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "1"
+      },
+      "binary_sha256": "1db4267046ee343ba7e75d79cf1d57679c68a4b597b95db820614dcfff0a8ce1",
+      "exit_code": 0,
+      "seconds": 3.9360934249998536,
+      "artifact": "history-smoke-control-checkpoint_ack_loss_resume_and_root_256.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "6",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-candidate",
+        "verify_signed_history_256_______________________________________________________________________________________________________"
+      ],
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "1"
+      },
+      "binary_sha256": "1dcae0a7af14cf6b09a7f517f2711d9623144a989ff97fe3f78ccf0822df9379",
+      "exit_code": 0,
+      "seconds": 6.492273024996393,
+      "artifact": "history-smoke-candidate-verify_signed_history_256.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "6",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-candidate",
+        "checkpoint_ack_loss_resume_and_root_256_________________________________________________________________________________________"
+      ],
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "1"
+      },
+      "binary_sha256": "1dcae0a7af14cf6b09a7f517f2711d9623144a989ff97fe3f78ccf0822df9379",
+      "exit_code": 0,
+      "seconds": 3.9337028120062314,
+      "artifact": "history-smoke-candidate-checkpoint_ack_loss_resume_and_root_256.log.gz",
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    }
+  ],
+  "limitations": [
+    "Native one-action assertion smoke only. Output/timing is not performance qualification.",
+    "Each process first creates and verifies all 1/32/256-commit fixtures, then checks the selected 256-commit action once."
+  ]
+}

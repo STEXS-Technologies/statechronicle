@@ -1,5 +1,7 @@
 # Refactor ownership and duplication inventory
 
+Current qualification is tracked in the [final release audit](evidence/qualification/final-94eb5d4/README.md). Dated results and pending statements below describe their original checkpoints; the final audit records subsequent evidence and remaining work.
+
 Baseline: `c418e98b91720188158c531cd5c2c4b8ab71cbcf`. This is the initial
 source-grounded inventory; exact function-token matches are in `metrics.json`.
 

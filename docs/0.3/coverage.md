@@ -1,5 +1,7 @@
 # Hosted coverage qualification
 
+Current qualification is tracked in the [final release audit](evidence/qualification/final-94eb5d4/README.md). Dated results and pending statements below describe their original checkpoints; the final audit records subsequent evidence and remaining work.
+
 Run `RUSTC_WRAPPER= CARGO_BUILD_JOBS=8 bash scripts/run_coverage_json.sh`,
 then `bash scripts/check_coverage_ratchet.sh`. Requires cargo-llvm-cov,
 LLVM tools, Python 3 and jq. The collection driver runs its parser tests,

@@ -1,5 +1,7 @@
 # Local release-check orchestration
 
+Current qualification is tracked in the [final release audit](evidence/qualification/final-94eb5d4/README.md). Dated results and pending statements below describe their original checkpoints; the final audit records subsequent evidence and remaining work.
+
 Run `scripts/run_release_checks.sh` from a committed checkout with Rust 1.100.0,
 Python 3.12+, rustup and the Cargo audit/deny/fuzz tools available. Rustup installs
 the selected embedded core and current nightly compiler; Cargo/advisory checks

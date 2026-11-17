@@ -4,6 +4,53 @@ All notable changes to StateChronicle are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Protected read-only single, batch and single-tenant settlement preparation;
+  immutable signed plans and independently checked original durable receipts.
+- Exact-identity recovery/replay, explicit unknown acknowledgement outcomes,
+  complete retained batch membership and default refusal of unsupported ports.
+- Supplied-proof verification through a minimum read-only adapter, with independent
+  expected tenant/resource/owner/trusted key and distinct current/historical modes.
+- Verified pinned history, resumable projection rebuild and separately authorized
+  custom-schema migration examples and adversarial fixtures.
+- External native-domain and file-ledger tutorials, reusable dev-only adapter
+  conformance checks, selected process-kill/reopen and concurrent history tests.
+- Immutable-source qualification tooling for compiler API catalogs, frozen
+  compatibility, isolated package contents, coverage, fuzz and matched costs.
+
+### Changed
+
+- Hosted native evaluation shares decoded state/command values; operation mappings,
+  validated string trait shells and equivalent profile/index predicates share
+  their existing semantic owners. Legacy APIs retain their documented contracts.
+- The approved toolchain/dependency refresh sets the declared minimum Rust version
+  to 1.100 and uses Ed25519 Dalek 3. Consumers exchanging direct dependency key
+  types must align their major version. See [migration](docs/0.3/migration.md).
+- Consumer documentation recommends protected receipt-based composition and
+  distinguishes legacy planning/sinks, historical evidence and current claims.
+
+### Fixed
+
+- Expected-address and canonical-head verification reject substituted/stale proof
+  evidence; historical verification requires an independently supplied commit pin.
+- Protected retry/recovery rejects changed payloads, corrupt original records and
+  unverified receipts; lost acknowledgement does not fabricate confirmed failure.
+- Trade-state verification binds each leg to its tenant, resolves trusted commits
+  by tenant and commit ID, and rejects duplicate summary/proof coverage. Unsigned
+  summary metadata is not promoted into authenticated settlement history.
+- Projection rebuild keeps independent subject-held addresses and scopes event
+  identity by tenant, preventing unrelated holders or tenants from colliding.
+- Qualification drivers isolate archived fuzz and unpacked package builds from
+  cached binaries of earlier or deliberately insecure source revisions.
+
+Original 0.2 wire fixtures remain frozen. See the [compatibility matrix](docs/0.3/release-compatibility.md)
+and [qualification record](docs/0.3/evidence/qualification/final-94eb5d4/README.md)
+for exact tested scopes, accepted costs and retained limitations. Workspace versions remain 0.2.0
+until a separately authorized version/tag/publication step.
+
 ## [0.2.0] - 2026-10-10
 
 ### Added

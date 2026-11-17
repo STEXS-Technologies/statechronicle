@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "verifier_sha256": "006374ed5b7db4a662862b8a0018ce906b0822625a941357a0c478ad7b7d36fa",
+  "campaigns": [
+    "docs/0.3/evidence/performance/matrix-20261116T190518Z-2504159",
+    "docs/0.3/evidence/performance/per-request-20261116T190644Z-2518005",
+    "docs/0.3/evidence/performance/all-paths-20261116T191314Z-2721740"
+  ],
+  "scope": "All three complete compatibility latency campaigns: archives, source maps, fresh library compile markers, binaries, raw observations, exact percentile/paired math. Allocation qualification remains separate."
+}

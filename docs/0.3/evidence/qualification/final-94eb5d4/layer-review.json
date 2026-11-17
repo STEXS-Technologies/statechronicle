@@ -1,0 +1,103 @@
+{
+  "candidate_commit": "0799afe4ce45c84d5827ec6497ebc4d88ea1db58",
+  "metadata_artifact": "../../packages/20261116T180422Z-1975357/metadata.log.gz",
+  "metadata_sha256": "3ebb0bdd1f11351d3373d078453145a19c20a675b40dec32c908fbaed2877266",
+  "publishable_crates": 13,
+  "runtime_edges": {
+    "statechronicle-core": [],
+    "statechronicle-domain": [
+      "statechronicle-core"
+    ],
+    "statechronicle-intent": [
+      "statechronicle-core",
+      "statechronicle-domain"
+    ],
+    "statechronicle-executor": [
+      "statechronicle-accumulator",
+      "statechronicle-core",
+      "statechronicle-domain",
+      "statechronicle-intent",
+      "statechronicle-ports",
+      "statechronicle-profiles"
+    ],
+    "statechronicle-accumulator": [
+      "statechronicle-core",
+      "statechronicle-domain"
+    ],
+    "statechronicle-ports": [
+      "statechronicle-accumulator",
+      "statechronicle-core",
+      "statechronicle-domain"
+    ],
+    "statechronicle-profiles": [
+      "statechronicle-accumulator",
+      "statechronicle-core",
+      "statechronicle-domain",
+      "statechronicle-profile"
+    ],
+    "statechronicle-profile": [],
+    "statechronicle-commit": [
+      "statechronicle-accumulator",
+      "statechronicle-core",
+      "statechronicle-domain",
+      "statechronicle-intent",
+      "statechronicle-ports"
+    ],
+    "statechronicle-proof": [
+      "statechronicle-accumulator",
+      "statechronicle-core",
+      "statechronicle-domain",
+      "statechronicle-ports",
+      "statechronicle-profiles"
+    ],
+    "statechronicle-portable": [
+      "statechronicle-profile"
+    ],
+    "statechronicle-index": [
+      "statechronicle-commit",
+      "statechronicle-core",
+      "statechronicle-domain",
+      "statechronicle-ports",
+      "statechronicle-profiles",
+      "statechronicle-proof"
+    ],
+    "statechronicle": [
+      "statechronicle-accumulator",
+      "statechronicle-commit",
+      "statechronicle-core",
+      "statechronicle-domain",
+      "statechronicle-executor",
+      "statechronicle-index",
+      "statechronicle-intent",
+      "statechronicle-portable",
+      "statechronicle-ports",
+      "statechronicle-profile",
+      "statechronicle-profiles",
+      "statechronicle-proof"
+    ]
+  },
+  "unchanged_from_original_release": true,
+  "acyclic": true,
+  "package_features": {
+    "statechronicle-core": {},
+    "statechronicle-domain": {},
+    "statechronicle-intent": {},
+    "statechronicle-executor": {},
+    "statechronicle-accumulator": {},
+    "statechronicle-ports": {},
+    "statechronicle-profiles": {},
+    "statechronicle-profile": {},
+    "statechronicle-commit": {},
+    "statechronicle-proof": {},
+    "statechronicle-portable": {},
+    "statechronicle-index": {},
+    "statechronicle": {}
+  },
+  "portable_runtime_internal_dependencies": [
+    "statechronicle-profile"
+  ],
+  "limitations": [
+    "Normal runtime internal edges only; dev dependencies are deliberately separate.",
+    "External versions/feature resolution and compiler/binary costs are qualified by separate retained commands."
+  ]
+}

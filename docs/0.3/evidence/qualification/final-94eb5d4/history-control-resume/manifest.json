@@ -1,0 +1,325 @@
+{
+  "pid": 429397,
+  "status": "passed",
+  "checks": [
+    {
+      "label": "allocation-control-verify_signed_history_256-10",
+      "command": [
+        "taskset",
+        "-c",
+        "6",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-control__",
+        "verify_signed_history_256_______________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 2555.4408782389946,
+      "artifact": "allocation-control-verify_signed_history_256-10.log.gz",
+      "sha256": "a0a2cfe40e822ada80342115e6181fccfa621fcbfc5061cbb8647996a1dc7d7c",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "10"
+      }
+    },
+    {
+      "label": "allocation-control-checkpoint_ack_loss_resume_and_root_256-10",
+      "command": [
+        "taskset",
+        "-c",
+        "8",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-control__",
+        "checkpoint_ack_loss_resume_and_root_256_________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 324.1604993140063,
+      "artifact": "allocation-control-checkpoint_ack_loss_resume_and_root_256-10.log.gz",
+      "sha256": "78e9f6213d80c32d92b51d5febf53d991d88782ecc0e66d89e9a41bb78557f81",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "10"
+      }
+    }
+  ],
+  "allocations": {
+    "control@1000": {
+      "allocations": 87562,
+      "frees": 76556,
+      "bytes": 48586669,
+      "actions": 1000,
+      "control_subtracted_per_action": {
+        "allocations": 0.0,
+        "bytes": 0.0
+      }
+    },
+    "control@100": {
+      "allocations": 87562,
+      "frees": 76556,
+      "bytes": 48586668,
+      "actions": 100,
+      "control_subtracted_per_action": {
+        "allocations": 0.0,
+        "bytes": 0.0
+      }
+    },
+    "control@10": {
+      "allocations": 87562,
+      "frees": 76556,
+      "bytes": 48586667,
+      "actions": 10,
+      "control_subtracted_per_action": {
+        "allocations": 0.0,
+        "bytes": 0.0
+      }
+    },
+    "verify_signed_history_1@1000": {
+      "allocations": 241562,
+      "frees": 230556,
+      "bytes": 66318669,
+      "actions": 1000,
+      "control_subtracted_per_action": {
+        "allocations": 154.0,
+        "bytes": 17732.0
+      }
+    },
+    "checkpoint_ack_loss_resume_and_root_1@1000": {
+      "allocations": 203562,
+      "frees": 192556,
+      "bytes": 67535669,
+      "actions": 1000,
+      "control_subtracted_per_action": {
+        "allocations": 116.0,
+        "bytes": 18949.0
+      }
+    },
+    "verify_signed_history_32@100": {
+      "allocations": 511262,
+      "frees": 500256,
+      "bytes": 123089168,
+      "actions": 100,
+      "control_subtracted_per_action": {
+        "allocations": 4237.0,
+        "bytes": 745025.0
+      }
+    },
+    "checkpoint_ack_loss_resume_and_root_32@100": {
+      "allocations": 319762,
+      "frees": 308756,
+      "bytes": 63044868,
+      "actions": 100,
+      "control_subtracted_per_action": {
+        "allocations": 2322.0,
+        "bytes": 144582.0
+      }
+    },
+    "checkpoint_ack_loss_resume_and_root_256@10": {
+      "allocations": 270932,
+      "frees": 259926,
+      "bytes": 60120887,
+      "actions": 10,
+      "control_subtracted_per_action": {
+        "allocations": 18337.0,
+        "bytes": 1153422.0
+      }
+    },
+    "verify_signed_history_256@10": {
+      "allocations": 510762,
+      "frees": 499756,
+      "bytes": 318511877,
+      "actions": 10,
+      "control_subtracted_per_action": {
+        "allocations": 42320.0,
+        "bytes": 26992521.0
+      }
+    }
+  },
+  "prior_positive_checks": [
+    {
+      "label": "allocation-control-control-1000",
+      "command": [
+        "taskset",
+        "-c",
+        "6",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-control__",
+        "control_________________________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "seconds": 321.41029475700634,
+      "artifact": "allocation-control-control-1000.log.gz",
+      "sha256": "985665c1d490e552d14eff9f3c90d348bb9c26f04d164108f5f238a6db166346",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "1000"
+      }
+    },
+    {
+      "label": "allocation-control-control-100",
+      "command": [
+        "taskset",
+        "-c",
+        "6",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-control__",
+        "control_________________________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "seconds": 322.325412184,
+      "artifact": "allocation-control-control-100.log.gz",
+      "sha256": "5b35d4a0154db74250fd5af4c173f5b0e56c3ed1ce5f0885d043d18096f5b411",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "100"
+      }
+    },
+    {
+      "label": "allocation-control-control-10",
+      "command": [
+        "taskset",
+        "-c",
+        "6",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-control__",
+        "control_________________________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "seconds": 316.1656414119934,
+      "artifact": "allocation-control-control-10.log.gz",
+      "sha256": "4abd6a8457c65c91dcab2c9c87492dda8ba5d9feda453061ed432063cd33ddfa",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "10"
+      }
+    },
+    {
+      "label": "allocation-control-verify_signed_history_1-1000",
+      "command": [
+        "taskset",
+        "-c",
+        "6",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-control__",
+        "verify_signed_history_1_________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "seconds": 317.1856568279909,
+      "artifact": "allocation-control-verify_signed_history_1-1000.log.gz",
+      "sha256": "ddf5642dee1e50898ce2c0dc2765b3d779be7fe18aecb132972db6ded60c49e3",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "1000"
+      }
+    },
+    {
+      "label": "allocation-control-checkpoint_ack_loss_resume_and_root_1-1000",
+      "command": [
+        "taskset",
+        "-c",
+        "6",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-control__",
+        "checkpoint_ack_loss_resume_and_root_1___________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "seconds": 315.13453819899587,
+      "artifact": "allocation-control-checkpoint_ack_loss_resume_and_root_1-1000.log.gz",
+      "sha256": "e24aa35f6907a0c733d4ece20cfd723fbdfb2ebc010cb0bd0f9ffd3a0cc3767c",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "1000"
+      }
+    },
+    {
+      "label": "allocation-control-verify_signed_history_32-100",
+      "command": [
+        "taskset",
+        "-c",
+        "6",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-control__",
+        "verify_signed_history_32________________________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "seconds": 645.992615124007,
+      "artifact": "allocation-control-verify_signed_history_32-100.log.gz",
+      "sha256": "ea6b5cafe2ddf8084bcfc7b583878657bab932dafbe6e38184507441e3d89226",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "100"
+      }
+    },
+    {
+      "label": "allocation-control-checkpoint_ack_loss_resume_and_root_32-100",
+      "command": [
+        "taskset",
+        "-c",
+        "6",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--error-exitcode=97",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-control__",
+        "checkpoint_ack_loss_resume_and_root_32__________________________________________________________________________________________"
+      ],
+      "exit_code": 0,
+      "seconds": 323.67041037400486,
+      "artifact": "allocation-control-checkpoint_ack_loss_resume_and_root_32-100.log.gz",
+      "sha256": "eb52e69a7f65259777b57ba3961e502521e7a96e01c5cc9983931a07aa36255b",
+      "extra_environment": {
+        "STATECHRONICLE_ALLOCATION_PROBE": "1",
+        "STATECHRONICLE_ALLOCATION_ACTIONS": "100"
+      }
+    }
+  ],
+  "failed_manifest_sha256": "3144b714ecc323ec22a4510994292450be242862bbe9255341fd8e87a3f71815",
+  "failed_orchestrator_sha256": "18fe4234e5c357dc778fc30c96934fa22f4c92fd6370312c2eb44fdda391a1ab",
+  "timing_summary_sha256": "bf510d81ce84c4430c656e4324761411dd2912ebf72db132a87f44ca498f7cbc",
+  "binary_sha256": "1db4267046ee343ba7e75d79cf1d57679c68a4b597b95db820614dcfff0a8ce1",
+  "runner_sha256": "c7a9071a13839219477e2be58a73f327f11e2019e5cbe0406ed9f03b235892fb",
+  "timeout_seconds": 3600,
+  "cpu_by_label": {
+    "allocation-control-verify_signed_history_256-10": 6,
+    "allocation-control-checkpoint_ack_loss_resume_and_root_256-10": 8
+  },
+  "topology": {
+    "6": {
+      "core_id": "6",
+      "physical_package_id": "0",
+      "thread_siblings_list": "6,22"
+    },
+    "8": {
+      "core_id": "8",
+      "physical_package_id": "0",
+      "thread_siblings_list": "8,24"
+    }
+  },
+  "started_utc": "2026-11-16T21:29:06Z",
+  "review": "Actual original control verify256 process exceeded900seconds. Retain14timingprocesses+7positiveallocationprobes; rerun ONLY verify256x10 and checkpoint256x10 with unchanged binary/fixtures/128bytearguments/countcontrols. CPUs6/8 are distinctphysicalcores. Allocation-only concurrency is not a latency measurement.",
+  "finished_utc": "2026-11-16T22:11:42Z"
+}

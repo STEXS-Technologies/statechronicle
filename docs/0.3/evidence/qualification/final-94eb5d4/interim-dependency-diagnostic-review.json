@@ -1,0 +1,8 @@
+{
+  "status": "explained_dependency_control_difference",
+  "evidence": "docs/0.3/evidence/maintenance/proof-service/20261116T181856Z-2201348",
+  "rows": 32,
+  "change": "ae3d94b uses interim Dalek 2; current and actual v0.2.0 use Dalek 3. Its additional signature diagnostic suffix is absent in Dalek 3. All variants, refusal decisions, case identities and callback order agree.",
+  "allowed_literal_difference": ": Verification equation was not satisfied",
+  "actual_original_release_rerun": "Passed all 2,352 rows exactly; docs/0.3/evidence/maintenance/proof-service/20261116T182114Z-2235511/manifest.json"
+}

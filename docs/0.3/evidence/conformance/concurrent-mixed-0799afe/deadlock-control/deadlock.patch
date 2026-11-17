@@ -1,0 +1,24 @@
+--- original
+
++++ mutated
+
+@@ -407,6 +407,7 @@
+
+             });
+         }
+         let mut jobs = tokio::task::JoinSet::new();
++        let commit_barrier = std::sync::Arc::new(tokio::sync::Barrier::new(wave.len()));
+         // Inspect and release each staged writer independently. Waiting for all
+         // writers to stage before releasing any would deadlock serial writers.
+         while !staging.is_empty() || !jobs.is_empty() {
+@@ -426,7 +427,9 @@
+
+                     let rows = backend.inspect_batches().await.map_err(operation)?;
+                     require("mixed.concurrent.staged_membership", !rows.iter().any(|row| &row.tenant == tenant && row.batch.commit.body.commit_id == entry.commit().body.commit_id), "uncommitted group membership became visible")?;
+                     let mut schedule = Some(advance(&mut seed));
++                    let commit_barrier = commit_barrier.clone();
+                     jobs.spawn(async move {
++                        commit_barrier.wait().await;
+                         scheduled_yield(&mut schedule).await;
+                         tx.commit().await.map_err(operation)
+                     });

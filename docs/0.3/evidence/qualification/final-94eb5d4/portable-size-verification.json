@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "manifest_sha256": "33efc29587b1793ea5ae5c9a7847548bff60058a2b03d2f2a28bd874ba60cea1",
+  "scope": "Matched release RISC-V library/object archive sizes and source/consumer/build provenance; not linked firmware.",
+  "measurements": {
+    "original": {
+      "statechronicle_profile": {
+        "archive_bytes": 8198,
+        "code_rodata_bytes": 0
+      },
+      "statechronicle_portable": {
+        "archive_bytes": 126146,
+        "code_rodata_bytes": 8708
+      },
+      "statechronicle_portable_consumer": {
+        "archive_bytes": 18926,
+        "code_rodata_bytes": 1009
+      }
+    },
+    "candidate": {
+      "statechronicle_profile": {
+        "archive_bytes": 8198,
+        "code_rodata_bytes": 0
+      },
+      "statechronicle_portable": {
+        "archive_bytes": 125170,
+        "code_rodata_bytes": 8068
+      },
+      "statechronicle_portable_consumer": {
+        "archive_bytes": 18706,
+        "code_rodata_bytes": 1009
+      }
+    }
+  },
+  "limitations": [
+    "Release rlib and summed object sections, not a linked firmware flash/RAM bound.",
+    "No allocator/runtime/serializer is added to this frozen portable consumer.",
+    "Registry dependency refresh affects total code generation; the portable Rust implementation is unchanged.",
+    "Archives include metadata and unreferenced code; link-time reachability/LTO can change final application size."
+  ]
+}

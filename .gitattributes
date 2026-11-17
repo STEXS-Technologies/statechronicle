@@ -1,2 +1,5 @@
 # Fixed fuzz inputs are protocol/test bytes, including single control characters.
 fuzz/seed-corpus/** binary
+
+# Preserve blank context markers in this retained qualification diff.
+docs/0.3/evidence/performance/matrix-20261116T190518Z-2504159/dependency-control-manifest.diff whitespace=-blank-at-eol

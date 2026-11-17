@@ -1,0 +1,36 @@
+{
+  "pid": 2960816,
+  "status": "passed",
+  "checks": [
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_extended_fuzz.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.36335325600521173,
+      "artifact": "verify_extended_fuzz-verification.log.gz",
+      "sha256": "4eab5e6d4f68652c9a389f3a8fb6a102e85fa1cbce1f2f4c5226a15b6d6591bc"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_performance.py"
+      ],
+      "exit_code": 0,
+      "seconds": 1.3773941219988046,
+      "artifact": "verify_performance-verification.log.gz",
+      "sha256": "daff5562f24a403dce3bc0fdb2cfdc892cfcea48d8db25dd102fb783dce21f12"
+    },
+    {
+      "command": [
+        "python3",
+        "/home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/verify_build_costs.py"
+      ],
+      "exit_code": 0,
+      "seconds": 3.169499541996629,
+      "artifact": "verify_build_costs-verification.log.gz",
+      "sha256": "7095e246a3bb13b91150f0121f730942077f3d53fcf8cf45b76f99ae22d2a5f1"
+    }
+  ]
+}

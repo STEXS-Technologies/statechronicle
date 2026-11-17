@@ -1,0 +1,24 @@
+{
+  "source": "0799afe4ce45c84d5827ec6497ebc4d88ea1db58",
+  "archive_sha256": "30d2009e594615643a82fb9ace504d8b853c5117b42a54f231b6c84e4348e700",
+  "original_ledger_sha256": "07a2de45fa6184c6a9a77edd43fb3baca0444447381495101125febffa9f8421",
+  "mutated_ledger_sha256": "8c8523e71425e441e963dd0ce6a879ade7062f8ca413582511fb92eb7d4e45fe",
+  "mutation": "Remove only lock.try_lock; all subprocess assertions unchanged",
+  "command": [
+    "cargo",
+    "+1.100.0",
+    "test",
+    "--manifest-path",
+    "/tmp/statechronicle-lock-negative-sho_ra4j/tutorials/durable-custom-ledger/Cargo.toml",
+    "--locked",
+    "--offline",
+    "killed_writer_reopens_at_each_file_boundary_with_exactly_once_effects",
+    "--",
+    "--exact",
+    "tests::killed_writer_reopens_at_each_file_boundary_with_exactly_once_effects",
+    "--nocapture"
+  ],
+  "exit_code": 101,
+  "expected_failure_observed": true,
+  "log_sha256": "cca2e71a109ba29a01d6c45131a28c3c6b3e560e35b1884c1838fe8fe7308e15"
+}

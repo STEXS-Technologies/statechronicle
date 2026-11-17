@@ -1,0 +1,18 @@
+{
+  "status": "intentionally_interrupted_and_preserved",
+  "utc": "2026-11-16T21:21:14Z",
+  "reason": "Parallelize the full remaining candidate allocation scope after observed ~five-minute fixed setup per process. This is an orchestration change, not an observation timeout or a benchmark/product failure. Completed probes remain; every incomplete probe is rerun with its full original 1000/100/10 actions. All14 latency processes were completed before any allocation-only parallelization.",
+  "parent_pid": 25470,
+  "child_pid": 314744,
+  "child_command": "valgrind --tool=memcheck --leak-check=no --error-exitcode=97 /home/ac/projects/statechronicle/docs/0.3/evidence/qualification/final-94eb5d4/history-performance/bench-candidate checkpoint_ack_loss_resume_and_root_1___________________________________________________________________________________________ ",
+  "manifest_before_sha256": "c4c4b6868e5e664a94c03ffadb6f3b6f39f908006f9479956c98395373f7b06d",
+  "completed_positive_probes": [
+    "allocation-candidate-control-1000",
+    "allocation-candidate-control-100",
+    "allocation-candidate-control-10",
+    "allocation-candidate-verify_signed_history_1-1000"
+  ],
+  "scope": "Nine candidate probes total, exact unchanged binary/fixtures/arguments/count controls. No narrowed qualification.",
+  "manifest_interrupted_sha256": "599a25afc400d806b95721772f9eac072ddad2db0206635866e8b694adc23674",
+  "interrupted_exit_code": -15
+}

@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "file_lock_control_manifest_sha256": "677e59d0e3fadff83efcc0e247c99d35d43ff7e1e2f0404a0d54fd07f3a51705",
+  "conformance_checkpoint_sha256": "5776aa61790cedb4c8a196490249666e661085244bb3904a045ec3e0249dcb06",
+  "limitations": [
+    "Bounded reference schedules and selected actual process terminations, not arbitrary backend or power-loss certification.",
+    "Original ineffective deadlock mutation retains its failed campaign status; corrected mutation is a runtime rejection."
+  ]
+}

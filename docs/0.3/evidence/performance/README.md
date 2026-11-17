@@ -1,5 +1,7 @@
 # Performance qualification checkpoint
 
+Current qualification is tracked in the [final release audit](../qualification/final-94eb5d4/README.md), with matched original/dependency/control/candidate measurements, individual-action samples and explicit regression decisions. The campaigns below retain their original checkpoint scope.
+
 Candidate: `a889f172a65bf203a0dde989d372dd111ae4b73e`. Production Rust remains unchanged from `1e995abc29af266b487654f32fcf321c4b335e7a`.
 
 The retained campaigns compare the original `c418e98` release source, that source with refreshed dependencies, the pre-completion coordinator `404dda5`, and the candidate. All use Rust 1.100.0, CPU affinity, rotated/reversed lane order, seven cycles, and retained raw logs. This is shared-host evidence, with no discarded observations.

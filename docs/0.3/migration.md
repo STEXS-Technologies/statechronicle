@@ -123,3 +123,22 @@ snapshot; live source freshness would require an additional atomically enforced
 read dependency. Fixed fixture keys, session strings and in-memory stores are
 not deployment authentication or durability policies. Applications must inject
 unique event identities after restoring old history.
+
+
+## Projection rebuild addresses and event identities
+
+Rebuild continuity now uses tenant/resource and, for subject-held state, its
+holder. Owner-based resource addresses exclude their mutable owner. Event-ID
+deduplication is tenant-scoped, matching canonical identity: equal event-ID text
+in different tenants must not collide. These changes correct rejected/merged
+independent histories; they do not change old BCS bytes or signed roots.
+Same-tenant duplicate events and broken continuity for the same full address
+still fail before projection writes.
+
+A projection adapter must retain the holder distinction carried by subject-held
+state; a map keyed only by tenant/resource is insufficient for balances or other
+independent holder records. The included resource-only benchmark sinks use
+owner-based/custom resource fixtures and do not qualify such an adapter for
+subject-held state. Rebuild tests separately exercise independent holders,
+wrong-holder continuity and tenant-scoped duplicate identity. Existing old
+history vectors continue to verify; schema reinterpretation remains forbidden.

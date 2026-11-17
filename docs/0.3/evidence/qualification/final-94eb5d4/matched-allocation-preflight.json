@@ -1,0 +1,6 @@
+{
+  "status": "partial_verified",
+  "scope": "21 completed workloads x four lanes x zero/1000-action controls. Full 256-event reconstruction and aggregate qualification remain pending.",
+  "verified_probes": 168,
+  "verifier_sha256": "2496e978effbaa3611d4c8298b04cc8d161e7799d3d656a29057b7bb6c4eae9e"
+}

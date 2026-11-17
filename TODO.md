@@ -1,5 +1,11 @@
 # StateChronicle library TODO
 
+The completion table and dated evidence below preserve the earlier library
+checkpoint. The coherence-refactor qualification is now complete within the
+reviewed library scope, as recorded in the
+[0.3 release audit](docs/0.3/evidence/qualification/final-94eb5d4/README.md)
+against the [refactor roadmap](docs/0.3/ROADMAP.md).
+
 ## Scope
 
 This plan covers only work owned by the StateChronicle library repository:

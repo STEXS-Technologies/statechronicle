@@ -1,5 +1,7 @@
 # Baseline trust-boundary findings
 
+Current qualification is tracked in the [final release audit](evidence/qualification/final-94eb5d4/README.md). Dated results and pending statements below describe their original checkpoints; the final audit records subsequent evidence and remaining work.
+
 This is a chronological evidence log. The opening probes reproduce hazards on
 original release source; later sections record their fixes and subsequent
 qualification. Statements about open work inside an earlier checkpoint describe

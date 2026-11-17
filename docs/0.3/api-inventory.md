@@ -1,5 +1,7 @@
 # API inventory work map
 
+Current qualification is tracked in the [final release audit](evidence/qualification/final-94eb5d4/README.md). Dated results and pending statements below describe their original checkpoints; the final audit records subsequent evidence and remaining work.
+
 Status: owner map plus original/candidate compiler catalogs; final release API review remains open.
 Reference: original release `c418e98b91720188158c531cd5c2c4b8ab71cbcf`.
 

@@ -1,0 +1,53 @@
+{
+  "status": "passed",
+  "original_commit": "c418e98b91720188158c531cd5c2c4b8ab71cbcf",
+  "verified": [
+    {
+      "fixture": "proof_service",
+      "rows": 2352,
+      "location": "docs/0.3/evidence/maintenance/proof-service/20261116T182114Z-2235511",
+      "manifest_sha256": "df7e965c4032372c5eec6d5be5a6bad24acf3e50fbfe727be7ad028865bdf778",
+      "candidate": "0799afe4ce45c84d5827ec6497ebc4d88ea1db58"
+    },
+    {
+      "fixture": "executor",
+      "rows": 23544,
+      "location": "docs/0.3/evidence/f2/executor-order/20261116T182259Z-2257784",
+      "manifest_sha256": "5325383ca0a4a2c8d373e0e1a5e3f9d55a3c11fc5a517ad643170e69523a1be3",
+      "candidate": "0799afe4ce45c84d5827ec6497ebc4d88ea1db58"
+    },
+    {
+      "fixture": "settlement",
+      "rows": 10128,
+      "location": "docs/0.3/evidence/f2/executor-order/20261116T182259Z-2257788",
+      "manifest_sha256": "4af3187ebdc330051bf76ce7a1b314642f8b3c921395f79b82244a5f4869dd64",
+      "candidate": "0799afe4ce45c84d5827ec6497ebc4d88ea1db58"
+    },
+    {
+      "fixture": "profiles",
+      "rows": 296604,
+      "location": "docs/0.3/evidence/maintenance/builtin-profiles/20261116T182259Z-2257796",
+      "manifest_sha256": "4db46e9570bead8cb19e17907fb3a721650a10114376dd6ca9d99bf8b00c0d77",
+      "candidate": "0799afe4ce45c84d5827ec6497ebc4d88ea1db58"
+    },
+    {
+      "fixture": "outbox",
+      "rows": 5688,
+      "location": "docs/0.3/evidence/maintenance/outbox-preflight/20261116T182259Z-2257811",
+      "manifest_sha256": "e7039224ff9b44e5d9ee36226a2bd9b67d4f5eefa679451a29f3dd66c0ef60fc",
+      "candidate": "0799afe4ce45c84d5827ec6497ebc4d88ea1db58"
+    },
+    {
+      "fixture": "string_traits",
+      "rows": 10305,
+      "location": "docs/0.3/evidence/maintenance/string-traits/20261116T182714Z-2306029",
+      "manifest_sha256": "a625126e8c7fb46b6061391b893dc35c70ade10d8fc045854325b1adec890f79",
+      "candidate": "e880a2a36bb37ca5d2a52e68721c5b9e4ec40e9b"
+    }
+  ],
+  "total_distinct_cases": 348621,
+  "limitations": [
+    "Bounded characterization fixtures, not exhaustive input semantics.",
+    "Original signed wire/history, protected API fuzz, properties, crash and concurrency have separate evidence."
+  ]
+}
