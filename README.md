@@ -49,21 +49,66 @@ For reliable writes and retries, your storage adapter must implement the
 [durable-ledger tutorial](tutorials/durable-custom-ledger/README.md) to see a
 complete example using a small file store.
 
-## Get started
+## Run your first example
 
-Requires **Rust 1.88+**. This development branch contains the upcoming 0.3 API;
-its package versions still read `0.2.0`.
+You need Rust and Git installed. These examples use this development branch's
+upcoming 0.3 API; its package versions still read `0.2.0`.
+
+**1. Define data and check a change.** This example creates configuration and
+equipment records using your own Rust types. It checks the requests and shows
+the proposed results, without saving anything. No database or service is needed.
+
+```sh
+git clone --branch refactor/coherence https://github.com/STEXS-Technologies/statechronicle.git
+cd statechronicle
+rustup toolchain install 1.88.0 --profile minimal
+cargo +1.88.0 run --manifest-path tutorials/minimal-native-domain/Cargo.toml --locked
+```
+
+Expected output:
+
+```text
+Prepared configuration: ConfigurationState { revision: 1, enabled: true }
+Prepared equipment: EquipmentState { mode: Idle, cycles: 0 }
+Uncommitted: no intent claim, ledger write, outbox dispatch or durable receipt.
+```
+
+See the [data types and rules](tutorials/minimal-native-domain/src/domains.rs),
+[application code](tutorials/minimal-native-domain/src/main.rs) and
+[step-by-step explanation](tutorials/minimal-native-domain/README.md).
+
+**2. Save changes and recover a lost reply.** From the same checkout, run:
+
+```sh
+rustup toolchain install 1.89.0 --profile minimal
+cargo +1.89.0 run --manifest-path tutorials/durable-custom-ledger/Cargo.toml --locked
+```
+
+This example saves signed changes to a temporary file, simulates losing the
+save confirmation, then reopens the file to find out what happened. Retrying
+the same request returns the original result without saving it twice. It also
+updates the configuration and checks proofs of its old and new state.
+
+The output includes:
+
+```text
+Commit acknowledgement: unknown; retain original identity and signed plan.
+Recovery after reopen: original committed mutation verified.
+Exact retry: replay; one original event, commit and outbox row.
+```
+
+See the [application code](tutorials/durable-custom-ledger/src/main.rs) and
+[walkthrough](tutorials/durable-custom-ledger/README.md). Its file store needs
+Rust 1.89+; the library itself supports Rust 1.88+. Both examples use development
+keys that must be replaced in a real application.
+
+## Add it to your project
+
+For the development API used above:
 
 ```sh
 cargo add statechronicle --git https://github.com/STEXS-Technologies/statechronicle --branch refactor/coherence
 ```
-
-The [first tutorial](tutorials/minimal-native-domain/README.md) defines simple
-configuration and equipment models and checks requests to change them. It
-prepares changes without saving them. The
-[second tutorial](tutorials/durable-custom-ledger/README.md) adds storage, signed
-records, recovery and proof checks; its file store requires Rust 1.89+.
-Both use development keys that must be replaced in a real application.
 
 For the published 0.2 API, use `cargo add statechronicle@0.2.0` and its
 [API reference](https://docs.rs/statechronicle/0.2.0/statechronicle/).
