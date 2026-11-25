@@ -15,15 +15,21 @@ support external providers.
 
 A typed API, storage schema, or explicitly versioned outer container selects
 the decoder before reading the envelope. Existing v0 records keep their
-original representation. A failed decode or verification is terminal for
-the selected version.
+original representation. Mixed-version binary containers introduced by this
+ADR prefix each record with one byte, 0x00 for legacy BCS or 0x01 for v1 BCS,
+followed by the entire record. A standalone legacy record keeps its original
+bytes and is read only through a legacy entry point. Unknown discriminator
+values, incomplete records, trailing bytes, and any decode or verification
+failure terminate processing of the selected record. The container tag
+selects a decoder, and independently trusted policy determines whether the
+selected format is permitted.
 
 The v1 BCS envelope has these fields in order:
 
 | Field | Encoding |
 | --- | --- |
 | Envelope schema | BCS string, exactly `statechronicle.signed.v1` |
-| Body | Existing canonical BCS body for the selected purpose |
+| Body | BCS byte vector containing the canonical BCS encoding of the body for the selected purpose |
 | Suite ID | BCS string, 1–64 ASCII bytes |
 | Key-set ID | 32 bytes, fixed array without a length prefix |
 | Signature | BCS byte vector, bounded before allocation |
@@ -32,9 +38,26 @@ Suite IDs start with a lowercase ASCII letter and contain only lowercase
 ASCII letters, digits, hyphens, and periods. A syntactically valid name
 still requires an exact registration. Key-set IDs are opaque values assigned
 by the trusted registry and permanently bound to one suite and ordered
-public-key set. JSON uses the same field order when emitted, with key-set ID
-as 64 lowercase hex digits and the signature as unpadded base64url with
-the existing `b64u:` prefix.
+public-key set.
+
+Both BCS vectors use minimal ULEB128 length prefixes. The reader checks the
+full record size before decoding, then checks each vector's declared
+length against the applicable limit and the remaining input before
+allocating or copying. The typed protocol entry point decodes the body
+with its purpose-specific codec and requires its canonical re-encoding
+to match the enclosed body bytes.
+
+JSON uses a single object with `envelope_schema`, `body`, and
+`signature` fields. The body is the existing typed JSON object for that
+purpose. The signature object contains `suite_id`, `key_set_id`, and
+`signature_bytes`. The key-set ID is exactly 64 lowercase hex digits.
+The signature is unpadded base64url with the existing `b64u:` prefix.
+The envelope and signature objects reject duplicate, unknown, and missing
+fields. JSON member order and insignificant whitespace have no effect
+on the signed bytes. The reader checks the full JSON record cap before
+parsing, the base64url length before decoding the signature, and the
+canonical signature encoding before provider dispatch. The transcript
+uses the canonical binary body from the typed JSON body.
 
 Each signature covers the literal ASCII bytes
 `statechronicle.signature.v1` followed by one NUL, then these fields:
@@ -122,6 +145,11 @@ encoding. Guessing the version from decoder behavior would leave the accepted
 format dependent on untrusted bytes. Explicit version dispatch requires
 read support before enabling new writes and preserves archived v0 evidence.
 
-Review still needs to confirm independent envelope and hybrid vectors, the
-exact full-envelope and cumulative proof budgets, and the downgrade and
-substitution analysis before these bytes become a compatibility contract.
+Conformance covers independent envelope vectors for each purpose and suite,
+the exact length limit and one byte over, non-minimal and truncated lengths,
+trailing bytes, unknown versions, wrong format for trusted policy, and
+rejection of malformed v1 records without calling a legacy decoder. It
+also covers substitutions of suite, key-set identity, purpose, or schema
+and reordered, partial, and duplicated hybrid components. Review still
+needs to confirm these vectors and the full-envelope and cumulative proof
+budgets before these bytes become a compatibility contract.
