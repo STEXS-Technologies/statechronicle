@@ -570,3 +570,158 @@ async fn advanced_preflight_cannot_omit_or_substitute_members_events_or_effects(
         unchanged(&ledger);
     }
 }
+
+#[tokio::test]
+async fn v1_batch_recovers_the_full_exact_group_after_lost_ack() {
+    use std::sync::Arc;
+
+    use statechronicle::core::{
+        signature_operation::SignatureContext,
+        signature_provider::{
+            Ed25519Signer, Ed25519Verifier, KeySetId, SignaturePurpose, Signer as ProviderSigner,
+        },
+    };
+    use statechronicle::domain::commit::COMMIT_SCHEMA;
+    use statechronicle::executor::pipeline::PlayerBatchV1Item;
+    use statechronicle::intent::{sign_v1::sign_intent_v1, v1_body::INTENT_V1_SCHEMA};
+    use statechronicle::mutation::{
+        BatchMemberV1, BatchRecoveryOutcomeV1, BatchTrustV1, DurableBatchOutcomeV1, SignedBatchV1,
+        recover_batch_v1,
+    };
+    use statechronicle::ports::{
+        key_registry::KeyRegistryError,
+        signature_policy::{
+            ResolvedSignaturePolicy, ResolvedSignatureV1, SignaturePolicy, SignaturePolicyQuery,
+        },
+    };
+
+    struct Policy {
+        actor: Arc<Ed25519Verifier>,
+        commit: Arc<Ed25519Verifier>,
+    }
+
+    #[async_trait]
+    impl SignaturePolicy for Policy {
+        async fn resolve(
+            &self,
+            query: SignaturePolicyQuery<'_>,
+        ) -> Result<ResolvedSignaturePolicy, KeyRegistryError> {
+            let (provider, set) = match query.authority.purpose() {
+                SignaturePurpose::ActorIntent => (&self.actor, KeySetId([15; 32])),
+                SignaturePurpose::TenantCommit => (&self.commit, KeySetId([16; 32])),
+                SignaturePurpose::GlobalCheckpoint => return Err(KeyRegistryError::NotTrusted),
+            };
+            ResolvedSignatureV1::new(provider.clone(), set, 64)
+                .map(ResolvedSignaturePolicy::V1)
+                .map_err(|_error| KeyRegistryError::NotTrusted)
+        }
+    }
+
+    let original = plan(&["batch_v1_b", "batch_v1_a"], 1).await;
+    let harness = Harness::new();
+    let key = common::fixed_key();
+    let public = key.verifying_key();
+    let actor_set = KeySetId([15; 32]);
+    let actor_purpose = SignaturePurpose::ActorIntent;
+    let actor_signer = Ed25519Signer::new(&key, actor_set, actor_purpose);
+    let actor_context = SignatureContext {
+        suite: actor_signer.suite(),
+        key_set_id: &actor_set,
+        purpose: actor_purpose,
+        body_schema: INTENT_V1_SCHEMA,
+        signature_len: 64,
+    };
+    let commit_set = KeySetId([16; 32]);
+    let commit_purpose = SignaturePurpose::TenantCommit;
+    let policy = Policy {
+        actor: Arc::new(Ed25519Verifier::new(&public, actor_set, actor_purpose)),
+        commit: Arc::new(Ed25519Verifier::new(&public, commit_set, commit_purpose)),
+    };
+    let records: Vec<_> = original
+        .prepared()
+        .mutations()
+        .iter()
+        .map(|member| {
+            sign_intent_v1(&member.validated().intent, &actor_context, &actor_signer).unwrap()
+        })
+        .collect();
+    let items: Vec<_> = records
+        .iter()
+        .zip(original.prepared().mutations())
+        .map(|(record, member)| PlayerBatchV1Item {
+            record,
+            principal: member.principal(),
+        })
+        .collect();
+    let prepared = harness
+        .executor
+        .prepare_player_batch_v1(&items, &Allow, &policy)
+        .await
+        .unwrap();
+    let events: Vec<_> = prepared.events().cloned().collect();
+    let (commit, _) = harness.commit_events(&events);
+    let signer = Ed25519Signer::new(&key, commit_set, commit_purpose);
+    let context = SignatureContext {
+        suite: signer.suite(),
+        key_set_id: &commit_set,
+        purpose: commit_purpose,
+        body_schema: COMMIT_SCHEMA,
+        signature_len: 64,
+    };
+    let signed =
+        SignedBatchV1::sign(prepared, &commit.body, &context, &signer, Vec::new()).unwrap();
+    let trust = BatchTrustV1 {
+        commit_authority: &commit.body.executor,
+        signature_policy: &policy,
+        now: commit.body.created_at,
+    };
+
+    let interrupted = MemoryLedger {
+        fail_at: Some((Step::Finalize, 2)),
+        ..MemoryLedger::default()
+    };
+    let rolled_back = signed
+        .commit(&interrupted, &Allow, &trust)
+        .await
+        .unwrap_err();
+    assert!(matches!(rolled_back.cause(), DurableError::Unavailable(_)));
+    unchanged(&interrupted);
+
+    let ledger = MemoryLedger {
+        lose_commit_response: true,
+        ..MemoryLedger::default()
+    };
+    let unknown = signed.commit(&ledger, &Allow, &trust).await.unwrap_err();
+    assert!(matches!(unknown.cause(), DurableError::Unknown { .. }));
+    assert_eq!(unknown.identity().unwrap().members().len(), 2);
+    let reopened = MemoryLedger {
+        lose_commit_response: false,
+        ..ledger
+    };
+    let BatchRecoveryOutcomeV1::Committed(receipt) =
+        signed.recover(&reopened, &Allow, &trust).await.unwrap()
+    else {
+        panic!("v1 batch did not recover");
+    };
+    assert_eq!(receipt.record().intent_records, records);
+    assert_eq!(receipt.record().commit_record, signed.commit_record());
+    assert_eq!(receipt.record().events, events);
+    let reversed: Vec<_> = items
+        .iter()
+        .rev()
+        .map(|member| BatchMemberV1 {
+            principal: member.principal,
+            intent_record: member.record,
+        })
+        .collect();
+    for members in [reversed.as_slice(), &reversed[..1]] {
+        let error = recover_batch_v1(&reopened, &Allow, &trust, members)
+            .await
+            .unwrap_err();
+        assert!(matches!(error.cause(), DurableError::PayloadConflict));
+    }
+    assert!(matches!(
+        signed.commit(&reopened, &Allow, &trust).await.unwrap(),
+        DurableBatchOutcomeV1::Replay(_)
+    ));
+}

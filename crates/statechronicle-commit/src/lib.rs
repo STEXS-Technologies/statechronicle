@@ -35,6 +35,8 @@ mod durable_write_v1;
 
 /// Verified atomic batch outcomes and complete original-group recovery.
 pub mod durable_batch;
+/// Versioned atomic batch writes with exact original-record recovery.
+pub mod durable_batch_v1;
 
 /// Tenant checkpoint commits.
 pub mod checkpoint;

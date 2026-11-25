@@ -42,7 +42,7 @@ use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_ports::authorization::Authorizer;
 use statechronicle_ports::ledger_store::{LedgerRecovery, OutboxRecord};
-use statechronicle_ports::ledger_v1::LedgerRecoveryV1;
+use statechronicle_ports::ledger_v1::{LedgerBatchRecoveryV1, LedgerRecoveryV1};
 
 /// An owned signed plan whose events and principal come only from a protected
 /// [`PreparedMutation`]. The commit root/count and tenant are bound
@@ -402,6 +402,12 @@ fn batch_members(prepared: &PreparedBatch) -> Vec<BatchMember<'_>> {
         })
         .collect()
 }
+pub use statechronicle_commit::durable_batch_v1::{
+    BatchIdentityV1, BatchMemberV1, BatchRecoveryOutcomeV1, BatchTrustV1, CommittedBatchV1,
+    DurableBatchErrorV1, DurableBatchOutcomeV1, recover_batch_v1,
+};
+use statechronicle_commit::durable_batch_v1::{DurableBatchRequestV1, commit_batch_verified_v1};
+
 /// Exact signed commit and protected member evidence for one v1 batch.
 #[derive(Debug)]
 pub struct SignedBatchV1<'record> {
@@ -442,6 +448,56 @@ impl<'record> SignedBatchV1<'record> {
             projections,
             outbox,
         })
+    }
+
+    /// Atomically commits this entire plan and verifies complete original readback.
+    ///
+    /// # Errors
+    /// A refusal or unknown outcome never returns a successful subset. An
+    /// unknown outcome retains the complete group identity.
+    pub async fn commit<S: LedgerBatchRecoveryV1 + ?Sized>(
+        &self,
+        ledger: &S,
+        authorizer: &dyn Authorizer,
+        trust: &BatchTrustV1<'_>,
+    ) -> Result<DurableBatchOutcomeV1, DurableBatchErrorV1> {
+        commit_batch_verified_v1(
+            ledger,
+            authorizer,
+            trust,
+            DurableBatchRequestV1 {
+                members: &self.members(),
+                commit_record: &self.commit_record,
+                entries: &entries(self.prepared.events()),
+                projections: &self.projections,
+                outbox: &self.outbox,
+            },
+        )
+        .await
+    }
+
+    /// Recovers the original complete group without evaluating or signing it again.
+    ///
+    /// # Errors
+    /// Reauthorization, policy, or any incomplete or inconsistent readback fails closed.
+    pub async fn recover<S: LedgerBatchRecoveryV1 + ?Sized>(
+        &self,
+        ledger: &S,
+        authorizer: &dyn Authorizer,
+        trust: &BatchTrustV1<'_>,
+    ) -> Result<BatchRecoveryOutcomeV1, DurableBatchErrorV1> {
+        recover_batch_v1(ledger, authorizer, trust, &self.members()).await
+    }
+
+    fn members(&self) -> Vec<BatchMemberV1<'_>> {
+        self.prepared
+            .mutations()
+            .iter()
+            .map(|member| BatchMemberV1 {
+                principal: member.principal(),
+                intent_record: member.authenticated().record(),
+            })
+            .collect()
     }
 
     /// Complete protected batch in its original member order.
