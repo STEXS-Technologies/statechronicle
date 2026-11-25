@@ -1879,6 +1879,36 @@ async fn v1_intent_ingress_binds_principal_policy_and_exact_bytes() {
         prepared.authenticated().body_digest(),
         authenticated.body_digest()
     );
+
+    let second = mint("v1_ingress_second", "asset:shield_001", "alice");
+    let second_record = sign_intent_v1(&second.intent, &context, &signer).unwrap();
+    let batch_items = [
+        statechronicle_executor::pipeline::PlayerBatchV1Item {
+            record: &record,
+            principal: &principal,
+        },
+        statechronicle_executor::pipeline::PlayerBatchV1Item {
+            record: &second_record,
+            principal: &principal,
+        },
+    ];
+    let batch = harness
+        .executor
+        .prepare_player_batch_v1(&batch_items, &AllowAuthorizer, &policy)
+        .await
+        .unwrap();
+    assert_eq!(batch.mutations().len(), 2);
+    assert_eq!(batch.mutations()[0].authenticated().record(), record);
+    assert_eq!(batch.mutations()[1].authenticated().record(), second_record);
+    assert_eq!(batch.events().count(), 2);
+    let duplicate = [batch_items[0], batch_items[0]];
+    assert!(
+        harness
+            .executor
+            .prepare_player_batch_v1(&duplicate, &AllowAuthorizer, &policy,)
+            .await
+            .is_err()
+    );
     assert!(
         IntentStore::get_intent(
             &harness.intent_store,

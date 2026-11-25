@@ -129,18 +129,35 @@ pub struct PreparedBatch {
     mutations: Vec<PreparedMutation>,
 }
 
+/// One protected v1 batch. Member plans remain grouped and cannot be moved
+/// out for separate commits; original evidence stays borrowed from the input.
+#[derive(Debug)]
+pub struct PreparedBatchV1<'record> {
+    mutations: Vec<PreparedMutationV1<'record>>,
+}
+
+impl<'record> PreparedBatchV1<'record> {
+    pub(crate) fn new(
+        mutations: Vec<PreparedMutationV1<'record>>,
+    ) -> Result<Self, StateChronicleError> {
+        validate_event_budget(mutations.iter().flat_map(PreparedMutationV1::events))?;
+        Ok(Self { mutations })
+    }
+
+    /// Borrowed member plans in original request order.
+    pub fn mutations(&self) -> &[PreparedMutationV1<'record>] {
+        &self.mutations
+    }
+
+    /// All constructed events in member order.
+    pub fn events(&self) -> impl Iterator<Item = &Event> + Clone {
+        self.mutations.iter().flat_map(PreparedMutationV1::events)
+    }
+}
+
 impl PreparedBatch {
     pub(crate) fn new(mutations: Vec<PreparedMutation>) -> Result<Self, StateChronicleError> {
-        let mut count: usize = 0;
-        let mut bytes: usize = 0;
-        for event in mutations.iter().flat_map(PreparedMutation::events) {
-            count = count.saturating_add(1);
-            check_size("events", MAX_EVENTS_PER_COMMIT, count)?;
-            let size = canonicalize(event)?.len();
-            check_size("event", MAX_EVENT_BYTES, size)?;
-            bytes = bytes.saturating_add(size);
-            check_size("event_batch", MAX_EVENT_BATCH_BYTES, bytes)?;
-        }
+        validate_event_budget(mutations.iter().flat_map(PreparedMutation::events))?;
         Ok(Self { mutations })
     }
 
@@ -150,7 +167,23 @@ impl PreparedBatch {
     }
 
     /// All events in leg order without cloning payloads or building a second set.
-    pub fn events(&self) -> impl Iterator<Item = &Event> {
+    pub fn events(&self) -> impl Iterator<Item = &Event> + Clone {
         self.mutations.iter().flat_map(PreparedMutation::events)
     }
+}
+
+fn validate_event_budget<'event>(
+    events: impl Iterator<Item = &'event Event>,
+) -> Result<(), StateChronicleError> {
+    let mut count = 0usize;
+    let mut bytes = 0usize;
+    for event in events {
+        count = count.saturating_add(1);
+        check_size("events", MAX_EVENTS_PER_COMMIT, count)?;
+        let size = canonicalize(event)?.len();
+        check_size("event", MAX_EVENT_BYTES, size)?;
+        bytes = bytes.saturating_add(size);
+        check_size("event_batch", MAX_EVENT_BATCH_BYTES, bytes)?;
+    }
+    Ok(())
 }

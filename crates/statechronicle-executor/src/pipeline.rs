@@ -24,7 +24,9 @@ use chrono::{DateTime, Utc};
 use async_trait::async_trait;
 use statechronicle_core::canonicalize::{canonicalize, canonicalize_and_digest};
 use statechronicle_core::digest::ContentDigest;
-use statechronicle_core::limits::{MAX_EVENTS_PER_COMMIT, MAX_INTENT_BYTES, check_size};
+use statechronicle_core::limits::{
+    MAX_EVENT_BATCH_BYTES, MAX_EVENTS_PER_COMMIT, MAX_INTENT_BYTES, check_size,
+};
 use statechronicle_domain::authority::{
     AggregationPolicy, AuthorityProof, EvaluationResult, TRUSTGRANT_EVALUATION_KIND,
     TrustGrantOutcome, aggregate_evaluation_digest,
@@ -59,7 +61,7 @@ use statechronicle_profiles::registry::ProfileRegistry;
 use crate::atomicity;
 use crate::conflict;
 use crate::error::{ExecutorBuildError, ExecutorError, PortsBuildError};
-use crate::preparation::{PreparedBatch, PreparedMutation, PreparedMutationV1};
+use crate::preparation::{PreparedBatch, PreparedBatchV1, PreparedMutation, PreparedMutationV1};
 #[cfg(test)]
 use statechronicle_profiles::resource::{
     destination_holder, holder_for, is_transfer_operation, subject_for,
@@ -430,6 +432,15 @@ pub struct PlayerBatchItem<'item> {
     pub principal: &'item AuthenticatedPrincipal,
 }
 
+/// One exact signed v1 record and its authenticated principal.
+#[derive(Debug, Clone, Copy)]
+pub struct PlayerBatchV1Item<'item> {
+    /// Canonical signed v1 envelope bytes.
+    pub record: &'item [u8],
+    /// Principal authenticated for this exact request.
+    pub principal: &'item AuthenticatedPrincipal,
+}
+
 impl Executor {
     /// Starts a fluent, struct-based executor builder.
     ///
@@ -632,6 +643,42 @@ impl Executor {
     ) -> Result<PreparedBatch, ExecutorError> {
         self.evaluation()
             .prepare_player_batch(items, authorizer, key_registry)
+            .await
+    }
+
+    /// Authenticate and prepare a protected v1 batch from exact signed records.
+    ///
+    /// Exact signed records are retained in the prepared batch in caller order.
+    /// Their aggregate input size, tenant scope, identities, profiles and
+    /// optional settlement shape are checked before success; no persistence is
+    /// attempted.
+    ///
+    /// # Errors
+    /// Refuses malformed or oversized records, invalid policy, scope, profile,
+    /// transition, event-budget or settlement failures.
+    pub async fn prepare_player_batch_v1<'record>(
+        &self,
+        items: &[PlayerBatchV1Item<'record>],
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedBatchV1<'record>, ExecutorError> {
+        self.evaluation()
+            .prepare_player_batch_v1(items, authorizer, policy, false)
+            .await
+    }
+
+    /// Prepares an authenticated v1 settlement and keeps its complete group together.
+    ///
+    /// # Errors
+    /// Refuses invalid member policy, scope, transition, or settlement evidence.
+    pub async fn prepare_player_settlement_v1<'record>(
+        &self,
+        items: &[PlayerBatchV1Item<'record>],
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedBatchV1<'record>, ExecutorError> {
+        self.evaluation()
+            .prepare_player_batch_v1(items, authorizer, policy, true)
             .await
     }
 
@@ -1464,6 +1511,40 @@ impl Preparer {
     ) -> Result<PreparedBatch, ExecutorError> {
         self.evaluation()
             .prepare_player_batch(items, authorizer, key_registry)
+            .await
+    }
+
+    /// Authenticate and prepare a protected v1 batch from exact signed records.
+    ///
+    /// Records are retained exactly in the complete batch. No member can be
+    /// extracted as an independently committable owned plan.
+    ///
+    /// # Errors
+    /// Refuses malformed or oversized records, invalid policy, scope, profile,
+    /// transition, event-budget or settlement failures.
+    pub async fn prepare_player_batch_v1<'record>(
+        &self,
+        items: &[PlayerBatchV1Item<'record>],
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedBatchV1<'record>, ExecutorError> {
+        self.evaluation()
+            .prepare_player_batch_v1(items, authorizer, policy, false)
+            .await
+    }
+
+    /// Prepares an authenticated v1 settlement and keeps its complete group together.
+    ///
+    /// # Errors
+    /// Refuses invalid member policy, scope, transition, or settlement evidence.
+    pub async fn prepare_player_settlement_v1<'record>(
+        &self,
+        items: &[PlayerBatchV1Item<'record>],
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedBatchV1<'record>, ExecutorError> {
+        self.evaluation()
+            .prepare_player_batch_v1(items, authorizer, policy, true)
             .await
     }
 
