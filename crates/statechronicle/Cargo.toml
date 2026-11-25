@@ -11,6 +11,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+thiserror.workspace = true
 statechronicle-portable.workspace = true
 statechronicle-profile = { workspace = true }
 statechronicle-core = { workspace = true }

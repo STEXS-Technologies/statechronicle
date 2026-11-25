@@ -754,6 +754,7 @@ dependencies = [
  "statechronicle-profile",
  "statechronicle-profiles",
  "statechronicle-proof",
+ "thiserror",
  "tokio",
 ]
 

@@ -12,7 +12,8 @@ pub use statechronicle_commit::durable::{
     CommittedMutation, DurableError, DurableOutcome, MutationIdentity, RecoveryOutcome, recover,
 };
 pub use statechronicle_executor::preparation::{
-    PreparationConfig, PreparationPorts, PreparedBatch, PreparedMutation, Preparer,
+    PreparationConfig, PreparationPorts, PreparedBatch, PreparedMutation, PreparedMutationV1,
+    Preparer,
 };
 
 use statechronicle_commit::durable::commit_verified;
@@ -23,10 +24,17 @@ use statechronicle_commit::persist::{
 };
 use statechronicle_commit::roots::event_root;
 use statechronicle_commit::sign::{CommitSigner, sign_commit_with_signer};
+use statechronicle_commit::sign_v1::sign_commit_v1;
+use statechronicle_core::{
+    signature_operation::SignatureContext,
+    signature_provider::{SignatureError, Signer},
+};
 use statechronicle_domain::commit::Commit;
+use statechronicle_domain::event::Event;
 use statechronicle_domain::intent::KeyId;
 use statechronicle_domain::signed::Signed;
 use statechronicle_domain::state::StateProjection;
+use statechronicle_domain::tenant::TenantId;
 use statechronicle_ports::authorization::Authorizer;
 use statechronicle_ports::ledger_store::{LedgerRecovery, OutboxRecord};
 
@@ -78,17 +86,13 @@ impl SignedMutation {
         signer: &dyn CommitSigner,
         outbox: Vec<OutboxRecord>,
     ) -> Result<Self, CommitError> {
-        let tenant = validate_tenant_commit(body)?;
-        if *tenant != prepared.validated().intent.tenant_id {
-            return Err(CommitError::MixedTenant);
-        }
-        let count = u64::try_from(prepared.events().len())
-            .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
-        if count != body.event_count || event_root(prepared.events())? != body.event_merkle_root {
-            return Err(CommitError::EventRootMismatch);
-        }
+        validate_prepared_events(
+            body,
+            &prepared.validated().intent.tenant_id,
+            prepared.events(),
+        )?;
         let commit = sign_commit_with_signer(body, key_id, signer)?;
-        let projections = projections_for(&commit.body.commit_id, &entries(&prepared));
+        let projections = projections_for(&commit.body.commit_id, &entries(prepared.events()));
         Ok(Self {
             prepared,
             commit,
@@ -133,7 +137,7 @@ impl SignedMutation {
                 principal: self.prepared.principal(),
                 intent: &self.prepared.validated().intent,
                 payload_digest: self.prepared.payload_digest(),
-                entries: &entries(&self.prepared),
+                entries: &entries(self.prepared.events()),
                 commit: &self.commit,
                 projections: &self.projections,
                 outbox: &self.outbox,
@@ -143,15 +147,103 @@ impl SignedMutation {
     }
 }
 
-fn entries(prepared: &PreparedMutation) -> Vec<CommittedEvent<'_>> {
-    prepared
-        .events()
+fn validate_prepared_events(
+    body: &Commit,
+    expected_tenant: &TenantId,
+    events: &[Event],
+) -> Result<(), CommitError> {
+    if validate_tenant_commit(body)? != expected_tenant {
+        return Err(CommitError::MixedTenant);
+    }
+    let count = u64::try_from(events.len())
+        .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+    if count != body.event_count || event_root(events)? != body.event_merkle_root {
+        return Err(CommitError::EventRootMismatch);
+    }
+    Ok(())
+}
+
+fn entries(events: &[Event]) -> Vec<CommittedEvent<'_>> {
+    events
         .iter()
         .map(|event| CommittedEvent {
             event,
             state_type: event.after.state.state_type(),
         })
         .collect()
+}
+
+/// A failure while binding a protected v1 plan to its signed commit.
+#[derive(Debug, thiserror::Error)]
+pub enum SignMutationV1Error {
+    /// The proposed commit does not cover the prepared event set.
+    #[error(transparent)]
+    Commit(#[from] CommitError),
+    /// The selected provider could not produce a complete v1 signature.
+    #[error(transparent)]
+    Signature(#[from] SignatureError),
+}
+
+/// An uncommitted v1 mutation with its exact signed intent and commit evidence.
+///
+/// The protected plan binds the prepared events and derived projections to the
+/// commit body. Durable admission must independently verify both authority
+/// signatures and enforce current authorization and canonical head.
+#[derive(Debug)]
+pub struct SignedMutationV1<'record> {
+    prepared: PreparedMutationV1<'record>,
+    commit_record: Vec<u8>,
+    projections: Vec<StateProjection>,
+    outbox: Vec<OutboxRecord>,
+}
+
+impl<'record> SignedMutationV1<'record> {
+    /// Binds the prepared event set and signs it using the selected v1 suite.
+    ///
+    /// # Errors
+    /// Refuses invalid tenant or event binding before invoking the signer, and
+    /// propagates canonical encoding or provider failures.
+    pub fn sign(
+        prepared: PreparedMutationV1<'record>,
+        body: &Commit,
+        context: &SignatureContext<'_>,
+        signer: &dyn Signer,
+        outbox: Vec<OutboxRecord>,
+    ) -> Result<Self, SignMutationV1Error> {
+        validate_prepared_events(
+            body,
+            &prepared.authenticated().validated().intent.tenant_id,
+            prepared.events(),
+        )?;
+        let commit_record = sign_commit_v1(body, context, signer)?;
+        let projections = projections_for(&body.commit_id, &entries(prepared.events()));
+        Ok(Self {
+            prepared,
+            commit_record,
+            projections,
+            outbox,
+        })
+    }
+
+    /// Protected request, authenticated principal, and complete events.
+    pub const fn prepared(&self) -> &PreparedMutationV1<'record> {
+        &self.prepared
+    }
+
+    /// Exact canonical signed commit envelope.
+    pub fn commit_record(&self) -> &[u8] {
+        &self.commit_record
+    }
+
+    /// Projections derived from the complete prepared event set.
+    pub fn projections(&self) -> &[StateProjection] {
+        &self.projections
+    }
+
+    /// Notification rows proposed for atomic retention.
+    pub fn outbox(&self) -> &[OutboxRecord] {
+        &self.outbox
+    }
 }
 
 pub use statechronicle_commit::durable_batch::{

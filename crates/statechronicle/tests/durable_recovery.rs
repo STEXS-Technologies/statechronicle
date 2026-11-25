@@ -906,3 +906,95 @@ async fn protected_signed_plan_rechecks_policy_signer_and_outbox_before_ledger()
     ));
     assert!(ledger.calls.lock().unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn protected_v1_plan_binds_exact_intent_and_commit_records() {
+    use statechronicle::core::signature_operation::SignatureContext;
+    use statechronicle::core::signature_provider::{
+        Ed25519Signer, Ed25519Verifier, KeySetId, SignaturePurpose, Signer,
+    };
+    use statechronicle::domain::commit::COMMIT_SCHEMA;
+    use statechronicle::intent::{sign_v1::sign_intent_v1, v1_body::INTENT_V1_SCHEMA};
+    use statechronicle::mutation::SignedMutationV1;
+    use statechronicle::ports::{
+        key_registry::KeyRegistryError,
+        signature_policy::{
+            ResolvedSignaturePolicy, ResolvedSignatureV1, SignaturePolicy, SignaturePolicyQuery,
+        },
+    };
+
+    struct ActorPolicy(std::sync::Arc<Ed25519Verifier>, KeySetId);
+
+    #[async_trait::async_trait]
+    impl SignaturePolicy for ActorPolicy {
+        async fn resolve(
+            &self,
+            _query: SignaturePolicyQuery<'_>,
+        ) -> Result<ResolvedSignaturePolicy, KeyRegistryError> {
+            ResolvedSignatureV1::new(self.0.clone(), self.1, 64)
+                .map(ResolvedSignaturePolicy::V1)
+                .map_err(|_configuration_error| KeyRegistryError::NotTrusted)
+        }
+    }
+
+    let fixture = Fixture::new().await;
+    let harness = Harness::new();
+    let intent = &fixture.prepared.validated().intent;
+    let principal = fixture.prepared.principal();
+    let key = common::fixed_key();
+    let actor_key_set_id = KeySetId([3; 32]);
+    let actor_signer = Ed25519Signer::new(&key, actor_key_set_id, SignaturePurpose::ActorIntent);
+    let actor_context = SignatureContext {
+        suite: actor_signer.suite(),
+        key_set_id: &actor_key_set_id,
+        purpose: SignaturePurpose::ActorIntent,
+        body_schema: INTENT_V1_SCHEMA,
+        signature_len: 64,
+    };
+    let actor_verifier = Ed25519Verifier::new(
+        &key.verifying_key(),
+        actor_key_set_id,
+        SignaturePurpose::ActorIntent,
+    );
+    let policy = ActorPolicy(std::sync::Arc::new(actor_verifier), actor_key_set_id);
+    let record = sign_intent_v1(intent, &actor_context, &actor_signer).unwrap();
+    let prepared = harness
+        .executor
+        .prepare_player_v1(&record, principal, &Allow, &policy)
+        .await
+        .unwrap();
+    let (commit, _) = harness.commit_events(prepared.events());
+    let commit_key_set_id = KeySetId([4; 32]);
+    let commit_signer = Ed25519Signer::new(&key, commit_key_set_id, SignaturePurpose::TenantCommit);
+    let commit_context = SignatureContext {
+        suite: commit_signer.suite(),
+        key_set_id: &commit_key_set_id,
+        purpose: SignaturePurpose::TenantCommit,
+        body_schema: COMMIT_SCHEMA,
+        signature_len: 64,
+    };
+    let signed = SignedMutationV1::sign(
+        prepared,
+        &commit.body,
+        &commit_context,
+        &commit_signer,
+        Vec::new(),
+    )
+    .unwrap();
+    let verifier = Ed25519Verifier::new(
+        &key.verifying_key(),
+        commit_key_set_id,
+        SignaturePurpose::TenantCommit,
+    );
+    assert_eq!(signed.prepared().authenticated().record(), record);
+    assert_eq!(
+        statechronicle::commit::sign_v1::verify_commit_v1(
+            signed.commit_record(),
+            &commit_context,
+            &verifier,
+        )
+        .unwrap(),
+        commit.body
+    );
+    assert_eq!(signed.projections().len(), 1);
+}
