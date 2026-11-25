@@ -1,6 +1,6 @@
 //! Versioned BCS body codec for actor intents (ADR-009).
 //!
-//! The codec preserves the public legacy [`Intent`] model while encoding its
+//! The codec preserves the public legacy [`Intent`](statechronicle_domain::intent::Intent) model while encoding its
 //! JSON inputs through a tagged, integer-only v1 value representation. It
 //! performs no signature verification or executor dispatch.
 
