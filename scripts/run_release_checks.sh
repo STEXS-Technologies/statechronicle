@@ -17,6 +17,7 @@ cargo fmt --manifest-path ci/signature-conformance/Cargo.toml --all -- --check
 cargo test --manifest-path ci/signature-conformance/Cargo.toml --release --locked
 cargo clippy --manifest-path ci/signature-conformance/Cargo.toml --all-targets --locked -- -D warnings
 cargo test --manifest-path ci/wire-0.3/consumer/Cargo.toml --all-targets --locked
+cargo test --manifest-path ci/wire-0.3/candidate/Cargo.toml --all-targets --locked
 cargo test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked
 cargo test --workspace --exclude statechronicle-fuzz --doc --all-features --locked
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
@@ -33,7 +34,7 @@ python3 scripts/check_tutorials.py --tutorial durable-custom-ledger
 python3 scripts/check_native_contracts.py
 # Unsoundness and other advisory warnings must fail, including isolated locks.
 for lockfile in Cargo.lock ci/conformance/Cargo.lock ci/signature-conformance/Cargo.lock \
-  ci/wire-0.3/consumer/Cargo.lock \
+  ci/wire-0.3/consumer/Cargo.lock ci/wire-0.3/candidate/Cargo.lock \
   tutorials/minimal-native-domain/Cargo.lock tutorials/durable-custom-ledger/Cargo.lock; do
   cargo audit --file "${lockfile}" --deny warnings
 done
@@ -55,7 +56,7 @@ done
 
 # Builds (including cargo-fuzz) must not silently resolve a different graph.
 git diff --exit-code -- Cargo.lock ci/conformance/Cargo.lock ci/signature-conformance/Cargo.lock \
-  ci/wire-0.3/consumer/Cargo.lock \
+  ci/wire-0.3/consumer/Cargo.lock ci/wire-0.3/candidate/Cargo.lock \
   tutorials/minimal-native-domain/Cargo.lock tutorials/durable-custom-ledger/Cargo.lock
 git diff --check
 echo "release checks passed"
