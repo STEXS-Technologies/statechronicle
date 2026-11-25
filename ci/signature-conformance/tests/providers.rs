@@ -523,3 +523,68 @@ fn aws_lc_ml_dsa_and_strict_ed25519_are_both_required_by_hybrid() {
         );
     }
 }
+
+#[test]
+fn nist_acvp_pure_empty_context_vectors() {
+    macro_rules! vector {
+        ($name:literal) => {
+            (
+                include_bytes!(concat!("fixtures/acvp/", $name, ".msg")).as_slice(),
+                include_bytes!(concat!("fixtures/acvp/", $name, ".pk")).as_slice(),
+                include_bytes!(concat!("fixtures/acvp/", $name, ".sig")).as_slice(),
+            )
+        };
+    }
+
+    fn verify(
+        verifier: &dyn Verifier,
+        key_set_id: &KeySetId,
+        (message, _, signature): (&[u8], &[u8], &[u8]),
+        valid: bool,
+    ) {
+        let result = verifier.verify(VerificationRequest {
+            request: SigningRequest {
+                suite: verifier.suite(),
+                key_set_id,
+                purpose: SignaturePurpose::TenantCommit,
+                transcript: message,
+            },
+            signature,
+        });
+        assert_eq!(result.is_ok(), valid, "{result:?}");
+    }
+
+    let key_set = KeySetId([23; 32]);
+    let purpose = SignaturePurpose::TenantCommit;
+    for (sample, valid) in [
+        (vector!("ml-dsa-65-positive"), true),
+        (vector!("ml-dsa-65-negative"), false),
+    ] {
+        let encoded: [u8; 1952] = sample.1.try_into().unwrap();
+        let key = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::decode(&encoded.into());
+        verify(
+            &MlDsa65Verifier::new(key, key_set, purpose),
+            &key_set,
+            sample,
+            valid,
+        );
+        verify(
+            &AwsLcMlDsa65Verifier::new(sample.1.to_vec(), key_set, purpose),
+            &key_set,
+            sample,
+            valid,
+        );
+    }
+    for (sample, valid) in [
+        (vector!("slh-dsa-sha2-128s-positive"), true),
+        (vector!("slh-dsa-sha2-128s-negative"), false),
+    ] {
+        let key = slh_dsa::VerifyingKey::<slh_dsa::Sha2_128s>::try_from(sample.1).unwrap();
+        verify(
+            &SlhDsaSha2_128sVerifier::new(key, key_set, purpose),
+            &key_set,
+            sample,
+            valid,
+        );
+    }
+}
