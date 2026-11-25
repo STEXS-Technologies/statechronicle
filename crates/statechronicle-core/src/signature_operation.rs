@@ -5,8 +5,8 @@ use crate::signature_hybrid::{
     HYBRID_SIGNATURE_BYTES, HYBRID_SUITE_ID, HybridSignature, ML_DSA_65_SIGNATURE_BYTES,
 };
 use crate::signature_provider::{
-    KeySetId, MAX_SIGNATURE_BYTES, SignatureError, SignaturePurpose, SignatureSuiteId, Signer,
-    SigningRequest, VerificationRequest, Verifier,
+    AsyncSigner, KeySetId, MAX_SIGNATURE_BYTES, SignatureError, SignaturePurpose, SignatureSuiteId,
+    Signer, SigningRequest, VerificationRequest, Verifier,
 };
 use crate::signature_transcript::signature_transcript;
 use crate::signature_wire::{V1SignedEnvelope, encode_v1_envelope};
@@ -89,16 +89,44 @@ impl SignatureContext<'_> {
         let transcript = self.transcript(body)?;
         let mut signature = vec![0; self.signature_len];
         let written = signer.sign_into(self.request(&transcript), &mut signature)?;
+        self.finish_signing(body, &signature, written)
+    }
+
+    /// Signs the same canonical envelope through a nonblocking provider.
+    ///
+    /// # Errors
+    /// Returns binding, encoding, or provider errors. Incomplete output
+    /// is discarded when the provider errors or this operation is canceled.
+    pub async fn sign_envelope_async(
+        &self,
+        body: &[u8],
+        signer: &dyn AsyncSigner,
+    ) -> Result<Vec<u8>, SignatureError> {
+        self.check_provider(signer.suite())?;
+        let transcript = self.transcript(body)?;
+        let mut signature = vec![0; self.signature_len];
+        let written = signer
+            .sign_into(self.request(&transcript), &mut signature)
+            .await?;
+        self.finish_signing(body, &signature, written)
+    }
+
+    fn finish_signing(
+        &self,
+        body: &[u8],
+        signature: &[u8],
+        written: usize,
+    ) -> Result<Vec<u8>, SignatureError> {
         if written != signature.len() {
             return Err(SignatureError::MalformedEncoding);
         }
-        self.check_payload(&signature)?;
+        self.check_payload(signature)?;
         encode_v1_envelope(
             V1SignedEnvelope {
                 body,
                 suite_id: self.suite.as_str(),
                 key_set_id: &self.key_set_id.0,
-                signature: &signature,
+                signature,
             },
             self.purpose,
         )

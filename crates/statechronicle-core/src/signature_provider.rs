@@ -3,7 +3,7 @@
 //! Protocol entry points select trusted policy and build transcripts before
 //! invoking these primitives. Provider success alone conveys no authority.
 
-use std::borrow::Cow;
+use std::{borrow::Cow, future::Future, pin::Pin};
 
 use ed25519_dalek::{SigningKey, VerifyingKey};
 
@@ -126,6 +126,26 @@ pub trait Signer: Send + Sync {
         request: SigningRequest<'_>,
         output: &mut [u8],
     ) -> Result<usize, SignatureError>;
+}
+
+/// In-flight signing operation borrowing its request and output buffer.
+pub type SigningFuture<'operation> =
+    Pin<Box<dyn Future<Output = Result<usize, SignatureError>> + Send + 'operation>>;
+
+/// Object-safe, nonblocking signing provider for external key services.
+pub trait AsyncSigner: Send + Sync {
+    /// Identifies the provider's suite.
+    fn suite(&self) -> &SignatureSuiteId;
+
+    /// Writes a complete signature into the caller's bounded buffer.
+    ///
+    /// The adapter owns deadlines, cancellation and concurrency limits.
+    /// Dropping the future or returning an error discards the output.
+    fn sign_into<'operation>(
+        &'operation self,
+        request: SigningRequest<'operation>,
+        output: &'operation mut [u8],
+    ) -> SigningFuture<'operation>;
 }
 
 /// Object-safe provider for synchronous verification.

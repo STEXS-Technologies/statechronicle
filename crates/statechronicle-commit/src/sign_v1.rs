@@ -8,7 +8,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use statechronicle_core::{
     canonicalize::canonicalize,
     signature_operation::SignatureContext,
-    signature_provider::{SignatureError, SignaturePurpose, Signer, Verifier},
+    signature_provider::{AsyncSigner, SignatureError, SignaturePurpose, Signer, Verifier},
     signature_wire::{V1SignedEnvelope, decode_v1_envelope, encode_v1_envelope},
 };
 use statechronicle_domain::{
@@ -96,6 +96,16 @@ fn sign_body<T: SigningBody>(
     check_context::<T>(context)?;
     let canonical = canonical_body(body)?;
     context.sign_envelope(&canonical, signer)
+}
+
+async fn sign_body_async<T: SigningBody>(
+    body: &T,
+    context: &SignatureContext<'_>,
+    signer: &dyn AsyncSigner,
+) -> Result<Vec<u8>, SignatureError> {
+    check_context::<T>(context)?;
+    let canonical = canonical_body(body)?;
+    context.sign_envelope_async(&canonical, signer).await
 }
 
 fn verify_body<T: SigningBody>(
@@ -204,6 +214,18 @@ pub fn sign_commit_v1(
     sign_body(body, context, signer)
 }
 
+/// Signs a v1 tenant commit through a nonblocking provider.
+///
+/// # Errors
+/// Rejects mismatched scope, context, or provider output and propagates provider failure.
+pub async fn sign_commit_v1_async(
+    body: &Commit,
+    context: &SignatureContext<'_>,
+    signer: &dyn AsyncSigner,
+) -> Result<Vec<u8>, SignatureError> {
+    sign_body_async(body, context, signer).await
+}
+
 /// Decodes a v1 tenant commit and validates its canonical body encoding.
 ///
 /// The result still requires signature and policy verification.
@@ -236,6 +258,18 @@ pub fn sign_global_checkpoint_v1(
     signer: &dyn Signer,
 ) -> Result<Vec<u8>, SignatureError> {
     sign_body(body, context, signer)
+}
+
+/// Signs a v1 global checkpoint through a nonblocking provider.
+///
+/// # Errors
+/// Rejects mismatched schema, context, or provider output and propagates provider failure.
+pub async fn sign_global_checkpoint_v1_async(
+    body: &GlobalCheckpoint,
+    context: &SignatureContext<'_>,
+    signer: &dyn AsyncSigner,
+) -> Result<Vec<u8>, SignatureError> {
+    sign_body_async(body, context, signer).await
 }
 
 /// Verifies and decodes a standalone v1 global checkpoint envelope.
@@ -308,6 +342,29 @@ mod tests {
 
     use super::*;
 
+    struct DeferredSigner<'signer> {
+        local: &'signer dyn Signer,
+        result: Option<Result<usize, SignatureError>>,
+    }
+
+    impl AsyncSigner for DeferredSigner<'_> {
+        fn suite(&self) -> &statechronicle_core::signature_provider::SignatureSuiteId {
+            self.local.suite()
+        }
+
+        fn sign_into<'operation>(
+            &'operation self,
+            request: statechronicle_core::signature_provider::SigningRequest<'operation>,
+            output: &'operation mut [u8],
+        ) -> statechronicle_core::signature_provider::SigningFuture<'operation> {
+            Box::pin(async move {
+                tokio::task::yield_now().await;
+                let written = self.local.sign_into(request, output)?;
+                self.result.unwrap_or(Ok(written))
+            })
+        }
+    }
+
     struct CheckpointPolicy(Option<std::sync::Arc<dyn Verifier>>);
 
     #[async_trait::async_trait]
@@ -362,6 +419,32 @@ mod tests {
             verify_global_checkpoint_v1(&record, &context, &verifier).unwrap(),
             legacy.body
         );
+        let remote = DeferredSigner {
+            local: &signer,
+            result: None,
+        };
+        assert_eq!(
+            sign_global_checkpoint_v1_async(&legacy.body, &context, &remote)
+                .await
+                .unwrap(),
+            record
+        );
+        for (provider_result, expected_error) in [
+            (Ok(1), SignatureError::MalformedEncoding),
+            (
+                Err(SignatureError::ProviderUnavailable),
+                SignatureError::ProviderUnavailable,
+            ),
+        ] {
+            let failing_remote = DeferredSigner {
+                local: &signer,
+                result: Some(provider_result),
+            };
+            assert_eq!(
+                sign_global_checkpoint_v1_async(&legacy.body, &context, &failing_remote).await,
+                Err(expected_error)
+            );
+        }
         let json = render_checkpoint_json_v1(&record).unwrap();
         assert_eq!(normalize_checkpoint_json_v1(&json).unwrap(), record);
         let authority = SignatureAuthority::GlobalCheckpoint {
