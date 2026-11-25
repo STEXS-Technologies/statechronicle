@@ -15,8 +15,8 @@ at `9ed64a5a5ece51fa2cd5929119cbe21e1e34f3f4`. See the
 | F5 | Protected mutation and batch signing use the existing atomic persistence and recovery path. Exact signed bytes and membership are checked during authoritative readback. |
 | F6 | Current and historical claims, mixed trade and settlement proofs, checkpoint verification, portable verification, and mixed index rebuild use shared verification. The legacy wire fixtures exercise compatibility. |
 | F7 | Two ML-DSA-65 implementations interoperate. The standalone provider tests cover selected NIST ACVP ML-DSA and SLH-DSA cases and a genuine Ed25519 plus ML-DSA-65 hybrid. The sanitizer-backed fuzz gate is in progress. |
-| F8 | Initial paired v0 sign and verify results and the five v1 provider measurements are recorded. The broader paired v0 workloads and allocation comparison are in progress. |
-| F9 | The migration guide covers staged reader and writer deployment and rollback. Final same-revision qualification, versioning, and release approval remain open. |
+| F8 | Paired v0 sign and verify results and five v1 provider measurements are recorded. The broader paired v0 workloads and allocation comparison are in progress. |
+| F9 | The migration guide covers staged reader and writer deployment and rollback. The 0.4 package graph passed extracted-package validation. Final workspace and sanitizer checks are in progress. |
 
 The source review found duplicate requested settlement facts were checked only
 by the legacy wrapper and that the mixed verifier applied its body cap to the
@@ -92,5 +92,76 @@ Each sample used the same 45-byte body. Signing includes transcript creation,
 provider execution, and envelope encoding. Verification includes envelope
 decoding, transcript creation, and verification of a prebuilt valid envelope.
 SLH-DSA signing dominated the measured provider cost. AWS-LC and RustCrypto
-timings reflect their paired implementations and build features. The counts
-measure latency and encoded bytes. Allocation instrumentation is separate.
+timings reflect their paired implementations and build features. These measurements report latency and encoded bytes. Allocation instrumentation is separate.
+
+
+## Deployment boundaries
+
+The default normal dependency graph contains no PQ provider dependencies.
+The optional conformance crate uses AWS-LC and RustCrypto to check
+interoperability. The tested AWS-LC build uses its default features, and the
+SLH-DSA RustCrypto package is a release candidate. Deployments select and
+qualify their own crypto providers and key registry.
+
+The mixed-history rebuild requires an independently selected ordered pin
+for every record. The caller controls the history length. Individual
+commit records and event batches have bounds, while retained replay data
+scales with the caller-selected history. Remote signing limits and deadlines
+remain adapter responsibilities. Local reference and test adapters exercise
+the transaction and recovery contracts.
+
+
+## Paired legacy signature latency
+
+The baseline binary was built from the exact v0.3.0 tag and the candidate
+binary from `c6e3a63e2020d2c3c6d648e80fd62d9a6107d4eb`. Both used the
+same [benchmark source](../../crates/statechronicle-commit/examples/signature_baseline.rs),
+Rust 1.100.0, the release profile and each revision's locked dependency graph.
+Seven pairs alternated the lane order on logical CPU 4 of the same Xeon
+runner. Each operation had 100 warmups and 10,000 individually timed
+calls per run. Background work shared the machine during both lanes.
+[Per-run values](paired-legacy-signature-c6e3a63.csv)
+
+| Workload | v0.3 p50 / p95 / p99 (ns) | 0.4 p50 / p95 / p99 (ns) | Median change within pairs |
+| --- | --- | --- | --- |
+| `ed25519_sign_1024b` | 21092 / 34516 / 97416 | 21140 / 39069 / 107564 | +0.2% / +13.2% / +11.6% |
+| `ed25519_verify_1024b` | 43686 / 94159 / 191667 | 43688 / 104980 / 196238 | -0.0% / +11.5% / +9.6% |
+| `commit_sign` | 18991 / 25564 / 96537 | 19072 / 26513 / 95687 | +0.5% / +15.8% / +3.9% |
+| `commit_verify` | 42573 / 94606 / 161919 | 42569 / 98730 / 189118 | +0.0% / +9.3% / +21.1% |
+
+
+Absolute values are medians of the seven per-run percentiles. The change
+column is the median of the percentage differences calculated within each
+pair. Median p50 changes were within 0.5%. The p95 and p99 changes warrant a
+repeat under lower contention. Legacy signing, verification, canonicalization,
+and their domain source files match the tag. Registry package versions and
+checksums match the tag's lockfile. These checks narrow the investigation,
+while the shared-host tail measurements remain inconclusive.
+
+- Baseline executable SHA-256 `2c76ae8672464929779db12a8d0c507d992041c598863cb3940a58e6f7423faf`
+- Candidate executable SHA-256 `775d6f2b994bff702461d740b3a5ea6e513e606f424df8cceab0e3b48a9a19b7`
+
+
+The raw benchmark executables were 513,600 bytes at v0.3 and 513,648
+bytes at 0.4. Their combined text, data, and BSS size was 514,074 bytes
+in both lanes, as reported by `size`.
+
+## Paired legacy signature allocations
+
+Both revisions ran a release build of the same DHAT 0.3.3 harness. The
+scratch builds retained all pre-existing registry lock entries. Each row
+uses a fresh process, 1,000 calls, and subtraction of a setup-matched
+control. All three process repetitions per lane produced identical totals.
+The profiler was run separately from latency measurements.
+
+| Workload | v0.3 allocations per call | 0.4 allocations per call | v0.3 bytes per call | 0.4 bytes per call |
+| --- | ---: | ---: | ---: | ---: |
+| `ed25519_sign_1024b` | 0 | 0 | 0.011 | 0.011 |
+| `ed25519_verify_1024b` | 0 | 0 | 0.013 | 0.013 |
+| `commit_sign_canonicalize_envelope` | 20 | 20 | 2056.026 | 2056.026 |
+| `commit_verify_canonicalize` | 10 | 10 | 1639.019 | 1639.019 |
+
+
+The raw signature rows show zero additional allocation events. Their
+sub-byte differences reflect process and profiler overhead in the
+control-subtracted totals.
