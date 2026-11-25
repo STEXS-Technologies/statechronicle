@@ -15,7 +15,7 @@ at `9ed64a5a5ece51fa2cd5929119cbe21e1e34f3f4`. See the
 | F5 | Protected mutation and batch signing use the existing atomic persistence and recovery path. Exact signed bytes and membership are checked during authoritative readback. |
 | F6 | Current and historical claims, mixed trade and settlement proofs, checkpoint verification, portable verification, and mixed index rebuild use shared verification. The legacy wire fixtures exercise compatibility. |
 | F7 | Two ML-DSA-65 implementations interoperate. The standalone provider tests cover selected NIST ACVP ML-DSA and SLH-DSA cases and a genuine Ed25519 plus ML-DSA-65 hybrid. The sanitizer-backed fuzz gate is in progress. |
-| F8 | Paired v0 sign and verify results and five v1 provider measurements are recorded. The 22 paired legacy workflows and allocation probes are recorded. Versioned durable and proof workflow measurements are in progress. |
+| F8 | Paired v0 sign and verify results and five v1 provider measurements are recorded. The 22 paired legacy workflows and allocation probes are recorded. Versioned durable and proof workflow measurements are recorded for the listed fixtures. |
 | F9 | The migration guide covers staged reader and writer deployment and rollback. The 0.4 package graph passed extracted-package validation. Final workspace and sanitizer checks are in progress. |
 
 The source review found duplicate requested settlement facts were checked only
@@ -287,3 +287,38 @@ Recovery measures exact readback from that same ledger after the commit.
 These measurements cover one- and two-event fixtures on the shared runner.
 They exclude provider queueing, application preparation, production storage,
 and the larger event counts.
+
+
+## V1 state-claim verification latency
+
+The benchmark reuses the existing proof fixture and measures
+`ClaimVerifierV1` ownership verification. It uses a real Ed25519 v1
+signature and an independently configured in-memory commit reader and
+signature policy. The BCS proof is 19,320 bytes and its 530-byte envelope
+contains a 398-byte commit body.
+
+Three release runs with Rust 1.100.0 on logical CPU 4 each measured
+10,000 calls after 500 warmups. The table reports the median of the run
+percentiles. [Per-run values](proof-v1-c6e3a63.csv)
+
+| Claim | p50 µs | p95 µs | p99 µs |
+| --- | ---: | ---: | ---: |
+| Historical | 89.7 | 160.1 | 289.3 |
+| Current | 89.8 | 158.4 | 342.3 |
+
+
+Both paths include record lookup, policy resolution, cryptography, Merkle
+verification, and ownership checks. The current path also reads the head
+before verification and checks it again before returning. The fixture
+excludes network and database latency.
+
+Reproduce on a detached checkout of `c6e3a63` with the
+[benchmark patch](proof-benchmark.patch).
+
+```sh
+git apply --unidiff-zero /path/to/proof-benchmark.patch
+SC_PROOF_BENCH_SAMPLES=10000 SC_PROOF_BENCH_WARMUP=500 \
+  taskset -c 4 cargo +1.100.0 test --release --locked \
+  -p statechronicle-proof --test verification_pipeline \
+  benchmark_v1_historical_and_current_claim_verification -- --ignored --nocapture
+```
