@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-25
+
 StateChronicle 0.4 adds opt-in signature suites for state verification while
 preserving the v0.3 APIs and wire bytes. See the
 [signature migration guide](docs/0.4/signature-migration.md) for reader rollout,
@@ -168,7 +170,8 @@ First production release of StateChronicle, a verifiable state and transaction f
 - Measured protocol-surface LLVM line coverage is ratcheted at a 92.4% minimum, with property, concurrency, and replay tests protecting protocol behavior.
 - The release workflow validates the tag, package graph, coverage evidence, benchmark evidence, package contents, release notes, and published crate availability before completing publication.
 
-[Unreleased]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.3.0...main
+[Unreleased]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.4.0...main
+[0.4.0]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/STEXS-Technologies/statechronicle/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/STEXS-Technologies/statechronicle/releases/tag/v0.1.0
