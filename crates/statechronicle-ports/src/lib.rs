@@ -56,6 +56,8 @@ pub mod outbox;
 
 /// Tenant-scoped signing-key lifecycle and trust resolution.
 pub mod key_registry;
+/// Deployment-owned policy resolution for versioned signatures.
+pub mod signature_policy;
 
 /// Privacy-safe mutation telemetry.
 pub mod observability;

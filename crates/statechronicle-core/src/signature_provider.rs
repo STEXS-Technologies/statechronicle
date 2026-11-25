@@ -213,26 +213,22 @@ impl Signer for Ed25519Signer<'_> {
 }
 
 /// Strict Ed25519 verifier for a single trusted key set and purpose.
-pub struct Ed25519Verifier<'key> {
+pub struct Ed25519Verifier {
     binding: ProviderBinding,
-    key: &'key VerifyingKey,
+    key: VerifyingKey,
 }
 
-impl<'key> Ed25519Verifier<'key> {
+impl Ed25519Verifier {
     /// Binds an Ed25519 verification key to the key set and purpose selected by policy.
-    pub const fn new(
-        key: &'key VerifyingKey,
-        key_set_id: KeySetId,
-        purpose: SignaturePurpose,
-    ) -> Self {
+    pub const fn new(key: &VerifyingKey, key_set_id: KeySetId, purpose: SignaturePurpose) -> Self {
         Self {
             binding: ProviderBinding::new("ed25519", key_set_id, purpose),
-            key,
+            key: *key,
         }
     }
 }
 
-impl Verifier for Ed25519Verifier<'_> {
+impl Verifier for Ed25519Verifier {
     fn suite(&self) -> &SignatureSuiteId {
         &self.binding.suite
     }
@@ -245,7 +241,7 @@ impl Verifier for Ed25519Verifier<'_> {
             .map_err(|_length_error| SignatureError::MalformedEncoding)?;
         signature::verify(
             request.request.transcript,
-            self.key,
+            &self.key,
             &Signature::from_bytes(bytes),
         )
         .map_err(|_verification_error| SignatureError::InvalidSignature)
