@@ -118,6 +118,21 @@ pub trait LedgerTransaction: Send + Sync {
         )))
     }
 
+    /// Append the v1 commit and stage immutable evidence for the complete group.
+    ///
+    /// Every ordered member must correspond to a finalized fenced claim in
+    /// this transaction. The head, effects, evidence, and claims commit
+    /// atomically, and each member resolves to the complete group through
+    /// [`crate::ledger_v1::LedgerBatchRecoveryV1`].
+    async fn append_batch_commit_v1(
+        &mut self,
+        _record: crate::ledger_v1::RetainBatchV1<'_>,
+    ) -> Result<(), LedgerStoreError> {
+        Err(LedgerStoreError::Invariant(String::from(
+            "atomic v1 batch retention is unsupported",
+        )))
+    }
+
     /// Upsert a deterministic projection while enforcing monotonic version.
     async fn upsert_projection(
         &mut self,

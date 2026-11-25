@@ -43,7 +43,7 @@ pub struct RetainMutationV1<'record> {
 
 /// Authoritative single-identity lookup across a shared format namespace.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum LedgerLookupV1 {
+pub enum LedgerLookupV1<Record = LedgerMutationV1> {
     /// No matching row at this read's linearization point.
     NotFound,
     /// An unfinished reservation for this intent identity.
@@ -56,7 +56,7 @@ pub enum LedgerLookupV1 {
         lease_expires_at_unix: i64,
     },
     /// Finalized evidence in the v1 wire format.
-    Committed(Box<LedgerMutationV1>),
+    Committed(Box<Record>),
     /// The row exists in a different format or belongs to a retained group.
     OtherRecord,
 }
@@ -75,4 +75,57 @@ pub trait LedgerRecoveryV1: LedgerStore {
         tenant: &TenantId,
         intent_id: &IntentId,
     ) -> Result<LedgerLookupV1, LedgerStoreError>;
+}
+
+/// Exact original evidence and effects of one atomic v1 batch.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LedgerBatchV1 {
+    /// Ordered original member envelopes. Order is part of group identity.
+    pub intent_records: Vec<Vec<u8>>,
+    /// One original signed commit for the complete group.
+    pub commit_record: Vec<u8>,
+    /// Complete ordered events from all members.
+    pub events: Vec<Event>,
+    /// Original deterministic projections.
+    pub projections: Vec<StateProjection>,
+    /// Original complete outbox, including delivered rows.
+    pub outbox: Vec<OutboxRecord>,
+}
+
+/// One ordered batch member's evidence, bound to its fenced claim.
+#[derive(Clone, Copy)]
+pub struct RetainBatchMemberV1<'record> {
+    /// Member identity within the batch's tenant.
+    pub intent_id: &'record IntentId,
+    /// Digest of the member's canonical versioned body.
+    pub payload_digest: &'record ContentDigest,
+    /// Original signed actor-intent envelope.
+    pub intent_record: &'record [u8],
+}
+
+/// Advances the canonical head and retains the complete v1 batch evidence.
+#[derive(Clone, Copy)]
+pub struct RetainBatchV1<'record> {
+    /// Validated commit body used by the canonical head/root check.
+    pub commit: &'record Commit,
+    /// Exact signed commit envelope.
+    pub commit_record: &'record [u8],
+    /// Ordered member evidence for every finalized claim.
+    pub members: &'record [RetainBatchMemberV1<'record>],
+}
+
+/// Resolves every batch member to the same immutable original v1 group.
+///
+/// The authoritative lookup cannot construct a group from separate writes or
+/// return a filtered subset. Standalone or legacy records are reported as
+/// [`LedgerLookupV1::OtherRecord`]. Retention and readback use a shared
+/// tenant/intent namespace and the same transaction boundary as single writes.
+#[async_trait]
+pub trait LedgerBatchRecoveryV1: LedgerRecoveryV1 {
+    /// Resolves the complete batch containing the queried member.
+    async fn lookup_batch_v1(
+        &self,
+        tenant: &TenantId,
+        intent_id: &IntentId,
+    ) -> Result<LedgerLookupV1<LedgerBatchV1>, LedgerStoreError>;
 }
