@@ -12,6 +12,10 @@ use statechronicle::ports::ledger_store::{
     IdempotencyClaim, LedgerLookup, LedgerMutation, LedgerRecovery, LedgerStore, LedgerStoreError,
     LedgerTransaction, OutboxRecord,
 };
+use statechronicle::ports::ledger_v1::{
+    LedgerBatchRecoveryV1, LedgerBatchV1, LedgerLookupV1, LedgerMutationV1, LedgerRecoveryV1,
+    RetainBatchV1, RetainMutationV1,
+};
 use statechronicle::{
     Commit, CommitId, ContentDigest, Event, Intent, IntentId, Signed, StateProjection, TenantId,
 };
@@ -49,6 +53,10 @@ pub enum Step {
 #[derive(Default, Clone)]
 pub struct Stored {
     pub mutations: BTreeMap<(String, String), LedgerMutation>,
+    pub mutations_v1: BTreeMap<(String, String), LedgerMutationV1>,
+    pub batches_v1: BTreeMap<(String, String), Arc<LedgerBatchV1>>,
+    pub v1_commit_records: BTreeMap<String, Vec<u8>>,
+    pub canonical_commits: Vec<Commit>,
     pub batches: BTreeMap<(String, String), LedgerBatch>,
     pub events: Vec<Event>,
     pub commits: Vec<Signed<Commit>>,
@@ -75,6 +83,16 @@ struct Transaction {
     staged: Stored,
     claims: Vec<((String, String), ContentDigest, Intent)>,
     batch: Option<LedgerBatch>,
+    v1_retention: Option<(IntentId, Vec<u8>, Vec<u8>)>,
+    v1_batch: Option<Vec<Vec<u8>>>,
+}
+impl Transaction {
+    fn stage_v1_commit(&mut self, commit: &Commit, bytes: &[u8]) {
+        self.staged.canonical_commits.push(commit.clone());
+        self.staged
+            .v1_commit_records
+            .insert(commit.commit_id.as_str().to_owned(), bytes.to_vec());
+    }
 }
 impl MemoryLedger {
     async fn checkpoint(&self, step: Step) -> Result<(), LedgerStoreError> {
@@ -117,6 +135,8 @@ impl LedgerStore for MemoryLedger {
             staged: Stored::default(),
             claims: Vec::new(),
             batch: None,
+            v1_retention: None,
+            v1_batch: None,
         }))
     }
     async fn begin_multi(
@@ -172,9 +192,103 @@ impl LedgerTransaction for Transaction {
     }
     async fn append_commit(&mut self, commit: &Signed<Commit>) -> Result<(), LedgerStoreError> {
         self.ledger.checkpoint(Step::CommitRow).await?;
+        if !self.staged.commits.is_empty()
+            || !self.staged.canonical_commits.is_empty()
+            || self.v1_retention.is_some()
+        {
+            return Err(LedgerStoreError::Invariant(String::from(
+                "transaction already has a commit",
+            )));
+        }
+        self.staged.canonical_commits.push(commit.body.clone());
         self.staged.commits.push(commit.clone());
         Ok(())
     }
+    async fn append_commit_v1(
+        &mut self,
+        record: RetainMutationV1<'_>,
+    ) -> Result<(), LedgerStoreError> {
+        self.ledger.checkpoint(Step::CommitRow).await?;
+        if self.batch.is_some()
+            || self.v1_retention.is_some()
+            || !self.staged.commits.is_empty()
+            || !self.staged.canonical_commits.is_empty()
+        {
+            return Err(LedgerStoreError::Invariant(String::from(
+                "v1 mutation must retain exactly one standalone commit",
+            )));
+        }
+        let identity = record
+            .commit
+            .scope
+            .tenant_id
+            .as_ref()
+            .map(|tenant| (tenant.0.clone(), record.intent_id.as_str().to_owned()))
+            .ok_or_else(|| {
+                LedgerStoreError::Invariant(String::from("v1 mutation requires tenant scope"))
+            })?;
+        let matching_claim = self
+            .claims
+            .iter()
+            .any(|(key, _, intent)| key == &identity && intent.intent_id == *record.intent_id);
+        if !matching_claim {
+            return Err(LedgerStoreError::Invariant(String::from(
+                "v1 retained intent does not match the fenced claim",
+            )));
+        }
+        self.stage_v1_commit(record.commit, record.commit_record);
+        self.v1_retention = Some((
+            record.intent_id.clone(),
+            record.intent_record.to_vec(),
+            record.commit_record.to_vec(),
+        ));
+        Ok(())
+    }
+    async fn append_batch_commit_v1(
+        &mut self,
+        record: RetainBatchV1<'_>,
+    ) -> Result<(), LedgerStoreError> {
+        self.ledger.checkpoint(Step::CommitRow).await?;
+        self.ledger.checkpoint(Step::RetainBatch).await?;
+        let tenant = record.commit.scope.tenant_id.as_ref().ok_or_else(|| {
+            LedgerStoreError::Invariant(String::from("v1 batch requires tenant scope"))
+        })?;
+        if self.batch.is_some()
+            || self.v1_retention.is_some()
+            || self.v1_batch.is_some()
+            || !self.staged.canonical_commits.is_empty()
+            || record.members.is_empty()
+            || record.members.len() != self.claims.len()
+        {
+            return Err(LedgerStoreError::Invariant(String::from(
+                "incomplete v1 batch retention",
+            )));
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        for member in record.members {
+            if !seen.insert(member.intent_id)
+                || !self.claims.iter().any(|(_, digest, intent)| {
+                    &intent.tenant_id == tenant
+                        && &intent.intent_id == member.intent_id
+                        && digest == member.payload_digest
+                })
+            {
+                return Err(LedgerStoreError::Invariant(String::from(
+                    "v1 batch member does not match its claim",
+                )));
+            }
+        }
+        self.stage_v1_commit(record.commit, record.commit_record);
+        self.v1_batch = Some(
+            record
+                .members
+                .iter()
+                .map(|member| member.intent_record.to_vec())
+                .collect(),
+        );
+        Ok(())
+    }
+
     async fn upsert_projection(
         &mut self,
         projection: &StateProjection,
@@ -217,9 +331,9 @@ impl LedgerTransaction for Transaction {
     }
     async fn retain_batch(&mut self, batch: &LedgerBatch) -> Result<(), LedgerStoreError> {
         self.ledger.checkpoint(Step::RetainBatch).await?;
-        if self.batch.is_some() {
+        if self.batch.is_some() || self.v1_retention.is_some() || self.v1_batch.is_some() {
             return Err(LedgerStoreError::Invariant(String::from(
-                "batch already retained",
+                "batch already retained or v1 single-mutation record staged",
             )));
         }
         self.batch = Some(batch.clone());
@@ -229,21 +343,30 @@ impl LedgerTransaction for Transaction {
         self.ledger.checkpoint(Step::Commit).await?;
         {
             let mut data = self.ledger.data.lock().unwrap();
-            let prepared = self.staged.commits.first().unwrap();
+            let prepared = self.staged.canonical_commits.first().ok_or_else(|| {
+                LedgerStoreError::Invariant(String::from("missing staged commit"))
+            })?;
             let head = data
-                .commits
+                .canonical_commits
                 .iter()
                 .rev()
-                .find(|commit| commit.body.scope == prepared.body.scope);
-            let expected_sequence = head.map_or(1, |commit| commit.body.sequence.saturating_add(1));
-            let expected_parent = head.map(|commit| &commit.body.commit_id);
+                .find(|commit| commit.scope == prepared.scope)
+                .or_else(|| {
+                    data.commits
+                        .iter()
+                        .rev()
+                        .find(|commit| commit.body.scope == prepared.scope)
+                        .map(|commit| &commit.body)
+                });
+            let expected_sequence = head.map_or(1, |commit| commit.sequence.saturating_add(1));
+            let expected_parent = head.map(|commit| &commit.commit_id);
             let previous_root = head.map_or_else(
                 || ContentDigest::new(*StateAccumulator::empty().root().as_bytes()),
-                |commit| commit.body.next_state_root.clone(),
+                |commit| commit.next_state_root.clone(),
             );
-            if prepared.body.sequence != expected_sequence
-                || prepared.body.parent_commit_id.as_ref() != expected_parent
-                || prepared.body.previous_state_root != previous_root
+            if prepared.sequence != expected_sequence
+                || prepared.parent_commit_id.as_ref() != expected_parent
+                || prepared.previous_state_root != previous_root
             {
                 return Err(LedgerStoreError::Conflict(String::from(
                     "canonical head changed",
@@ -278,12 +401,12 @@ impl LedgerTransaction for Transaction {
             }
             let updates: Vec<StateUpdate> = projections
                 .iter()
-                .filter(|row| Some(&row.tenant_id) == prepared.body.scope.tenant_id.as_ref())
+                .filter(|row| Some(&row.tenant_id) == prepared.scope.tenant_id.as_ref())
                 .map(|row| StateUpdate::new(projection_key(row), *row.state_hash.as_bytes()))
                 .collect();
             let mut accumulator = StateAccumulator::empty();
             accumulator.insert_batch(&updates).unwrap();
-            if *accumulator.root().as_bytes() != *prepared.body.next_state_root.as_bytes() {
+            if *accumulator.root().as_bytes() != *prepared.next_state_root.as_bytes() {
                 return Err(LedgerStoreError::Invariant(String::from(
                     "prepared state root mismatch",
                 )));
@@ -291,7 +414,7 @@ impl LedgerTransaction for Transaction {
             if self.claims.len() != self.staged.identities.len()
                 || self.claims.iter().any(|(key, digest, _)| {
                     self.staged.identities.get(key)
-                        != Some(&(digest.clone(), prepared.body.commit_id.clone()))
+                        != Some(&(digest.clone(), prepared.commit_id.clone()))
                 })
             {
                 return Err(LedgerStoreError::Invariant(String::from(
@@ -326,7 +449,7 @@ impl LedgerTransaction for Transaction {
                         )));
                     }
                 }
-                if batch.commit != *prepared
+                if self.staged.commits.first() != Some(&batch.commit)
                     || batch.events != self.staged.events
                     || batch.projections != self.staged.projections
                     || batch.outbox != self.staged.outbox
@@ -338,6 +461,24 @@ impl LedgerTransaction for Transaction {
                 for (key, _, _) in &self.claims {
                     data.batches.insert(key.clone(), batch.clone());
                 }
+            } else if let Some(intent_records) = &self.v1_batch {
+                let commit_record = self
+                    .staged
+                    .v1_commit_records
+                    .get(prepared.commit_id.as_str())
+                    .ok_or_else(|| {
+                        LedgerStoreError::Invariant(String::from("missing staged v1 batch commit"))
+                    })?;
+                let batch = Arc::new(LedgerBatchV1 {
+                    intent_records: intent_records.clone(),
+                    commit_record: commit_record.clone(),
+                    events: self.staged.events.clone(),
+                    projections: self.staged.projections.clone(),
+                    outbox: self.staged.outbox.clone(),
+                });
+                for (key, _, _) in &self.claims {
+                    data.batches_v1.insert(key.clone(), Arc::clone(&batch));
+                }
             } else {
                 if self.claims.len() != 1 {
                     return Err(LedgerStoreError::Invariant(String::from(
@@ -345,18 +486,44 @@ impl LedgerTransaction for Transaction {
                     )));
                 }
                 let (identity, digest, intent) = self.claims.first().unwrap();
-                let record = LedgerMutation {
-                    intent: intent.clone(),
-                    payload_digest: digest.clone(),
-                    commit: prepared.clone(),
-                    events: self.staged.events.clone(),
-                    projections: self.staged.projections.clone(),
-                    outbox: self.staged.outbox.clone(),
-                };
-                data.mutations.insert(identity.clone(), record);
+                if let Some((intent_id, intent_record, commit_record)) = &self.v1_retention {
+                    if intent.intent_id != *intent_id || self.staged.v1_commit_records.is_empty() {
+                        return Err(LedgerStoreError::Invariant(String::from(
+                            "v1 retained records do not match the finalized identity",
+                        )));
+                    }
+                    let v1_record = LedgerMutationV1 {
+                        intent_record: intent_record.clone(),
+                        payload_digest: digest.clone(),
+                        commit_record: commit_record.clone(),
+                        events: self.staged.events.clone(),
+                        projections: self.staged.projections.clone(),
+                        outbox: self.staged.outbox.clone(),
+                    };
+                    data.mutations_v1.insert(identity.clone(), v1_record);
+                } else {
+                    let signed_commit = self.staged.commits.first().cloned().ok_or_else(|| {
+                        LedgerStoreError::Invariant(String::from(
+                            "missing staged legacy signed commit",
+                        ))
+                    })?;
+                    let record = LedgerMutation {
+                        intent: intent.clone(),
+                        payload_digest: digest.clone(),
+                        commit: signed_commit,
+                        events: self.staged.events.clone(),
+                        projections: self.staged.projections.clone(),
+                        outbox: self.staged.outbox.clone(),
+                    };
+                    data.mutations.insert(identity.clone(), record);
+                }
             }
             data.events.append(&mut self.staged.events);
             data.commits.append(&mut self.staged.commits);
+            data.canonical_commits
+                .append(&mut self.staged.canonical_commits);
+            data.v1_commit_records
+                .append(&mut self.staged.v1_commit_records);
             data.projections = projections;
             data.outbox.append(&mut self.staged.outbox);
             data.identities.append(&mut self.staged.identities);
@@ -412,6 +579,114 @@ impl LedgerRecovery for MemoryLedger {
             });
         }
         Ok(LedgerLookup::NotFound)
+    }
+}
+
+#[async_trait]
+impl LedgerRecoveryV1 for MemoryLedger {
+    async fn lookup_mutation_v1(
+        &self,
+        tenant: &TenantId,
+        intent_id: &IntentId,
+    ) -> Result<LedgerLookupV1, LedgerStoreError> {
+        self.checkpoint(Step::Lookup).await?;
+        let identity = (tenant.0.clone(), intent_id.as_str().to_owned());
+        let data = self.data.lock().unwrap();
+        if let Some(record) = data.mutations_v1.get(&identity) {
+            let Some((payload_digest, commit_id)) = data.identities.get(&identity) else {
+                return Err(LedgerStoreError::Invariant(String::from(
+                    "retained v1 record is missing its finalized identity",
+                )));
+            };
+            let canonical_commit = data.canonical_commits.iter().find(|commit| {
+                &commit.commit_id == commit_id
+                    && commit.scope.tenant_id.as_ref() == Some(tenant)
+                    && data.v1_commit_records.get(commit_id.as_str()) == Some(&record.commit_record)
+            });
+            if payload_digest != &record.payload_digest
+                || canonical_commit.is_none()
+                || !record
+                    .events
+                    .iter()
+                    .all(|event| data.events.contains(event))
+                || !record.outbox.iter().all(|row| data.outbox.contains(row))
+            {
+                return Err(LedgerStoreError::Invariant(String::from(
+                    "retained v1 record is not bound to finalized canonical history",
+                )));
+            }
+            return Ok(LedgerLookupV1::Committed(Box::new(record.clone())));
+        }
+        if data.identities.contains_key(&identity)
+            || data.mutations.contains_key(&identity)
+            || data.batches.contains_key(&identity)
+        {
+            return Ok(LedgerLookupV1::OtherRecord);
+        }
+        drop(data);
+        let reservations = self.reservations.lock().unwrap();
+        if let Some(payload_digest) = reservations.get(&identity) {
+            return Ok(LedgerLookupV1::InProgress {
+                payload_digest: payload_digest.clone(),
+                attempt_id: String::from("attempt"),
+                lease_expires_at_unix: i64::MAX,
+            });
+        }
+        Ok(LedgerLookupV1::NotFound)
+    }
+}
+
+#[async_trait]
+impl LedgerBatchRecoveryV1 for MemoryLedger {
+    async fn lookup_batch_v1(
+        &self,
+        tenant: &TenantId,
+        intent_id: &IntentId,
+    ) -> Result<LedgerLookupV1<LedgerBatchV1>, LedgerStoreError> {
+        self.checkpoint(Step::Lookup).await?;
+        let identity = (tenant.0.clone(), intent_id.as_str().to_owned());
+        let data = self.data.lock().unwrap();
+        if let Some(record) = data.batches_v1.get(&identity) {
+            let canonical = data
+                .identities
+                .get(&identity)
+                .is_some_and(|(_, commit_id)| {
+                    data.v1_commit_records.get(commit_id.as_str()) == Some(&record.commit_record)
+                        && data.canonical_commits.iter().any(|commit| {
+                            &commit.commit_id == commit_id
+                                && commit.scope.tenant_id.as_ref() == Some(tenant)
+                        })
+                });
+            if !canonical
+                || !record
+                    .events
+                    .iter()
+                    .all(|event| data.events.contains(event))
+                || !record
+                    .outbox
+                    .iter()
+                    .all(|record| data.outbox.contains(record))
+            {
+                return Err(LedgerStoreError::Invariant(String::from(
+                    "retained v1 batch is not bound to finalized canonical history",
+                )));
+            }
+            return Ok(LedgerLookupV1::Committed(Box::new(record.as_ref().clone())));
+        }
+        if data.identities.contains_key(&identity) {
+            return Ok(LedgerLookupV1::OtherRecord);
+        }
+        drop(data);
+        let reservations = self.reservations.lock().unwrap();
+        Ok(reservations
+            .get(&identity)
+            .map_or(LedgerLookupV1::NotFound, |digest| {
+                LedgerLookupV1::InProgress {
+                    payload_digest: digest.clone(),
+                    attempt_id: String::from("attempt"),
+                    lease_expires_at_unix: i64::MAX,
+                }
+            }))
     }
 }
 

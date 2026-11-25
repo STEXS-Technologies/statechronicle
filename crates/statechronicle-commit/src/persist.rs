@@ -23,7 +23,7 @@
 use std::collections::BTreeSet;
 
 use statechronicle_core::canonicalize::canonicalize_and_digest;
-use statechronicle_core::digest::hash_bytes;
+use statechronicle_core::digest::{ContentDigest, hash_bytes};
 use statechronicle_core::limits::{
     MAX_COMMIT_BYTES, MAX_EVENT_BATCH_BYTES, MAX_EVENTS_PER_COMMIT, MAX_ID_LENGTH,
     MAX_OUTBOX_PAYLOAD_BYTES, MAX_QUOTA_KEY_BYTES, check_size,
@@ -31,6 +31,7 @@ use statechronicle_core::limits::{
 use statechronicle_domain::commit::{COMMIT_SCHEMA, Commit, ProfileId, ScopeKind};
 use statechronicle_domain::event::{EVENT_SCHEMA, Event};
 use statechronicle_domain::ids::{CommitId, EventId, IntentId};
+use statechronicle_domain::intent::Intent;
 use statechronicle_domain::resource_state::ResourceState;
 use statechronicle_domain::signed::Signed;
 use statechronicle_domain::state::StateProjection;
@@ -47,6 +48,7 @@ use statechronicle_ports::event_store::EventStore;
 use statechronicle_ports::ledger_store::{
     IdempotencyClaim, LedgerStore, LedgerStoreError, LedgerTransaction, OutboxRecord,
 };
+use statechronicle_ports::ledger_v1::RetainMutationV1;
 use statechronicle_ports::observability::{MetricsSink, MutationMetric, MutationOutcome};
 use statechronicle_ports::state_index::StateIndex;
 
@@ -236,6 +238,44 @@ pub(crate) fn validate_effects_with_binding(
     tenant: &TenantId,
     bind: impl Fn(&Event) -> Result<(), CommitError>,
 ) -> Result<Vec<Event>, CommitError> {
+    validate_effects_for_body(
+        CommitEffects {
+            entries,
+            body: &commit.body,
+            projections,
+            outbox_records,
+        },
+        tenant,
+        bind,
+        || {
+            let bytes = bcs::to_bytes(commit)
+                .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+            check_size("commit", MAX_COMMIT_BYTES, bytes.len())
+                .map_err(|error| CommitError::InvalidEvent(error.to_string()))
+        },
+    )
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct CommitEffects<'request, 'event> {
+    pub(crate) entries: &'request [CommittedEvent<'event>],
+    pub(crate) body: &'request Commit,
+    pub(crate) projections: &'request [StateProjection],
+    pub(crate) outbox_records: &'request [OutboxRecord],
+}
+
+pub(crate) fn validate_effects_for_body(
+    effects: CommitEffects<'_, '_>,
+    tenant: &TenantId,
+    bind: impl Fn(&Event) -> Result<(), CommitError>,
+    check_commit_size: impl FnOnce() -> Result<(), CommitError>,
+) -> Result<Vec<Event>, CommitError> {
+    let CommitEffects {
+        entries,
+        body,
+        projections,
+        outbox_records,
+    } = effects;
     let events: Vec<Event> = entries.iter().map(|entry| entry.event.clone()).collect();
     if events.is_empty() {
         return Err(CommitError::InvalidEvent(String::from(
@@ -257,17 +297,14 @@ pub(crate) fn validate_effects_with_binding(
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
     check_size("event_batch", MAX_EVENT_BATCH_BYTES, event_bytes)
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
-    let commit_bytes =
-        bcs::to_bytes(commit).map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
-    check_size("commit", MAX_COMMIT_BYTES, commit_bytes.len())
-        .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+    check_commit_size()?;
     validate_committed_events(entries)?;
     for event in &events {
         bind(event)?;
     }
-    validate_projection_bindings(&commit.body.commit_id, entries, projections)?;
+    validate_projection_bindings(&body.commit_id, entries, projections)?;
     for projection in projections {
-        if projection.tenant_id != *tenant || projection.last_commit_id != commit.body.commit_id {
+        if projection.tenant_id != *tenant || projection.last_commit_id != body.commit_id {
             return Err(CommitError::Store(String::from(
                 "durable projection is not bound to the commit scope",
             )));
@@ -275,7 +312,7 @@ pub(crate) fn validate_effects_with_binding(
     }
     validate_outbox_records(outbox_records)?;
     for outbox in outbox_records {
-        if outbox.tenant != *tenant || outbox.commit_id != commit.body.commit_id {
+        if outbox.tenant != *tenant || outbox.commit_id != body.commit_id {
             return Err(CommitError::Store(String::from(
                 "durable outbox record is not bound to the commit scope",
             )));
@@ -283,9 +320,7 @@ pub(crate) fn validate_effects_with_binding(
     }
     let event_count = u64::try_from(events.len())
         .map_err(|error| CommitError::InvalidEvent(format!("event count overflow: {error}")))?;
-    if event_count != commit.body.event_count
-        || event_root(&events)? != commit.body.event_merkle_root
-    {
+    if event_count != body.event_count || event_root(&events)? != body.event_merkle_root {
         return Err(CommitError::EventRootMismatch);
     }
 
@@ -348,6 +383,59 @@ pub(crate) async fn write_transaction<S: LedgerStore + ?Sized>(
     tenant: &TenantId,
     events: &[Event],
 ) -> Result<TransactionDecision, TransactionFailure> {
+    write_single_transaction(
+        ledger,
+        SingleMutationWrite {
+            intent: request.intent,
+            payload_digest: request.payload_digest,
+            commit: CommitWrite::Legacy(request.commit),
+            projections: request.projections,
+            outbox: request.outbox,
+        },
+        tenant,
+        events,
+    )
+    .await
+}
+
+pub(crate) enum CommitWrite<'request> {
+    Legacy(&'request Signed<Commit>),
+    V1(RetainMutationV1<'request>),
+}
+
+impl CommitWrite<'_> {
+    const fn id(&self) -> &CommitId {
+        match self {
+            Self::Legacy(commit) => &commit.body.commit_id,
+            Self::V1(record) => &record.commit.commit_id,
+        }
+    }
+
+    async fn append(
+        &self,
+        transaction: &mut dyn LedgerTransaction,
+    ) -> Result<(), LedgerStoreError> {
+        match self {
+            Self::Legacy(commit) => transaction.append_commit(commit).await,
+            Self::V1(record) => transaction.append_commit_v1(*record).await,
+        }
+    }
+}
+
+pub(crate) struct SingleMutationWrite<'request> {
+    pub(crate) intent: &'request Intent,
+    pub(crate) payload_digest: &'request ContentDigest,
+    pub(crate) commit: CommitWrite<'request>,
+    pub(crate) projections: &'request [StateProjection],
+    pub(crate) outbox: &'request [OutboxRecord],
+}
+
+pub(crate) async fn write_single_transaction<S: LedgerStore + ?Sized>(
+    ledger: &S,
+    request: SingleMutationWrite<'_>,
+    tenant: &TenantId,
+    events: &[Event],
+) -> Result<TransactionDecision, TransactionFailure> {
     let mut transaction = ledger
         .begin(tenant)
         .await
@@ -387,7 +475,7 @@ pub(crate) async fn write_transaction<S: LedgerStore + ?Sized>(
     if let Err(error) = transaction.append_events(events).await {
         return Err(abort(transaction, error).await);
     }
-    if let Err(error) = transaction.append_commit(request.commit).await {
+    if let Err(error) = request.commit.append(transaction.as_mut()).await {
         return Err(abort(transaction, error).await);
     }
     for projection in request.projections {
@@ -405,7 +493,7 @@ pub(crate) async fn write_transaction<S: LedgerStore + ?Sized>(
             tenant,
             &request.intent.intent_id,
             &attempt_id,
-            &request.commit.body.commit_id,
+            request.commit.id(),
         )
         .await
     {

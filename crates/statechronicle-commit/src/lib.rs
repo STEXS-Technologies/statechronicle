@@ -21,15 +21,22 @@ pub mod builder;
 
 /// Ed25519 commit signing.
 pub mod sign;
+/// Versioned tenant commit and global checkpoint signing.
+pub mod sign_v1;
 
 /// Commit persistence.
 pub mod persist;
 
 /// Verified durable outcomes and authoritative recovery.
 pub mod durable;
+/// Exact-byte durable write and recovery for versioned mutations.
+pub mod durable_v1;
+mod durable_write_v1;
 
 /// Verified atomic batch outcomes and complete original-group recovery.
 pub mod durable_batch;
+/// Versioned atomic batch writes with exact original-record recovery.
+pub mod durable_batch_v1;
 
 /// Tenant checkpoint commits.
 pub mod checkpoint;

@@ -1,0 +1,15 @@
+[package]
+name = "v03-consumer-probe"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+statechronicle-commit = "=0.3.0"
+statechronicle-core = "=0.3.0"
+statechronicle-domain = "=0.3.0"
+ed25519-dalek = "3.0.0"
+chrono = "0.4"
+
+
+[workspace]

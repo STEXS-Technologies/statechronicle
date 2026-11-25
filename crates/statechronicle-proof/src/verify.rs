@@ -12,22 +12,30 @@
 //! strict verifier (`ZIP-215` malleability checks) over the BCS canonical
 //! commit body bytes (ADR-004 §2, §5).
 
+use chrono::{DateTime, Utc};
 use ed25519_dalek::VerifyingKey;
 use statechronicle_accumulator::key::StateKey;
 use statechronicle_accumulator::proof::{InclusionProof, NonMembershipProof};
 use statechronicle_accumulator::sparse_merkle::{
     EMPTY_LEAF_HASH, StateAccumulator, StateRoot, TREE_DEPTH, leaf_hash,
 };
+use statechronicle_commit::sign_v1::verify_commit_v1_with_policy;
 use statechronicle_core::canonicalize::{canonicalize, canonicalize_and_digest};
-use statechronicle_core::limits::MAX_PROOF_BYTES;
 use statechronicle_core::signature::verify as verify_signature;
+use statechronicle_core::{
+    digest::hash_bytes, limits::MAX_PROOF_BYTES, signature_wire::MAX_V1_ENVELOPE_BYTES,
+};
 use statechronicle_domain::commit::Commit;
 use statechronicle_domain::proof::{
-    NON_MEMBERSHIP_PROOF_SCHEMA, NonMembershipProofBundle, RESOURCE_STATE_PROOF_SCHEMA,
-    ResourceStateProof, SPARSE_MERKLE_V0,
+    NON_MEMBERSHIP_PROOF_SCHEMA, NON_MEMBERSHIP_PROOF_V1_SCHEMA, NonMembershipProofBundle,
+    NonMembershipProofBundleV1, RESOURCE_STATE_PROOF_SCHEMA, RESOURCE_STATE_PROOF_V1_SCHEMA,
+    ResourceStateProof, ResourceStateProofV1, SPARSE_MERKLE_V0,
 };
+use statechronicle_domain::resource_state::ResourceState;
 use statechronicle_domain::signed::Signed;
+use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
+use statechronicle_ports::signature_policy::{SignatureAuthority, SignaturePolicy, SignatureUse};
 
 use crate::error::ProofError;
 use crate::inclusion::steps_from_sparse_proof;
@@ -109,9 +117,17 @@ pub fn verify_sparse_merkle_v0(
 /// canonicalized and [`ProofError::ClaimedStateMismatch`] when the recomputed
 /// leaf does not equal the bundled leaf hash.
 pub fn verify_claimed_state(proof: &ResourceStateProof, key: &StateKey) -> Result<(), ProofError> {
-    let state_digest = canonicalize_and_digest(&proof.claimed_state)?;
+    verify_claimed_state_parts(&proof.claimed_state, &proof.state_inclusion_proof, key)
+}
+
+fn verify_claimed_state_parts(
+    claimed_state: &ResourceState,
+    inclusion: &statechronicle_domain::proof::SparseMerkleProof,
+    key: &StateKey,
+) -> Result<(), ProofError> {
+    let state_digest = canonicalize_and_digest(claimed_state)?;
     let expected_leaf = leaf_hash(*key, *state_digest.as_bytes());
-    if expected_leaf == *proof.state_inclusion_proof.leaf_hash.as_bytes() {
+    if expected_leaf == *inclusion.leaf_hash.as_bytes() {
         Ok(())
     } else {
         Err(ProofError::ClaimedStateMismatch)
@@ -143,10 +159,11 @@ pub fn verify_proof(
     verify_claimed_state(proof, key)
 }
 
-fn check_proof_size<T: serde::Serialize>(proof: &T) -> Result<(), ProofError> {
-    let actual = bcs::to_bytes(proof)
-        .map_err(|error| ProofError::InvalidState(format!("proof serialization failed: {error}")))?
-        .len();
+pub(crate) fn check_proof_size<T: serde::Serialize>(proof: &T) -> Result<(), ProofError> {
+    // `serialized_size` walks with a counter instead of allocating a second
+    // copy of the caller's potentially oversized proof.
+    let actual = bcs::serialized_size(proof)
+        .map_err(|error| ProofError::InvalidState(format!("proof sizing failed: {error}")))?;
     if actual > MAX_PROOF_BYTES {
         return Err(ProofError::SizeLimitExceeded {
             limit: MAX_PROOF_BYTES,
@@ -309,7 +326,14 @@ pub fn verify_non_membership(
             actual: format!("{}", StateKey::new(*bundle.claimed_key.as_bytes())),
         });
     }
-    let sparse = &bundle.state_non_membership_proof;
+    verify_non_membership_core(&bundle.state_non_membership_proof, root, key)
+}
+
+fn verify_non_membership_core(
+    sparse: &statechronicle_domain::proof::SparseMerkleProof,
+    root: &StateRoot,
+    key: &StateKey,
+) -> Result<(), ProofError> {
     if sparse.kind != SPARSE_MERKLE_V0 {
         return Err(ProofError::UnsupportedKind(sparse.kind.clone()));
     }
@@ -363,13 +387,264 @@ pub fn verify_non_membership_bundle(
     verify_non_membership(bundle, &root, key)
 }
 
+#[allow(clippy::too_many_arguments)]
+async fn verify_v1_commit_reference(
+    tenant: &TenantId,
+    reference: &statechronicle_domain::proof::CommitRefV1,
+    expected_commit: &crate::claim::ExpectedCommitV1,
+    commit_authority: &SubjectId,
+    policy: &dyn SignaturePolicy,
+    now: DateTime<Utc>,
+    usage: SignatureUse,
+) -> Result<Commit, ProofError> {
+    if &reference.commit_id != expected_commit.commit_id() {
+        return Err(ProofError::CommitRefMismatch {
+            expected: expected_commit.commit_id().0.clone(),
+            actual: reference.commit_id.0.clone(),
+        });
+    }
+    let actual_record_digest = hash_bytes(&reference.signed_commit_record);
+    if &actual_record_digest != expected_commit.signed_record_digest() {
+        return Err(ProofError::CommitRefMismatch {
+            expected: expected_commit.signed_record_digest().to_string(),
+            actual: actual_record_digest.to_string(),
+        });
+    }
+    let signed = verify_commit_v1_with_policy(
+        &reference.signed_commit_record,
+        SignatureAuthority::TenantCommit {
+            tenant,
+            authority: commit_authority,
+        },
+        usage,
+        now,
+        policy,
+    )
+    .await
+    .map_err(|error| ProofError::CommitSignature(error.to_string()))?;
+    let signed_tenant = signed.scope.tenant_id.as_ref().ok_or_else(|| {
+        ProofError::CommitScope(String::from(
+            "resource proofs require tenant-scoped commits",
+        ))
+    })?;
+    if signed_tenant != tenant {
+        return Err(ProofError::TenantMismatch {
+            expected: tenant.0.clone(),
+            actual: signed_tenant.0.clone(),
+        });
+    }
+    if reference.commit_id != signed.commit_id {
+        return Err(ProofError::CommitRefMismatch {
+            expected: signed.commit_id.0.clone(),
+            actual: reference.commit_id.0.clone(),
+        });
+    }
+    if reference.sequence != signed.sequence {
+        return Err(ProofError::CommitRefMismatch {
+            expected: signed.sequence.to_string(),
+            actual: reference.sequence.to_string(),
+        });
+    }
+    if reference.state_root != signed.next_state_root {
+        return Err(ProofError::CommitRefMismatch {
+            expected: signed.next_state_root.to_string(),
+            actual: reference.state_root.to_string(),
+        });
+    }
+    Ok(signed)
+}
+
+/// Verifies a v1 exact-envelope present-state proof against independent claim,
+/// tenant, commit, and signer expectations.
+///
+/// # Errors
+/// Returns typed schema, claim, authority/signature, commit-reference, Merkle,
+/// state-digest, and size errors.
+pub async fn verify_resource_state_v1(
+    proof: &ResourceStateProofV1,
+    expected: &crate::claim::ExpectedClaim,
+    expected_commit: &crate::claim::ExpectedCommitV1,
+    commit_authority: &SubjectId,
+    policy: &dyn SignaturePolicy,
+    now: DateTime<Utc>,
+) -> Result<Commit, ProofError> {
+    verify_resource_state_v1_with_use(
+        proof,
+        expected,
+        expected_commit,
+        commit_authority,
+        policy,
+        now,
+        SignatureUse::Historical,
+    )
+    .await
+}
+
+/// V1 current/historical service variant with an explicit trusted policy mode.
+///
+/// # Errors
+/// Returns typed schema, claim, authority/signature, commit-reference, Merkle,
+/// state-digest, and size errors.
+#[allow(clippy::too_many_arguments)]
+pub async fn verify_resource_state_v1_with_use(
+    proof: &ResourceStateProofV1,
+    expected: &crate::claim::ExpectedClaim,
+    expected_commit: &crate::claim::ExpectedCommitV1,
+    commit_authority: &SubjectId,
+    policy: &dyn SignaturePolicy,
+    now: DateTime<Utc>,
+    usage: SignatureUse,
+) -> Result<Commit, ProofError> {
+    check_v1_envelope_size(&proof.commit.signed_commit_record)?;
+    check_proof_size(proof)?;
+    if proof.schema != RESOURCE_STATE_PROOF_V1_SCHEMA {
+        return Err(ProofError::UnsupportedSchema(proof.schema.clone()));
+    }
+    if expected.is_absence() {
+        return Err(ProofError::InvalidState(String::from(
+            "proof kind does not match the independently expected claim",
+        )));
+    }
+    crate::bundle::check_claim_identity(
+        &proof.tenant_id,
+        &proof.resource_id,
+        expected.tenant(),
+        expected.resource(),
+    )?;
+    let key = expected.key();
+    let derived = crate::bundle::derive_state_key_from_parts(
+        &proof.tenant_id,
+        &proof.resource_id,
+        &proof.claimed_state,
+    )?;
+    if derived != key {
+        return Err(ProofError::KeyMismatch {
+            expected: key.to_string(),
+            actual: derived.to_string(),
+        });
+    }
+    let commit = verify_v1_commit_reference(
+        expected.tenant(),
+        &proof.commit,
+        expected_commit,
+        commit_authority,
+        policy,
+        now,
+        usage,
+    )
+    .await?;
+    let root = StateRoot::new(*commit.next_state_root.as_bytes());
+    verify_sparse_merkle_v0(&root, &key, &proof.state_inclusion_proof)?;
+    verify_claimed_state_parts(&proof.claimed_state, &proof.state_inclusion_proof, &key)?;
+    if let Some(owner) = expected.owner() {
+        let actual_owner = crate::bundle::owner_of(&proof.claimed_state)?;
+        if actual_owner != owner.0 {
+            return Err(ProofError::SubjectMismatch {
+                expected: owner.0.clone(),
+                actual: actual_owner,
+            });
+        }
+    }
+    Ok(commit)
+}
+
+/// Verifies a v1 exact-envelope absence proof against independent claim,
+/// tenant, commit, and signer expectations.
+///
+/// # Errors
+/// Returns typed schema, claim, authority/signature, commit-reference, Merkle,
+/// empty-leaf, and size errors.
+pub async fn verify_non_membership_v1(
+    bundle: &NonMembershipProofBundleV1,
+    expected: &crate::claim::ExpectedClaim,
+    expected_commit: &crate::claim::ExpectedCommitV1,
+    commit_authority: &SubjectId,
+    policy: &dyn SignaturePolicy,
+    now: DateTime<Utc>,
+) -> Result<Commit, ProofError> {
+    verify_non_membership_v1_with_use(
+        bundle,
+        expected,
+        expected_commit,
+        commit_authority,
+        policy,
+        now,
+        SignatureUse::Historical,
+    )
+    .await
+}
+
+/// V1 current/historical service variant with an explicit trusted policy mode.
+///
+/// # Errors
+/// Returns typed schema, claim, authority/signature, commit-reference, Merkle,
+/// empty-leaf, and size errors.
+#[allow(clippy::too_many_arguments)]
+pub async fn verify_non_membership_v1_with_use(
+    bundle: &NonMembershipProofBundleV1,
+    expected: &crate::claim::ExpectedClaim,
+    expected_commit: &crate::claim::ExpectedCommitV1,
+    commit_authority: &SubjectId,
+    policy: &dyn SignaturePolicy,
+    now: DateTime<Utc>,
+    usage: SignatureUse,
+) -> Result<Commit, ProofError> {
+    check_v1_envelope_size(&bundle.commit.signed_commit_record)?;
+    check_proof_size(bundle)?;
+    if bundle.schema != NON_MEMBERSHIP_PROOF_V1_SCHEMA {
+        return Err(ProofError::UnsupportedSchema(bundle.schema.clone()));
+    }
+    if !expected.is_absence() {
+        return Err(ProofError::InvalidState(String::from(
+            "proof kind does not match the independently expected claim",
+        )));
+    }
+    crate::bundle::check_claim_identity(
+        &bundle.tenant_id,
+        &bundle.resource_id,
+        expected.tenant(),
+        expected.resource(),
+    )?;
+    let key = expected.key();
+    if bundle.claimed_key.as_bytes() != key.as_bytes() {
+        return Err(ProofError::KeyMismatch {
+            expected: key.to_string(),
+            actual: format!("{}", StateKey::new(*bundle.claimed_key.as_bytes())),
+        });
+    }
+    let commit = verify_v1_commit_reference(
+        expected.tenant(),
+        &bundle.commit,
+        expected_commit,
+        commit_authority,
+        policy,
+        now,
+        usage,
+    )
+    .await?;
+    let root = StateRoot::new(*commit.next_state_root.as_bytes());
+    verify_non_membership_core(&bundle.state_non_membership_proof, &root, &key)?;
+    Ok(commit)
+}
+
+pub(crate) const fn check_v1_envelope_size(record: &[u8]) -> Result<(), ProofError> {
+    if record.len() > MAX_V1_ENVELOPE_BYTES {
+        return Err(ProofError::SizeLimitExceeded {
+            limit: MAX_V1_ENVELOPE_BYTES,
+            actual: record.len(),
+        });
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 #[allow(
     clippy::unwrap_used,
     clippy::panic,
     clippy::indexing_slicing,
     clippy::redundant_clone,
-    clippy::shadow_unrelated
+    clippy::shadow_unrelated,
+    clippy::arithmetic_side_effects
 )]
 mod tests {
     use super::*;
@@ -377,14 +652,28 @@ mod tests {
     use ed25519_dalek::SigningKey;
     use statechronicle_accumulator::sparse_merkle::{StateAccumulator, StateUpdate};
     use statechronicle_core::digest::hash_bytes;
-    use statechronicle_domain::commit::{CommitScope, ProfileId};
+    use statechronicle_core::signature_operation::SignatureContext;
+    use statechronicle_core::signature_provider::{
+        Ed25519Signer, Ed25519Verifier, KeySetId, SignaturePurpose, Signer, Verifier,
+    };
+    use statechronicle_domain::commit::{COMMIT_SCHEMA, CommitScope, ProfileId};
     use statechronicle_domain::ids::{CommitId, EventId};
     use statechronicle_domain::intent::{KeyId, Operation, SignatureAlg, SignatureBlock};
     use statechronicle_domain::proof::{
         CommitRef, EventRef, NonMembershipProofBundle, SparseMerkleProof,
     };
+    use statechronicle_domain::resource::ResourceId;
     use statechronicle_domain::subject::SubjectId;
     use statechronicle_domain::tenant::TenantId;
+    use statechronicle_ports::{
+        commit_store::{CanonicalHead, CommitReadFuture, CommitReaderV1},
+        key_registry::KeyRegistryError,
+        signature_policy::{
+            ResolvedSignaturePolicy, ResolvedSignatureV1, SignatureAuthority, SignaturePolicy,
+            SignaturePolicyQuery, SignatureUse,
+        },
+    };
+    use std::sync::{Arc, Mutex};
 
     const FIXED_SEED: [u8; 32] = [42u8; 32];
 
@@ -488,6 +777,348 @@ mod tests {
             },
             None,
         )
+    }
+
+    struct TestSignaturePolicy {
+        verifier: Arc<dyn Verifier>,
+        key_set_id: KeySetId,
+        usage: SignatureUse,
+    }
+
+    #[async_trait::async_trait]
+    impl SignaturePolicy for TestSignaturePolicy {
+        async fn resolve(
+            &self,
+            query: SignaturePolicyQuery<'_>,
+        ) -> Result<ResolvedSignaturePolicy, KeyRegistryError> {
+            assert!(matches!(
+                query.authority,
+                SignatureAuthority::TenantCommit { .. }
+            ));
+            assert_eq!(query.usage, self.usage);
+            Ok(ResolvedSignaturePolicy::V1(
+                ResolvedSignatureV1::new(self.verifier.clone(), self.key_set_id, 64).unwrap(),
+            ))
+        }
+    }
+
+    fn signed_commit_v1(root: statechronicle_core::digest::ContentDigest) -> (Commit, Vec<u8>) {
+        let body = Commit::new(
+            CommitScope::tenant(tenant()),
+            CommitId::new(String::from("cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W")).unwrap(),
+            None,
+            918273,
+            1,
+            hash_bytes(b"event-root"),
+            hash_bytes(b"previous-root"),
+            root,
+            timestamp(),
+            executor(),
+            ProfileId::new(String::from("statechronicle.profile.resource.v0")).unwrap(),
+        );
+        let signing_key = fixed_key();
+        let key_set_id = KeySetId([8; 32]);
+        let purpose = SignaturePurpose::TenantCommit;
+        let signer = Ed25519Signer::new(&signing_key, key_set_id, purpose);
+        let context = SignatureContext {
+            suite: signer.suite(),
+            key_set_id: &key_set_id,
+            purpose,
+            body_schema: COMMIT_SCHEMA,
+            signature_len: 64,
+        };
+        let record =
+            statechronicle_commit::sign_v1::sign_commit_v1(&body, &context, &signer).unwrap();
+        (body, record)
+    }
+
+    fn v1_policy(usage: SignatureUse) -> TestSignaturePolicy {
+        let signing_key = fixed_key();
+        let key_set_id = KeySetId([8; 32]);
+        let verifier = Arc::new(Ed25519Verifier::new(
+            &signing_key.verifying_key(),
+            key_set_id,
+            SignaturePurpose::TenantCommit,
+        ));
+        TestSignaturePolicy {
+            verifier,
+            key_set_id,
+            usage,
+        }
+    }
+
+    struct V1Reader {
+        record: Vec<u8>,
+        head: CanonicalHead,
+        reads: Mutex<usize>,
+        advance: bool,
+    }
+
+    impl CommitReaderV1 for V1Reader {
+        fn read_commit_record_v1<'read>(
+            &'read self,
+            _tenant: &'read TenantId,
+            _commit: &'read CommitId,
+        ) -> CommitReadFuture<'read, Option<Vec<u8>>> {
+            Box::pin(async { Ok(Some(self.record.clone())) })
+        }
+        fn read_canonical_head_v1<'read>(
+            &'read self,
+            _tenant: &'read TenantId,
+        ) -> CommitReadFuture<'read, Option<CanonicalHead>> {
+            let index = {
+                let mut reads = self.reads.lock().unwrap();
+                let index = *reads;
+                *reads += 1;
+                index
+            };
+            let mut head = self.head.clone();
+            if self.advance && index > 0 {
+                head.commit_id =
+                    CommitId::new(String::from("cmt_01JZ8WZ0QH93JK8J19VVD3QXSC")).unwrap();
+                head.sequence += 1;
+            }
+            Box::pin(async move { Ok(Some(head)) })
+        }
+    }
+
+    #[tokio::test]
+    async fn typed_v1_claim_service_pins_stored_record_and_rechecks_current_head() {
+        let claimed = claimed_state();
+        let expected = crate::claim::ExpectedClaim::state(tenant(), ResourceId(resource()));
+        let key = expected.key();
+        let digest = canonicalize_and_digest(&claimed).unwrap();
+        let (root, inclusion) = tree_with(key, *digest.as_bytes());
+        let (body, record) = signed_commit_v1(statechronicle_core::digest::ContentDigest::new(
+            *root.as_bytes(),
+        ));
+        let projection = statechronicle_domain::state::StateProjection {
+            tenant_id: tenant(),
+            resource_id: ResourceId(resource()),
+            state_type: claimed.state_type(),
+            version: 1,
+            last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
+            last_commit_id: body.commit_id.clone(),
+            state_hash: digest,
+            state: claimed,
+        };
+        let proof = crate::bundle::build_state_proof_v1(
+            &projection,
+            &record,
+            &inclusion,
+            &Operation::new(String::from("asset.transfer")).unwrap(),
+            None,
+            key,
+        )
+        .unwrap();
+        let head = CanonicalHead {
+            commit_id: body.commit_id.clone(),
+            sequence: body.sequence,
+            state_root: body.next_state_root.clone(),
+        };
+        let historical = crate::claim::ClaimVerifierV1::new(Box::new(V1Reader {
+            record: record.clone(),
+            head: head.clone(),
+            reads: Mutex::new(0),
+            advance: false,
+        }));
+        let result = historical
+            .verify_historical_v1(
+                crate::claim::ClaimProofV1::State(&proof),
+                &expected,
+                &body.commit_id,
+                &executor(),
+                &v1_policy(SignatureUse::Historical),
+                timestamp(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(result.commit().signed_record_digest(), &hash_bytes(&record));
+        assert_eq!(result.point(), crate::claim::VerificationPoint::Historical);
+
+        let changed_head = crate::claim::ClaimVerifierV1::new(Box::new(V1Reader {
+            record: record.clone(),
+            head,
+            reads: Mutex::new(0),
+            advance: true,
+        }));
+        assert!(matches!(
+            changed_head
+                .verify_current_v1(
+                    crate::claim::ClaimProofV1::State(&proof),
+                    &expected,
+                    &executor(),
+                    &v1_policy(SignatureUse::Active),
+                    timestamp()
+                )
+                .await,
+            Err(ProofError::NonCanonicalCommit { .. })
+        ));
+
+        let alternate_record_reader = crate::claim::ClaimVerifierV1::new(Box::new(V1Reader {
+            record: vec![0u8],
+            head: CanonicalHead {
+                commit_id: body.commit_id.clone(),
+                sequence: body.sequence,
+                state_root: body.next_state_root.clone(),
+            },
+            reads: Mutex::new(0),
+            advance: false,
+        }));
+        assert!(matches!(
+            alternate_record_reader
+                .verify_historical_v1(
+                    crate::claim::ClaimProofV1::State(&proof),
+                    &expected,
+                    &body.commit_id,
+                    &executor(),
+                    &v1_policy(SignatureUse::Historical),
+                    timestamp()
+                )
+                .await,
+            Err(ProofError::CommitRefMismatch { .. })
+        ));
+    }
+
+    #[tokio::test]
+    async fn verify_v1_presence_reuses_root_and_claim_checks() {
+        let claimed = claimed_state();
+        let expected = crate::claim::ExpectedClaim::state(tenant(), ResourceId(resource()));
+        let key = expected.key();
+        let state_digest = canonicalize_and_digest(&claimed).unwrap();
+        let (root, inclusion) = tree_with(key, *state_digest.as_bytes());
+        let (body, signed_commit_record) = signed_commit_v1(
+            statechronicle_core::digest::ContentDigest::new(*root.as_bytes()),
+        );
+        let pin = crate::claim::ExpectedCommitV1::new(
+            body.commit_id.clone(),
+            hash_bytes(&signed_commit_record),
+        );
+        let projection = statechronicle_domain::state::StateProjection {
+            tenant_id: tenant(),
+            resource_id: ResourceId(resource()),
+            state_type: claimed.state_type(),
+            version: 1,
+            last_event_id: EventId::new(String::from("evt_01JZ8X2XRE5ZYW5V9R7VDQBSH4")).unwrap(),
+            last_commit_id: body.commit_id.clone(),
+            state_hash: state_digest,
+            state: claimed,
+        };
+        let proof = crate::bundle::build_state_proof_v1(
+            &projection,
+            &signed_commit_record,
+            &inclusion,
+            &Operation::new(String::from("asset.transfer")).unwrap(),
+            None,
+            key,
+        )
+        .unwrap();
+        let policy = v1_policy(SignatureUse::Historical);
+        assert_eq!(
+            verify_resource_state_v1(&proof, &expected, &pin, &executor(), &policy, timestamp(),)
+                .await
+                .unwrap(),
+            body,
+        );
+        let wrong_pin = crate::claim::ExpectedCommitV1::new(
+            CommitId::new(String::from("cmt_01JZ8WZ0QH93JK8J19VVD3QXSC")).unwrap(),
+            pin.signed_record_digest().clone(),
+        );
+        assert!(matches!(
+            verify_resource_state_v1(
+                &proof,
+                &expected,
+                &wrong_pin,
+                &executor(),
+                &policy,
+                timestamp(),
+            )
+            .await,
+            Err(ProofError::CommitRefMismatch { .. })
+        ));
+        let mut alternate_envelope = proof.clone();
+        let other_key = SigningKey::from_bytes(&[7; 32]);
+        let key_set_id = KeySetId([8; 32]);
+        let signer = Ed25519Signer::new(&other_key, key_set_id, SignaturePurpose::TenantCommit);
+        let context = SignatureContext {
+            suite: signer.suite(),
+            key_set_id: &key_set_id,
+            purpose: SignaturePurpose::TenantCommit,
+            body_schema: COMMIT_SCHEMA,
+            signature_len: 64,
+        };
+        alternate_envelope.commit.signed_commit_record =
+            statechronicle_commit::sign_v1::sign_commit_v1(&body, &context, &signer).unwrap();
+        assert!(matches!(
+            verify_resource_state_v1(
+                &alternate_envelope,
+                &expected,
+                &pin,
+                &executor(),
+                &policy,
+                timestamp(),
+            )
+            .await,
+            Err(ProofError::CommitRefMismatch { .. })
+        ));
+        let wrong_authority = SubjectId(String::from("service:other-authority"));
+        assert!(matches!(
+            verify_resource_state_v1(
+                &proof,
+                &expected,
+                &pin,
+                &wrong_authority,
+                &policy,
+                timestamp(),
+            )
+            .await,
+            Err(ProofError::CommitSignature(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn verify_v1_absence_requires_empty_leaf_and_expected_key() {
+        let expected = crate::claim::ExpectedClaim::absence(tenant(), ResourceId(resource()));
+        let key = expected.key();
+        let accumulator = StateAccumulator::empty();
+        let root = accumulator.root();
+        let non_membership = accumulator.prove_non_membership(&key).unwrap();
+        let (body, signed_commit_record) = signed_commit_v1(
+            statechronicle_core::digest::ContentDigest::new(*root.as_bytes()),
+        );
+        let pin = crate::claim::ExpectedCommitV1::new(
+            body.commit_id.clone(),
+            hash_bytes(&signed_commit_record),
+        );
+        let proof = crate::bundle::build_non_membership_proof_v1(
+            &tenant(),
+            &ResourceId(resource()),
+            &key,
+            &signed_commit_record,
+            &non_membership,
+        )
+        .unwrap();
+        let policy = v1_policy(SignatureUse::Historical);
+        assert_eq!(
+            verify_non_membership_v1(&proof, &expected, &pin, &executor(), &policy, timestamp(),)
+                .await
+                .unwrap(),
+            body,
+        );
+        let mut tampered = proof.clone();
+        tampered.state_non_membership_proof.leaf_hash = hash_bytes(b"not-empty");
+        assert!(matches!(
+            verify_non_membership_v1(
+                &tampered,
+                &expected,
+                &pin,
+                &executor(),
+                &policy,
+                timestamp(),
+            )
+            .await,
+            Err(ProofError::NonMembershipLeafMismatch)
+        ));
     }
 
     #[test]

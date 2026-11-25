@@ -127,6 +127,16 @@ fn signed_intent_roundtrips_through_bcs_with_empty_inputs() {
     };
     let envelope = Signed::new(validated.intent, block);
 
+    assert_eq!(
+        bcs::to_bytes(&envelope).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/signed-intent.bcs").as_slice(),
+        "signed-intent.bcs compatibility",
+    );
+    assert_eq!(
+        serde_json::to_vec(&envelope).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/signed-intent.json").as_slice(),
+        "signed-intent.json compatibility",
+    );
     let envelope_bytes = canonicalize(&envelope).unwrap();
     let decoded: Signed<statechronicle_domain::intent::Intent> =
         bcs::from_bytes(&envelope_bytes).unwrap();
@@ -316,4 +326,54 @@ fn nonce_is_preserved_through_the_pipeline() {
         validated.intent.inputs.get("to_owner"),
         inputs.get("to_owner")
     );
+}
+
+#[test]
+fn v1_intent_round_trips_and_binds_typed_inputs() {
+    use statechronicle_core::signature_operation::SignatureContext;
+    use statechronicle_core::signature_provider::{
+        Ed25519Signer, Ed25519Verifier, KeySetId, SignaturePurpose, Signer,
+    };
+    use statechronicle_core::signature_wire::{decode_v1_envelope, encode_v1_envelope};
+    use statechronicle_intent::sign_v1::{
+        normalize_intent_json_v1, render_intent_json_v1, sign_intent_v1, verify_intent_v1,
+    };
+    use statechronicle_intent::v1_body::{INTENT_V1_SCHEMA, encode_v1_intent_body};
+
+    let mut payload = sample_payload();
+    payload["inputs"] = serde_json::json!({"flag": true, "nested": [null, -7, 3, "text"]});
+    let intent = validate(&parse_payload(&payload)).unwrap().intent;
+    let key = fixed_key();
+    let verifying_key = key.verifying_key();
+    let purpose = SignaturePurpose::ActorIntent;
+    let key_set = KeySetId([7; 32]);
+    let signer = Ed25519Signer::new(&key, key_set, purpose);
+    let verifier = Ed25519Verifier::new(&verifying_key, key_set, purpose);
+    let context = SignatureContext {
+        suite: signer.suite(),
+        key_set_id: &key_set,
+        purpose,
+        body_schema: INTENT_V1_SCHEMA,
+        signature_len: 64,
+    };
+
+    let record = sign_intent_v1(&intent, &context, &signer).unwrap();
+    assert_eq!(
+        verify_intent_v1(&record, &context, &verifier).unwrap(),
+        intent
+    );
+
+    let json = render_intent_json_v1(&record).unwrap();
+    assert_eq!(normalize_intent_json_v1(&json).unwrap(), record);
+    let json = String::from_utf8(json).unwrap();
+    let duplicate = json.replace(r#""flag":true"#, r#""flag":false,"flag":true"#);
+    assert!(normalize_intent_json_v1(duplicate.as_bytes()).is_err());
+
+    let mut altered = intent;
+    altered.inputs.insert("flag".into(), serde_json::json!(1));
+    let body = encode_v1_intent_body(&altered).unwrap();
+    let mut borrowed = decode_v1_envelope(&record, purpose).unwrap();
+    borrowed.body = &body;
+    let tampered = encode_v1_envelope(borrowed, purpose).unwrap();
+    assert!(verify_intent_v1(&tampered, &context, &verifier).is_err());
 }

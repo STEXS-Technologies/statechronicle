@@ -265,6 +265,26 @@ async fn full_pipeline_submit_to_verify_end_to_end() {
     )
     .unwrap();
 
+    assert_eq!(
+        bcs::to_bytes(&lifecycle.signed).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/signed-tenant-commit.bcs").as_slice(),
+        "signed-tenant-commit.bcs compatibility",
+    );
+    assert_eq!(
+        serde_json::to_vec(&lifecycle.signed).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/signed-tenant-commit.json").as_slice(),
+        "signed-tenant-commit.json compatibility",
+    );
+    assert_eq!(
+        bcs::to_bytes(&proof).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/state-membership-proof.bcs").as_slice(),
+        "state-membership-proof.bcs compatibility",
+    );
+    assert_eq!(
+        serde_json::to_vec(&proof).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/state-membership-proof.json").as_slice(),
+        "state-membership-proof.json compatibility",
+    );
     assert_eq!(derive_state_key(&proof).unwrap(), lifecycle.key);
     assert!(
         verify_bundle(
@@ -370,6 +390,16 @@ async fn absent_resource_non_membership_proof_verifies() {
     )
     .unwrap();
 
+    assert_eq!(
+        bcs::to_bytes(&bundle).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/state-non-membership-proof.bcs").as_slice(),
+        "state-non-membership-proof.bcs compatibility",
+    );
+    assert_eq!(
+        serde_json::to_vec(&bundle).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/state-non-membership-proof.json").as_slice(),
+        "state-non-membership-proof.json compatibility",
+    );
     assert!(
         verify_non_membership_bundle(
             &bundle,

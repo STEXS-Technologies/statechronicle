@@ -24,7 +24,9 @@ use chrono::{DateTime, Utc};
 use async_trait::async_trait;
 use statechronicle_core::canonicalize::{canonicalize, canonicalize_and_digest};
 use statechronicle_core::digest::ContentDigest;
-use statechronicle_core::limits::{MAX_EVENTS_PER_COMMIT, MAX_INTENT_BYTES, check_size};
+use statechronicle_core::limits::{
+    MAX_EVENT_BATCH_BYTES, MAX_EVENTS_PER_COMMIT, MAX_INTENT_BYTES, check_size,
+};
 use statechronicle_domain::authority::{
     AggregationPolicy, AuthorityProof, EvaluationResult, TRUSTGRANT_EVALUATION_KIND,
     TrustGrantOutcome, aggregate_evaluation_digest,
@@ -47,6 +49,7 @@ use statechronicle_ports::authorization::{
 };
 use statechronicle_ports::intent_store::{IntentStore, IntentStoreError};
 use statechronicle_ports::key_registry::KeyRegistry;
+use statechronicle_ports::signature_policy::SignaturePolicy;
 use statechronicle_ports::state_index::StateIndex;
 use statechronicle_ports::tenant_store::TenantStore;
 use statechronicle_ports::transaction_manager::{TransactionManager, TransactionManagerError};
@@ -58,7 +61,7 @@ use statechronicle_profiles::registry::ProfileRegistry;
 use crate::atomicity;
 use crate::conflict;
 use crate::error::{ExecutorBuildError, ExecutorError, PortsBuildError};
-use crate::preparation::{PreparedBatch, PreparedMutation};
+use crate::preparation::{PreparedBatch, PreparedBatchV1, PreparedMutation, PreparedMutationV1};
 #[cfg(test)]
 use statechronicle_profiles::resource::{
     destination_holder, holder_for, is_transfer_operation, subject_for,
@@ -265,17 +268,24 @@ fn player_signature(validated: &ValidatedIntent) -> Result<&SignatureBlock, Exec
     })
 }
 
-async fn authorize_principal(
-    validated: &ValidatedIntent,
+pub(crate) fn check_principal_binding(
+    intent: &Intent,
     principal: &AuthenticatedPrincipal,
-    authorizer: &dyn Authorizer,
 ) -> Result<(), ExecutorError> {
-    if principal.tenant != validated.intent.tenant_id || principal.subject != validated.intent.actor
-    {
+    if principal.tenant != intent.tenant_id || principal.subject != intent.actor {
         return Err(ExecutorError::ActorAuthenticationFailed(String::from(
             "authenticated principal is not bound to intent actor and tenant",
         )));
     }
+    Ok(())
+}
+
+pub(crate) async fn authorize_principal(
+    validated: &ValidatedIntent,
+    principal: &AuthenticatedPrincipal,
+    authorizer: &dyn Authorizer,
+) -> Result<(), ExecutorError> {
+    check_principal_binding(&validated.intent, principal)?;
     authorizer
         .authorize(AuthorizationContext {
             principal,
@@ -418,6 +428,15 @@ pub trait DurableBatchSink: Send + Sync {
 pub struct PlayerBatchItem<'item> {
     /// Signed, validated mutation request.
     pub validated: &'item ValidatedIntent,
+    /// Principal authenticated for this exact request.
+    pub principal: &'item AuthenticatedPrincipal,
+}
+
+/// One exact signed v1 record and its authenticated principal.
+#[derive(Debug, Clone, Copy)]
+pub struct PlayerBatchV1Item<'item> {
+    /// Canonical signed v1 envelope bytes.
+    pub record: &'item [u8],
     /// Principal authenticated for this exact request.
     pub principal: &'item AuthenticatedPrincipal,
 }
@@ -582,6 +601,22 @@ impl Executor {
             .await
     }
 
+    /// Authenticates a v1 request and prepares its complete transition without persistence.
+    ///
+    /// # Errors
+    /// Refuses invalid signature policy, authorization, or transition inputs.
+    pub async fn prepare_player_v1<'record>(
+        &self,
+        record: &'record [u8],
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedMutationV1<'record>, ExecutorError> {
+        self.evaluation()
+            .prepare_player_v1(record, principal, authorizer, policy)
+            .await
+    }
+
     /// Authenticate and prepare every leg without claims or persistence.
     ///
     /// Like the legacy player batch lane, each item's signature presence,
@@ -608,6 +643,42 @@ impl Executor {
     ) -> Result<PreparedBatch, ExecutorError> {
         self.evaluation()
             .prepare_player_batch(items, authorizer, key_registry)
+            .await
+    }
+
+    /// Authenticate and prepare a protected v1 batch from exact signed records.
+    ///
+    /// Exact signed records are retained in the prepared batch in caller order.
+    /// Their aggregate input size, tenant scope, identities, profiles and
+    /// optional settlement shape are checked before success; no persistence is
+    /// attempted.
+    ///
+    /// # Errors
+    /// Refuses malformed or oversized records, invalid policy, scope, profile,
+    /// transition, event-budget or settlement failures.
+    pub async fn prepare_player_batch_v1<'record>(
+        &self,
+        items: &[PlayerBatchV1Item<'record>],
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedBatchV1<'record>, ExecutorError> {
+        self.evaluation()
+            .prepare_player_batch_v1(items, authorizer, policy, false)
+            .await
+    }
+
+    /// Prepares an authenticated v1 settlement and keeps its complete group together.
+    ///
+    /// # Errors
+    /// Refuses invalid member policy, scope, transition, or settlement evidence.
+    pub async fn prepare_player_settlement_v1<'record>(
+        &self,
+        items: &[PlayerBatchV1Item<'record>],
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedBatchV1<'record>, ExecutorError> {
+        self.evaluation()
+            .prepare_player_batch_v1(items, authorizer, policy, true)
             .await
     }
 
@@ -1408,6 +1479,22 @@ impl Preparer {
             .await
     }
 
+    /// Authenticates a v1 request and prepares its complete transition without persistence.
+    ///
+    /// # Errors
+    /// Refuses invalid signature policy, authorization, or transition inputs.
+    pub async fn prepare_player_v1<'record>(
+        &self,
+        record: &'record [u8],
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedMutationV1<'record>, ExecutorError> {
+        self.evaluation()
+            .prepare_player_v1(record, principal, authorizer, policy)
+            .await
+    }
+
     /// Prepare one complete authenticated single-tenant batch without persistence.
     ///
     /// Uses [`Executor::prepare_player_batch`]'s ingress, identity and group gates.
@@ -1424,6 +1511,40 @@ impl Preparer {
     ) -> Result<PreparedBatch, ExecutorError> {
         self.evaluation()
             .prepare_player_batch(items, authorizer, key_registry)
+            .await
+    }
+
+    /// Authenticate and prepare a protected v1 batch from exact signed records.
+    ///
+    /// Records are retained exactly in the complete batch. No member can be
+    /// extracted as an independently committable owned plan.
+    ///
+    /// # Errors
+    /// Refuses malformed or oversized records, invalid policy, scope, profile,
+    /// transition, event-budget or settlement failures.
+    pub async fn prepare_player_batch_v1<'record>(
+        &self,
+        items: &[PlayerBatchV1Item<'record>],
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedBatchV1<'record>, ExecutorError> {
+        self.evaluation()
+            .prepare_player_batch_v1(items, authorizer, policy, false)
+            .await
+    }
+
+    /// Prepares an authenticated v1 settlement and keeps its complete group together.
+    ///
+    /// # Errors
+    /// Refuses invalid member policy, scope, transition, or settlement evidence.
+    pub async fn prepare_player_settlement_v1<'record>(
+        &self,
+        items: &[PlayerBatchV1Item<'record>],
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedBatchV1<'record>, ExecutorError> {
+        self.evaluation()
+            .prepare_player_batch_v1(items, authorizer, policy, true)
             .await
     }
 

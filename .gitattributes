@@ -1,2 +1,5 @@
 # Fixed fuzz inputs are protocol/test bytes, including single control characters.
 fuzz/seed-corpus/** binary
+
+# Frozen BCS fixtures are exact protocol bytes.
+crates/*/tests/fixtures/wire-v0.3.0/*.bcs binary

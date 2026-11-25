@@ -37,6 +37,82 @@ impl Evaluation<'_> {
         Ok(PreparedMutation::new(request, principal, events)?)
     }
 
+    pub(super) async fn prepare_player_v1<'record>(
+        &self,
+        record: &'record [u8],
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedMutationV1<'record>, ExecutorError> {
+        let authenticated = crate::intent_v1::authenticate_player_intent_v1(
+            record,
+            principal,
+            authorizer,
+            policy,
+            (self.now)(),
+        )
+        .await?;
+        let events = self
+            .execute_inner(authenticated.validated(), false, IntentHandling::Prepare)
+            .await?;
+        Ok(PreparedMutationV1::new(authenticated, principal, events))
+    }
+
+    pub(super) async fn prepare_player_batch_v1<'record>(
+        &self,
+        items: &[PlayerBatchV1Item<'record>],
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+        settlement: bool,
+    ) -> Result<PreparedBatchV1<'record>, ExecutorError> {
+        if items.is_empty() {
+            return Err(ExecutorError::AtomicityViolation(String::from(
+                "empty batch",
+            )));
+        }
+        check_size("batch_intents", MAX_EVENTS_PER_COMMIT, items.len())?;
+        let mut input_bytes = 0usize;
+        for item in items {
+            input_bytes = input_bytes.saturating_add(item.record.len());
+            check_size("batch_intent_records", MAX_EVENT_BATCH_BYTES, input_bytes)?;
+        }
+        let mut authenticated = Vec::with_capacity(items.len());
+        for item in items {
+            authenticated.push(
+                crate::intent_v1::authenticate_player_intent_v1(
+                    item.record,
+                    item.principal,
+                    authorizer,
+                    policy,
+                    (self.now)(),
+                )
+                .await?,
+            );
+        }
+        validate_batch_scope(
+            authenticated
+                .iter()
+                .map(crate::intent_v1::AuthenticatedIntentV1::validated),
+        )?;
+        let mut mutations = Vec::with_capacity(items.len());
+        for (request, item) in authenticated.into_iter().zip(items) {
+            let events = self
+                .execute_inner(request.validated(), settlement, IntentHandling::Prepare)
+                .await?;
+            mutations.push(PreparedMutationV1::new(request, item.principal, events));
+        }
+        let prepared = PreparedBatchV1::new(mutations)?;
+        self.validate_prepared_group(
+            prepared
+                .mutations()
+                .iter()
+                .map(|member| member.authenticated().validated()),
+            prepared.events(),
+            settlement,
+        )?;
+        Ok(prepared)
+    }
+
     pub(super) async fn prepare_player_batch(
         &self,
         items: &[PlayerBatchItem<'_>],
@@ -80,20 +156,7 @@ impl Evaluation<'_> {
                 item.validated.signature.clone(),
             )?);
         }
-        let mut identities = BTreeSet::new();
-        let tenant = &requests
-            .first()
-            .ok_or_else(|| ExecutorError::AtomicityViolation(String::from("empty batch")))?
-            .intent
-            .tenant_id;
-        for request in &requests {
-            if &request.intent.tenant_id != tenant || !identities.insert(&request.intent.intent_id)
-            {
-                return Err(ExecutorError::AtomicityViolation(String::from(
-                    "mixed tenant scopes or duplicate intent identity in prepared batch",
-                )));
-            }
-        }
+        validate_batch_scope(requests.iter())?;
         let mut mutations = Vec::with_capacity(requests.len());
         for (request, item) in requests.into_iter().zip(items) {
             let events = self
@@ -102,26 +165,33 @@ impl Evaluation<'_> {
             mutations.push(PreparedMutation::new(request, item.principal, events)?);
         }
         let prepared = PreparedBatch::new(mutations)?;
+        self.validate_prepared_group(
+            prepared.mutations().iter().map(PreparedMutation::validated),
+            prepared.events(),
+            settlement,
+        )?;
+        Ok(prepared)
+    }
+
+    fn validate_prepared_group<'prepared>(
+        &self,
+        requests: impl Iterator<Item = &'prepared ValidatedIntent> + Clone,
+        events: impl Iterator<Item = &'prepared Event> + Clone,
+        settlement: bool,
+    ) -> Result<(), ExecutorError> {
         self.validate_profile_groups(
             |identity| {
-                prepared
-                    .mutations()
-                    .iter()
-                    .map(PreparedMutation::validated)
+                requests
+                    .clone()
                     .find(|request| &request.intent.intent_id == identity)
             },
-            prepared.events(),
+            events.clone(),
         )?;
         if settlement {
-            // Existing validators consume flat slices. Keep this bounded copy
-            // local to the explicit coordinator; ordinary batches do not pay it.
-            let events: Vec<_> = prepared.events().cloned().collect();
-            settlement::validate_settle(
-                &events,
-                prepared.mutations().iter().map(PreparedMutation::validated),
-            )?;
+            let flat_events: Vec<_> = events.cloned().collect();
+            settlement::validate_settle(&flat_events, requests)?;
         }
-        Ok(prepared)
+        Ok(())
     }
 
     fn emit_event(
@@ -259,4 +329,24 @@ impl Evaluation<'_> {
         }
         Ok(())
     }
+}
+
+fn validate_batch_scope<'request>(
+    requests: impl Iterator<Item = &'request ValidatedIntent>,
+) -> Result<(), ExecutorError> {
+    let mut requests = requests.peekable();
+    let tenant = &requests
+        .peek()
+        .ok_or_else(|| ExecutorError::AtomicityViolation(String::from("empty batch")))?
+        .intent
+        .tenant_id;
+    let mut identities = BTreeSet::new();
+    for request in requests {
+        if &request.intent.tenant_id != tenant || !identities.insert(&request.intent.intent_id) {
+            return Err(ExecutorError::AtomicityViolation(String::from(
+                "mixed tenant scopes or duplicate intent identity in prepared batch",
+            )));
+        }
+    }
+    Ok(())
 }

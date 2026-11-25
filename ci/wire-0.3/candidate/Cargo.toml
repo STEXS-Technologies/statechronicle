@@ -1,0 +1,18 @@
+[package]
+name = "v03-consumer-probe-candidate"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+statechronicle-commit = { path = "../../../crates/statechronicle-commit" }
+statechronicle-core = { path = "../../../crates/statechronicle-core" }
+statechronicle-domain = { path = "../../../crates/statechronicle-domain" }
+ed25519-dalek = "3.0.0"
+chrono = "0.4"
+
+[[test]]
+name = "signing"
+path = "../consumer/tests/signing.rs"
+
+[workspace]

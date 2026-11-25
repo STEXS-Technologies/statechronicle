@@ -40,6 +40,8 @@ pub mod proof;
 /// Authority proofs and TrustGrant evaluation outcomes.
 pub mod authority;
 
+/// Bounded JSON framing for v1 signatures.
+pub mod signature_json;
 /// ADR-004 signed envelope for intents, commits, and snapshots.
 pub mod signed;
 

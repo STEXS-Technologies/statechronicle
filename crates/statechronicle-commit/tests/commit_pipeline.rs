@@ -684,3 +684,51 @@ async fn persist_rejects_global_checkpoint_commits() {
     let error = persist(&ports, &signed, &entries).await.unwrap_err();
     assert!(matches!(error, CommitError::Store(_)));
 }
+
+#[test]
+fn v1_tenant_commit_round_trips_with_a_pinned_provider() {
+    use statechronicle_commit::sign_v1::{
+        normalize_commit_json_v1, render_commit_json_v1, sign_commit_v1, verify_commit_v1,
+    };
+    use statechronicle_core::signature_operation::SignatureContext;
+    use statechronicle_core::signature_provider::{
+        Ed25519Signer, Ed25519Verifier, KeySetId, SignatureError, SignaturePurpose, Signer,
+    };
+    use statechronicle_domain::commit::COMMIT_SCHEMA;
+
+    let batch = batch_from(&[unique_event("sword", "alice")]);
+    let mut commit = CommitBuilder::builder()
+        .scope(CommitScope::tenant(tenant()))
+        .sequence(1)
+        .executor(executor())
+        .profile(profile())
+        .created_at(timestamp())
+        .build(&batch, hash_bytes(b"genesis"), &[], || commit_id(1))
+        .unwrap();
+    let signing_key = fixed_key();
+    let verifying_key = signing_key.verifying_key();
+    let key_set = KeySetId([7; 32]);
+    let purpose = SignaturePurpose::TenantCommit;
+    let signer = Ed25519Signer::new(&signing_key, key_set, purpose);
+    let verifier = Ed25519Verifier::new(&verifying_key, key_set, purpose);
+    let context = SignatureContext {
+        suite: signer.suite(),
+        key_set_id: &key_set,
+        purpose,
+        body_schema: COMMIT_SCHEMA,
+        signature_len: 64,
+    };
+
+    let record = sign_commit_v1(&commit, &context, &signer).unwrap();
+    assert_eq!(
+        verify_commit_v1(&record, &context, &verifier).unwrap(),
+        commit
+    );
+    let json = render_commit_json_v1(&record).unwrap();
+    assert_eq!(normalize_commit_json_v1(&json).unwrap(), record);
+    commit.scope = CommitScope::global_checkpoint();
+    assert_eq!(
+        sign_commit_v1(&commit, &context, &signer),
+        Err(SignatureError::MalformedEncoding)
+    );
+}

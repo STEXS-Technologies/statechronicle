@@ -64,7 +64,14 @@ class ReleaseDriver(unittest.TestCase):
         self.assertIn(['python3', 'scripts/check_native_contracts.py'], calls)
         self.assertLess(calls.index(['cargo', 'fetch', '--locked']),
                         calls.index(['python3', 'scripts/check_native_contracts.py']))
+        self.assertIn(['cargo', 'test', '--manifest-path', 'ci/signature-conformance/Cargo.toml',
+                       '--release', '--locked'], calls)
+        for lane in ['consumer', 'candidate']:
+            self.assertIn(['cargo', 'test', '--manifest-path', f'ci/wire-0.3/{lane}/Cargo.toml',
+                           '--all-targets', '--locked'], calls)
         for lock in ['Cargo.lock', 'ci/conformance/Cargo.lock',
+                     'ci/signature-conformance/Cargo.lock', 'ci/wire-0.3/consumer/Cargo.lock',
+                     'ci/wire-0.3/candidate/Cargo.lock',
                      'tutorials/minimal-native-domain/Cargo.lock',
                      'tutorials/durable-custom-ledger/Cargo.lock']:
             self.assertIn(['cargo', 'audit', '--file', lock, '--deny', 'warnings'], calls)

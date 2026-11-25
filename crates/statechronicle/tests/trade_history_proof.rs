@@ -690,6 +690,16 @@ async fn history_and_proof_for_a_settled_two_tenant_trade() {
         .await
         .unwrap()
         .expect("proof should be present");
+    assert_eq!(
+        bcs::to_bytes(&proof).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/cross-tenant-trade-proof.bcs").as_slice(),
+        "cross-tenant-trade-proof.bcs compatibility",
+    );
+    assert_eq!(
+        serde_json::to_vec(&proof).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/cross-tenant-trade-proof.json").as_slice(),
+        "cross-tenant-trade-proof.json compatibility",
+    );
     assert_eq!(proof.trade_id, TRADE);
     assert_eq!(proof.summary.trade_id, TRADE);
     assert_eq!(proof.summary.status, TradeStatus::Settled);
@@ -1349,6 +1359,167 @@ async fn requested_settlement_facts_require_authenticated_event_history() {
     };
     let verified = verify_settlement_history(&expected, &witnesses, trusted_key).unwrap();
     assert_eq!(verified.claim(), &expected);
+
+    // Versioned evidence uses the same settlement transition rules, while its
+    // exact signed envelope and format are pinned independently.
+    {
+        use statechronicle::core::signature_operation::SignatureContext;
+        use statechronicle::core::signature_provider::{
+            Ed25519Signer, Ed25519Verifier, KeySetId, SignaturePurpose, Signer, Verifier,
+        };
+        use statechronicle::ports::{
+            key_registry::KeyRegistryError,
+            signature_policy::{
+                ResolvedSignaturePolicy, ResolvedSignatureV1, SignatureAuthority, SignaturePolicy,
+                SignaturePolicyQuery, SignatureUse,
+            },
+        };
+        use statechronicle::proof::settlement::{
+            ExpectedSettlementCommit, ExpectedSettlementEvidence, SettlementEvidence,
+            SettlementEvidenceFormat, verify_settlement_history_evidence,
+        };
+        struct Policy(Arc<dyn Verifier>, KeySetId);
+        #[async_trait]
+        impl SignaturePolicy for Policy {
+            async fn resolve(
+                &self,
+                query: SignaturePolicyQuery<'_>,
+            ) -> Result<ResolvedSignaturePolicy, KeyRegistryError> {
+                assert!(matches!(
+                    query.authority,
+                    SignatureAuthority::TenantCommit { .. }
+                ));
+                assert_eq!(query.usage, SignatureUse::Historical);
+                Ok(ResolvedSignaturePolicy::V1(
+                    ResolvedSignatureV1::new(self.0.clone(), self.1, 64)
+                        .map_err(|_invalid_binding| KeyRegistryError::NotTrusted)?,
+                ))
+            }
+        }
+        let key_set_id = KeySetId([19; 32]);
+        let signing_key = fixed_key();
+        let signer = Ed25519Signer::new(&signing_key, key_set_id, SignaturePurpose::TenantCommit);
+        let context = SignatureContext {
+            suite: signer.suite(),
+            key_set_id: &key_set_id,
+            purpose: SignaturePurpose::TenantCommit,
+            body_schema: statechronicle::domain::commit::COMMIT_SCHEMA,
+            signature_len: 64,
+        };
+        let beta_authority = SubjectId(String::from("service:statechronicle.beta-commit"));
+        let mut beta_body = signed_beta.body.clone();
+        beta_body.executor = beta_authority.clone();
+        let v1_beta =
+            statechronicle::commit::sign_v1::sign_commit_v1(&beta_body, &context, &signer).unwrap();
+        let beta_body_digest = canonicalize_and_digest(&beta_body).unwrap();
+        let mut mixed_facts = expected.clone();
+        for payment in &mut mixed_facts.payments {
+            payment.debit.commit_digest = beta_body_digest.clone();
+            payment.credit.commit_digest = beta_body_digest.clone();
+        }
+        let evidence_expected = ExpectedSettlementEvidence {
+            facts: mixed_facts.clone(),
+            commits: vec![
+                ExpectedSettlementCommit {
+                    tenant: alpha.clone(),
+                    body_digest: canonicalize_and_digest(&signed_alpha.body).unwrap(),
+                    format: SettlementEvidenceFormat::Legacy,
+                    signed_record_digest: hash_bytes(&bcs::to_bytes(&signed_alpha).unwrap()),
+                    commit_authority: None,
+                },
+                ExpectedSettlementCommit {
+                    tenant: beta.clone(),
+                    body_digest: beta_body_digest,
+                    format: SettlementEvidenceFormat::V1,
+                    signed_record_digest: hash_bytes(&v1_beta),
+                    commit_authority: Some(beta_authority),
+                },
+            ],
+        };
+        let evidence = [
+            SettlementEvidence::Legacy {
+                commit: &signed_alpha,
+                events: &groups[0].events,
+            },
+            SettlementEvidence::V1 {
+                commit_record: &v1_beta,
+                events: &groups[1].events,
+            },
+        ];
+        let verifier: Arc<dyn Verifier> = Arc::new(Ed25519Verifier::new(
+            &fixed_key().verifying_key(),
+            key_set_id,
+            SignaturePurpose::TenantCommit,
+        ));
+        let policy = Policy(verifier, key_set_id);
+        let now = fixed_timestamp_placeholder();
+        let verified_mixed = verify_settlement_history_evidence(
+            &evidence_expected,
+            &evidence,
+            &policy,
+            now,
+            trusted_key,
+        )
+        .await
+        .unwrap();
+        assert_eq!(verified_mixed.claim(), &mixed_facts);
+        let mut duplicate_asset = evidence_expected.clone();
+        duplicate_asset
+            .facts
+            .assets
+            .push(mixed_facts.assets[0].clone());
+        let mut duplicate_event = evidence_expected.clone();
+        duplicate_event.facts.payments[0].credit = mixed_facts.payments[0].debit.clone();
+        for (duplicate, message) in [
+            (duplicate_asset, "duplicate requested asset"),
+            (duplicate_event, "duplicate requested event"),
+        ] {
+            let error = verify_settlement_history_evidence(
+                &duplicate,
+                &evidence,
+                &policy,
+                now,
+                trusted_key,
+            )
+            .await
+            .unwrap_err();
+            assert!(matches!(error, ProofError::InvalidState(reason) if reason == message));
+        }
+
+        let mut substituted = evidence_expected.clone();
+        substituted.commits[0].format = SettlementEvidenceFormat::V1;
+        assert!(
+            verify_settlement_history_evidence(&substituted, &evidence, &policy, now, trusted_key,)
+                .await
+                .is_err()
+        );
+        let mut wrong_authority = evidence_expected.clone();
+        wrong_authority.commits[1].commit_authority = Some(executor_subject());
+        assert!(
+            verify_settlement_history_evidence(
+                &wrong_authority,
+                &evidence,
+                &policy,
+                now,
+                trusted_key,
+            )
+            .await
+            .is_err()
+        );
+    }
+    let witness_wire = witnesses
+        .each_ref()
+        .map(|witness| (witness.commit, witness.events));
+    assert_eq!(
+        bcs::to_bytes(&witness_wire).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/cross-tenant-settlement-witnesses.bcs").as_slice(),
+        "cross-tenant-settlement-witnesses.bcs compatibility",
+    );
+    assert_eq!(
+        serde_json::to_vec(&witness_wire).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/cross-tenant-settlement-witnesses.json").as_slice(),
+        "cross-tenant-settlement-witnesses.json compatibility",
+    );
     let mut reordered = witnesses;
     reordered.reverse();
     verify_settlement_history(&expected, &reordered, trusted_key).unwrap();

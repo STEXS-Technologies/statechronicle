@@ -1,0 +1,17 @@
+[package]
+name = "pq-provider-probe"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+statechronicle-core = { path = "../../crates/statechronicle-core" }
+ml-dsa = { version = "=0.1.2", default-features = false, features = ["alloc", "zeroize"] }
+slh-dsa = { version = "=0.2.0-rc.5", default-features = false, features = ["alloc", "zeroize"] }
+aws-lc-rs = "=1.19.0"
+
+[dev-dependencies]
+rand = "=0.10.4"
+ed25519-dalek = "=3.0.0"
+
+[workspace]

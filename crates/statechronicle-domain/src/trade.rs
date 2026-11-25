@@ -18,13 +18,16 @@ use serde::{Deserialize, Serialize};
 use crate::event::Event;
 use crate::ids::EventId;
 use crate::intent::Operation;
-use crate::proof::{CommitRef, ResourceStateProof};
+use crate::proof::{CommitRef, ResourceStateProof, ResourceStateProofV1};
 use crate::resource::ResourceId;
 use crate::subject::SubjectId;
 use crate::tenant::TenantId;
 
 /// Schema identifier for v0 trade proofs.
 pub const TRADE_PROOF_SCHEMA: &str = "statechronicle.proof.trade.v0";
+
+/// Schema identifier for mixed-format trade proofs.
+pub const TRADE_PROOF_V1_SCHEMA: &str = "statechronicle.proof.trade.v1";
 
 /// The lifecycle status of a trade, derived deterministically from its event
 /// stream (first `trade.lock` -> `Open`; a settle batch -> `Settled`;
@@ -203,4 +206,36 @@ pub struct TradeProof {
     pub summary: TradeSummary,
     /// The per-tenant settlement proof legs.
     pub legs: Vec<TradeProofLeg>,
+}
+
+/// A present-state asset proof in a mixed-format v1 trade proof.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TradeAssetStateProofV1 {
+    /// Legacy signed-commit proof.
+    Legacy(ResourceStateProof),
+    /// Exact-envelope v1 signed-commit proof.
+    V1(ResourceStateProofV1),
+}
+
+/// One tenant's asset proofs in a mixed-format trade proof.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TradeProofLegV1 {
+    /// Tenant scope independently checked against each proof.
+    pub tenant: TenantId,
+    /// Per-asset proofs; each may be legacy or exact-envelope v1.
+    pub state_proofs: Vec<TradeAssetStateProofV1>,
+}
+
+/// A mixed-format trade proof. The summary remains caller-expected data;
+/// state proofs establish only the signed resulting asset states.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TradeProofV1 {
+    /// Schema identifier, always [`TRADE_PROOF_V1_SCHEMA`].
+    pub schema: String,
+    /// Trade identity bound to the proof.
+    pub trade_id: String,
+    /// Summary checked against an independent caller expectation.
+    pub summary: TradeSummary,
+    /// Tenant-scoped per-asset state proof legs.
+    pub legs: Vec<TradeProofLegV1>,
 }

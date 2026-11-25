@@ -134,3 +134,85 @@ fn verify_path(root: &[u8; 32], key: &[u8; 32], leaf: [u8; 32], steps: &[PathSte
     }
     path.next().is_none() && current == *root
 }
+
+const MAX_V1_SIGNATURE_BYTES: usize = 16 * 1024;
+const MAX_V1_TRANSCRIPT_BYTES: usize = 1024 * 1024 + 512;
+
+/// The deployment's independently selected v1 suite and key-set binding.
+#[derive(Clone, Copy)]
+pub struct SignaturePolicyV1<'policy> {
+    /// Exact suite identifier selected by policy.
+    pub suite_id: &'policy str,
+    /// Exact registry key-set identity selected by policy.
+    pub key_set_id: &'policy [u8; 32],
+    /// Exact signature byte length for the registered suite.
+    pub signature_len: usize,
+    /// Maximum permitted canonical transcript length for this operation.
+    pub max_transcript_len: usize,
+}
+
+/// Borrowed v1 signature metadata and payload from a decoded record.
+#[derive(Clone, Copy)]
+pub struct SignatureV1<'record> {
+    /// Suite declared by the record.
+    pub suite_id: &'record str,
+    /// Key-set identity declared by the record.
+    pub key_set_id: &'record [u8; 32],
+    /// Exact suite-specific signature bytes.
+    pub bytes: &'record [u8],
+}
+
+/// Failure in the portable v1 signature verification path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SignatureV1Error {
+    /// The record does not match the independently selected suite and key set.
+    BindingMismatch,
+    /// The signature or transcript exceeds the permitted work budget.
+    InvalidLength,
+    /// The provider rejected the signature.
+    InvalidSignature,
+}
+
+/// Borrowed verifier hook for a caller-configured v1 cryptographic provider.
+pub trait SignatureVerifierV1 {
+    /// Checks the exact transcript against the selected key set and suite.
+    ///
+    /// # Errors
+    /// Returns an error when the provider cannot verify the signature.
+    fn verify(
+        &self,
+        policy: SignaturePolicyV1<'_>,
+        canonical_transcript: &[u8],
+        signature: &[u8],
+    ) -> Result<(), SignatureV1Error>;
+}
+
+/// Invokes a portable v1 provider after checking the exact trusted binding.
+///
+/// The caller constructs the canonical v1 transcript from the verified body
+/// encoding and independently selected purpose, suite and key-set identity.
+/// This hook allocates nothing and accepts provider-specific implementations.
+/// The selected provider owns cryptographic and composite component checks.
+///
+/// # Errors
+/// Rejects wrong suite or key-set identity, invalid lengths, and provider failure.
+pub fn verify_signature_v1(
+    policy: SignaturePolicyV1<'_>,
+    supplied: SignatureV1<'_>,
+    canonical_transcript: &[u8],
+    verifier: &dyn SignatureVerifierV1,
+) -> Result<(), SignatureV1Error> {
+    if supplied.suite_id != policy.suite_id || supplied.key_set_id != policy.key_set_id {
+        return Err(SignatureV1Error::BindingMismatch);
+    }
+    if supplied.bytes.is_empty()
+        || supplied.bytes.len() != policy.signature_len
+        || supplied.bytes.len() > MAX_V1_SIGNATURE_BYTES
+        || canonical_transcript.is_empty()
+        || canonical_transcript.len() > policy.max_transcript_len
+        || canonical_transcript.len() > MAX_V1_TRANSCRIPT_BYTES
+    {
+        return Err(SignatureV1Error::InvalidLength);
+    }
+    verifier.verify(policy, canonical_transcript, supplied.bytes)
+}

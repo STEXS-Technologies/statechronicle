@@ -10,7 +10,7 @@ use crate::{
     persist::{
         CommittedEvent, SignedCommitVerifier, TransactionFailure, TransactionPhase, abort,
         authorize_intent, projections_for, rollback_only, validate_durable_intent,
-        validate_effects_with_binding, validate_event_binding, validate_tenant_commit,
+        validate_event_binding, validate_tenant_commit,
     },
 };
 use statechronicle_core::{
@@ -25,7 +25,8 @@ use statechronicle_domain::{
 use statechronicle_ports::{
     authorization::{AuthenticatedPrincipal, Authorizer},
     ledger_batch::{LedgerBatch, LedgerBatchLookup, LedgerBatchRecovery},
-    ledger_store::{IdempotencyClaim, LedgerStoreError, OutboxRecord},
+    ledger_store::{IdempotencyClaim, LedgerStore, LedgerStoreError, OutboxRecord},
+    ledger_v1::RetainBatchV1,
 };
 use std::collections::BTreeSet;
 
@@ -211,12 +212,43 @@ async fn authorize_members(
     Ok(())
 }
 
+pub(crate) fn group_effects_v1_body(
+    intents: &[&Intent],
+    entries: &[CommittedEvent<'_>],
+    body: &Commit,
+    projections: &[StateProjection],
+    outbox: &[OutboxRecord],
+) -> Result<Vec<Event>, CommitError> {
+    group_effects_inner(intents, entries, body, projections, outbox, || Ok(()))
+}
+
 fn group_effects(
     intents: &[&Intent],
     entries: &[CommittedEvent<'_>],
     commit: &Signed<Commit>,
     projections: &[StateProjection],
     outbox: &[OutboxRecord],
+) -> Result<Vec<Event>, CommitError> {
+    let serialized =
+        bcs::to_bytes(commit).map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+    check_size(
+        "commit",
+        statechronicle_core::limits::MAX_COMMIT_BYTES,
+        serialized.len(),
+    )
+    .map_err(CommitError::Core)?;
+    group_effects_inner(intents, entries, &commit.body, projections, outbox, || {
+        Ok(())
+    })
+}
+
+fn group_effects_inner(
+    intents: &[&Intent],
+    entries: &[CommittedEvent<'_>],
+    body: &Commit,
+    projections: &[StateProjection],
+    outbox: &[OutboxRecord],
+    check_commit_size: impl FnOnce() -> Result<(), CommitError>,
 ) -> Result<Vec<Event>, CommitError> {
     let first = intents
         .first()
@@ -227,13 +259,20 @@ fn group_effects(
         check_size("event", MAX_EVENT_BYTES, bytes.len()).map_err(CommitError::Core)?;
     }
 
-    let tenant = validate_tenant_commit(&commit.body)?;
+    let tenant = validate_tenant_commit(body)?;
     if *tenant != first.tenant_id {
         return Err(CommitError::MixedTenant);
     }
     let mut covered = BTreeSet::new();
-    let events =
-        validate_effects_with_binding(entries, commit, projections, outbox, tenant, |event| {
+    let events = crate::persist::validate_effects_for_body(
+        crate::persist::CommitEffects {
+            entries,
+            body,
+            projections,
+            outbox_records: outbox,
+        },
+        tenant,
+        |event| {
             let intent = intents
                 .iter()
                 .find(|intent| intent.intent_id == event.intent_id)
@@ -241,7 +280,9 @@ fn group_effects(
                     CommitError::InvalidEvent(String::from("event has no batch member"))
                 })?;
             validate_event_binding(event, intent, tenant)
-        })?;
+        },
+        check_commit_size,
+    )?;
     for event in &events {
         covered.insert(&event.intent_id);
     }
@@ -250,7 +291,7 @@ fn group_effects(
             "batch member has no committed event",
         )));
     }
-    if projections != projections_for(&commit.body.commit_id, entries) {
+    if projections != projections_for(&body.commit_id, entries) {
         return Err(CommitError::InvalidEvent(String::from(
             "batch requires complete deterministic projections",
         )));
@@ -387,7 +428,7 @@ pub async fn recover_batch<S: LedgerBatchRecovery + ?Sized>(
         .map_err(|e| with_identity(&identity, e))
 }
 
-enum BatchDecision {
+pub(crate) enum BatchDecision {
     Committed,
     Replay(CommitId),
     Conflict,
@@ -404,8 +445,39 @@ async fn write<S: LedgerBatchRecovery + ?Sized>(
     events: &[Event],
     identity: &BatchIdentity,
 ) -> Result<BatchDecision, TransactionFailure> {
+    write_group(
+        ledger,
+        request.members,
+        &identity.members,
+        BatchWrite {
+            commit: BatchWriteCommit::Legacy(request.commit),
+            events,
+            projections: request.projections,
+            outbox: request.outbox,
+        },
+    )
+    .await
+}
+
+pub(crate) enum BatchWriteCommit<'request> {
+    Legacy(&'request Signed<Commit>),
+    V1(RetainBatchV1<'request>),
+}
+
+pub(crate) struct BatchWrite<'request> {
+    pub(crate) commit: BatchWriteCommit<'request>,
+    pub(crate) events: &'request [Event],
+    pub(crate) projections: &'request [StateProjection],
+    pub(crate) outbox: &'request [OutboxRecord],
+}
+
+pub(crate) async fn write_group<S: LedgerStore + ?Sized>(
+    ledger: &S,
+    members: &[BatchMember<'_>],
+    identity: &[MutationIdentity],
+    batch: BatchWrite<'_>,
+) -> Result<BatchDecision, TransactionFailure> {
     let tenant = identity
-        .members
         .first()
         .ok_or_else(|| TransactionFailure {
             source: LedgerStoreError::Invariant(String::from("empty durable batch")),
@@ -423,11 +495,7 @@ async fn write<S: LedgerBatchRecovery + ?Sized>(
         })?;
     let mut attempts = Vec::new();
     let mut replay = None;
-    let mut ordered: Vec<_> = request
-        .members
-        .iter()
-        .zip(identity.members.iter())
-        .collect();
+    let mut ordered: Vec<_> = members.iter().zip(identity.iter()).collect();
     ordered.sort_by(|left, right| left.0.intent.intent_id.cmp(&right.0.intent.intent_id));
     for (member, member_identity) in ordered {
         let claim = match tx
@@ -473,51 +541,51 @@ async fn write<S: LedgerBatchRecovery + ?Sized>(
         rollback_only(tx).await?;
         return Ok(BatchDecision::Replay(commit_id));
     }
-    let record = LedgerBatch {
-        intents: request
-            .members
-            .iter()
-            .map(|member| member.intent.clone())
-            .collect(),
-        commit: request.commit.clone(),
-        events: events.to_vec(),
-        projections: request.projections.to_vec(),
-        outbox: request.outbox.to_vec(),
+    if let Err(error) = tx.append_events(batch.events).await {
+        return Err(abort(tx, error).await);
+    }
+    let (commit_id, append) = match &batch.commit {
+        BatchWriteCommit::Legacy(commit) => {
+            (&commit.body.commit_id, tx.append_commit(commit).await)
+        }
+        BatchWriteCommit::V1(record) => (
+            &record.commit.commit_id,
+            tx.append_batch_commit_v1(*record).await,
+        ),
     };
-    if let Err(error) = tx.append_events(events).await {
+    if let Err(error) = append {
         return Err(abort(tx, error).await);
     }
-    if let Err(error) = tx.append_commit(request.commit).await {
-        return Err(abort(tx, error).await);
-    }
-    for projection in request.projections {
+    for projection in batch.projections {
         if let Err(error) = tx.upsert_projection(projection).await {
             return Err(abort(tx, error).await);
         }
     }
-    for outbox in request.outbox {
+    for outbox in batch.outbox {
         if let Err(error) = tx.enqueue_outbox(outbox).await {
             return Err(abort(tx, error).await);
         }
     }
-    if let Err(error) = tx.retain_batch(&record).await {
-        return Err(abort(tx, error).await);
+    if let BatchWriteCommit::Legacy(commit) = &batch.commit {
+        let record = LedgerBatch {
+            intents: members.iter().map(|member| member.intent.clone()).collect(),
+            commit: (*commit).clone(),
+            events: batch.events.to_vec(),
+            projections: batch.projections.to_vec(),
+            outbox: batch.outbox.to_vec(),
+        };
+        if let Err(error) = tx.retain_batch(&record).await {
+            return Err(abort(tx, error).await);
+        }
     }
     for (intent_id, attempt_id) in attempts {
         if let Err(error) = tx
-            .finalize_idempotency(
-                tenant,
-                &intent_id,
-                &attempt_id,
-                &request.commit.body.commit_id,
-            )
+            .finalize_idempotency(tenant, &intent_id, &attempt_id, commit_id)
             .await
         {
             return Err(abort(tx, error).await);
         }
     }
-    // Retained identity is checked during preflight; no member can be omitted.
-    debug_assert_eq!(record.intents.len(), identity.members.len());
     tx.commit().await.map_err(|source| TransactionFailure {
         source,
         phase: TransactionPhase::Commit,

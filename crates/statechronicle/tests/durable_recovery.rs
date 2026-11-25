@@ -906,3 +906,204 @@ async fn protected_signed_plan_rechecks_policy_signer_and_outbox_before_ledger()
     ));
     assert!(ledger.calls.lock().unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn protected_v1_plan_binds_exact_intent_and_commit_records() {
+    use statechronicle::core::signature_operation::SignatureContext;
+    use statechronicle::core::signature_provider::{
+        Ed25519Signer, Ed25519Verifier, KeySetId, SignaturePurpose, Signer,
+    };
+    use statechronicle::domain::commit::COMMIT_SCHEMA;
+    use statechronicle::intent::{sign_v1::sign_intent_v1, v1_body::INTENT_V1_SCHEMA};
+    use statechronicle::mutation::{
+        DurableOutcomeV1, MutationTrustV1, RecoveryOutcomeV1, SignedMutationV1, recover_v1,
+    };
+    use statechronicle::ports::{
+        key_registry::KeyRegistryError,
+        signature_policy::{
+            ResolvedSignaturePolicy, ResolvedSignatureV1, SignaturePolicy, SignaturePolicyQuery,
+            SignatureUse,
+        },
+    };
+    use std::sync::atomic::{AtomicU8, Ordering};
+
+    const ACTIVE: u8 = 0;
+    const RETIRED: u8 = 1;
+    const REVOKED: u8 = 2;
+
+    struct TestPolicy {
+        actor: std::sync::Arc<Ed25519Verifier>,
+        commit: std::sync::Arc<Ed25519Verifier>,
+        commit_lifecycle: AtomicU8,
+    }
+
+    #[async_trait::async_trait]
+    impl SignaturePolicy for TestPolicy {
+        async fn resolve(
+            &self,
+            query: SignaturePolicyQuery<'_>,
+        ) -> Result<ResolvedSignaturePolicy, KeyRegistryError> {
+            let (provider, key) = match query.authority.purpose() {
+                SignaturePurpose::ActorIntent => (&self.actor, KeySetId([3; 32])),
+                SignaturePurpose::TenantCommit => {
+                    let lifecycle = self.commit_lifecycle.load(Ordering::SeqCst);
+                    if lifecycle == REVOKED
+                        || (lifecycle == RETIRED && query.usage == SignatureUse::Active)
+                    {
+                        return Err(KeyRegistryError::NotTrusted);
+                    }
+                    (&self.commit, KeySetId([4; 32]))
+                }
+                SignaturePurpose::GlobalCheckpoint => return Err(KeyRegistryError::NotTrusted),
+            };
+            ResolvedSignatureV1::new(provider.clone(), key, 64)
+                .map(ResolvedSignaturePolicy::V1)
+                .map_err(|_configuration_error| KeyRegistryError::NotTrusted)
+        }
+    }
+
+    let fixture = Fixture::new().await;
+    let harness = Harness::new();
+    let intent = &fixture.prepared.validated().intent;
+    let principal = fixture.prepared.principal();
+    let key = common::fixed_key();
+    let actor_key_set_id = KeySetId([3; 32]);
+    let actor_signer = Ed25519Signer::new(&key, actor_key_set_id, SignaturePurpose::ActorIntent);
+    let actor_context = SignatureContext {
+        suite: actor_signer.suite(),
+        key_set_id: &actor_key_set_id,
+        purpose: SignaturePurpose::ActorIntent,
+        body_schema: INTENT_V1_SCHEMA,
+        signature_len: 64,
+    };
+    let actor_verifier = Ed25519Verifier::new(
+        &key.verifying_key(),
+        actor_key_set_id,
+        SignaturePurpose::ActorIntent,
+    );
+    let commit_key_set_id = KeySetId([4; 32]);
+    let policy = TestPolicy {
+        actor: std::sync::Arc::new(actor_verifier),
+        commit: std::sync::Arc::new(Ed25519Verifier::new(
+            &key.verifying_key(),
+            commit_key_set_id,
+            SignaturePurpose::TenantCommit,
+        )),
+        commit_lifecycle: AtomicU8::new(ACTIVE),
+    };
+    let record = sign_intent_v1(intent, &actor_context, &actor_signer).unwrap();
+    let prepared = harness
+        .executor
+        .prepare_player_v1(&record, principal, &Allow, &policy)
+        .await
+        .unwrap();
+    let (commit, _) = harness.commit_events(prepared.events());
+    let commit_signer = Ed25519Signer::new(&key, commit_key_set_id, SignaturePurpose::TenantCommit);
+    let commit_context = SignatureContext {
+        suite: commit_signer.suite(),
+        key_set_id: &commit_key_set_id,
+        purpose: SignaturePurpose::TenantCommit,
+        body_schema: COMMIT_SCHEMA,
+        signature_len: 64,
+    };
+    let signed = SignedMutationV1::sign(
+        prepared,
+        &commit.body,
+        &commit_context,
+        &commit_signer,
+        Vec::new(),
+    )
+    .unwrap();
+    let verifier = Ed25519Verifier::new(
+        &key.verifying_key(),
+        commit_key_set_id,
+        SignaturePurpose::TenantCommit,
+    );
+    assert_eq!(signed.prepared().authenticated().record(), record);
+    assert_eq!(
+        statechronicle::commit::sign_v1::verify_commit_v1(
+            signed.commit_record(),
+            &commit_context,
+            &verifier,
+        )
+        .unwrap(),
+        commit.body
+    );
+    assert_eq!(signed.projections().len(), 1);
+
+    let trust = MutationTrustV1 {
+        principal,
+        commit_authority: &commit.body.executor,
+        signature_policy: &policy,
+        now: commit.body.created_at,
+    };
+    let interrupted = MemoryLedger {
+        faults: vec![ledger::Step::CommitRow],
+        ..MemoryLedger::default()
+    };
+    assert!(matches!(
+        signed.commit(&interrupted, &Allow, &trust).await,
+        Err(DurableError::Unavailable(_))
+    ));
+    assert!(interrupted.data.lock().unwrap().events.is_empty());
+    assert!(interrupted.reservations.lock().unwrap().is_empty());
+
+    let ledger = MemoryLedger {
+        lose_commit_response: true,
+        ..MemoryLedger::default()
+    };
+    assert!(matches!(
+        signed.commit(&ledger, &Allow, &trust).await,
+        Err(DurableError::Unknown { .. })
+    ));
+    let reopened = MemoryLedger {
+        lose_commit_response: false,
+        ..ledger
+    };
+    let recovered = recover_v1(&reopened, &Allow, &trust, &record)
+        .await
+        .unwrap();
+    let RecoveryOutcomeV1::Committed(receipt) = recovered else {
+        panic!("missing original v1 mutation");
+    };
+    assert_eq!(receipt.record().intent_record, record);
+    assert_eq!(receipt.record().commit_record, signed.commit_record());
+    assert_eq!(receipt.record().events, signed.prepared().events());
+
+    // Retirement applies to new writes before any ledger method is called,
+    // while the same exact retained records remain readable under Historical.
+    policy.commit_lifecycle.store(RETIRED, Ordering::SeqCst);
+    let retired_ledger = MemoryLedger::default();
+    assert!(matches!(
+        signed.commit(&retired_ledger, &Allow, &trust).await,
+        Err(DurableError::Rejected(_))
+    ));
+    assert!(retired_ledger.calls.lock().unwrap().is_empty());
+    assert!(matches!(
+        recover_v1(&reopened, &Allow, &trust, &record)
+            .await
+            .unwrap(),
+        RecoveryOutcomeV1::Committed(_)
+    ));
+
+    // Readback refuses to issue a receipt when the retained signer is revoked.
+    policy.commit_lifecycle.store(REVOKED, Ordering::SeqCst);
+    assert!(matches!(
+        recover_v1(&reopened, &Allow, &trust, &record).await,
+        Err(DurableError::Corrupt(_))
+    ));
+    policy.commit_lifecycle.store(ACTIVE, Ordering::SeqCst);
+    assert!(matches!(
+        signed.commit(&reopened, &Allow, &trust).await.unwrap(),
+        DurableOutcomeV1::Replay(_)
+    ));
+    {
+        let mut stored = reopened.data.lock().unwrap();
+        let original = stored.mutations_v1.values_mut().next().unwrap();
+        original.commit_record.pop().unwrap();
+    }
+    assert!(matches!(
+        recover_v1(&reopened, &Allow, &trust, &record).await,
+        Err(DurableError::Corrupt(_))
+    ));
+}

@@ -16,6 +16,7 @@ use chrono::{DateTime, Utc};
 use statechronicle_accumulator::key::StateKey;
 use statechronicle_accumulator::proof::{InclusionProof, NonMembershipProof};
 use statechronicle_accumulator::sparse_merkle::{EMPTY_LEAF_HASH, leaf_hash};
+use statechronicle_commit::sign_v1::decode_commit_v1;
 use statechronicle_core::digest::{ContentDigest, hash_bytes};
 use statechronicle_domain::authority::{
     AuthorityProof, EvaluationResult, TRUSTGRANT_EVALUATION_KIND,
@@ -24,7 +25,8 @@ use statechronicle_domain::commit::{Commit, ScopeKind};
 use statechronicle_domain::ids::SnapshotId;
 use statechronicle_domain::intent::Operation;
 use statechronicle_domain::proof::{
-    CommitRef, EventRef, NonMembershipProofBundle, ResourceStateProof, SparseMerkleProof,
+    CommitRef, CommitRefV1, EventRef, NonMembershipProofBundle, NonMembershipProofBundleV1,
+    ResourceStateProof, ResourceStateProofV1, SparseMerkleProof,
 };
 use statechronicle_domain::resource::ResourceId;
 use statechronicle_domain::resource_state::ResourceState;
@@ -97,10 +99,7 @@ pub fn build_state_proof(
     authority: Option<AuthorityProof>,
     key: StateKey,
 ) -> Result<ResourceStateProof, ProofError> {
-    let expected_leaf = leaf_hash(key, *projection.state_hash.as_bytes());
-    if inclusion.leaf_hash != expected_leaf {
-        return Err(ProofError::LeafMismatch);
-    }
+    check_projection_leaf(projection, inclusion, key)?;
     let commit = commit_ref(signed_commit)?;
     let sparse = sparse_proof_from_inclusion(inclusion);
     let latest_event = EventRef {
@@ -114,6 +113,45 @@ pub fn build_state_proof(
         commit,
         sparse,
         latest_event,
+        authority,
+    ))
+}
+
+fn check_projection_leaf(
+    projection: &StateProjection,
+    inclusion: &InclusionProof,
+    key: StateKey,
+) -> Result<(), ProofError> {
+    if inclusion.leaf_hash != leaf_hash(key, *projection.state_hash.as_bytes()) {
+        return Err(ProofError::LeafMismatch);
+    }
+    Ok(())
+}
+
+/// Assembles a state proof at the supplied exact v1 tenant commit record.
+///
+/// # Errors
+/// Rejects projection/leaf mismatches, malformed signed records, and wrong tenant scope.
+pub fn build_state_proof_v1(
+    projection: &StateProjection,
+    signed_record: &[u8],
+    inclusion: &InclusionProof,
+    latest_operation: &Operation,
+    authority: Option<AuthorityProof>,
+    key: StateKey,
+) -> Result<ResourceStateProofV1, ProofError> {
+    check_projection_leaf(projection, inclusion, key)?;
+    let commit = commit_ref_v1(signed_record, &projection.tenant_id)?;
+    Ok(ResourceStateProofV1::new(
+        projection.tenant_id.clone(),
+        projection.resource_id.clone(),
+        projection.state.clone(),
+        commit,
+        sparse_proof_from_inclusion(inclusion),
+        EventRef {
+            event_id: projection.last_event_id.clone(),
+            operation: latest_operation.clone(),
+        },
         authority,
     ))
 }
@@ -185,15 +223,7 @@ pub fn build_non_membership_proof(
     signed_commit: &Signed<Commit>,
     non_membership: &NonMembershipProof,
 ) -> Result<NonMembershipProofBundle, ProofError> {
-    if non_membership.key != *key {
-        return Err(ProofError::KeyMismatch {
-            expected: format!("{key}"),
-            actual: format!("{}", non_membership.key),
-        });
-    }
-    if non_membership.leaf_hash != EMPTY_LEAF_HASH {
-        return Err(ProofError::NonMembershipLeafMismatch);
-    }
+    check_absence_leaf(key, non_membership)?;
     let commit = commit_ref(signed_commit)?;
     let state_non_membership_proof = sparse_proof_from_non_membership(non_membership);
     Ok(NonMembershipProofBundle::new(
@@ -203,6 +233,60 @@ pub fn build_non_membership_proof(
         commit,
         state_non_membership_proof,
     ))
+}
+
+fn check_absence_leaf(
+    key: &StateKey,
+    non_membership: &NonMembershipProof,
+) -> Result<(), ProofError> {
+    if non_membership.key != *key {
+        return Err(ProofError::KeyMismatch {
+            expected: format!("{key}"),
+            actual: format!("{}", non_membership.key),
+        });
+    }
+    if non_membership.leaf_hash != EMPTY_LEAF_HASH {
+        return Err(ProofError::NonMembershipLeafMismatch);
+    }
+    Ok(())
+}
+
+/// Assembles an absence proof at the supplied exact v1 tenant commit record.
+///
+/// # Errors
+/// Rejects a wrong key or nonempty leaf, malformed signed records, and wrong tenant scope.
+pub fn build_non_membership_proof_v1(
+    tenant: &TenantId,
+    resource_id: &ResourceId,
+    key: &StateKey,
+    signed_record: &[u8],
+    non_membership: &NonMembershipProof,
+) -> Result<NonMembershipProofBundleV1, ProofError> {
+    check_absence_leaf(key, non_membership)?;
+    let reference = commit_ref_v1(signed_record, tenant)?;
+    Ok(NonMembershipProofBundleV1::new(
+        tenant.clone(),
+        resource_id.clone(),
+        ContentDigest::new(*key.as_bytes()),
+        reference,
+        sparse_proof_from_non_membership(non_membership),
+    ))
+}
+
+fn commit_ref_v1(record: &[u8], tenant: &TenantId) -> Result<CommitRefV1, ProofError> {
+    let body =
+        decode_commit_v1(record).map_err(|error| ProofError::CommitSignature(error.to_string()))?;
+    if body.scope.tenant_id.as_ref() != Some(tenant) {
+        return Err(ProofError::CommitScope(String::from(
+            "v1 signed commit has the wrong tenant",
+        )));
+    }
+    Ok(CommitRefV1 {
+        commit_id: body.commit_id,
+        sequence: body.sequence,
+        state_root: body.next_state_root,
+        signed_commit_record: record.to_vec(),
+    })
 }
 
 /// Assembles a TrustGrant authority proof block (protocol §12.1).
@@ -264,9 +348,17 @@ pub fn state_key_for_proof(proof: &ResourceStateProof) -> StateKey {
 /// Returns [`ProofError::InvalidState`] when the claimed state's `subject` is
 /// not a non-empty string.
 pub fn derive_state_key(proof: &ResourceStateProof) -> Result<StateKey, ProofError> {
-    let tenant = &proof.tenant_id.0;
-    let resource = &proof.resource_id.0;
-    if let Some(subject) = proof.claimed_state.subject().map(|s| s.0.as_str()) {
+    derive_state_key_from_parts(&proof.tenant_id, &proof.resource_id, &proof.claimed_state)
+}
+
+pub(crate) fn derive_state_key_from_parts(
+    tenant_id: &TenantId,
+    resource_id: &ResourceId,
+    state: &ResourceState,
+) -> Result<StateKey, ProofError> {
+    let tenant = &tenant_id.0;
+    let resource = &resource_id.0;
+    if let Some(subject) = state.subject().map(|s| s.0.as_str()) {
         if subject.is_empty() {
             return Err(ProofError::InvalidState(String::from(
                 "claimed state `subject` is empty",

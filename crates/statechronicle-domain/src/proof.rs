@@ -23,6 +23,12 @@ pub const RESOURCE_STATE_PROOF_SCHEMA: &str = "statechronicle.proof.resource_sta
 /// Schema identifier for v0 non-membership proof bundles (protocol §16.2).
 pub const NON_MEMBERSHIP_PROOF_SCHEMA: &str = "statechronicle.proof.non_membership.v0";
 
+/// Schema identifier for exact-envelope v1 resource state proofs.
+pub const RESOURCE_STATE_PROOF_V1_SCHEMA: &str = "statechronicle.proof.resource_state.v1";
+
+/// Schema identifier for exact-envelope v1 non-membership proofs.
+pub const NON_MEMBERSHIP_PROOF_V1_SCHEMA: &str = "statechronicle.proof.non_membership.v1";
+
 /// The v0 sparse Merkle proof kind (protocol §16.2 `state_inclusion_proof`).
 pub const SPARSE_MERKLE_V0: &str = "sparse_merkle_v0";
 
@@ -89,6 +95,23 @@ pub struct CommitRef {
     pub signature: SignatureBlock,
 }
 
+/// Exact v1 signed commit reference used by v1 proof records.
+///
+/// Unlike [`CommitRef`], this carries the complete canonical signature
+/// envelope. Its schema is distinct so it cannot be confused with the legacy
+/// signature-block-only reference.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommitRefV1 {
+    /// The referenced commit id.
+    pub commit_id: CommitId,
+    /// The commit's sequence number.
+    pub sequence: u64,
+    /// The commit's next state root.
+    pub state_root: ContentDigest,
+    /// Exact canonical v1 signed commit envelope.
+    pub signed_commit_record: Vec<u8>,
+}
+
 /// The latest event reference embedded in a proof bundle (protocol §16.2).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EventRef {
@@ -133,6 +156,52 @@ impl ResourceStateProof {
     ) -> Self {
         Self {
             schema: String::from(RESOURCE_STATE_PROOF_SCHEMA),
+            tenant_id,
+            resource_id,
+            claimed_state,
+            commit,
+            state_inclusion_proof,
+            latest_event,
+            authority,
+        }
+    }
+}
+
+/// V1 portable proof of present resource state using an exact signed commit record.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResourceStateProofV1 {
+    /// Schema identifier, always [`RESOURCE_STATE_PROOF_V1_SCHEMA`].
+    pub schema: String,
+    /// Tenant whose state is claimed.
+    pub tenant_id: TenantId,
+    /// Resource whose state is claimed.
+    pub resource_id: ResourceId,
+    /// Claimed resource state at the pinned commit.
+    pub claimed_state: ResourceState,
+    /// Full exact signed commit evidence and its reference fields.
+    pub commit: CommitRefV1,
+    /// Sparse Merkle inclusion proof for the claimed state.
+    pub state_inclusion_proof: SparseMerkleProof,
+    /// Latest event for the resource.
+    pub latest_event: EventRef,
+    /// Optional authority proof binding a TrustGrant evaluation.
+    pub authority: Option<AuthorityProof>,
+}
+
+impl ResourceStateProofV1 {
+    /// Constructs an exact-envelope v1 resource state proof.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        tenant_id: TenantId,
+        resource_id: ResourceId,
+        claimed_state: ResourceState,
+        commit: CommitRefV1,
+        state_inclusion_proof: SparseMerkleProof,
+        latest_event: EventRef,
+        authority: Option<AuthorityProof>,
+    ) -> Self {
+        Self {
+            schema: String::from(RESOURCE_STATE_PROOF_V1_SCHEMA),
             tenant_id,
             resource_id,
             claimed_state,
@@ -189,6 +258,43 @@ impl NonMembershipProofBundle {
     }
 }
 
+/// V1 portable proof of absence using an exact signed commit record.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NonMembershipProofBundleV1 {
+    /// Schema identifier, always [`NON_MEMBERSHIP_PROOF_V1_SCHEMA`].
+    pub schema: String,
+    /// Tenant whose absent state is claimed.
+    pub tenant_id: TenantId,
+    /// Resource whose state is claimed absent.
+    pub resource_id: ResourceId,
+    /// Expected sparse-Merkle key as raw 32-byte digest.
+    pub claimed_key: ContentDigest,
+    /// Full exact signed commit evidence and its reference fields.
+    pub commit: CommitRefV1,
+    /// Sparse Merkle proof for the empty leaf.
+    pub state_non_membership_proof: SparseMerkleProof,
+}
+
+impl NonMembershipProofBundleV1 {
+    /// Constructs an exact-envelope v1 non-membership proof.
+    pub fn new(
+        tenant_id: TenantId,
+        resource_id: ResourceId,
+        claimed_key: ContentDigest,
+        commit: CommitRefV1,
+        state_non_membership_proof: SparseMerkleProof,
+    ) -> Self {
+        Self {
+            schema: String::from(NON_MEMBERSHIP_PROOF_V1_SCHEMA),
+            tenant_id,
+            resource_id,
+            claimed_key,
+            commit,
+            state_non_membership_proof,
+        }
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
@@ -229,6 +335,29 @@ mod tests {
             },
             None,
         )
+    }
+
+    #[test]
+    fn v1_commit_reference_matches_independent_bcs_layout() {
+        use statechronicle_core::{
+            signature_provider::SignaturePurpose, signature_wire::decode_v1_envelope,
+        };
+
+        let bytes = include_bytes!("../tests/fixtures/commit-ref-v1.bcs");
+        let reference: CommitRefV1 = bcs::from_bytes(bytes).unwrap();
+        assert_eq!(
+            reference.commit_id.as_str(),
+            "cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W"
+        );
+        assert_eq!(reference.sequence, 918_273);
+        assert_eq!(reference.state_root, ContentDigest::new([0x42; 32]));
+        assert_eq!(reference.signed_commit_record.len(), 132);
+        decode_v1_envelope(
+            &reference.signed_commit_record,
+            SignaturePurpose::TenantCommit,
+        )
+        .unwrap();
+        assert_eq!(bcs::to_bytes(&reference).unwrap(), bytes.as_slice());
     }
 
     #[test]

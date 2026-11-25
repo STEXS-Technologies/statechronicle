@@ -133,6 +133,25 @@ pub trait CommitReader: Send + Sync {
     }
 }
 
+/// Read-only access to exact v1 signed commit envelope bytes and a canonical head.
+/// Implementations must scope both reads by the independently supplied tenant.
+pub trait CommitReaderV1: Send + Sync {
+    /// Load the exact immutable envelope bytes stored for this tenant and commit.
+    fn read_commit_record_v1<'read>(
+        &'read self,
+        tenant: &'read TenantId,
+        commit: &'read CommitId,
+    ) -> CommitReadFuture<'read, Option<Vec<u8>>>;
+
+    /// Linearizable canonical head tuple for current verification.
+    fn read_canonical_head_v1<'read>(
+        &'read self,
+        _tenant: &'read TenantId,
+    ) -> CommitReadFuture<'read, Option<CanonicalHead>> {
+        Box::pin(async { Ok(None) })
+    }
+}
+
 impl<T: CommitStore + ?Sized> CommitReader for T {
     fn read_commit<'read>(
         &'read self,
