@@ -13,6 +13,10 @@ cargo fmt --manifest-path ci/conformance/Cargo.toml --all -- --check
 cargo test --manifest-path ci/conformance/Cargo.toml --all-targets --locked
 cargo clippy --manifest-path ci/conformance/Cargo.toml --all-targets --locked -- -D warnings
 RUSTDOCFLAGS='-D warnings' cargo doc --manifest-path ci/conformance/Cargo.toml --no-deps --locked
+cargo fmt --manifest-path ci/signature-conformance/Cargo.toml --all -- --check
+cargo test --manifest-path ci/signature-conformance/Cargo.toml --release --locked
+cargo clippy --manifest-path ci/signature-conformance/Cargo.toml --all-targets --locked -- -D warnings
+cargo test --manifest-path ci/wire-0.3/consumer/Cargo.toml --all-targets --locked
 cargo test --workspace --exclude statechronicle-fuzz --all-targets --all-features --locked
 cargo test --workspace --exclude statechronicle-fuzz --doc --all-features --locked
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
@@ -28,7 +32,8 @@ python3 scripts/check_tutorials.py --tutorial durable-custom-ledger
 # Compiler refusals and dynamic schema checks use a fresh external consumer.
 python3 scripts/check_native_contracts.py
 # Unsoundness and other advisory warnings must fail, including isolated locks.
-for lockfile in Cargo.lock ci/conformance/Cargo.lock \
+for lockfile in Cargo.lock ci/conformance/Cargo.lock ci/signature-conformance/Cargo.lock \
+  ci/wire-0.3/consumer/Cargo.lock \
   tutorials/minimal-native-domain/Cargo.lock tutorials/durable-custom-ledger/Cargo.lock; do
   cargo audit --file "${lockfile}" --deny warnings
 done
@@ -49,7 +54,8 @@ for target in "${fuzz_targets[@]}"; do
 done
 
 # Builds (including cargo-fuzz) must not silently resolve a different graph.
-git diff --exit-code -- Cargo.lock ci/conformance/Cargo.lock \
+git diff --exit-code -- Cargo.lock ci/conformance/Cargo.lock ci/signature-conformance/Cargo.lock \
+  ci/wire-0.3/consumer/Cargo.lock \
   tutorials/minimal-native-domain/Cargo.lock tutorials/durable-custom-ledger/Cargo.lock
 git diff --check
 echo "release checks passed"
