@@ -34,8 +34,9 @@ pub fn signature_transcript(
 
     // BCS sequences use minimal ULEB128 lengths. Serialize byte slices as
     // byte vectors so the body is copied in one write.
+    let purpose_byte = [purpose as u8];
     let fields = (
-        BcsBytes(&[purpose as u8]),
+        BcsBytes(&purpose_byte),
         BcsBytes(expected_schema.as_bytes()),
         BcsBytes(suite.as_str().as_bytes()),
         BcsBytes(&key_set_id.0),

@@ -29,11 +29,9 @@ use statechronicle_commit::persist::{
 };
 use statechronicle_commit::roots::event_root;
 use statechronicle_commit::sign::{CommitSigner, sign_commit_with_signer};
+pub use statechronicle_commit::sign_v1::SignMutationV1Error;
 use statechronicle_commit::sign_v1::sign_commit_v1;
-use statechronicle_core::{
-    signature_operation::SignatureContext,
-    signature_provider::{SignatureError, Signer},
-};
+use statechronicle_core::{signature_operation::SignatureContext, signature_provider::Signer};
 use statechronicle_domain::commit::Commit;
 use statechronicle_domain::event::Event;
 use statechronicle_domain::intent::KeyId;
@@ -181,17 +179,6 @@ fn entries<'event>(events: impl IntoIterator<Item = &'event Event>) -> Vec<Commi
             state_type: event.after.state.state_type(),
         })
         .collect()
-}
-
-/// A failure while binding a protected v1 plan to its signed commit.
-#[derive(Debug, thiserror::Error)]
-pub enum SignMutationV1Error {
-    /// The proposed commit does not cover the prepared event set.
-    #[error(transparent)]
-    Commit(#[from] CommitError),
-    /// The selected provider could not produce a complete v1 signature.
-    #[error(transparent)]
-    Signature(#[from] SignatureError),
 }
 
 /// An uncommitted v1 mutation with its exact signed intent and commit evidence.

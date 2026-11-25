@@ -25,6 +25,17 @@ use statechronicle_ports::{
 
 use crate::checkpoint::{GLOBAL_CHECKPOINT_SCHEMA, GlobalCheckpoint};
 
+/// A failure while binding a protected v1 plan to its signed commit.
+#[derive(Debug, thiserror::Error)]
+pub enum SignMutationV1Error {
+    /// The proposed commit does not cover the prepared event set.
+    #[error(transparent)]
+    Commit(#[from] crate::error::CommitError),
+    /// The selected provider could not produce a complete v1 signature.
+    #[error(transparent)]
+    Signature(#[from] SignatureError),
+}
+
 trait SigningBody: Serialize + DeserializeOwned {
     const PURPOSE: SignaturePurpose;
     const SCHEMA: &str;

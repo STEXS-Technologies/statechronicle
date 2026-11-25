@@ -532,6 +532,7 @@ dependencies = [
  "base64",
  "bcs",
  "chrono",
+ "hex",
  "serde",
  "serde_json",
  "statechronicle-core",
@@ -576,6 +577,7 @@ dependencies = [
 name = "statechronicle-intent"
 version = "0.3.0"
 dependencies = [
+ "bcs",
  "chrono",
  "serde",
  "serde_json",
@@ -647,6 +649,7 @@ dependencies = [
  "serde",
  "serde_json",
  "statechronicle-accumulator",
+ "statechronicle-commit",
  "statechronicle-core",
  "statechronicle-domain",
  "statechronicle-ports",
