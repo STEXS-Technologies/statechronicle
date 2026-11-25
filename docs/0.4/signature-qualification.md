@@ -14,9 +14,9 @@ at `9ed64a5a5ece51fa2cd5929119cbe21e1e34f3f4`. See the
 | F4 | Active and Historical policy contexts bind the independently configured authority and exact key set. Deployments qualify their lifecycle and KMS adapters separately. |
 | F5 | Protected mutation and batch signing use the existing atomic persistence and recovery path. Exact signed bytes and membership are checked during authoritative readback. |
 | F6 | Current and historical claims, mixed trade and settlement proofs, checkpoint verification, portable verification, and mixed index rebuild use shared verification. The legacy wire fixtures exercise compatibility. |
-| F7 | Two ML-DSA-65 implementations interoperate. The standalone provider tests cover selected NIST ACVP ML-DSA and SLH-DSA cases and a genuine Ed25519 plus ML-DSA-65 hybrid. The sanitizer-backed fuzz gate is in progress. |
+| F7 | Two ML-DSA-65 implementations interoperate. The standalone provider tests cover selected NIST ACVP ML-DSA and SLH-DSA cases and a genuine Ed25519 plus ML-DSA-65 hybrid. All 27 sanitizer-backed targets completed. |
 | F8 | Paired v0 sign and verify results and five v1 provider measurements are recorded. The 22 paired legacy workflows and allocation probes are recorded. Versioned durable and proof workflow measurements are recorded for the listed fixtures. |
-| F9 | The migration guide covers staged reader and writer deployment and rollback. The 0.4 package graph passed extracted-package validation. Final workspace and sanitizer checks are in progress. |
+| F9 | The migration guide covers staged reader and writer deployment and rollback. The immutable implementation revision passed the workspace, package, consumer, and sanitizer gates recorded below. |
 
 The source review found duplicate requested settlement facts were checked only
 by the legacy wrapper and that the mixed verifier applied its body cap to the
@@ -31,19 +31,33 @@ snapshot. The standalone provider fixtures are test dependencies and carry
 their own provider and platform limits.
 
 
+## Workspace, portable, and external checks
+
+The immutable implementation revision was
+`c6e3a63e2020d2c3c6d648e80fd62d9a6107d4eb`. Both Rust 1.100.0 and
+the minimum Rust 1.88.0 passed 949 workspace tests and doctests with the
+locked dependency graph and all features. Rust 1.100.0 also passed
+all-target strict Clippy and strict rustdoc. Both toolchains compiled the
+portable and profile crates for `riscv32imafc-unknown-none-elf`.
+
+The two external tutorial applications passed format, test, run, and
+strict Clippy checks. The native contract driver confirmed seven expected
+compile-time refusals. The default normal dependency graph contains no
+ML-DSA, SLH-DSA, or AWS-LC provider dependency.
+
 ## Extracted-package and external consumer checks
 
-On 2026-11-25, source revision `f0c49bda42afe9238a8657bbfa991def69ba8c3c`
+On 2026-11-25, source revision `c6e3a63e2020d2c3c6d648e80fd62d9a6107d4eb`
 passed the isolated archive check with Rust 1.100.0. The checker created all 13
 archives, verified the packaged original fixtures against their pinned sources,
 and ran all-target tests, doctests, and strict Clippy in a fresh workspace
 containing only the extracted archives. The registry dependencies resolved
 within the original locked graph.
 
-The standalone checks on `4af9576` passed 26 durable adapter conformance tests
-and five release-mode PQ provider tests. On the 0.4 package graph the same two
-frozen consumer tests compiled and passed in release mode against both the
-published v0.3.0 packages and the local 0.4.0 packages.
+Standalone checks on the same implementation revision passed 26 durable
+adapter conformance tests and five release-mode PQ provider tests. The same
+two frozen consumer tests passed in release mode against both the published
+v0.3.0 packages and the local 0.4.0 packages.
 
 | Crate archive | Bytes | SHA-256 |
 | --- | ---: | --- |
@@ -322,3 +336,26 @@ SC_PROOF_BENCH_SAMPLES=10000 SC_PROOF_BENCH_WARMUP=500 \
   -p statechronicle-proof --test verification_pipeline \
   benchmark_v1_historical_and_current_claim_verification -- --ignored --nocapture
 ```
+
+## Sanitizer campaign
+
+The same implementation revision completed every registered fuzz target
+under cargo-fuzz 0.13.2 and AddressSanitizer with
+`rustc 1.102.0-nightly (739adecd4 2026-11-24)`.
+Each invocation used seed 4461. The signature target completed 10,000
+runs from the nine v1 binary fixtures in the core crate. The claim and
+durable recovery targets used their checked-in seed corpora. Other
+targets began with an empty corpus. In total the campaign completed
+12,600 runs across 27 targets. No sanitizer or assertion failure was
+reported. [Per-target run and coverage counters](defensive-fuzz-c6e3a63.csv)
+
+## Scope of qualification
+
+The feature branch includes the qualified implementation revision and
+follow-up qualification records. This campaign covers the checked-in
+reference adapters, finite fault schedules, and in-memory workload
+fixtures. Production KMS queueing, production database crash behavior,
+embedded stack high-water marks, and allocation-attributed PQ workflow
+costs remain deployment-specific. Versioned durable timing covers the
+one- and two-event fixtures. These audits and tests establish the
+reported coverage and leave residual risk outside the exercised inputs.
