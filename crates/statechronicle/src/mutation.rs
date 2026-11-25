@@ -12,8 +12,8 @@ pub use statechronicle_commit::durable::{
     CommittedMutation, DurableError, DurableOutcome, MutationIdentity, RecoveryOutcome, recover,
 };
 pub use statechronicle_executor::preparation::{
-    PreparationConfig, PreparationPorts, PreparedBatch, PreparedMutation, PreparedMutationV1,
-    Preparer,
+    PreparationConfig, PreparationPorts, PreparedBatch, PreparedBatchV1, PreparedMutation,
+    PreparedMutationV1, Preparer,
 };
 
 use statechronicle_commit::durable::commit_verified;
@@ -161,6 +161,10 @@ fn validate_prepared_events(
     if validate_tenant_commit(body)? != expected_tenant {
         return Err(CommitError::MixedTenant);
     }
+    validate_prepared_event_root(body, events)
+}
+
+fn validate_prepared_event_root(body: &Commit, events: &[Event]) -> Result<(), CommitError> {
     let count = u64::try_from(events.len())
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
     if count != body.event_count || event_root(events)? != body.event_merkle_root {
@@ -169,9 +173,9 @@ fn validate_prepared_events(
     Ok(())
 }
 
-fn entries(events: &[Event]) -> Vec<CommittedEvent<'_>> {
+fn entries<'event>(events: impl IntoIterator<Item = &'event Event>) -> Vec<CommittedEvent<'event>> {
     events
-        .iter()
+        .into_iter()
         .map(|event| CommittedEvent {
             event,
             state_type: event.after.state.state_type(),
@@ -329,13 +333,9 @@ impl SignedBatch {
             return Err(CommitError::MixedTenant);
         }
         let events: Vec<_> = prepared.events().cloned().collect();
-        let count = u64::try_from(events.len())
-            .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
-        if count != body.event_count || event_root(&events)? != body.event_merkle_root {
-            return Err(CommitError::EventRootMismatch);
-        }
+        validate_prepared_event_root(body, &events)?;
         let commit = sign_commit_with_signer(body, key_id, signer)?;
-        let projections = projections_for(&commit.body.commit_id, &batch_entries(&prepared));
+        let projections = projections_for(&commit.body.commit_id, &entries(prepared.events()));
         Ok(Self {
             prepared,
             commit,
@@ -369,7 +369,7 @@ impl SignedBatch {
             verifier,
             DurableBatchRequest {
                 members: &batch_members(&self.prepared),
-                entries: &batch_entries(&self.prepared),
+                entries: &entries(self.prepared.events()),
                 commit: &self.commit,
                 projections: &self.projections,
                 outbox: &self.outbox,
@@ -402,12 +402,65 @@ fn batch_members(prepared: &PreparedBatch) -> Vec<BatchMember<'_>> {
         })
         .collect()
 }
-fn batch_entries(prepared: &PreparedBatch) -> Vec<CommittedEvent<'_>> {
-    prepared
-        .events()
-        .map(|event| CommittedEvent {
-            event,
-            state_type: event.after.state.state_type(),
+/// Exact signed commit and protected member evidence for one v1 batch.
+#[derive(Debug)]
+pub struct SignedBatchV1<'record> {
+    prepared: PreparedBatchV1<'record>,
+    commit_record: Vec<u8>,
+    projections: Vec<StateProjection>,
+    outbox: Vec<OutboxRecord>,
+}
+
+impl<'record> SignedBatchV1<'record> {
+    /// Binds every prepared event to the same v1 tenant commit.
+    ///
+    /// # Errors
+    /// Rejects inconsistent tenant, event count or root before signing.
+    /// Propagates canonical encoding and provider failures.
+    pub fn sign(
+        prepared: PreparedBatchV1<'record>,
+        body: &Commit,
+        context: &SignatureContext<'_>,
+        signer: &dyn Signer,
+        outbox: Vec<OutboxRecord>,
+    ) -> Result<Self, SignMutationV1Error> {
+        let tenant = validate_tenant_commit(body)?;
+        if prepared
+            .mutations()
+            .iter()
+            .any(|member| &member.authenticated().validated().intent.tenant_id != tenant)
+        {
+            return Err(CommitError::MixedTenant.into());
+        }
+        let events: Vec<_> = prepared.events().cloned().collect();
+        validate_prepared_event_root(body, &events)?;
+        let commit_record = sign_commit_v1(body, context, signer)?;
+        let projections = projections_for(&body.commit_id, &entries(prepared.events()));
+        Ok(Self {
+            prepared,
+            commit_record,
+            projections,
+            outbox,
         })
-        .collect()
+    }
+
+    /// Complete protected batch in its original member order.
+    pub const fn prepared(&self) -> &PreparedBatchV1<'record> {
+        &self.prepared
+    }
+
+    /// Exact signed v1 commit envelope that covers all events.
+    pub fn commit_record(&self) -> &[u8] {
+        &self.commit_record
+    }
+
+    /// Deterministically derived projections for the full group.
+    pub fn projections(&self) -> &[StateProjection] {
+        &self.projections
+    }
+
+    /// Notification rows proposed for the same atomic transaction.
+    pub fn outbox(&self) -> &[OutboxRecord] {
+        &self.outbox
+    }
 }
