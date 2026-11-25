@@ -135,22 +135,26 @@ pub trait Verifier: Send + Sync {
     fn verify(&self, request: VerificationRequest<'_>) -> Result<(), SignatureError>;
 }
 
-struct Ed25519Binding {
-    suite: SignatureSuiteId,
+pub(crate) struct ProviderBinding {
+    pub(crate) suite: SignatureSuiteId,
     key_set_id: KeySetId,
     purpose: SignaturePurpose,
 }
 
-impl Ed25519Binding {
-    const fn new(key_set_id: KeySetId, purpose: SignaturePurpose) -> Self {
+impl ProviderBinding {
+    pub(crate) const fn new(
+        suite: &'static str,
+        key_set_id: KeySetId,
+        purpose: SignaturePurpose,
+    ) -> Self {
         Self {
-            suite: SignatureSuiteId(Cow::Borrowed("ed25519")),
+            suite: SignatureSuiteId(Cow::Borrowed(suite)),
             key_set_id,
             purpose,
         }
     }
 
-    fn check(&self, request: SigningRequest<'_>) -> Result<(), SignatureError> {
+    pub(crate) fn check(&self, request: SigningRequest<'_>) -> Result<(), SignatureError> {
         if *request.suite != self.suite {
             return Err(SignatureError::UnsupportedSuite);
         }
@@ -166,7 +170,7 @@ impl Ed25519Binding {
 
 /// Ed25519 signer for a single trusted key set and purpose.
 pub struct Ed25519Signer<'key> {
-    binding: Ed25519Binding,
+    binding: ProviderBinding,
     key: &'key SigningKey,
 }
 
@@ -178,7 +182,7 @@ impl<'key> Ed25519Signer<'key> {
         purpose: SignaturePurpose,
     ) -> Self {
         Self {
-            binding: Ed25519Binding::new(key_set_id, purpose),
+            binding: ProviderBinding::new("ed25519", key_set_id, purpose),
             key,
         }
     }
@@ -205,7 +209,7 @@ impl Signer for Ed25519Signer<'_> {
 
 /// Strict Ed25519 verifier for a single trusted key set and purpose.
 pub struct Ed25519Verifier<'key> {
-    binding: Ed25519Binding,
+    binding: ProviderBinding,
     key: &'key VerifyingKey,
 }
 
@@ -217,7 +221,7 @@ impl<'key> Ed25519Verifier<'key> {
         purpose: SignaturePurpose,
     ) -> Self {
         Self {
-            binding: Ed25519Binding::new(key_set_id, purpose),
+            binding: ProviderBinding::new("ed25519", key_set_id, purpose),
             key,
         }
     }

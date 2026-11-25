@@ -1,7 +1,13 @@
 //! Canonical component framing for the ADR-009 Ed25519 and ML-DSA-65 suite.
 
 use crate::signature::SIGNATURE_BYTE_LEN;
-use crate::signature_provider::SignatureError;
+use crate::signature_provider::{
+    KeySetId, ProviderBinding, SignatureError, SignaturePurpose, SignatureSuiteId, SigningRequest,
+    VerificationRequest, Verifier,
+};
+
+/// Suite identifier for the ordered Ed25519 and ML-DSA-65 hybrid.
+pub const HYBRID_SUITE_ID: &str = "hybrid-ed25519-ml-dsa-65.v1";
 
 /// Size of a pure ML-DSA-65 signature.
 pub const ML_DSA_65_SIGNATURE_BYTES: usize = 3309;
@@ -57,6 +63,71 @@ impl<'signature> HybridSignature<'signature> {
     }
 }
 
+/// A member verifier and key-set identity selected together by trusted policy.
+pub struct HybridVerifierMember<'provider> {
+    /// Provider configured for this member's public key.
+    pub verifier: &'provider dyn Verifier,
+    /// Registry identity for the member key set.
+    pub key_set_id: KeySetId,
+}
+
+impl HybridVerifierMember<'_> {
+    fn verify(&self, request: SigningRequest<'_>, signature: &[u8]) -> Result<(), SignatureError> {
+        self.verifier.verify(VerificationRequest {
+            request: SigningRequest {
+                suite: self.verifier.suite(),
+                key_set_id: &self.key_set_id,
+                ..request
+            },
+            signature,
+        })
+    }
+}
+
+/// Verifies both members against independently resolved keys and one transcript.
+pub struct HybridVerifier<'provider> {
+    binding: ProviderBinding,
+    ed25519: HybridVerifierMember<'provider>,
+    ml_dsa_65: HybridVerifierMember<'provider>,
+}
+
+impl<'provider> HybridVerifier<'provider> {
+    /// Binds the ordered member providers to the trusted composite identity.
+    ///
+    /// # Errors
+    /// Rejects providers with suites different from the required member suites.
+    pub fn new(
+        key_set_id: KeySetId,
+        purpose: SignaturePurpose,
+        ed25519: HybridVerifierMember<'provider>,
+        ml_dsa_65: HybridVerifierMember<'provider>,
+    ) -> Result<Self, SignatureError> {
+        if ed25519.verifier.suite().as_str() != "ed25519"
+            || ml_dsa_65.verifier.suite().as_str() != "ml-dsa-65"
+        {
+            return Err(SignatureError::UnsupportedSuite);
+        }
+        Ok(Self {
+            binding: ProviderBinding::new(HYBRID_SUITE_ID, key_set_id, purpose),
+            ed25519,
+            ml_dsa_65,
+        })
+    }
+}
+
+impl Verifier for HybridVerifier<'_> {
+    fn suite(&self) -> &SignatureSuiteId {
+        &self.binding.suite
+    }
+
+    fn verify(&self, request: VerificationRequest<'_>) -> Result<(), SignatureError> {
+        self.binding.check(request.request)?;
+        let signature = HybridSignature::decode(request.signature)?;
+        self.ed25519.verify(request.request, signature.ed25519)?;
+        self.ml_dsa_65.verify(request.request, signature.ml_dsa_65)
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -68,6 +139,90 @@ mod tests {
         include_bytes!("../tests/fixtures/signature-v1/malformed_hybrid_duplicate_member_tag.bin");
     const TRUNCATED: &[u8] =
         include_bytes!("../tests/fixtures/signature-v1/malformed_hybrid_truncated_member.bin");
+
+    // Test double for the provider contract. It performs no cryptography.
+    struct TestMlDsa {
+        suite: SignatureSuiteId,
+        expected_key: KeySetId,
+    }
+
+    impl Verifier for TestMlDsa {
+        fn suite(&self) -> &SignatureSuiteId {
+            &self.suite
+        }
+
+        fn verify(&self, request: VerificationRequest<'_>) -> Result<(), SignatureError> {
+            if request.request.key_set_id == &self.expected_key
+                && request.request.purpose == SignaturePurpose::TenantCommit
+                && request.request.transcript == b"same hybrid transcript"
+                && request.signature == [7; ML_DSA_65_SIGNATURE_BYTES]
+            {
+                Ok(())
+            } else {
+                Err(SignatureError::InvalidSignature)
+            }
+        }
+    }
+
+    #[test]
+    fn hybrid_verification_requires_both_pinned_members() {
+        use crate::signature;
+        use crate::signature_provider::Ed25519Verifier;
+        use ed25519_dalek::SigningKey;
+
+        let signing_key = SigningKey::from_bytes(&[9; 32]);
+        let verifying_key = signing_key.verifying_key();
+        let composite_key = KeySetId([1; 32]);
+        let ed_key = KeySetId([2; 32]);
+        let pq_key = KeySetId([3; 32]);
+        let purpose = SignaturePurpose::TenantCommit;
+        let ed_verifier = Ed25519Verifier::new(&verifying_key, ed_key, purpose);
+        let pq = TestMlDsa {
+            suite: SignatureSuiteId::new("ml-dsa-65").unwrap(),
+            expected_key: pq_key,
+        };
+        let hybrid = HybridVerifier::new(
+            composite_key,
+            purpose,
+            HybridVerifierMember {
+                verifier: &ed_verifier,
+                key_set_id: ed_key,
+            },
+            HybridVerifierMember {
+                verifier: &pq,
+                key_set_id: pq_key,
+            },
+        )
+        .unwrap();
+        let transcript = b"same hybrid transcript";
+        let ed_signature = signature::sign(transcript, &signing_key);
+        let request = SigningRequest {
+            suite: hybrid.suite(),
+            key_set_id: &composite_key,
+            purpose,
+            transcript,
+        };
+
+        let verify = |ed25519, ml_dsa_65| {
+            let mut payload = [0; HYBRID_SIGNATURE_BYTES];
+            HybridSignature { ed25519, ml_dsa_65 }
+                .encode_into(&mut payload)
+                .unwrap();
+            hybrid.verify(VerificationRequest {
+                request,
+                signature: &payload,
+            })
+        };
+        assert!(verify(ed_signature.as_bytes(), &[7; ML_DSA_65_SIGNATURE_BYTES]).is_ok());
+        assert_eq!(
+            verify(ed_signature.as_bytes(), &[8; ML_DSA_65_SIGNATURE_BYTES]),
+            Err(SignatureError::InvalidSignature)
+        );
+        assert_eq!(
+            verify(&[0; SIGNATURE_BYTE_LEN], &[7; ML_DSA_65_SIGNATURE_BYTES]),
+            Err(SignatureError::InvalidSignature)
+        );
+    }
 
     #[test]
     fn independent_hybrid_layout_round_trips() {
