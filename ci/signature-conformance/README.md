@@ -43,10 +43,7 @@ the same prebuilt valid envelope for every sample. AWS-LC ML-DSA operations
 execute in its native backend, while RustCrypto ML-DSA and SLH-DSA operations
 are implemented by RustCrypto. The hybrid runs both Ed25519 and AWS-LC ML-DSA
 for every sample. All output allocations are part of the measured public path.
-This harness does not report allocator event counts: doing so accurately would
-need a process-wide Rust allocator instrument and separate native `malloc`
-instrumentation for AWS-LC, and the harness currently uses the crate's
-`unsafe_code = "forbid"` setting. Use an external allocator profiler when
-allocation attribution is required. These are microbenchmarks, not a
-representative commit-pipeline or deployment-load benchmark; record the host,
-toolchain, power mode, and competing system load alongside results.
+Allocation-event counts require instrumentation for both the Rust allocator
+and native AWS-LC allocations. Use an external allocator profiler for that
+measurement. Record the host, toolchain, power mode, and competing system load
+when comparing microbenchmark results.

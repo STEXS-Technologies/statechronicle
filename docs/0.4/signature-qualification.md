@@ -15,7 +15,7 @@ at `9ed64a5a5ece51fa2cd5929119cbe21e1e34f3f4`. See the
 | F5 | Protected mutation and batch signing use the existing atomic persistence and recovery path. Exact signed bytes and membership are checked during authoritative readback. |
 | F6 | Current and historical claims, mixed trade and settlement proofs, checkpoint verification, portable verification, and mixed index rebuild use shared verification. The legacy wire fixtures exercise compatibility. |
 | F7 | Two ML-DSA-65 implementations interoperate. The standalone provider tests cover selected NIST ACVP ML-DSA and SLH-DSA cases and a genuine Ed25519 plus ML-DSA-65 hybrid. The sanitizer-backed fuzz gate is in progress. |
-| F8 | Initial paired v0 sign and verify measurements are recorded. Final release latency, allocations, and workload coverage are in progress. |
+| F8 | Initial paired v0 sign and verify results and the five v1 provider measurements are recorded. The broader paired v0 workloads and allocation comparison are in progress. |
 | F9 | The migration guide covers staged reader and writer deployment and rollback. Final same-revision qualification, versioning, and release approval remain open. |
 
 The source review found duplicate requested settlement facts were checked only
@@ -25,37 +25,72 @@ full record bound. The trade and settlement integration suite and strict proof
 Clippy passed after the fix.
 
 RustSec audit completed with warnings denied against advisory database
-`b9b8a3c2cb1f2a3c76ab17a551193568c9f8b7a4`. All six active lockfiles at
-`4af9576` passed. This is evidence for that dependency graph and advisory
+`b9b8a3c2cb1f2a3c76ab17a551193568c9f8b7a4`. All seven active lockfiles in the 0.4 package graph passed.
+Cargo Deny also passed its advisory, ban, license, and source checks. This is evidence for that dependency graph and advisory
 snapshot. The standalone provider fixtures are test dependencies and carry
 their own provider and platform limits.
 
 
 ## Extracted-package and external consumer checks
 
-On 2026-11-25, source revision `4af95763e80c365d398172a9d87a8e0e240c8a08`
+On 2026-11-25, source revision `f0c49bda42afe9238a8657bbfa991def69ba8c3c`
 passed the isolated archive check with Rust 1.100.0. The checker created all 13
 archives, verified the packaged original fixtures against their pinned sources,
 and ran all-target tests, doctests, and strict Clippy in a fresh workspace
 containing only the extracted archives. The registry dependencies resolved
 within the original locked graph.
 
-The standalone checks on the same source passed 26 durable adapter conformance
-tests, five release-mode PQ provider tests, and two release-mode tests against
-the published v0.3.0 signing APIs.
+The standalone checks on `4af9576` passed 26 durable adapter conformance tests
+and five release-mode PQ provider tests. On the 0.4 package graph the same two
+frozen consumer tests compiled and passed in release mode against both the
+published v0.3.0 packages and the local 0.4.0 packages.
 
 | Crate archive | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `statechronicle-0.3.0.crate` | 209787 | `eb845835790bb9fd997607be5fd01861fc465f8a89a1301ecfa8624ed5dd1cca` |
-| `statechronicle-accumulator-0.3.0.crate` | 40430 | `b9fd98cbc1daf7f177ccb7d3ab8c7c7612de7c4dac7657b3bb6e7ceae4ddc5c5` |
-| `statechronicle-commit-0.3.0.crate` | 71069 | `a0d1d7f2fb0ff5ff94a3b54fed7bb19af6979bbdc0f5fdeb5e8f7ca0f6a37313` |
-| `statechronicle-core-0.3.0.crate` | 41262 | `08cdbdd525fb76d534210eb2f5cf2996bb0e59b57b783203adee1db67f1743a7` |
-| `statechronicle-domain-0.3.0.crate` | 43470 | `ed22d75ecff6864655223e930f3d2f21e151e14ddc868d38a4718692f9d5e35d` |
-| `statechronicle-executor-0.3.0.crate` | 73509 | `538ab9fd1c0330cbae8836375c6928570fc97d7e51afd73ffcadd7820338a118` |
-| `statechronicle-index-0.3.0.crate` | 37870 | `e4c469d73a062d2dc3ca4b58593f83ac311f81ddb34f39698b19870911fb65b5` |
-| `statechronicle-intent-0.3.0.crate` | 27223 | `a138d61058c5841607a264f3e57ec796e72787d169df20109c6e5d6601d06a69` |
-| `statechronicle-portable-0.3.0.crate` | 18326 | `133ba6cf9ea358271f7508a9eab307bc4d427af5ef31cfdf6445a0ac1233cbee` |
-| `statechronicle-ports-0.3.0.crate` | 39811 | `86664621e1b5a797be32a127e85891030eadc52d995f38f3035a9851a9d4ba8c` |
-| `statechronicle-profile-0.3.0.crate` | 2819 | `2625098456a5020a2684714e1db1145c35d1d3f631e3a1c93f41f6b4e81b67b1` |
-| `statechronicle-profiles-0.3.0.crate` | 80064 | `3f7e6ad424effebd44e70cbf780992f7f24a335faaf8d9f5fdda883114a3d6b0` |
-| `statechronicle-proof-0.3.0.crate` | 69794 | `9485f42bc9a401a56e6609e088daa3cedb9e077c8fa95a65498a66f78d3da226` |
+| `statechronicle-0.4.0.crate` | 210152 | `22b3ceb432e662dee45980270e8356204821aec8a9e51b57cd0c353bac136e31` |
+| `statechronicle-accumulator-0.4.0.crate` | 40426 | `e7e0ec1ea65267a25545199857719f7bcd35e1031b02efce3654d243e1bbeb2a` |
+| `statechronicle-commit-0.4.0.crate` | 71066 | `a80d15437b2e2df89e356bbe7cf729ffdaea33348e8fead5535775b3a8cf082f` |
+| `statechronicle-core-0.4.0.crate` | 41263 | `0667cb1527de94394d8fab1c12a276f9b91b0e32db737e71514a6f6e297914b7` |
+| `statechronicle-domain-0.4.0.crate` | 44146 | `f2e4c6158302688a1e171cfc8f6099c6a06a7833b0e77e3bbe16a1e5b7c0e9c2` |
+| `statechronicle-executor-0.4.0.crate` | 73509 | `10eb96b55c4837d1a3f885bc6de78c678f5023c2f0c445f364d3270af46b8a14` |
+| `statechronicle-index-0.4.0.crate` | 37873 | `12b2539ab27c37dab8b1ddf5fbe5d066985168539dbd13975e2ee1dc98f83dbd` |
+| `statechronicle-intent-0.4.0.crate` | 27227 | `c0dad9766ec709ecbb29c17dcb854df9add5eafcbd9d202209e6ddf83176dfd5` |
+| `statechronicle-portable-0.4.0.crate` | 18321 | `1212e7373fa9b8ef4fb9459f460046b42dc018b3a67c77ba2eca989d51fa63bf` |
+| `statechronicle-ports-0.4.0.crate` | 39805 | `d189ceefd582c2ae1dcd458fa685de931a228a75d594f6d12a9d0c2a6af96cf2` |
+| `statechronicle-profile-0.4.0.crate` | 2821 | `eb427b98daa52dccfdc8ece511f6d283ce774440334d2c8b8208da36a9329304` |
+| `statechronicle-profiles-0.4.0.crate` | 80058 | `cd1cdba7becdc13d3cfc8740e2f529ae1e6b6a310a0206e971b0e370a1da3f01` |
+| `statechronicle-proof-0.4.0.crate` | 69793 | `44e1d880508bc9bbc01d2abc1f89e589a5b212270d00c97440cb7f0bcfda990e` |
+
+
+## V1 release envelope measurements
+
+The [benchmark](../../ci/signature-conformance/README.md) ran on
+`c6e3a63e2020d2c3c6d648e80fd62d9a6107d4eb` with Rust 1.100.0, the locked
+release profile, and a Linux x86-64 Intel Xeon Platinum 8573C runner.
+The test executable was pinned to logical CPU 4 with `taskset`. Each of
+three runs measured 100 calls per operation after 10 warmups. The runner
+shared a four-core CPU quota with compilation during these runs, so the
+tail results include scheduler variation. The table gives the median
+of each run percentile in microseconds. [Per-run values](signature-envelope-c6e3a63.csv)
+are in nanoseconds.
+
+| Provider | Operation | p50 µs | p95 µs | p99 µs | Signature bytes | Envelope bytes |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Ed25519 | Sign | 18.5 | 29.0 | 94.8 | 64 | 176 |
+| Ed25519 | Decode and verify | 43.3 | 64.2 | 116.7 | 64 | 176 |
+| ML-DSA-65 (RustCrypto) | Sign | 664.5 | 955.8 | 1170.1 | 3309 | 3424 |
+| ML-DSA-65 (RustCrypto) | Decode and verify | 106.4 | 158.5 | 250.1 | 3309 | 3424 |
+| ML-DSA-65 (AWS-LC) | Sign | 143.0 | 421.9 | 576.1 | 3309 | 3424 |
+| ML-DSA-65 (AWS-LC) | Decode and verify | 52.4 | 95.6 | 116.2 | 3309 | 3424 |
+| SLH-DSA-SHA2-128s (RustCrypto) | Sign | 218258.0 | 284182.2 | 331258.7 | 7856 | 7979 |
+| SLH-DSA-SHA2-128s (RustCrypto) | Decode and verify | 196.4 | 306.4 | 344.2 | 7856 | 7979 |
+| Ed25519 + ML-DSA-65 (AWS-LC) | Sign | 170.0 | 527.7 | 708.5 | 3380 | 3513 |
+| Ed25519 + ML-DSA-65 (AWS-LC) | Decode and verify | 100.0 | 162.4 | 243.3 | 3380 | 3513 |
+
+
+Each sample used the same 45-byte body. Signing includes transcript creation,
+provider execution, and envelope encoding. Verification includes envelope
+decoding, transcript creation, and verification of a prebuilt valid envelope.
+SLH-DSA signing dominated the measured provider cost. AWS-LC and RustCrypto
+timings reflect their paired implementations and build features. The counts
+measure latency and encoded bytes. Allocation instrumentation is separate.
