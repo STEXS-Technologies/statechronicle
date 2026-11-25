@@ -5,8 +5,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use statechronicle_core::{
+    signature_hybrid::{HYBRID_SIGNATURE_BYTES, HYBRID_SUITE_ID, HybridVerifier},
     signature_operation::SignatureContext,
-    signature_provider::{KeySetId, SignaturePurpose, Verifier},
+    signature_provider::{KeySetId, SignatureError, SignaturePurpose, SignatureSuiteId, Verifier},
 };
 use statechronicle_domain::{intent::Operation, subject::SubjectId, tenant::TenantId};
 
@@ -82,28 +83,51 @@ pub enum ResolvedSignaturePolicy {
 /// V1 key and provider resolved together by the trusted deployment adapter.
 pub struct ResolvedSignatureV1 {
     verifier: Arc<dyn Verifier>,
+    suite: SignatureSuiteId,
     key_set_id: KeySetId,
     signature_len: usize,
 }
 
 impl ResolvedSignatureV1 {
-    /// Builds a decision from the registry's key-set and suite configuration.
-    pub fn new(verifier: Arc<dyn Verifier>, key_set_id: KeySetId, signature_len: usize) -> Self {
-        Self {
+    /// Builds a decision for one non-hybrid provider selected by the registry.
+    ///
+    /// # Errors
+    /// The reserved hybrid suite requires [Self::hybrid].
+    pub fn new(
+        verifier: Arc<dyn Verifier>,
+        key_set_id: KeySetId,
+        signature_len: usize,
+    ) -> Result<Self, SignatureError> {
+        let suite = verifier.suite().clone();
+        if suite.as_str() == HYBRID_SUITE_ID {
+            return Err(SignatureError::UnsupportedSuite);
+        }
+        Ok(Self {
             verifier,
+            suite,
             key_set_id,
             signature_len,
+        })
+    }
+
+    /// Builds an ALL-required policy decision for the reserved hybrid suite.
+    pub fn hybrid(verifier: Arc<HybridVerifier>, key_set_id: KeySetId) -> Self {
+        Self {
+            suite: verifier.suite().clone(),
+            verifier,
+            key_set_id,
+            signature_len: HYBRID_SIGNATURE_BYTES,
         }
     }
 
     /// Returns the cryptographic binding for the selected typed operation.
-    pub fn context<'policy>(
+    pub const fn context<'policy>(
         &'policy self,
         purpose: SignaturePurpose,
         body_schema: &'policy str,
     ) -> SignatureContext<'policy> {
         SignatureContext {
-            suite: self.verifier.suite(),
+            suite: &self.suite,
             key_set_id: &self.key_set_id,
             purpose,
             body_schema,
@@ -132,4 +156,37 @@ pub trait SignaturePolicy: Send + Sync {
         &self,
         query: SignaturePolicyQuery<'_>,
     ) -> Result<ResolvedSignaturePolicy, KeyRegistryError>;
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use statechronicle_core::signature_provider::VerificationRequest;
+
+    use super::*;
+
+    struct ClaimedHybrid(SignatureSuiteId);
+
+    impl Verifier for ClaimedHybrid {
+        fn suite(&self) -> &SignatureSuiteId {
+            &self.0
+        }
+
+        fn verify(&self, _request: VerificationRequest<'_>) -> Result<(), SignatureError> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn generic_provider_cannot_claim_the_reserved_hybrid_suite() {
+        let provider = ClaimedHybrid(SignatureSuiteId::new(HYBRID_SUITE_ID).unwrap());
+        assert!(matches!(
+            ResolvedSignatureV1::new(
+                Arc::new(provider),
+                KeySetId([1; 32]),
+                HYBRID_SIGNATURE_BYTES,
+            ),
+            Err(SignatureError::UnsupportedSuite)
+        ));
+    }
 }

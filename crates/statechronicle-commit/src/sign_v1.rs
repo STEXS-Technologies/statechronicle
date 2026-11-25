@@ -296,7 +296,8 @@ mod tests {
                             verifier.clone(),
                             KeySetId([1; 32]),
                             64,
-                        ),
+                        )
+                        .unwrap(),
                     )
                 }))
         }

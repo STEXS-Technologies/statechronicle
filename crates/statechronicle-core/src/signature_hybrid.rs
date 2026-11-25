@@ -1,5 +1,7 @@
 //! Canonical component framing for the ADR-009 Ed25519 and ML-DSA-65 suite.
 
+use std::sync::Arc;
+
 use crate::signature::SIGNATURE_BYTE_LEN;
 use crate::signature_provider::{
     KeySetId, ProviderBinding, SignatureError, SignaturePurpose, SignatureSuiteId, Signer,
@@ -159,14 +161,14 @@ fn check_member_suites(
 }
 
 /// A member verifier and key-set identity selected together by trusted policy.
-pub struct HybridVerifierMember<'provider> {
+pub struct HybridVerifierMember {
     /// Provider configured for this member's public key.
-    pub verifier: &'provider dyn Verifier,
+    pub verifier: Arc<dyn Verifier>,
     /// Registry identity for the member key set.
     pub key_set_id: KeySetId,
 }
 
-impl HybridVerifierMember<'_> {
+impl HybridVerifierMember {
     fn verify(&self, request: SigningRequest<'_>, signature: &[u8]) -> Result<(), SignatureError> {
         self.verifier.verify(VerificationRequest {
             request: SigningRequest {
@@ -180,13 +182,13 @@ impl HybridVerifierMember<'_> {
 }
 
 /// Verifies both members against independently resolved keys and one transcript.
-pub struct HybridVerifier<'provider> {
+pub struct HybridVerifier {
     binding: ProviderBinding,
-    ed25519: HybridVerifierMember<'provider>,
-    ml_dsa_65: HybridVerifierMember<'provider>,
+    ed25519: HybridVerifierMember,
+    ml_dsa_65: HybridVerifierMember,
 }
 
-impl<'provider> HybridVerifier<'provider> {
+impl HybridVerifier {
     /// Binds the ordered member providers to the trusted composite identity.
     ///
     /// # Errors
@@ -194,8 +196,8 @@ impl<'provider> HybridVerifier<'provider> {
     pub fn new(
         key_set_id: KeySetId,
         purpose: SignaturePurpose,
-        ed25519: HybridVerifierMember<'provider>,
-        ml_dsa_65: HybridVerifierMember<'provider>,
+        ed25519: HybridVerifierMember,
+        ml_dsa_65: HybridVerifierMember,
     ) -> Result<Self, SignatureError> {
         check_member_suites(ed25519.verifier.suite(), ml_dsa_65.verifier.suite())?;
         Ok(Self {
@@ -206,7 +208,7 @@ impl<'provider> HybridVerifier<'provider> {
     }
 }
 
-impl Verifier for HybridVerifier<'_> {
+impl Verifier for HybridVerifier {
     fn suite(&self) -> &SignatureSuiteId {
         &self.binding.suite
     }
@@ -347,11 +349,11 @@ mod tests {
             composite_key,
             purpose,
             HybridVerifierMember {
-                verifier: &ed_verifier,
+                verifier: Arc::new(ed_verifier),
                 key_set_id: ed_key,
             },
             HybridVerifierMember {
-                verifier: &pq,
+                verifier: Arc::new(pq),
                 key_set_id: pq_key,
             },
         )
