@@ -18,6 +18,8 @@ pub mod digest;
 
 /// Ed25519 signatures for commits and proof bundles.
 pub mod signature;
+/// Canonical component framing for the Ed25519 and ML-DSA-65 hybrid suite.
+pub mod signature_hybrid;
 /// Suite-neutral signing and verification provider contracts.
 pub mod signature_provider;
 /// Canonical transcript construction for versioned signatures.

@@ -97,8 +97,9 @@ and a synthetic body consisting of byte 2a.
 | `slh-dsa-sha2-128s` | FIPS 205 pure SLH-DSA-SHA2-128s, empty algorithm context | 7856 |
 | `hybrid-ed25519-ml-dsa-65.v1` | Ordered Ed25519 and ML-DSA-65 over the same suite-bound transcript | 3380 |
 
-The hybrid payload has a version byte 1, a count byte 2, and two records in
-fixed order. Each record is a one-byte member tag, a minimal ULEB128 byte
+The suite-specific signature length is checked before provider invocation.
+The hybrid payload occupies the envelope signature byte vector. It has a
+version byte 1, a count byte 2, and two records in fixed order. Each record is a one-byte member tag, a minimal ULEB128 byte
 length, and the raw signature. Tag 1 selects Ed25519 with length 64 and
 tag 2 selects ML-DSA-65 with length 3309. The complete composite is parsed
 and checked before any provider invocation. Verification requires both
