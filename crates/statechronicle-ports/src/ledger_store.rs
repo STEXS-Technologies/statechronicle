@@ -103,6 +103,21 @@ pub trait LedgerTransaction: Send + Sync {
     /// the commit's declared previous-head/root values.
     async fn append_commit(&mut self, commit: &Signed<Commit>) -> Result<(), LedgerStoreError>;
 
+    /// Append a v1 commit and stage the original intent and commit envelopes.
+    ///
+    /// Implementations retain all finalized effects atomically, require the
+    /// existing fenced idempotency claim and canonical head/root checks, and
+    /// provide matching [`crate::ledger_v1::LedgerRecoveryV1`] readback.
+    /// Legacy adapters refuse this operation and roll back staged effects.
+    async fn append_commit_v1(
+        &mut self,
+        _record: crate::ledger_v1::RetainMutationV1<'_>,
+    ) -> Result<(), LedgerStoreError> {
+        Err(LedgerStoreError::Invariant(String::from(
+            "atomic v1 mutation retention is unsupported",
+        )))
+    }
+
     /// Upsert a deterministic projection while enforcing monotonic version.
     async fn upsert_projection(
         &mut self,

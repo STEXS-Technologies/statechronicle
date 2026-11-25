@@ -236,6 +236,44 @@ pub(crate) fn validate_effects_with_binding(
     tenant: &TenantId,
     bind: impl Fn(&Event) -> Result<(), CommitError>,
 ) -> Result<Vec<Event>, CommitError> {
+    validate_effects_for_body(
+        CommitEffects {
+            entries,
+            body: &commit.body,
+            projections,
+            outbox_records,
+        },
+        tenant,
+        bind,
+        || {
+            let bytes = bcs::to_bytes(commit)
+                .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+            check_size("commit", MAX_COMMIT_BYTES, bytes.len())
+                .map_err(|error| CommitError::InvalidEvent(error.to_string()))
+        },
+    )
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct CommitEffects<'request, 'event> {
+    pub(crate) entries: &'request [CommittedEvent<'event>],
+    pub(crate) body: &'request Commit,
+    pub(crate) projections: &'request [StateProjection],
+    pub(crate) outbox_records: &'request [OutboxRecord],
+}
+
+pub(crate) fn validate_effects_for_body(
+    effects: CommitEffects<'_, '_>,
+    tenant: &TenantId,
+    bind: impl Fn(&Event) -> Result<(), CommitError>,
+    check_commit_size: impl FnOnce() -> Result<(), CommitError>,
+) -> Result<Vec<Event>, CommitError> {
+    let CommitEffects {
+        entries,
+        body,
+        projections,
+        outbox_records,
+    } = effects;
     let events: Vec<Event> = entries.iter().map(|entry| entry.event.clone()).collect();
     if events.is_empty() {
         return Err(CommitError::InvalidEvent(String::from(
@@ -257,17 +295,14 @@ pub(crate) fn validate_effects_with_binding(
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
     check_size("event_batch", MAX_EVENT_BATCH_BYTES, event_bytes)
         .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
-    let commit_bytes =
-        bcs::to_bytes(commit).map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
-    check_size("commit", MAX_COMMIT_BYTES, commit_bytes.len())
-        .map_err(|error| CommitError::InvalidEvent(error.to_string()))?;
+    check_commit_size()?;
     validate_committed_events(entries)?;
     for event in &events {
         bind(event)?;
     }
-    validate_projection_bindings(&commit.body.commit_id, entries, projections)?;
+    validate_projection_bindings(&body.commit_id, entries, projections)?;
     for projection in projections {
-        if projection.tenant_id != *tenant || projection.last_commit_id != commit.body.commit_id {
+        if projection.tenant_id != *tenant || projection.last_commit_id != body.commit_id {
             return Err(CommitError::Store(String::from(
                 "durable projection is not bound to the commit scope",
             )));
@@ -275,7 +310,7 @@ pub(crate) fn validate_effects_with_binding(
     }
     validate_outbox_records(outbox_records)?;
     for outbox in outbox_records {
-        if outbox.tenant != *tenant || outbox.commit_id != commit.body.commit_id {
+        if outbox.tenant != *tenant || outbox.commit_id != body.commit_id {
             return Err(CommitError::Store(String::from(
                 "durable outbox record is not bound to the commit scope",
             )));
@@ -283,9 +318,7 @@ pub(crate) fn validate_effects_with_binding(
     }
     let event_count = u64::try_from(events.len())
         .map_err(|error| CommitError::InvalidEvent(format!("event count overflow: {error}")))?;
-    if event_count != commit.body.event_count
-        || event_root(&events)? != commit.body.event_merkle_root
-    {
+    if event_count != body.event_count || event_root(&events)? != body.event_merkle_root {
         return Err(CommitError::EventRootMismatch);
     }
 

@@ -172,6 +172,21 @@ verification also checks the expected claim or head and validates each
 referenced commit against the policy for that individual commit. Existing
 Merkle paths and state hashing are reused.
 
+### Durable retention
+
+The ledger retains the exact actor-intent and commit envelopes in the same
+fenced transaction as the claim, canonical head, events, projections, and
+outbox. A v1 claim uses the digest of the canonical v1 actor-intent body.
+Both formats share the tenant and intent identity namespace. Lookup reports
+an existing row in another format explicitly, without treating it as an
+absent row or creating a new reservation. A member of an atomic batch is
+recovered only through the complete group record.
+
+A legacy-only adapter refuses the v1 append capability. Before returning a
+receipt, the durable owner verifies the independently retained signed bytes
+and all original effects through authoritative readback. Unknown
+acknowledgment requires original identity reconciliation.
+
 ## Alternatives and consequences
 
 In-place changes to the legacy signature block would break positional BCS

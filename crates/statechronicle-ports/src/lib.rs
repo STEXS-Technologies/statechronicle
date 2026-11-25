@@ -45,6 +45,9 @@ pub mod transaction_manager;
 /// Durable atomic ledger transaction boundary.
 pub mod ledger_store;
 
+/// Exact-byte v1 mutation retention and recovery.
+pub mod ledger_v1;
+
 /// Optional atomic batch retention and recovery contract.
 pub mod ledger_batch;
 
