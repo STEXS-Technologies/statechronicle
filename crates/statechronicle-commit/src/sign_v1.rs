@@ -9,7 +9,7 @@ use statechronicle_core::{
     canonicalize::canonicalize,
     signature_operation::SignatureContext,
     signature_provider::{SignatureError, SignaturePurpose, Signer, Verifier},
-    signature_wire::{V1SignedEnvelope, decode_v1_envelope, encode_v1_envelope},
+    signature_wire::{V1SignedEnvelope, decode_v1_envelope},
 };
 use statechronicle_domain::commit::{COMMIT_SCHEMA, Commit, ScopeKind};
 use statechronicle_ports::{
@@ -92,16 +92,7 @@ fn sign_body<T: SigningBody>(
 ) -> Result<Vec<u8>, SignatureError> {
     check_context::<T>(context)?;
     let canonical = canonical_body(body)?;
-    let signature = context.sign(&canonical, signer)?;
-    encode_v1_envelope(
-        V1SignedEnvelope {
-            body: &canonical,
-            suite_id: context.suite.as_str(),
-            key_set_id: &context.key_set_id.0,
-            signature: &signature,
-        },
-        T::PURPOSE,
-    )
+    context.sign_envelope(&canonical, signer)
 }
 
 fn verify_body<T: SigningBody>(
@@ -112,7 +103,7 @@ fn verify_body<T: SigningBody>(
     check_context::<T>(context)?;
     let envelope = decode_v1_envelope(record, T::PURPOSE)?;
     let body = decode_body::<T>(envelope)?;
-    verify_signature(envelope, context, verifier)?;
+    context.verify_envelope(envelope, verifier)?;
     Ok(body)
 }
 
@@ -123,23 +114,6 @@ fn decode_body<T: SigningBody>(envelope: V1SignedEnvelope<'_>) -> Result<T, Sign
         return Err(SignatureError::MalformedEncoding);
     }
     Ok(body)
-}
-
-fn verify_signature(
-    envelope: V1SignedEnvelope<'_>,
-    context: &SignatureContext<'_>,
-    verifier: &dyn Verifier,
-) -> Result<(), SignatureError> {
-    if context.suite.as_str() != envelope.suite_id || context.key_set_id.0 != *envelope.key_set_id {
-        return Err(SignatureError::UnauthorizedSuite);
-    }
-    context.verify(
-        envelope.body,
-        context.suite,
-        context.key_set_id,
-        envelope.signature,
-        verifier,
-    )
 }
 
 /// Failure to resolve or verify a v1 authority signature.
@@ -179,11 +153,9 @@ async fn verify_with_policy<T: SigningBody>(
     let ResolvedSignaturePolicy::V1(resolved) = decision else {
         return Err(SignatureError::UnauthorizedSuite.into());
     };
-    verify_signature(
-        envelope,
-        &resolved.context(T::PURPOSE, T::SCHEMA),
-        resolved.verifier(),
-    )?;
+    resolved
+        .context(T::PURPOSE, T::SCHEMA)
+        .verify_envelope(envelope, resolved.verifier())?;
     Ok(body)
 }
 

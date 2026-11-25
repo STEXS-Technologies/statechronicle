@@ -22,5 +22,7 @@ pub mod validate;
 /// Intent processing error type.
 pub mod error;
 
+/// Typed cryptographic entry points for v1 actor intents.
+pub mod sign_v1;
 /// Versioned v1 actor-intent body encoding.
 pub mod v1_body;

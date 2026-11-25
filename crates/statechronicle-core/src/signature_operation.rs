@@ -9,6 +9,7 @@ use crate::signature_provider::{
     SigningRequest, VerificationRequest, Verifier,
 };
 use crate::signature_transcript::signature_transcript;
+use crate::signature_wire::{V1SignedEnvelope, encode_v1_envelope};
 
 /// Suite and key-set binding selected by the host for a typed protocol body.
 pub struct SignatureContext<'policy> {
@@ -74,12 +75,16 @@ impl SignatureContext<'_> {
         }
     }
 
-    /// Constructs the shared transcript and invokes the selected signer.
+    /// Signs a canonical body and encodes its standalone v1 envelope.
     ///
     /// # Errors
     /// Rejects mismatched providers, invalid lengths, and provider failures.
     /// A partially signed payload is discarded.
-    pub fn sign(&self, body: &[u8], signer: &dyn Signer) -> Result<Vec<u8>, SignatureError> {
+    pub fn sign_envelope(
+        &self,
+        body: &[u8],
+        signer: &dyn Signer,
+    ) -> Result<Vec<u8>, SignatureError> {
         self.check_provider(signer.suite())?;
         let transcript = self.transcript(body)?;
         let mut signature = vec![0; self.signature_len];
@@ -88,7 +93,15 @@ impl SignatureContext<'_> {
             return Err(SignatureError::MalformedEncoding);
         }
         self.check_payload(&signature)?;
-        Ok(signature)
+        encode_v1_envelope(
+            V1SignedEnvelope {
+                body,
+                suite_id: self.suite.as_str(),
+                key_set_id: &self.key_set_id.0,
+                signature: &signature,
+            },
+            self.purpose,
+        )
     }
 
     /// Verifies the envelope signature using the independently selected context.
@@ -96,23 +109,20 @@ impl SignatureContext<'_> {
     /// # Errors
     /// Rejects a mismatched envelope binding or malformed payload before crypto.
     /// Provider errors are returned directly.
-    pub fn verify(
+    pub fn verify_envelope(
         &self,
-        body: &[u8],
-        envelope_suite: &SignatureSuiteId,
-        envelope_key: &KeySetId,
-        signature: &[u8],
+        envelope: V1SignedEnvelope<'_>,
         verifier: &dyn Verifier,
     ) -> Result<(), SignatureError> {
-        if self.suite != envelope_suite || self.key_set_id != envelope_key {
+        if self.suite.as_str() != envelope.suite_id || self.key_set_id.0 != *envelope.key_set_id {
             return Err(SignatureError::UnauthorizedSuite);
         }
         self.check_provider(verifier.suite())?;
-        self.check_payload(signature)?;
-        let transcript = self.transcript(body)?;
+        self.check_payload(envelope.signature)?;
+        let transcript = self.transcript(envelope.body)?;
         verifier.verify(VerificationRequest {
             request: self.request(&transcript),
-            signature,
+            signature: envelope.signature,
         })
     }
 }
@@ -123,6 +133,7 @@ mod tests {
     use ed25519_dalek::SigningKey;
 
     use crate::signature_provider::{Ed25519Signer, Ed25519Verifier};
+    use crate::signature_wire::decode_v1_envelope;
 
     use super::*;
 
@@ -142,22 +153,33 @@ mod tests {
             body_schema: "statechronicle.commit.v0",
             signature_len: SIGNATURE_BYTE_LEN,
         };
-        let body = b"example body";
-        let signature = context.sign(body, &signer).unwrap();
-        context
-            .verify(body, suite, &key_set_id, &signature, &verifier)
-            .unwrap();
+        let bytes = context.sign_envelope(b"example body", &signer).unwrap();
+        let envelope = decode_v1_envelope(&bytes, purpose).unwrap();
+        context.verify_envelope(envelope, &verifier).unwrap();
+
+        for wrong_binding in [
+            V1SignedEnvelope {
+                key_set_id: &[8; 32],
+                ..envelope
+            },
+            V1SignedEnvelope {
+                suite_id: "ml-dsa-65",
+                ..envelope
+            },
+        ] {
+            assert_eq!(
+                context.verify_envelope(wrong_binding, &verifier),
+                Err(SignatureError::UnauthorizedSuite)
+            );
+        }
         assert_eq!(
-            context.verify(body, suite, &KeySetId([8; 32]), &signature, &verifier),
-            Err(SignatureError::UnauthorizedSuite)
-        );
-        let other_suite = SignatureSuiteId::new("ml-dsa-65").unwrap();
-        assert_eq!(
-            context.verify(body, &other_suite, &key_set_id, &signature, &verifier),
-            Err(SignatureError::UnauthorizedSuite)
-        );
-        assert_eq!(
-            context.verify(body, suite, &key_set_id, &[0; 63], &verifier),
+            context.verify_envelope(
+                V1SignedEnvelope {
+                    signature: &[0; 63],
+                    ..envelope
+                },
+                &verifier,
+            ),
             Err(SignatureError::MalformedEncoding)
         );
         let other_context = SignatureContext {
@@ -165,7 +187,7 @@ mod tests {
             ..context
         };
         assert_eq!(
-            other_context.verify(body, suite, &key_set_id, &signature, &verifier),
+            other_context.verify_envelope(envelope, &verifier),
             Err(SignatureError::InvalidSignature)
         );
     }

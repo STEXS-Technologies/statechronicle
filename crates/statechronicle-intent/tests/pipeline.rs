@@ -327,3 +327,45 @@ fn nonce_is_preserved_through_the_pipeline() {
         inputs.get("to_owner")
     );
 }
+
+#[test]
+fn v1_intent_round_trips_and_binds_typed_inputs() {
+    use statechronicle_core::signature_operation::SignatureContext;
+    use statechronicle_core::signature_provider::{
+        Ed25519Signer, Ed25519Verifier, KeySetId, SignaturePurpose, Signer,
+    };
+    use statechronicle_core::signature_wire::{decode_v1_envelope, encode_v1_envelope};
+    use statechronicle_intent::sign_v1::{sign_intent_v1, verify_intent_v1};
+    use statechronicle_intent::v1_body::{INTENT_V1_SCHEMA, encode_v1_intent_body};
+
+    let mut payload = sample_payload();
+    payload["inputs"] = serde_json::json!({"flag": true, "nested": [null, -7, 3, "text"]});
+    let intent = validate(&parse_payload(&payload)).unwrap().intent;
+    let key = fixed_key();
+    let verifying_key = key.verifying_key();
+    let purpose = SignaturePurpose::ActorIntent;
+    let key_set = KeySetId([7; 32]);
+    let signer = Ed25519Signer::new(&key, key_set, purpose);
+    let verifier = Ed25519Verifier::new(&verifying_key, key_set, purpose);
+    let context = SignatureContext {
+        suite: signer.suite(),
+        key_set_id: &key_set,
+        purpose,
+        body_schema: INTENT_V1_SCHEMA,
+        signature_len: 64,
+    };
+
+    let record = sign_intent_v1(&intent, &context, &signer).unwrap();
+    assert_eq!(
+        verify_intent_v1(&record, &context, &verifier).unwrap(),
+        intent
+    );
+
+    let mut altered = intent;
+    altered.inputs.insert("flag".into(), serde_json::json!(1));
+    let body = encode_v1_intent_body(&altered).unwrap();
+    let mut borrowed = decode_v1_envelope(&record, purpose).unwrap();
+    borrowed.body = &body;
+    let tampered = encode_v1_envelope(borrowed, purpose).unwrap();
+    assert!(verify_intent_v1(&tampered, &context, &verifier).is_err());
+}
