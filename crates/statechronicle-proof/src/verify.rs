@@ -159,7 +159,7 @@ pub fn verify_proof(
     verify_claimed_state(proof, key)
 }
 
-fn check_proof_size<T: serde::Serialize>(proof: &T) -> Result<(), ProofError> {
+pub(crate) fn check_proof_size<T: serde::Serialize>(proof: &T) -> Result<(), ProofError> {
     // `serialized_size` walks with a counter instead of allocating a second
     // copy of the caller's potentially oversized proof.
     let actual = bcs::serialized_size(proof)

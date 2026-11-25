@@ -13,19 +13,185 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use chrono::{DateTime, Utc};
 use ed25519_dalek::VerifyingKey;
 use statechronicle_domain::commit::Commit;
 use statechronicle_domain::ids::CommitId;
 use statechronicle_domain::proof::ResourceStateProof;
 use statechronicle_domain::signed::Signed;
+use statechronicle_domain::subject::SubjectId;
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_domain::trade::{
-    TRADE_PROOF_SCHEMA, TradeProof, TradeProofLeg, TradeRecord, TradeSummary,
+    TRADE_PROOF_SCHEMA, TRADE_PROOF_V1_SCHEMA, TradeAssetStateProofV1, TradeProof, TradeProofLeg,
+    TradeProofV1, TradeRecord, TradeSummary,
 };
+use statechronicle_ports::signature_policy::SignaturePolicy;
 
 use crate::bundle::{derive_state_key, owner_of};
 use crate::error::ProofError;
 use crate::verify::verify_bundle;
+
+/// Caller-pinned verification authority for one tenant/commit identity.
+pub enum ScopedTradeCommitV1 {
+    /// Legacy commit and key selected independently by the caller.
+    Legacy {
+        signed: Box<Signed<Commit>>,
+        verifying_key: VerifyingKey,
+    },
+    /// Exact signed-record digest pin and independently configured authority.
+    V1 {
+        pin: crate::claim::ExpectedCommitV1,
+        authority: SubjectId,
+    },
+}
+
+/// Verifies mixed-format trade asset proofs against an independently supplied
+/// trade summary and caller-pinned `(tenant, commit_id)` evidence. V1 envelopes
+/// use Historical signature policy. Signed canonical settlement facts (the
+/// trade summary, event linkage and atomic settlement semantics) require
+/// separate witnesses; these asset proofs establish only resulting asset
+/// states and structural coverage.
+///
+/// # Errors
+/// Returns expectation, coverage, caller-pin, commit signature, state proof,
+/// ownership, event-operation, and missing-evidence errors.
+pub async fn verify_trade_proof_v1(
+    proof: &TradeProofV1,
+    expected: &TradeSummary,
+    commits: &BTreeMap<(String, String), ScopedTradeCommitV1>,
+    policy: &dyn SignaturePolicy,
+    now: DateTime<Utc>,
+) -> Result<(), ProofError> {
+    if proof.schema != TRADE_PROOF_V1_SCHEMA {
+        return Err(ProofError::UnsupportedSchema(proof.schema.clone()));
+    }
+    if proof.trade_id != expected.trade_id {
+        return Err(ProofError::TradeIdMismatch {
+            expected: expected.trade_id.clone(),
+            actual: proof.trade_id.clone(),
+        });
+    }
+    crate::verify::check_proof_size(proof)?;
+    if proof.summary != *expected {
+        return Err(ProofError::InvalidState(String::from(
+            "trade proof summary does not match the independently expected summary",
+        )));
+    }
+    for leg in &proof.legs {
+        let Some(side) = expected.sides.iter().find(|side| side.tenant == leg.tenant) else {
+            return Err(ProofError::TradeMissingSide(leg.tenant.0.clone()));
+        };
+        if leg.state_proofs.len() != side.settle_assets.len() {
+            return Err(ProofError::TradeProofTruncated {
+                expected: side.settle_assets.len(),
+                actual: leg.state_proofs.len(),
+            });
+        }
+    }
+    if proof.legs.len() != expected.sides.len() {
+        return Err(ProofError::TradeProofTruncated {
+            expected: expected.sides.len(),
+            actual: proof.legs.len(),
+        });
+    }
+    validate_unique_coverage(
+        expected,
+        proof.legs.iter().map(|leg| {
+            (
+                &leg.tenant,
+                leg.state_proofs.iter().map(|witness| match witness {
+                    TradeAssetStateProofV1::Legacy(p) => &p.resource_id,
+                    TradeAssetStateProofV1::V1(p) => &p.resource_id,
+                }),
+            )
+        }),
+    )?;
+
+    for leg in &proof.legs {
+        let side = expected
+            .sides
+            .iter()
+            .find(|side| side.tenant == leg.tenant)
+            .ok_or_else(|| ProofError::TradeMissingSide(leg.tenant.0.clone()))?;
+        for witness in &leg.state_proofs {
+            let (tenant, resource, commit_id) = match witness {
+                TradeAssetStateProofV1::Legacy(p) => {
+                    (&p.tenant_id, &p.resource_id, &p.commit.commit_id)
+                }
+                TradeAssetStateProofV1::V1(p) => {
+                    (&p.tenant_id, &p.resource_id, &p.commit.commit_id)
+                }
+            };
+            if tenant != &leg.tenant {
+                return Err(ProofError::TenantMismatch {
+                    expected: leg.tenant.0.clone(),
+                    actual: tenant.0.clone(),
+                });
+            }
+            if !side.settle_assets.iter().any(|asset| asset == resource) {
+                return Err(ProofError::ResourceMismatch {
+                    expected: side.to_owner.clone(),
+                    actual: resource.0.clone(),
+                });
+            }
+            let Some(evidence) = commits.get(&(leg.tenant.0.clone(), commit_id.0.clone())) else {
+                return Err(ProofError::KeyNotFound(commit_id.0.clone()));
+            };
+            match (witness, evidence) {
+                (
+                    TradeAssetStateProofV1::Legacy(p),
+                    ScopedTradeCommitV1::Legacy {
+                        signed,
+                        verifying_key,
+                    },
+                ) => {
+                    let key = derive_state_key(p)?;
+                    if p.commit.signature != signed.signature {
+                        return Err(ProofError::InvalidState(String::from(
+                            "trade proof commit signature does not match independently pinned evidence",
+                        )));
+                    }
+                    verify_bundle(p, signed, verifying_key, &key)?;
+                    let owner = owner_of(&p.claimed_state)?;
+                    if owner != side.to_owner {
+                        return Err(ProofError::SubjectMismatch {
+                            expected: side.to_owner.clone(),
+                            actual: owner,
+                        });
+                    }
+                }
+                (TradeAssetStateProofV1::V1(p), ScopedTradeCommitV1::V1 { pin, authority }) => {
+                    if pin.commit_id() != commit_id {
+                        return Err(ProofError::CommitRefMismatch {
+                            expected: pin.commit_id().0.clone(),
+                            actual: commit_id.0.clone(),
+                        });
+                    }
+                    let expected_claim = crate::claim::ExpectedClaim::ownership(
+                        leg.tenant.clone(),
+                        resource.clone(),
+                        SubjectId(side.to_owner.clone()),
+                    );
+                    crate::verify::verify_resource_state_v1(
+                        p,
+                        &expected_claim,
+                        pin,
+                        authority,
+                        policy,
+                        now,
+                    )
+                    .await?;
+                }
+                _ => {
+                    return Err(ProofError::InvalidState(String::from(
+                        "proof format does not match caller-pinned commit evidence",
+                    )));
+                }
+            }
+        }
+    }
+    Ok(())
+}
 
 /// Assembles a portable trade proof from a trade record and per-tenant state
 /// proofs of the settled assets.
@@ -197,7 +363,15 @@ fn verify_trade_proof_with<'context>(
         });
     }
 
-    validate_unique_coverage(proof)?;
+    validate_unique_coverage(
+        &proof.summary,
+        proof.legs.iter().map(|leg| {
+            (
+                &leg.tenant,
+                leg.state_proofs.iter().map(|witness| &witness.resource_id),
+            )
+        }),
+    )?;
 
     for leg in &proof.legs {
         let Some(side) = proof
@@ -259,9 +433,17 @@ fn verify_trade_proof_with<'context>(
 
 /// Count equality plus membership only proves coverage when both declarations
 /// and supplied witnesses are unique. Borrow keys to avoid cloning identifiers.
-fn validate_unique_coverage(proof: &TradeProof) -> Result<(), ProofError> {
+fn validate_unique_coverage<'proof>(
+    summary: &TradeSummary,
+    legs: impl IntoIterator<
+        Item = (
+            &'proof TenantId,
+            impl IntoIterator<Item = &'proof statechronicle_domain::resource::ResourceId>,
+        ),
+    >,
+) -> Result<(), ProofError> {
     let mut tenants = BTreeSet::new();
-    for side in &proof.summary.sides {
+    for side in &summary.sides {
         if !tenants.insert(side.tenant.0.as_str()) {
             return Err(ProofError::InvalidState(String::from(
                 "duplicate trade summary tenant",
@@ -277,15 +459,15 @@ fn validate_unique_coverage(proof: &TradeProof) -> Result<(), ProofError> {
         }
     }
     tenants.clear();
-    for leg in &proof.legs {
-        if !tenants.insert(leg.tenant.0.as_str()) {
+    for (tenant, witnesses) in legs {
+        if !tenants.insert(tenant.0.as_str()) {
             return Err(ProofError::InvalidState(String::from(
                 "duplicate trade proof tenant",
             )));
         }
         let mut resources = BTreeSet::new();
-        for witness in &leg.state_proofs {
-            if !resources.insert(&witness.resource_id) {
+        for resource in witnesses {
+            if !resources.insert(resource) {
                 return Err(ProofError::InvalidState(String::from(
                     "duplicate trade proof resource",
                 )));
@@ -311,6 +493,23 @@ mod tests {
     use statechronicle_domain::proof::{CommitRef, SparseMerkleProof};
     use statechronicle_domain::resource::ResourceId;
     use statechronicle_domain::trade::{TradeSide, TradeStatus, TradeValueLeg};
+    use statechronicle_ports::{
+        key_registry::KeyRegistryError,
+        signature_policy::{ResolvedSignaturePolicy, SignaturePolicyQuery},
+    };
+
+    struct NoPolicy;
+    #[async_trait::async_trait]
+    impl SignaturePolicy for NoPolicy {
+        async fn resolve(
+            &self,
+            _query: SignaturePolicyQuery<'_>,
+        ) -> Result<ResolvedSignaturePolicy, KeyRegistryError> {
+            Err(KeyRegistryError::Unavailable(String::from(
+                "not used by structural tests",
+            )))
+        }
+    }
 
     fn commit_ref() -> CommitRef {
         CommitRef {
@@ -380,6 +579,117 @@ mod tests {
             },
             legs,
         }
+    }
+
+    #[tokio::test]
+    async fn mixed_v1_trade_checks_independent_summary_and_scoped_pins() {
+        let side = side("acme.game.alpha", &["asset:sword", "asset:shield"]);
+        let summary = TradeSummary {
+            trade_id: String::from("trade_001"),
+            status: TradeStatus::Settled,
+            sides: vec![side.clone()],
+            value_legs: Vec::new(),
+        };
+        let legacy = state_proof("acme.game.alpha", "asset:sword");
+        let v1 = statechronicle_domain::proof::ResourceStateProofV1::new(
+            legacy.tenant_id.clone(),
+            ResourceId(String::from("asset:shield")),
+            legacy.claimed_state.clone(),
+            statechronicle_domain::proof::CommitRefV1 {
+                commit_id: legacy.commit.commit_id.clone(),
+                sequence: legacy.commit.sequence,
+                state_root: legacy.commit.state_root.clone(),
+                signed_commit_record: vec![0],
+            },
+            legacy.state_inclusion_proof.clone(),
+            legacy.latest_event.clone(),
+            None,
+        );
+        let proof = statechronicle_domain::trade::TradeProofV1 {
+            schema: String::from(TRADE_PROOF_V1_SCHEMA),
+            trade_id: summary.trade_id.clone(),
+            summary: summary.clone(),
+            legs: vec![statechronicle_domain::trade::TradeProofLegV1 {
+                tenant: side.tenant.clone(),
+                state_proofs: vec![
+                    TradeAssetStateProofV1::Legacy(legacy),
+                    TradeAssetStateProofV1::V1(v1),
+                ],
+            }],
+        };
+        let mut wrong_summary = summary.clone();
+        wrong_summary.sides[0].to_owner = String::from("account:other");
+        assert!(matches!(
+            verify_trade_proof_v1(
+                &proof,
+                &wrong_summary,
+                &BTreeMap::new(),
+                &NoPolicy,
+                chrono::Utc::now()
+            )
+            .await,
+            Err(ProofError::InvalidState(_))
+        ));
+        let missing_result = verify_trade_proof_v1(
+            &proof,
+            &summary,
+            &BTreeMap::new(),
+            &NoPolicy,
+            chrono::Utc::now(),
+        )
+        .await;
+        assert!(
+            matches!(missing_result, Err(ProofError::KeyNotFound(_))),
+            "{missing_result:?}"
+        );
+        let unrelated_scope = BTreeMap::from([(
+            (
+                String::from("other.tenant"),
+                String::from("cmt_00000000000000000001"),
+            ),
+            ScopedTradeCommitV1::V1 {
+                pin: crate::claim::ExpectedCommitV1::new(
+                    commit_ref().commit_id,
+                    statechronicle_core::digest::hash_bytes(b"record"),
+                ),
+                authority: SubjectId(String::from("service:authority")),
+            },
+        )]);
+        assert!(matches!(
+            verify_trade_proof_v1(
+                &proof,
+                &summary,
+                &unrelated_scope,
+                &NoPolicy,
+                chrono::Utc::now()
+            )
+            .await,
+            Err(ProofError::KeyNotFound(_))
+        ));
+        let mut v1_first = proof.clone();
+        v1_first.legs[0].state_proofs.swap(0, 1);
+        let commit_id = commit_ref().commit_id;
+        let v1_evidence = BTreeMap::from([(
+            (String::from("acme.game.alpha"), commit_id.0.clone()),
+            ScopedTradeCommitV1::V1 {
+                pin: crate::claim::ExpectedCommitV1::new(
+                    commit_id,
+                    statechronicle_core::digest::hash_bytes(&[0]),
+                ),
+                authority: SubjectId(String::from("service:authority")),
+            },
+        )]);
+        assert!(matches!(
+            verify_trade_proof_v1(
+                &v1_first,
+                &summary,
+                &v1_evidence,
+                &NoPolicy,
+                chrono::Utc::now()
+            )
+            .await,
+            Err(ProofError::CommitSignature(_)) | Err(ProofError::Core(_))
+        ));
     }
 
     /// (a) A proof whose leg carries fewer state proofs than the side declares
