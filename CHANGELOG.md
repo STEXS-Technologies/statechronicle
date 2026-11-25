@@ -6,20 +6,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### 0.4.0 signature agility
+StateChronicle 0.4 adds opt-in signature suites for state verification while
+preserving the v0.3 APIs and wire bytes. See the
+[signature migration guide](docs/0.4/signature-migration.md) for reader rollout,
+key policy, and rollback.
 
-- Added opt-in v1 signatures for actor intents, tenant commits, and global
-  checkpoints. Signing and verification share a canonical transcript and
-  independently scoped signature policy. Strict Ed25519 remains the legacy
-  default, and the frozen v0.3 wire fixtures remain byte-for-byte compatible.
-- Added versioned durable mutation and batch recovery, exact signed-record pins
-  for historical proof verification, and a borrowed v1 verification hook for
-  portable consumers.
-- Added optional conformance tests for ML-DSA-65, SLH-DSA-SHA2-128s, and
-  Ed25519 + ML-DSA-65 hybrid verification. Hybrid verification requires both
-  members.
-- See the [signature migration guide](docs/0.4/signature-migration.md) for
-  reader rollout, trusted key policy, and rollback and recovery procedures.
+### Added
+
+- Add v1 signing and verification for actor intents, tenant commits, and global
+  checkpoints. Deployments can select standalone ML-DSA-65 or SLH-DSA-SHA2-128s,
+  or require both Ed25519 and ML-DSA-65 with the hybrid suite. Strict Ed25519
+  remains the default for legacy callers.
+- Support versioned durable writes and exact recovery for single mutations and
+  batches. Verify current and historical claims, mixed-format trade and
+  settlement evidence, and mixed-format index rebuilds. Add a borrowed v1
+  verification hook for portable consumers.
+- Add optional conformance tests for ML-DSA-65 interoperability, SLH-DSA
+  verification, and the hybrid suite.
+
+### Changed
+
+- Count serialized proof bytes directly when checking the size limit, avoiding
+  a temporary BCS buffer.
+
+### Security
+
+- Bind v1 signatures to the expected purpose, schema, suite, and key set.
+  Resolve signer trust from deployment policy and reject mismatches before
+  signature verification.
+- Require independently pinned signed records for mixed-format historical
+  evidence. Reject duplicate settlement facts and check complete v1 envelopes
+  against their wire-size limit.
+
+The [qualification record](docs/0.4/signature-qualification.md) documents the
+compatibility checks, benchmark results, and deployment limits.
 
 ## [0.3.0] - 2026-11-17
 
