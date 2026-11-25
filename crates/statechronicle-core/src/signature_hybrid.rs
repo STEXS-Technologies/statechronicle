@@ -2,8 +2,8 @@
 
 use crate::signature::SIGNATURE_BYTE_LEN;
 use crate::signature_provider::{
-    KeySetId, ProviderBinding, SignatureError, SignaturePurpose, SignatureSuiteId, SigningRequest,
-    VerificationRequest, Verifier,
+    KeySetId, ProviderBinding, SignatureError, SignaturePurpose, SignatureSuiteId, Signer,
+    SigningRequest, VerificationRequest, Verifier,
 };
 
 /// Suite identifier for the ordered Ed25519 and ML-DSA-65 hybrid.
@@ -63,6 +63,101 @@ impl<'signature> HybridSignature<'signature> {
     }
 }
 
+/// A member signer and key-set identity selected together by trusted policy.
+pub struct HybridSignerMember<'provider> {
+    /// Provider configured for the member signing key.
+    pub signer: &'provider dyn Signer,
+    /// Registry identity for the member key set.
+    pub key_set_id: KeySetId,
+}
+
+impl HybridSignerMember<'_> {
+    fn sign_into(
+        &self,
+        request: SigningRequest<'_>,
+        output: &mut [u8],
+    ) -> Result<(), SignatureError> {
+        let written = self.signer.sign_into(
+            SigningRequest {
+                suite: self.signer.suite(),
+                key_set_id: &self.key_set_id,
+                ..request
+            },
+            output,
+        )?;
+        if written == output.len() {
+            Ok(())
+        } else {
+            Err(SignatureError::MalformedEncoding)
+        }
+    }
+}
+
+/// Signs one composite transcript with both pinned member keys.
+pub struct HybridSigner<'provider> {
+    binding: ProviderBinding,
+    ed25519: HybridSignerMember<'provider>,
+    ml_dsa_65: HybridSignerMember<'provider>,
+}
+
+impl<'provider> HybridSigner<'provider> {
+    /// Binds the ordered member providers to the trusted composite identity.
+    ///
+    /// # Errors
+    /// Rejects providers whose suites differ from the required member suites.
+    pub fn new(
+        key_set_id: KeySetId,
+        purpose: SignaturePurpose,
+        ed25519: HybridSignerMember<'provider>,
+        ml_dsa_65: HybridSignerMember<'provider>,
+    ) -> Result<Self, SignatureError> {
+        check_member_suites(ed25519.signer.suite(), ml_dsa_65.signer.suite())?;
+        Ok(Self {
+            binding: ProviderBinding::new(HYBRID_SUITE_ID, key_set_id, purpose),
+            ed25519,
+            ml_dsa_65,
+        })
+    }
+}
+
+impl Signer for HybridSigner<'_> {
+    fn suite(&self) -> &SignatureSuiteId {
+        &self.binding.suite
+    }
+
+    fn sign_into(
+        &self,
+        request: SigningRequest<'_>,
+        output: &mut [u8],
+    ) -> Result<usize, SignatureError> {
+        self.binding.check(request)?;
+        if output.len() < HYBRID_SIGNATURE_BYTES {
+            return Err(SignatureError::CapacityExceeded);
+        }
+
+        let mut ed25519 = [0; SIGNATURE_BYTE_LEN];
+        let mut ml_dsa_65 = [0; ML_DSA_65_SIGNATURE_BYTES];
+        self.ed25519.sign_into(request, &mut ed25519)?;
+        self.ml_dsa_65.sign_into(request, &mut ml_dsa_65)?;
+        HybridSignature {
+            ed25519: &ed25519,
+            ml_dsa_65: &ml_dsa_65,
+        }
+        .encode_into(output)
+    }
+}
+
+fn check_member_suites(
+    ed25519: &SignatureSuiteId,
+    ml_dsa_65: &SignatureSuiteId,
+) -> Result<(), SignatureError> {
+    if ed25519.as_str() == "ed25519" && ml_dsa_65.as_str() == "ml-dsa-65" {
+        Ok(())
+    } else {
+        Err(SignatureError::UnsupportedSuite)
+    }
+}
+
 /// A member verifier and key-set identity selected together by trusted policy.
 pub struct HybridVerifierMember<'provider> {
     /// Provider configured for this member's public key.
@@ -102,11 +197,7 @@ impl<'provider> HybridVerifier<'provider> {
         ed25519: HybridVerifierMember<'provider>,
         ml_dsa_65: HybridVerifierMember<'provider>,
     ) -> Result<Self, SignatureError> {
-        if ed25519.verifier.suite().as_str() != "ed25519"
-            || ml_dsa_65.verifier.suite().as_str() != "ml-dsa-65"
-        {
-            return Err(SignatureError::UnsupportedSuite);
-        }
+        check_member_suites(ed25519.verifier.suite(), ml_dsa_65.verifier.suite())?;
         Ok(Self {
             binding: ProviderBinding::new(HYBRID_SUITE_ID, key_set_id, purpose),
             ed25519,
@@ -160,6 +251,77 @@ mod tests {
                 Ok(())
             } else {
                 Err(SignatureError::InvalidSignature)
+            }
+        }
+    }
+
+    struct TestSigner {
+        suite: SignatureSuiteId,
+        result: Result<usize, SignatureError>,
+    }
+
+    impl Signer for TestSigner {
+        fn suite(&self) -> &SignatureSuiteId {
+            &self.suite
+        }
+
+        fn sign_into(
+            &self,
+            _request: SigningRequest<'_>,
+            output: &mut [u8],
+        ) -> Result<usize, SignatureError> {
+            output.fill(7);
+            self.result
+        }
+    }
+
+    #[test]
+    fn hybrid_signer_publishes_only_complete_output() {
+        use crate::signature_provider::Ed25519Signer;
+        use ed25519_dalek::SigningKey;
+
+        let signing_key = SigningKey::from_bytes(&[9; 32]);
+        let composite_key = KeySetId([1; 32]);
+        let purpose = SignaturePurpose::TenantCommit;
+        let ed_signer = Ed25519Signer::new(&signing_key, KeySetId([2; 32]), purpose);
+        for (member_result, expected) in [
+            (Ok(ML_DSA_65_SIGNATURE_BYTES), Ok(HYBRID_SIGNATURE_BYTES)),
+            (Ok(1), Err(SignatureError::MalformedEncoding)),
+            (
+                Err(SignatureError::ProviderUnavailable),
+                Err(SignatureError::ProviderUnavailable),
+            ),
+        ] {
+            let pq = TestSigner {
+                suite: SignatureSuiteId::new("ml-dsa-65").unwrap(),
+                result: member_result,
+            };
+            let signer = HybridSigner::new(
+                composite_key,
+                purpose,
+                HybridSignerMember {
+                    signer: &ed_signer,
+                    key_set_id: KeySetId([2; 32]),
+                },
+                HybridSignerMember {
+                    signer: &pq,
+                    key_set_id: KeySetId([3; 32]),
+                },
+            )
+            .unwrap();
+            let mut output = [42; HYBRID_SIGNATURE_BYTES];
+            let request = SigningRequest {
+                suite: signer.suite(),
+                key_set_id: &composite_key,
+                purpose,
+                transcript: b"same hybrid transcript",
+            };
+            assert_eq!(signer.sign_into(request, &mut output), expected);
+            if expected.is_ok() {
+                let signature = HybridSignature::decode(&output).unwrap();
+                assert_eq!(signature.ml_dsa_65, &[7; ML_DSA_65_SIGNATURE_BYTES]);
+            } else {
+                assert_eq!(output, [42; HYBRID_SIGNATURE_BYTES]);
             }
         }
     }
