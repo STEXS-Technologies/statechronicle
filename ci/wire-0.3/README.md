@@ -47,5 +47,11 @@ git grep -nE 'Signature|Signed<|VerifyingKey|CommitSigner|SignedCommitVerifier|s
   v0.3.0 -- 'crates/**/*.rs' 'fuzz/**/*.rs'
 ```
 
-Performance and allocation qualification and independent consumer compilation
-are open baseline work.
+The [archived 0.3 qualification](https://github.com/STEXS-Technologies/statechronicle/blob/2827f0fe9c3f3945aae2f1a46ffb79670bbd06f7/docs/0.3/evidence/qualification/final-94eb5d4/performance-review.md)
+contains release-candidate measurements for commit signing, state and trade
+proof verification, protected durable writes, replay, and recovery. Durable
+measurements used in-memory adapters. The archive identifies the measured
+revisions and distinguishes individual-operation timings from batch averages.
+
+Exact-tag measurements for isolated Ed25519 sign/verify, matched workflow
+latency and allocations, and independent consumer compilation remain open.
