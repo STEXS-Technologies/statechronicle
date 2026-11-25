@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### 0.4.0 signature agility
+
+- Added opt-in v1 signatures for actor intents, tenant commits, and global
+  checkpoints. Signing and verification share a canonical transcript and
+  independently scoped signature policy. Strict Ed25519 remains the legacy
+  default, and the frozen v0.3 wire fixtures remain byte-for-byte compatible.
+- Added versioned durable mutation and batch recovery, exact signed-record pins
+  for historical proof verification, and a borrowed v1 verification hook for
+  portable consumers.
+- Added optional conformance tests for ML-DSA-65, SLH-DSA-SHA2-128s, and
+  Ed25519 + ML-DSA-65 hybrid verification. Hybrid verification requires both
+  members.
+- See the [signature migration guide](docs/0.4/signature-migration.md) for
+  reader rollout, trusted key policy, and rollback and recovery procedures.
+
 ## [0.3.0] - 2026-11-17
 
 ### Added
