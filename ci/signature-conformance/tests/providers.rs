@@ -588,3 +588,6 @@ fn nist_acvp_pure_empty_context_vectors() {
         );
     }
 }
+
+#[path = "support/release_microbench.rs"]
+mod release_microbench;
