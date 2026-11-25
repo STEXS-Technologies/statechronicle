@@ -20,6 +20,8 @@ pub mod digest;
 pub mod signature;
 /// Suite-neutral signing and verification provider contracts.
 pub mod signature_provider;
+/// Canonical transcript construction for versioned signatures.
+pub mod signature_transcript;
 
 /// Size and safety bounds used across the protocol.
 pub mod limits;
