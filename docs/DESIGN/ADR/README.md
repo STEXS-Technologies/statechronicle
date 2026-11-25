@@ -15,6 +15,7 @@ ADR convention used by its sibling workspaces.
 | [ADR-006](ADR-006-PROTOCOL_DECISIONS_V0.md) | Protocol Decisions for v0 (§36 Resolution) | Accepted |
 | [ADR-007](ADR-007-TRADE_PROFILE.md) | Peer-to-Peer Trades: trade_held Freeze, Atomic Settlement, trade.v1 Process | Proposed |
 | [ADR-008](ADR-008-DURABLE_LEDGER_TRANSACTION.md) | Durable Ledger Transaction Boundary | Accepted (contract; adapter required) |
+| [ADR-009](ADR-009-SIGNATURE_AGILITY.md) | Versioned Signatures and Trusted Suite Selection | Proposed |
 
 ## Proposed / Pending
 
