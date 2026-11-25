@@ -18,6 +18,7 @@ use statechronicle_core::{
         MAX_COMMIT_BYTES, MAX_EVENT_BATCH_BYTES, MAX_EVENT_BYTES, MAX_EVENTS_PER_COMMIT,
         MAX_ID_LENGTH, check_size,
     },
+    signature_wire::MAX_V1_ENVELOPE_BYTES,
 };
 use statechronicle_domain::{
     commit::{COMMIT_SCHEMA, Commit, ScopeKind},
@@ -116,10 +117,10 @@ struct AuthenticatedSettlementWitness<'witness> {
     events: &'witness [Event],
 }
 
-fn verify_settlement_facts(
+fn validate_settlement_request(
     expected: &ExpectedSettlement,
-    witnesses: &[AuthenticatedSettlementWitness<'_>],
-) -> Result<VerifiedSettlement, ProofError> {
+    witness_count: usize,
+) -> Result<BTreeSet<(&str, &str)>, ProofError> {
     demand(
         !expected.trade_id.is_empty() && !expected.assets.is_empty(),
         "settlement requires a trade ID and assets",
@@ -143,20 +144,36 @@ fn verify_settlement_facts(
             .len()
             .saturating_add(expected.payments.len().saturating_mul(2)),
     )?;
-    check_size(
-        "settlement witnesses",
-        MAX_EVENTS_PER_COMMIT,
-        witnesses.len(),
-    )?;
+    check_size("settlement witnesses", MAX_EVENTS_PER_COMMIT, witness_count)?;
     let mut pins = BTreeSet::new();
+    let mut requested_events = BTreeSet::new();
+    let mut assets = BTreeSet::new();
+    for asset in &expected.assets {
+        demand(
+            assets.insert((&asset.event.tenant.0, &asset.event.resource.0)),
+            "duplicate requested asset",
+        )?;
+    }
     for event in expected
         .assets
         .iter()
         .map(|a| &a.event)
         .chain(expected.payments.iter().flat_map(|p| [&p.debit, &p.credit]))
     {
+        demand(
+            requested_events.insert((&event.tenant.0, &event.event_id.0)),
+            "duplicate requested event",
+        )?;
         pins.insert((event.tenant.0.as_str(), event.commit_digest.as_str()));
     }
+    Ok(pins)
+}
+
+fn verify_settlement_facts(
+    expected: &ExpectedSettlement,
+    witnesses: &[AuthenticatedSettlementWitness<'_>],
+    pins: &BTreeSet<(&str, &str)>,
+) -> Result<VerifiedSettlement, ProofError> {
     let mut events = BTreeMap::new();
     let mut seen = BTreeSet::new();
     let mut bytes = 0usize;
@@ -346,55 +363,7 @@ pub fn verify_settlement_history(
     witnesses: &[SettlementWitness<'_>],
     mut resolve_key: impl FnMut(&TenantId, &Signed<Commit>) -> Result<VerifyingKey, ProofError>,
 ) -> Result<VerifiedSettlement, ProofError> {
-    demand(
-        !expected.trade_id.is_empty() && !expected.assets.is_empty(),
-        "settlement requires a trade ID and assets",
-    )?;
-    check_size("trade ID", MAX_ID_LENGTH, expected.trade_id.len())?;
-    check_size(
-        "settlement assets",
-        MAX_EVENTS_PER_COMMIT,
-        expected.assets.len(),
-    )?;
-    check_size(
-        "settlement payments",
-        MAX_EVENTS_PER_COMMIT / 2,
-        expected.payments.len(),
-    )?;
-    check_size(
-        "settlement events",
-        MAX_EVENTS_PER_COMMIT,
-        expected
-            .assets
-            .len()
-            .saturating_add(expected.payments.len().saturating_mul(2)),
-    )?;
-    check_size(
-        "settlement witnesses",
-        MAX_EVENTS_PER_COMMIT,
-        witnesses.len(),
-    )?;
-    let mut pins = BTreeSet::new();
-    let mut requested_events = BTreeSet::new();
-    let mut assets = BTreeSet::new();
-    for asset in &expected.assets {
-        demand(
-            assets.insert((&asset.event.tenant.0, &asset.event.resource.0)),
-            "duplicate requested asset",
-        )?;
-    }
-    for event in expected
-        .assets
-        .iter()
-        .map(|a| &a.event)
-        .chain(expected.payments.iter().flat_map(|p| [&p.debit, &p.credit]))
-    {
-        demand(
-            requested_events.insert((&event.tenant.0, &event.event_id.0)),
-            "duplicate requested event",
-        )?;
-        pins.insert((event.tenant.0.as_str(), event.commit_digest.as_str()));
-    }
+    let pins = validate_settlement_request(expected, witnesses.len())?;
     let mut prepared = Vec::with_capacity(witnesses.len());
     let mut seen = BTreeSet::new();
     for witness in witnesses {
@@ -433,7 +402,7 @@ pub fn verify_settlement_history(
         });
     }
     demand(seen.len() == pins.len(), "missing settlement witness")?;
-    verify_settlement_facts(expected, &prepared)
+    verify_settlement_facts(expected, &prepared, &pins)
 }
 
 /// Explicit wire format of a pinned settlement commit.
@@ -518,6 +487,7 @@ pub async fn verify_settlement_history_evidence(
         expected.commits.len() == witnesses.len(),
         "settlement pin/witness count mismatch",
     )?;
+    let requested_pins = validate_settlement_request(&expected.facts, witnesses.len())?;
     for pin in &expected.commits {
         demand(
             (pin.format == SettlementEvidenceFormat::V1) == pin.commit_authority.is_some(),
@@ -539,7 +509,11 @@ pub async fn verify_settlement_history_evidence(
                 events,
             } => (commit_record.len(), *events),
         };
-        check_size("settlement signed commit", MAX_COMMIT_BYTES, record_size)?;
+        check_size(
+            "settlement signed commit",
+            MAX_V1_ENVELOPE_BYTES,
+            record_size,
+        )?;
         check_size(
             "settlement commit events",
             MAX_EVENTS_PER_COMMIT,
@@ -687,5 +661,5 @@ pub async fn verify_settlement_history_evidence(
             events,
         });
     }
-    verify_settlement_facts(&expected.facts, &prepared)
+    verify_settlement_facts(&expected.facts, &prepared, &requested_pins)
 }

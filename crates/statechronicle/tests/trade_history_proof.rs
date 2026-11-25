@@ -1463,6 +1463,29 @@ async fn requested_settlement_facts_require_authenticated_event_history() {
         .await
         .unwrap();
         assert_eq!(verified_mixed.claim(), &mixed_facts);
+        let mut duplicate_asset = evidence_expected.clone();
+        duplicate_asset
+            .facts
+            .assets
+            .push(mixed_facts.assets[0].clone());
+        let mut duplicate_event = evidence_expected.clone();
+        duplicate_event.facts.payments[0].credit = mixed_facts.payments[0].debit.clone();
+        for (duplicate, message) in [
+            (duplicate_asset, "duplicate requested asset"),
+            (duplicate_event, "duplicate requested event"),
+        ] {
+            let error = verify_settlement_history_evidence(
+                &duplicate,
+                &evidence,
+                &policy,
+                now,
+                trusted_key,
+            )
+            .await
+            .unwrap_err();
+            assert!(matches!(error, ProofError::InvalidState(reason) if reason == message));
+        }
+
         let mut substituted = evidence_expected.clone();
         substituted.commits[0].format = SettlementEvidenceFormat::V1;
         assert!(
