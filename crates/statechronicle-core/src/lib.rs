@@ -18,6 +18,8 @@ pub mod digest;
 
 /// Ed25519 signatures for commits and proof bundles.
 pub mod signature;
+/// Suite-neutral signing and verification provider contracts.
+pub mod signature_provider;
 
 /// Size and safety bounds used across the protocol.
 pub mod limits;
