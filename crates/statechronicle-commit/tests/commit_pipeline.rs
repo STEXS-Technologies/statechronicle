@@ -687,7 +687,9 @@ async fn persist_rejects_global_checkpoint_commits() {
 
 #[test]
 fn v1_tenant_commit_round_trips_with_a_pinned_provider() {
-    use statechronicle_commit::sign_v1::{sign_commit_v1, verify_commit_v1};
+    use statechronicle_commit::sign_v1::{
+        normalize_commit_json_v1, render_commit_json_v1, sign_commit_v1, verify_commit_v1,
+    };
     use statechronicle_core::signature_operation::SignatureContext;
     use statechronicle_core::signature_provider::{
         Ed25519Signer, Ed25519Verifier, KeySetId, SignatureError, SignaturePurpose, Signer,
@@ -722,6 +724,8 @@ fn v1_tenant_commit_round_trips_with_a_pinned_provider() {
         verify_commit_v1(&record, &context, &verifier).unwrap(),
         commit
     );
+    let json = render_commit_json_v1(&record).unwrap();
+    assert_eq!(normalize_commit_json_v1(&json).unwrap(), record);
     commit.scope = CommitScope::global_checkpoint();
     assert_eq!(
         sign_commit_v1(&commit, &context, &signer),

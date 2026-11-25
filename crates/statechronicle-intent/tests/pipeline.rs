@@ -335,7 +335,9 @@ fn v1_intent_round_trips_and_binds_typed_inputs() {
         Ed25519Signer, Ed25519Verifier, KeySetId, SignaturePurpose, Signer,
     };
     use statechronicle_core::signature_wire::{decode_v1_envelope, encode_v1_envelope};
-    use statechronicle_intent::sign_v1::{sign_intent_v1, verify_intent_v1};
+    use statechronicle_intent::sign_v1::{
+        normalize_intent_json_v1, render_intent_json_v1, sign_intent_v1, verify_intent_v1,
+    };
     use statechronicle_intent::v1_body::{INTENT_V1_SCHEMA, encode_v1_intent_body};
 
     let mut payload = sample_payload();
@@ -360,6 +362,12 @@ fn v1_intent_round_trips_and_binds_typed_inputs() {
         verify_intent_v1(&record, &context, &verifier).unwrap(),
         intent
     );
+
+    let json = render_intent_json_v1(&record).unwrap();
+    assert_eq!(normalize_intent_json_v1(&json).unwrap(), record);
+    let json = String::from_utf8(json).unwrap();
+    let duplicate = json.replace(r#""flag":true"#, r#""flag":false,"flag":true"#);
+    assert!(normalize_intent_json_v1(duplicate.as_bytes()).is_err());
 
     let mut altered = intent;
     altered.inputs.insert("flag".into(), serde_json::json!(1));

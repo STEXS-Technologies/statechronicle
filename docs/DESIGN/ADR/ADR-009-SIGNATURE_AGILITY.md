@@ -53,10 +53,11 @@ purpose. The signature object contains `suite_id`, `key_set_id`, and
 `signature_bytes`. The key-set ID is exactly 64 lowercase hex digits.
 The signature is unpadded base64url with the existing `b64u:` prefix.
 The envelope and signature objects reject duplicate, unknown, and missing
-fields. JSON member order and insignificant whitespace have no effect
-on the signed bytes. The reader checks the full JSON record cap before
-parsing, the base64url length before decoding the signature, and the
-canonical signature encoding before provider dispatch. The transcript
+fields. Duplicate body fields are rejected at every nesting depth. JSON member order and insignificant whitespace have no effect
+on the signed bytes. The reader caps the full JSON record at six times `MAX_COMMIT_BYTES` plus
+64 KiB before parsing. The base64url length and canonical signature encoding
+are checked before provider dispatch. The typed codec applies the
+purpose-specific binary body cap. The transcript
 uses the canonical binary body from the typed JSON body.
 
 Each signature covers the literal ASCII bytes

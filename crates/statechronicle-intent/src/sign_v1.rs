@@ -3,9 +3,12 @@
 use statechronicle_core::{
     signature_operation::SignatureContext,
     signature_provider::{SignatureError, SignaturePurpose, Signer, Verifier},
-    signature_wire::decode_v1_envelope,
+    signature_wire::{decode_v1_envelope, encode_v1_envelope},
 };
-use statechronicle_domain::intent::Intent;
+use statechronicle_domain::{
+    intent::{INTENT_SCHEMA, Intent},
+    signature_json::{decode_v1_json_envelope, encode_v1_json_envelope},
+};
 
 use crate::{
     error::IntentError,
@@ -61,4 +64,38 @@ pub fn verify_intent_v1(
     let body = decode_v1_intent_body(envelope.body)?;
     context.verify_envelope(envelope, verifier)?;
     Ok(body)
+}
+
+/// Converts a v1 intent JSON record to its canonical binary envelope.
+///
+/// The result still requires policy and signature verification. The
+/// envelope signature authenticates the typed body independently of
+/// JSON spelling and property order.
+///
+/// # Errors
+/// Refuses invalid framing, duplicate fields, the wrong body schema, or an
+/// unsupported value or size in the canonical body.
+pub fn normalize_intent_json_v1(json: &[u8]) -> Result<Vec<u8>, IntentSignatureError> {
+    let envelope = decode_v1_json_envelope(json)?;
+    let mut intent: Intent = envelope.decode_body()?;
+    if intent.schema != INTENT_V1_SCHEMA {
+        return Err(SignatureError::MalformedEncoding.into());
+    }
+    intent.schema = String::from(INTENT_SCHEMA);
+    let body = encode_v1_intent_body(&intent)?;
+    Ok(encode_v1_envelope(
+        envelope.with_canonical_body(&body),
+        SignaturePurpose::ActorIntent,
+    )?)
+}
+
+/// Renders a v1 binary intent as the typed JSON transport form.
+///
+/// # Errors
+/// Refuses malformed envelopes, invalid canonical bodies, or JSON encoding failures.
+pub fn render_intent_json_v1(record: &[u8]) -> Result<Vec<u8>, IntentSignatureError> {
+    let envelope = decode_v1_envelope(record, SignaturePurpose::ActorIntent)?;
+    let mut intent = decode_v1_intent_body(envelope.body)?;
+    intent.schema = String::from(INTENT_V1_SCHEMA);
+    Ok(encode_v1_json_envelope(&intent, envelope)?)
 }

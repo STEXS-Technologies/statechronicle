@@ -1,7 +1,12 @@
 //! JSON framing for v1 signed records. Typed protocol codecs own body validation.
 
+use std::{collections::BTreeSet, fmt};
+
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize, Deserializer, Serialize,
+    de::{self, DeserializeOwned, MapAccess, SeqAccess, Visitor},
+};
 use serde_json::value::RawValue;
 use statechronicle_core::{
     limits::MAX_COMMIT_BYTES,
@@ -53,6 +58,17 @@ impl<'input> JsonSignedEnvelopeV1<'input> {
     /// The original JSON body object.
     pub fn body_json(&self) -> &'input str {
         self.body.get()
+    }
+
+    /// Deserializes the body while rejecting duplicate keys at any depth.
+    ///
+    /// # Errors
+    /// Returns an encoding error for duplicate fields or invalid typed values.
+    pub fn decode_body<T: DeserializeOwned>(&self) -> Result<T, SignatureError> {
+        let input = self.body.get();
+        serde_json::from_str::<UniqueFields>(input)
+            .map_err(|_error| SignatureError::MalformedEncoding)?;
+        serde_json::from_str(input).map_err(|_error| SignatureError::MalformedEncoding)
     }
 
     /// Combines parsed signature metadata with canonical bytes from the typed body codec.
@@ -158,6 +174,62 @@ pub fn encode_v1_json_envelope<T: Serialize>(
         return Err(SignatureError::CapacityExceeded);
     }
     Ok(record)
+}
+
+struct UniqueFields;
+
+impl<'de> Deserialize<'de> for UniqueFields {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_any(UniqueFields)
+    }
+}
+
+impl<'de> Visitor<'de> for UniqueFields {
+    type Value = Self;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("a JSON value with unique object keys")
+    }
+
+    fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<Self, M::Error> {
+        let mut keys = BTreeSet::new();
+        while let Some(key) = map.next_key::<String>()? {
+            if !keys.insert(key) {
+                return Err(de::Error::custom("duplicate JSON key"));
+            }
+            map.next_value::<Self>()?;
+        }
+        Ok(self)
+    }
+
+    fn visit_seq<S: SeqAccess<'de>>(self, mut seq: S) -> Result<Self, S::Error> {
+        while seq.next_element::<Self>()?.is_some() {}
+        Ok(self)
+    }
+
+    fn visit_bool<E: de::Error>(self, _value: bool) -> Result<Self, E> {
+        Ok(self)
+    }
+
+    fn visit_i64<E: de::Error>(self, _value: i64) -> Result<Self, E> {
+        Ok(self)
+    }
+
+    fn visit_u64<E: de::Error>(self, _value: u64) -> Result<Self, E> {
+        Ok(self)
+    }
+
+    fn visit_f64<E: de::Error>(self, _value: f64) -> Result<Self, E> {
+        Ok(self)
+    }
+
+    fn visit_str<E: de::Error>(self, _value: &str) -> Result<Self, E> {
+        Ok(self)
+    }
+
+    fn visit_unit<E: de::Error>(self) -> Result<Self, E> {
+        Ok(self)
+    }
 }
 
 #[cfg(test)]

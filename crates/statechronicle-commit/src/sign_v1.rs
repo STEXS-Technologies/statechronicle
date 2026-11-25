@@ -9,9 +9,12 @@ use statechronicle_core::{
     canonicalize::canonicalize,
     signature_operation::SignatureContext,
     signature_provider::{SignatureError, SignaturePurpose, Signer, Verifier},
-    signature_wire::{V1SignedEnvelope, decode_v1_envelope},
+    signature_wire::{V1SignedEnvelope, decode_v1_envelope, encode_v1_envelope},
 };
-use statechronicle_domain::commit::{COMMIT_SCHEMA, Commit, ScopeKind};
+use statechronicle_domain::{
+    commit::{COMMIT_SCHEMA, Commit, ScopeKind},
+    signature_json::{decode_v1_json_envelope, encode_v1_json_envelope},
+};
 use statechronicle_ports::{
     key_registry::KeyRegistryError,
     signature_policy::{
@@ -237,6 +240,55 @@ pub fn verify_global_checkpoint_v1(
     verify_body(record, context, verifier)
 }
 
+fn normalize_body_json<T: SigningBody>(json: &[u8]) -> Result<Vec<u8>, SignatureError> {
+    let envelope = decode_v1_json_envelope(json)?;
+    let body: T = envelope.decode_body()?;
+    let canonical = canonical_body(&body)?;
+    encode_v1_envelope(envelope.with_canonical_body(&canonical), T::PURPOSE)
+}
+
+fn render_body_json<T: SigningBody>(record: &[u8]) -> Result<Vec<u8>, SignatureError> {
+    let envelope = decode_v1_envelope(record, T::PURPOSE)?;
+    let body = decode_body::<T>(envelope)?;
+    encode_v1_json_envelope(&body, envelope)
+}
+
+/// Converts a v1 tenant commit JSON envelope to a canonical binary envelope.
+///
+/// The result requires policy and signature verification before use.
+///
+/// # Errors
+/// Rejects malformed framing, duplicate fields, and invalid body schema or scope.
+pub fn normalize_commit_json_v1(json: &[u8]) -> Result<Vec<u8>, SignatureError> {
+    normalize_body_json::<Commit>(json)
+}
+
+/// Converts a v1 global checkpoint JSON envelope to a canonical binary envelope.
+///
+/// The result requires policy and signature verification before use.
+///
+/// # Errors
+/// Rejects malformed framing, duplicate fields, and invalid body schema.
+pub fn normalize_checkpoint_json_v1(json: &[u8]) -> Result<Vec<u8>, SignatureError> {
+    normalize_body_json::<GlobalCheckpoint>(json)
+}
+
+/// Renders a canonical v1 tenant commit envelope as typed JSON.
+///
+/// # Errors
+/// Rejects malformed envelope or body bytes, and JSON encoding failures.
+pub fn render_commit_json_v1(record: &[u8]) -> Result<Vec<u8>, SignatureError> {
+    render_body_json::<Commit>(record)
+}
+
+/// Renders a canonical v1 global checkpoint envelope as typed JSON.
+///
+/// # Errors
+/// Rejects malformed envelope or body bytes, and JSON encoding failures.
+pub fn render_checkpoint_json_v1(record: &[u8]) -> Result<Vec<u8>, SignatureError> {
+    render_body_json::<GlobalCheckpoint>(record)
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -300,6 +352,8 @@ mod tests {
             verify_global_checkpoint_v1(&record, &context, &verifier).unwrap(),
             legacy.body
         );
+        let json = render_checkpoint_json_v1(&record).unwrap();
+        assert_eq!(normalize_checkpoint_json_v1(&json).unwrap(), record);
         let authority = SignatureAuthority::GlobalCheckpoint {
             authority: &legacy.body.executor,
         };
