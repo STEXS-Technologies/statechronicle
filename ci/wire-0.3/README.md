@@ -62,6 +62,6 @@ cargo test --manifest-path ci/wire-0.3/consumer/Cargo.toml --locked
 ```
 
 The [exact-tag latency baseline](signature-latency.md) covers Ed25519 and
-commit signing and verification. Matched proof and durable workflow timings
-and allocation measurements remain open. The same consumer source must
+commit signing and verification. Baseline allocation observations are included. Matched proof and durable
+workflow measurements remain open. The same consumer source must
 also compile and pass against the candidate.

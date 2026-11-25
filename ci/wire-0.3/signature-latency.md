@@ -36,5 +36,28 @@ signed envelope. Commit verification includes canonicalization.
 
 These were shared-runner observations. Tail variability makes paired
 baseline and candidate runs on the same quiet runner important for
-regression qualification. Allocation measurements and matched proof
-and protected durable workflow measurements remain open.
+regression qualification. Matched proof and protected durable workflow
+measurements remain open.
+
+## Allocation observations
+
+A separate release build on the exact tag ran the four workloads under
+DHAT 0.3.3. The scratch Cargo lockfile added the profiler and its
+dependencies without changing any existing locked entries. Each row
+uses a fresh process with identical fixture setup and 1,000 operations.
+The control runs an empty loop with the same fixture setup.
+
+| Workload | Total allocated bytes | Total allocation events | Events per operation after control subtraction |
+| --- | ---: | ---: | ---: |
+| Control | 6449 | 48 | 0 |
+| Ed25519 sign | 6460 | 48 | 0 |
+| Ed25519 verify | 6462 | 48 | 0 |
+| Commit sign | 2062475 | 20048 | 20 |
+| Commit verify | 1645468 | 10048 | 10 |
+
+The commit operations allocated about 2,056 and 1,639 bytes per operation,
+respectively. These include legacy serialization and, for signing,
+envelope construction. The raw signature rows show no additional
+allocation events. Instrumented timings were excluded from the latency
+table. A shared, replayable profiler harness and matched candidate
+measurements are still required for release qualification.
