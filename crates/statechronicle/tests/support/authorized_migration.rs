@@ -703,3 +703,126 @@ fn untrusted_original_history_cannot_supply_migration_authority() {
         );
     }
 }
+
+#[tokio::test]
+async fn mixed_history_replays_original_events_under_exact_record_pins() {
+    use statechronicle::core::{
+        signature_operation::SignatureContext,
+        signature_provider::{Ed25519Signer, Ed25519Verifier, KeySetId, SignaturePurpose, Signer},
+    };
+    use statechronicle::index::rebuild::verified::{
+        HistoryRecordPin, MixedHistoryPin, MixedHistoryWitness, verify_mixed_history,
+    };
+    use statechronicle::ports::{
+        key_registry::KeyRegistryError,
+        signature_policy::{
+            ResolvedSignaturePolicy, ResolvedSignatureV1, SignatureAuthority, SignaturePolicy,
+            SignaturePolicyQuery, SignatureUse,
+        },
+    };
+
+    struct HistoryPolicy(Arc<Ed25519Verifier>, KeySetId);
+    #[async_trait]
+    impl SignaturePolicy for HistoryPolicy {
+        async fn resolve(
+            &self,
+            query: SignaturePolicyQuery<'_>,
+        ) -> Result<ResolvedSignaturePolicy, KeyRegistryError> {
+            assert_eq!(query.usage, SignatureUse::Historical);
+            assert!(matches!(
+                query.authority,
+                SignatureAuthority::TenantCommit { .. }
+            ));
+            Ok(ResolvedSignaturePolicy::V1(
+                ResolvedSignatureV1::new(self.0.clone(), self.1, 64).unwrap(),
+            ))
+        }
+    }
+
+    let source = original();
+    let key = fixed_key();
+    let key_set_id = KeySetId([8; 32]);
+    let purpose = SignaturePurpose::TenantCommit;
+    let signer = Ed25519Signer::new(&key, key_set_id, purpose);
+    let context = SignatureContext {
+        suite: signer.suite(),
+        key_set_id: &key_set_id,
+        purpose,
+        body_schema: statechronicle::domain::commit::COMMIT_SCHEMA,
+        signature_len: 64,
+    };
+    let body = &source.commits.last().unwrap().body;
+    let record = statechronicle::commit::sign_v1::sign_commit_v1(body, &context, &signer).unwrap();
+    let tenant = common::tenant();
+    let authority = &body.executor;
+    let policy = HistoryPolicy(
+        Arc::new(Ed25519Verifier::new(
+            &key.verifying_key(),
+            key_set_id,
+            purpose,
+        )),
+        key_set_id,
+    );
+    let mut records: Vec<_> = source.commits_bcs[..3]
+        .iter()
+        .map(|bytes| HistoryRecordPin::Legacy(hash_bytes(bytes)))
+        .collect();
+    records.push(HistoryRecordPin::V1(hash_bytes(&record)));
+    let mut witnesses: Vec<_> = source.commits[..3]
+        .iter()
+        .zip(&source.events)
+        .map(|(commit, event)| {
+            MixedHistoryWitness::Legacy(HistoryWitness {
+                commit,
+                events: from_ref(event),
+            })
+        })
+        .collect();
+    witnesses.push(MixedHistoryWitness::V1 {
+        record: &record,
+        events: from_ref(source.events.last().unwrap()),
+    });
+    let pin = MixedHistoryPin {
+        tenant: &tenant,
+        authority,
+        records: &records,
+    };
+    let now = body.created_at;
+    let mixed = verify_mixed_history(&witnesses, &pin, &Verify, &policy, now)
+        .await
+        .unwrap();
+    assert_ne!(mixed.source_digest(), verified(&source).source_digest());
+    let store = Restart::default();
+    mixed
+        .rebuild_resumable("mixed-history", 2, &store, &store)
+        .await
+        .unwrap();
+    let checkpoint = mixed.checkpoint_key("mixed-history").unwrap();
+    assert_eq!(
+        store.data.lock().unwrap().offsets.get(&checkpoint),
+        Some(&4)
+    );
+    assert_eq!(rebuilt_root(&store).as_str(), OLD_ROOT);
+
+    let mut wrong_record_order = records.clone();
+    wrong_record_order.swap(0, 1);
+    let bad_pin = MixedHistoryPin {
+        records: &wrong_record_order,
+        ..pin
+    };
+    assert!(
+        verify_mixed_history(&witnesses, &bad_pin, &Verify, &policy, now)
+            .await
+            .is_err()
+    );
+    let wrong_authority = SubjectId(String::from("service:other-authority"));
+    let bad_authority = MixedHistoryPin {
+        authority: &wrong_authority,
+        ..pin
+    };
+    assert!(
+        verify_mixed_history(&witnesses, &bad_authority, &Verify, &policy, now)
+            .await
+            .is_err()
+    );
+}

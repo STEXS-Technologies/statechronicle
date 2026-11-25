@@ -880,6 +880,7 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
+ "statechronicle-accumulator",
  "statechronicle-commit",
  "statechronicle-core",
  "statechronicle-domain",

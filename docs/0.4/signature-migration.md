@@ -73,7 +73,10 @@ post-quantum.
 
 Current claims require the authoritative canonical head to remain the
 same through verification. Historical claims use the independently
-selected signed commit. For portable v1 verification, the caller supplies
+selected signed commit. For a mixed-format verified index rebuild, supply the
+ordered signed-record pins and full event batches from genesis, plus the tenant
+and configured v1 authority. The source digest isolates its rebuild checkpoint
+from checkpoints for other signed histories. For portable v1 verification, the caller supplies
 trusted policy, a canonical transcript, and a suitable provider. The
 legacy portable Ed25519 verifier continues to use fixed-size keys and signatures.
 

@@ -1392,7 +1392,7 @@ async fn requested_settlement_facts_require_authenticated_event_history() {
                 assert_eq!(query.usage, SignatureUse::Historical);
                 Ok(ResolvedSignaturePolicy::V1(
                     ResolvedSignatureV1::new(self.0.clone(), self.1, 64)
-                        .map_err(|_| KeyRegistryError::NotTrusted)?,
+                        .map_err(|_invalid_binding| KeyRegistryError::NotTrusted)?,
                 ))
             }
         }
