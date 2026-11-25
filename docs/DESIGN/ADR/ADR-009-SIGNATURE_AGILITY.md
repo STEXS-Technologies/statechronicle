@@ -88,6 +88,39 @@ and a synthetic body consisting of byte 2a.
 012a
 ```
 
+### Actor-intent body codec
+
+A v1 actor intent uses the transcript body schema `statechronicle.intent.v1`.
+The binary body follows the existing intent field order and field encodings
+except for the schema string and the values in the `inputs` map. The
+JSON envelope uses the same logical intent fields, with the v1 schema
+string and normal JSON values in `inputs`.
+
+The existing intent stores `serde_json::Value` in `inputs`. Its legacy BCS
+serializer emits values without type tags, and its JSON value decoder
+requires self-describing input. Thus v1 needs an explicit value encoding
+to verify and decode nonempty intent inputs without ambiguity. Keep the
+legacy codec for legacy signatures and existing v0 identity calculations.
+
+| BCS variant index | Value | Variant payload |
+| --- | --- | --- |
+| 0 | Null | None |
+| 1 | Boolean | BCS bool |
+| 2 | Negative integer | BCS i64, strictly less than zero |
+| 3 | Nonnegative integer | BCS u64 |
+| 4 | String | BCS string |
+| 5 | Array | BCS vector of these values |
+| 6 | Object | BCS map from string to these values |
+
+Variant indexes use minimal ULEB128. Floats are excluded. Integers
+outside the i64/u64 union are excluded. Map keys follow the existing BCS
+canonical ordering and must be unique. Arrays preserve order. The body
+codec enforces the intent byte and input-nesting limits. After decoding
+and checking canonical bytes, conversion to the existing typed intent and
+existing structural validation precede execution. The format-specific
+evidence must be retained separately from the converted intent so legacy
+signature verification cannot be used as a fallback.
+
 ### Suite definitions
 
 | Suite ID | Mode | Signature bytes |
