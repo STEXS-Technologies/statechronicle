@@ -26,6 +26,8 @@ pub mod signature_operation;
 pub mod signature_provider;
 /// Canonical transcript construction for versioned signatures.
 pub mod signature_transcript;
+/// Bounded borrowed decoding for versioned signature envelopes.
+pub mod signature_wire;
 
 /// Size and safety bounds used across the protocol.
 pub mod limits;

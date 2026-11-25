@@ -16,23 +16,28 @@ pub const MAX_SIGNATURE_BYTES: usize = 16 * 1024;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SignatureSuiteId(Cow<'static, str>);
 
+pub(crate) fn validate_suite_id(id: &str) -> Result<(), SignatureError> {
+    let Some((first, rest)) = id.as_bytes().split_first() else {
+        return Err(SignatureError::MalformedEncoding);
+    };
+    if id.len() > 64
+        || !first.is_ascii_lowercase()
+        || !rest.iter().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'-' | b'.')
+        })
+    {
+        return Err(SignatureError::MalformedEncoding);
+    }
+    Ok(())
+}
+
 impl SignatureSuiteId {
     /// Validates the syntax of a suite identifier.
     ///
     /// # Errors
     /// Returns an encoding error for identifiers outside the permitted ASCII grammar.
     pub fn new(id: &str) -> Result<Self, SignatureError> {
-        let Some((first, rest)) = id.as_bytes().split_first() else {
-            return Err(SignatureError::MalformedEncoding);
-        };
-        if id.len() > 64
-            || !first.is_ascii_lowercase()
-            || !rest.iter().all(|byte| {
-                byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'-' | b'.')
-            })
-        {
-            return Err(SignatureError::MalformedEncoding);
-        }
+        validate_suite_id(id)?;
         Ok(Self(Cow::Owned(id.to_owned())))
     }
 

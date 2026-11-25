@@ -2,8 +2,9 @@
 
 use serde::{Serialize, Serializer};
 
-use crate::limits::{MAX_COMMIT_BYTES, MAX_INTENT_BYTES};
 use crate::signature_provider::{KeySetId, SignatureError, SignaturePurpose, SignatureSuiteId};
+
+use crate::signature_wire::body_limit;
 
 const DOMAIN: &[u8] = b"statechronicle.signature.v1\0";
 const MAX_SCHEMA_BYTES: usize = 128;
@@ -37,11 +38,7 @@ pub fn signature_transcript(
     {
         return Err(SignatureError::MalformedEncoding);
     }
-    let max_body = match purpose {
-        SignaturePurpose::ActorIntent => MAX_INTENT_BYTES,
-        SignaturePurpose::TenantCommit | SignaturePurpose::GlobalCheckpoint => MAX_COMMIT_BYTES,
-    };
-    if canonical_body.len() > max_body {
+    if canonical_body.len() > body_limit(purpose) {
         return Err(SignatureError::CapacityExceeded);
     }
 
@@ -70,6 +67,8 @@ pub fn signature_transcript(
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
+    use crate::limits::MAX_INTENT_BYTES;
+
     use super::*;
 
     #[test]
