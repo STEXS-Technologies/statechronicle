@@ -21,6 +21,8 @@ pub mod builder;
 
 /// Ed25519 commit signing.
 pub mod sign;
+/// Versioned tenant commit and global checkpoint signing.
+pub mod sign_v1;
 
 /// Commit persistence.
 pub mod persist;
