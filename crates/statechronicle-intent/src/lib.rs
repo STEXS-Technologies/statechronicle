@@ -21,3 +21,6 @@ pub mod validate;
 
 /// Intent processing error type.
 pub mod error;
+
+/// Versioned v1 actor-intent body encoding.
+pub mod v1_body;
