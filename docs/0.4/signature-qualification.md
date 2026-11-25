@@ -132,11 +132,27 @@ calls per run. Background work shared the machine during both lanes.
 
 Absolute values are medians of the seven per-run percentiles. The change
 column is the median of the percentage differences calculated within each
-pair. Median p50 changes were within 0.5%. The p95 and p99 changes warrant a
-repeat under lower contention. Legacy signing, verification, canonicalization,
+pair. Median p50 changes were within 0.5%. The initial p95 and p99
+changes prompted a repeat after the stable unit and integration tests completed. Legacy signing, verification, canonicalization,
 and their domain source files match the tag. Registry package versions and
 checksums match the tag's lockfile. These checks narrow the investigation,
-while the shared-host tail measurements remain inconclusive.
+and the second series showed much smaller tail changes.
+
+The repeat used the same binaries, reversed the order of the first pair,
+and also alternated order across seven pairs. The reported percentages are
+the median changes within the repeat pairs. The shared cgroup recorded
+about 0.80 seconds of throttling during the repeat.
+
+| Workload | Repeat p50 change | Repeat p95 change | Repeat p99 change |
+| --- | ---: | ---: | ---: |
+| Ed25519 sign | +0.09% | −0.03% | +1.94% |
+| Ed25519 verify | +0.00% | +2.80% | +4.33% |
+| Commit sign | +0.52% | −1.81% | +2.40% |
+| Commit verify | −0.02% | −0.57% | −0.07% |
+
+The repeat supports similar median latency for the four operations on this
+runner. The spread across the two series limits claims about tail latency
+under production load.
 
 - Baseline executable SHA-256 `2c76ae8672464929779db12a8d0c507d992041c598863cb3940a58e6f7423faf`
 - Candidate executable SHA-256 `775d6f2b994bff702461d740b3a5ea6e513e606f424df8cceab0e3b48a9a19b7`
