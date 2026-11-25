@@ -170,3 +170,98 @@ proptest! {
         prop_assert_eq!(output.written().len(), expected);
     }
 }
+
+#[test]
+fn portable_v1_hook_reuses_the_host_transcript_and_checks_policy_first() {
+    use core::cell::Cell;
+    use statechronicle_core::{
+        signature_provider::{KeySetId, SignaturePurpose, SignatureSuiteId},
+        signature_transcript::signature_transcript,
+    };
+    use statechronicle_portable::integrity::{
+        SignaturePolicyV1, SignatureV1, SignatureV1Error, SignatureVerifierV1, verify_signature_v1,
+    };
+
+    struct Provider {
+        public_key: [u8; 32],
+        invocations: Cell<u8>,
+    }
+
+    impl SignatureVerifierV1 for Provider {
+        fn verify(
+            &self,
+            _policy: SignaturePolicyV1<'_>,
+            transcript: &[u8],
+            signature: &[u8],
+        ) -> Result<(), SignatureV1Error> {
+            self.invocations.set(self.invocations.get() + 1);
+            let fixed = signature
+                .try_into()
+                .map_err(|_error| SignatureV1Error::InvalidLength)?;
+            if verify_signature(transcript, &self.public_key, fixed) {
+                Ok(())
+            } else {
+                Err(SignatureV1Error::InvalidSignature)
+            }
+        }
+    }
+
+    let key = SigningKey::from_bytes(&[7; 32]);
+    let provider = Provider {
+        public_key: key.verifying_key().to_bytes(),
+        invocations: Cell::new(0),
+    };
+    let suite = SignatureSuiteId::new("ed25519").unwrap();
+    let key_set_id = KeySetId([12; 32]);
+    let transcript = signature_transcript(
+        SignaturePurpose::TenantCommit,
+        "statechronicle.commit.v0",
+        &suite,
+        &key_set_id,
+        b"portable canonical body",
+    )
+    .unwrap();
+    let signature = sign(&transcript, &key);
+    let policy = SignaturePolicyV1 {
+        suite_id: suite.as_str(),
+        key_set_id: &key_set_id.0,
+        signature_len: 64,
+        max_transcript_len: transcript.len(),
+    };
+    let supplied = SignatureV1 {
+        suite_id: suite.as_str(),
+        key_set_id: &key_set_id.0,
+        bytes: signature.as_bytes(),
+    };
+    assert_eq!(
+        verify_signature_v1(
+            policy,
+            SignatureV1 {
+                key_set_id: &[9; 32],
+                ..supplied
+            },
+            &transcript,
+            &provider,
+        ),
+        Err(SignatureV1Error::BindingMismatch)
+    );
+    assert_eq!(
+        verify_signature_v1(
+            SignaturePolicyV1 {
+                max_transcript_len: 1,
+                ..policy
+            },
+            supplied,
+            &transcript,
+            &provider,
+        ),
+        Err(SignatureV1Error::InvalidLength)
+    );
+    assert_eq!(provider.invocations.get(), 0);
+    verify_signature_v1(policy, supplied, &transcript, &provider).unwrap();
+    assert_eq!(
+        verify_signature_v1(policy, supplied, b"changed transcript", &provider),
+        Err(SignatureV1Error::InvalidSignature)
+    );
+    assert_eq!(provider.invocations.get(), 2);
+}
