@@ -7,7 +7,7 @@ at `9ed64a5a5ece51fa2cd5929119cbe21e1e34f3f4`. See the
 
 | Phase | Evidence and remaining qualification |
 | --- | --- |
-| F0 | Tagged-source wire fixtures, package and dependency inventory, frozen standalone consumer, and legacy signature measurements. Full workflow benchmark comparison is in progress. |
+| F0 | Tagged-source wire fixtures, package and dependency inventory, frozen standalone consumer, and legacy signature measurements. The exact-tag legacy workflow and allocation comparisons are recorded. |
 | F1 | ADR-009 specifies format dispatch, transcript fields, trust boundaries, hybrid composition, and migration. A separate source review checked those boundaries during qualification. |
 | F2 | Shared signer and verifier contracts, strict Ed25519 adapters, and bounded buffers. Async providers share the synchronous path's transcript and validation. |
 | F3 | Explicit legacy and v1 dispatch, canonical BCS, normalized v1 JSON, and standalone wire fixtures. |
@@ -15,7 +15,7 @@ at `9ed64a5a5ece51fa2cd5929119cbe21e1e34f3f4`. See the
 | F5 | Protected mutation and batch signing use the existing atomic persistence and recovery path. Exact signed bytes and membership are checked during authoritative readback. |
 | F6 | Current and historical claims, mixed trade and settlement proofs, checkpoint verification, portable verification, and mixed index rebuild use shared verification. The legacy wire fixtures exercise compatibility. |
 | F7 | Two ML-DSA-65 implementations interoperate. The standalone provider tests cover selected NIST ACVP ML-DSA and SLH-DSA cases and a genuine Ed25519 plus ML-DSA-65 hybrid. The sanitizer-backed fuzz gate is in progress. |
-| F8 | Paired v0 sign and verify results and five v1 provider measurements are recorded. The broader paired v0 workloads and allocation comparison are in progress. |
+| F8 | Paired v0 sign and verify results and five v1 provider measurements are recorded. The 22 paired legacy workflows and allocation probes are recorded. Versioned durable and proof workflow measurements are in progress. |
 | F9 | The migration guide covers staged reader and writer deployment and rollback. The 0.4 package graph passed extracted-package validation. Final workspace and sanitizer checks are in progress. |
 
 The source review found duplicate requested settlement facts were checked only
@@ -181,3 +181,71 @@ The profiler was run separately from latency measurements.
 The raw signature rows show zero additional allocation events. Their
 sub-byte differences reflect process and profiler overhead in the
 control-subtracted totals.
+
+
+## Legacy workflow comparison
+
+The frozen [external benchmark](../../ci/compat-0.2/crates/consumer/examples/refactor_bench.rs)
+was built against the exact v0.3.0 tag and `f0c49bda42afe9238a8657bbfa991def69ba8c3c`.
+It used Rust 1.100.0, release optimization, and each revision's source lock.
+The subsequent `c6e3a63` changes add the standalone v1 benchmark. Its
+packaged Rust sources and workspace lock match `f0c49bd`.
+
+The comparison uses seven pairs, alternating order on logical CPU 0.
+For each workload the benchmark calculates percentiles over 31 sample
+averages. The number of calls per sample varies by workload. p99 is the
+largest sample average. Adapter benchmarks use in-memory services and
+include setup only when the workload label specifies it. The host recorded
+zero cgroup throttling during the paired runs, though workload scheduling
+and shared-host variation still affect the tails. [All 22 workloads and
+targeted reruns](paired-legacy-workflows-f0c49bd.csv)
+
+Each row below reports the median of lane percentiles and the median
+percentage change within pairs.
+
+| Workload | v0.3 p50 / p95 / p99 (ns/op) | 0.4 p50 / p95 / p99 (ns/op) | Median paired change (%) |
+| --- | --- | --- | --- |
+| Commit signing | 70,205.0 / 88,770.3 / 100,406.4 | 69,918.3 / 88,261.1 / 97,649.1 | -1.8 / -4.7 / -2.1 |
+| Historical state proof | 117,847.8 / 157,265.8 / 185,931.7 | 117,697.2 / 147,573.3 / 162,873.0 | -2.9 / -1.7 / -0.7 |
+| Current state proof | 115,907.6 / 155,716.0 / 162,105.7 | 118,752.3 / 153,242.6 / 175,206.8 | 2.6 / 9.2 / 6.2 |
+| Trade proof | 122,456.9 / 162,238.3 / 178,134.5 | 115,869.2 / 142,117.5 / 146,816.0 | -0.9 / -7.8 / -17.3 |
+| Protected write | 232,811.2 / 331,756.6 / 344,451.4 | 236,095.8 / 346,560.4 / 393,645.0 | -0.5 / 2.5 / 6.6 |
+| Exact retry | 124,894.6 / 174,522.8 / 196,762.0 | 124,119.0 / 164,306.0 / 207,609.8 | 8.7 / 3.6 / 2.5 |
+| Ambiguous acknowledgement | 235,373.8 / 298,042.2 / 312,167.2 | 246,167.0 / 392,100.6 / 402,782.6 | 1.9 / 7.5 / 16.9 |
+
+
+An initial sequential run showed a 125% higher ambiguous-acknowledgement
+p95 and a 104% higher p99. Alternating the same executables reduced those
+differences. A focused second series alternated the same binaries again,
+passing only one workload name per invocation. The largest replay tail
+in the full run occurred in a single candidate process. Native validation
+has a p50 near 2 ns, so a short interruption can produce a large percentage
+change in the largest batch-average sample. The targeted results show
+how much these high-percentile estimates varied by series.
+
+| Targeted workload | p50 change | p95 change | p99 change |
+| --- | ---: | ---: | ---: |
+| Native validation | +2.1% | -2.4% | -2.0% |
+| Exact retry | -9.9% | -22.5% | -29.7% |
+| Ambiguous acknowledgement | +5.4% | -7.2% | -10.1% |
+| Two-event replay | -1.1% | -7.9% | -12.8% |
+
+
+The ambiguous-acknowledgement median increased in both paired series
+by 1.9% and 5.4%. This path shares transaction classification and
+readback code with v1. The exact-retry median moved in opposite directions
+across the two series. These remain shared-runner estimates.
+
+Allocation probes ran 1,000 calls per process and subtracted a setup-matched
+control. The glibc interposer counts successful `malloc`, `calloc`, and
+`realloc` requests. It measures request bytes rather than peak live memory.
+
+| Workload | v0.3 events / bytes per call | 0.4 events / bytes per call |
+| --- | --- | --- |
+| Native validation | 0 / 0 | 0 / 0 |
+| Portable validation and hash | 0 / 0 | 0 / 0 |
+| Hosted typed check and apply | 23 / 362 | 23 / 362 |
+| Legacy state proof verification | 29 / 41,128 | 18 / 1,223 |
+
+The proof sizing check now counts serialized bytes directly. This removes
+the temporary BCS vector while preserving the proof size limit.
