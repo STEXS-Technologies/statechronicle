@@ -922,12 +922,19 @@ async fn protected_v1_plan_binds_exact_intent_and_commit_records() {
         key_registry::KeyRegistryError,
         signature_policy::{
             ResolvedSignaturePolicy, ResolvedSignatureV1, SignaturePolicy, SignaturePolicyQuery,
+            SignatureUse,
         },
     };
+    use std::sync::atomic::{AtomicU8, Ordering};
+
+    const ACTIVE: u8 = 0;
+    const RETIRED: u8 = 1;
+    const REVOKED: u8 = 2;
 
     struct TestPolicy {
         actor: std::sync::Arc<Ed25519Verifier>,
         commit: std::sync::Arc<Ed25519Verifier>,
+        commit_lifecycle: AtomicU8,
     }
 
     #[async_trait::async_trait]
@@ -938,7 +945,15 @@ async fn protected_v1_plan_binds_exact_intent_and_commit_records() {
         ) -> Result<ResolvedSignaturePolicy, KeyRegistryError> {
             let (provider, key) = match query.authority.purpose() {
                 SignaturePurpose::ActorIntent => (&self.actor, KeySetId([3; 32])),
-                SignaturePurpose::TenantCommit => (&self.commit, KeySetId([4; 32])),
+                SignaturePurpose::TenantCommit => {
+                    let lifecycle = self.commit_lifecycle.load(Ordering::SeqCst);
+                    if lifecycle == REVOKED
+                        || (lifecycle == RETIRED && query.usage == SignatureUse::Active)
+                    {
+                        return Err(KeyRegistryError::NotTrusted);
+                    }
+                    (&self.commit, KeySetId([4; 32]))
+                }
                 SignaturePurpose::GlobalCheckpoint => return Err(KeyRegistryError::NotTrusted),
             };
             ResolvedSignatureV1::new(provider.clone(), key, 64)
@@ -974,6 +989,7 @@ async fn protected_v1_plan_binds_exact_intent_and_commit_records() {
             commit_key_set_id,
             SignaturePurpose::TenantCommit,
         )),
+        commit_lifecycle: AtomicU8::new(ACTIVE),
     };
     let record = sign_intent_v1(intent, &actor_context, &actor_signer).unwrap();
     let prepared = harness
@@ -1053,6 +1069,30 @@ async fn protected_v1_plan_binds_exact_intent_and_commit_records() {
     assert_eq!(receipt.record().intent_record, record);
     assert_eq!(receipt.record().commit_record, signed.commit_record());
     assert_eq!(receipt.record().events, signed.prepared().events());
+
+    // Retirement applies to new writes before any ledger method is called,
+    // while the same exact retained records remain readable under Historical.
+    policy.commit_lifecycle.store(RETIRED, Ordering::SeqCst);
+    let retired_ledger = MemoryLedger::default();
+    assert!(matches!(
+        signed.commit(&retired_ledger, &Allow, &trust).await,
+        Err(DurableError::Rejected(_))
+    ));
+    assert!(retired_ledger.calls.lock().unwrap().is_empty());
+    assert!(matches!(
+        recover_v1(&reopened, &Allow, &trust, &record)
+            .await
+            .unwrap(),
+        RecoveryOutcomeV1::Committed(_)
+    ));
+
+    // Readback refuses to issue a receipt when the retained signer is revoked.
+    policy.commit_lifecycle.store(REVOKED, Ordering::SeqCst);
+    assert!(matches!(
+        recover_v1(&reopened, &Allow, &trust, &record).await,
+        Err(DurableError::Corrupt(_))
+    ));
+    policy.commit_lifecycle.store(ACTIVE, Ordering::SeqCst);
     assert!(matches!(
         signed.commit(&reopened, &Allow, &trust).await.unwrap(),
         DurableOutcomeV1::Replay(_)

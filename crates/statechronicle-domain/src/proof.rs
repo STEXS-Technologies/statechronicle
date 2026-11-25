@@ -338,6 +338,29 @@ mod tests {
     }
 
     #[test]
+    fn v1_commit_reference_matches_independent_bcs_layout() {
+        use statechronicle_core::{
+            signature_provider::SignaturePurpose, signature_wire::decode_v1_envelope,
+        };
+
+        let bytes = include_bytes!("../tests/fixtures/commit-ref-v1.bcs");
+        let reference: CommitRefV1 = bcs::from_bytes(bytes).unwrap();
+        assert_eq!(
+            reference.commit_id.as_str(),
+            "cmt_01JZ8X5HN3C4PXG5A9FGEWQF5W"
+        );
+        assert_eq!(reference.sequence, 918_273);
+        assert_eq!(reference.state_root, ContentDigest::new([0x42; 32]));
+        assert_eq!(reference.signed_commit_record.len(), 132);
+        decode_v1_envelope(
+            &reference.signed_commit_record,
+            SignaturePurpose::TenantCommit,
+        )
+        .unwrap();
+        assert_eq!(bcs::to_bytes(&reference).unwrap(), bytes.as_slice());
+    }
+
+    #[test]
     fn constructor_sets_schema_and_kind() {
         let proof = sample_proof();
         assert_eq!(proof.schema, RESOURCE_STATE_PROOF_SCHEMA);

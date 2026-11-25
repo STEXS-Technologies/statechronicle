@@ -26,6 +26,36 @@ Clippy passed after the fix.
 
 RustSec audit completed with warnings denied against advisory database
 `b9b8a3c2cb1f2a3c76ab17a551193568c9f8b7a4`. All six active lockfiles at
-`7c764c1` passed. This is evidence for that dependency graph and advisory
+`4af9576` passed. This is evidence for that dependency graph and advisory
 snapshot. The standalone provider fixtures are test dependencies and carry
 their own provider and platform limits.
+
+
+## Extracted-package and external consumer checks
+
+On 2026-11-25, source revision `4af95763e80c365d398172a9d87a8e0e240c8a08`
+passed the isolated archive check with Rust 1.100.0. The checker created all 13
+archives, verified the packaged original fixtures against their pinned sources,
+and ran all-target tests, doctests, and strict Clippy in a fresh workspace
+containing only the extracted archives. The registry dependencies resolved
+within the original locked graph.
+
+The standalone checks on the same source passed 26 durable adapter conformance
+tests, five release-mode PQ provider tests, and two release-mode tests against
+the published v0.3.0 signing APIs.
+
+| Crate archive | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `statechronicle-0.3.0.crate` | 209787 | `eb845835790bb9fd997607be5fd01861fc465f8a89a1301ecfa8624ed5dd1cca` |
+| `statechronicle-accumulator-0.3.0.crate` | 40430 | `b9fd98cbc1daf7f177ccb7d3ab8c7c7612de7c4dac7657b3bb6e7ceae4ddc5c5` |
+| `statechronicle-commit-0.3.0.crate` | 71069 | `a0d1d7f2fb0ff5ff94a3b54fed7bb19af6979bbdc0f5fdeb5e8f7ca0f6a37313` |
+| `statechronicle-core-0.3.0.crate` | 41262 | `08cdbdd525fb76d534210eb2f5cf2996bb0e59b57b783203adee1db67f1743a7` |
+| `statechronicle-domain-0.3.0.crate` | 43470 | `ed22d75ecff6864655223e930f3d2f21e151e14ddc868d38a4718692f9d5e35d` |
+| `statechronicle-executor-0.3.0.crate` | 73509 | `538ab9fd1c0330cbae8836375c6928570fc97d7e51afd73ffcadd7820338a118` |
+| `statechronicle-index-0.3.0.crate` | 37870 | `e4c469d73a062d2dc3ca4b58593f83ac311f81ddb34f39698b19870911fb65b5` |
+| `statechronicle-intent-0.3.0.crate` | 27223 | `a138d61058c5841607a264f3e57ec796e72787d169df20109c6e5d6601d06a69` |
+| `statechronicle-portable-0.3.0.crate` | 18326 | `133ba6cf9ea358271f7508a9eab307bc4d427af5ef31cfdf6445a0ac1233cbee` |
+| `statechronicle-ports-0.3.0.crate` | 39811 | `86664621e1b5a797be32a127e85891030eadc52d995f38f3035a9851a9d4ba8c` |
+| `statechronicle-profile-0.3.0.crate` | 2819 | `2625098456a5020a2684714e1db1145c35d1d3f631e3a1c93f41f6b4e81b67b1` |
+| `statechronicle-profiles-0.3.0.crate` | 80064 | `3f7e6ad424effebd44e70cbf780992f7f24a335faaf8d9f5fdda883114a3d6b0` |
+| `statechronicle-proof-0.3.0.crate` | 69794 | `9485f42bc9a401a56e6609e088daa3cedb9e077c8fa95a65498a66f78d3da226` |
