@@ -1796,3 +1796,99 @@ async fn preparation_rechecks_public_validated_intent_structure() {
             .is_none()
     );
 }
+
+#[tokio::test]
+async fn v1_intent_ingress_binds_principal_policy_and_exact_bytes() {
+    use statechronicle_core::signature_operation::SignatureContext;
+    use statechronicle_core::signature_provider::{
+        Ed25519Signer, Ed25519Verifier, KeySetId, SignaturePurpose, Signer,
+    };
+    use statechronicle_executor::intent_v1::authenticate_player_intent_v1;
+    use statechronicle_intent::{sign_v1::sign_intent_v1, v1_body::INTENT_V1_SCHEMA};
+    use statechronicle_ports::{
+        key_registry::KeyRegistryError,
+        signature_policy::{
+            ResolvedSignaturePolicy, ResolvedSignatureV1, SignaturePolicy, SignaturePolicyQuery,
+            SignatureUse,
+        },
+    };
+
+    struct ActorPolicy(Option<std::sync::Arc<Ed25519Verifier>>);
+
+    #[async_trait]
+    impl SignaturePolicy for ActorPolicy {
+        async fn resolve(
+            &self,
+            query: SignaturePolicyQuery<'_>,
+        ) -> Result<ResolvedSignaturePolicy, KeyRegistryError> {
+            if query.usage != SignatureUse::Active
+                || query.authority.purpose() != SignaturePurpose::ActorIntent
+            {
+                return Err(KeyRegistryError::NotTrusted);
+            }
+            let Some(verifier) = &self.0 else {
+                return Ok(ResolvedSignaturePolicy::Legacy);
+            };
+            let decision = ResolvedSignatureV1::new(verifier.clone(), KeySetId([7; 32]), 64)
+                .map_err(|_suite_error| KeyRegistryError::NotTrusted)?;
+            Ok(ResolvedSignaturePolicy::V1(decision))
+        }
+    }
+
+    let request = mint("v1_ingress", "asset:sword_001", "alice");
+    let principal = AuthenticatedPrincipal {
+        subject: request.intent.actor.clone(),
+        credential_id: String::from("v1-ingress-session"),
+        tenant: request.intent.tenant_id.clone(),
+    };
+    let key = fixed_key();
+    let purpose = SignaturePurpose::ActorIntent;
+    let key_set_id = KeySetId([7; 32]);
+    let signer = Ed25519Signer::new(&key, key_set_id, purpose);
+    let context = SignatureContext {
+        suite: signer.suite(),
+        key_set_id: &key_set_id,
+        purpose,
+        body_schema: INTENT_V1_SCHEMA,
+        signature_len: 64,
+    };
+    let record = sign_intent_v1(&request.intent, &context, &signer).unwrap();
+    let now = request.intent.created_at;
+    let policy = ActorPolicy(Some(std::sync::Arc::new(Ed25519Verifier::new(
+        &key.verifying_key(),
+        key_set_id,
+        purpose,
+    ))));
+    let authenticated =
+        authenticate_player_intent_v1(&record, &principal, &AllowAuthorizer, &policy, now)
+            .await
+            .unwrap();
+    assert_eq!(authenticated.validated().intent, request.intent);
+    assert_eq!(authenticated.record(), record);
+
+    let another_actor = AuthenticatedPrincipal {
+        subject: SubjectId(String::from("bob")),
+        ..principal.clone()
+    };
+    assert!(
+        authenticate_player_intent_v1(&record, &another_actor, &AllowAuthorizer, &policy, now,)
+            .await
+            .is_err()
+    );
+    assert!(
+        authenticate_player_intent_v1(&record, &principal, &DenyAllAuthorizer, &policy, now,)
+            .await
+            .is_err()
+    );
+    assert!(
+        authenticate_player_intent_v1(
+            &record,
+            &principal,
+            &AllowAuthorizer,
+            &ActorPolicy(None),
+            now,
+        )
+        .await
+        .is_err()
+    );
+}

@@ -265,17 +265,24 @@ fn player_signature(validated: &ValidatedIntent) -> Result<&SignatureBlock, Exec
     })
 }
 
-async fn authorize_principal(
-    validated: &ValidatedIntent,
+pub(crate) fn check_principal_binding(
+    intent: &Intent,
     principal: &AuthenticatedPrincipal,
-    authorizer: &dyn Authorizer,
 ) -> Result<(), ExecutorError> {
-    if principal.tenant != validated.intent.tenant_id || principal.subject != validated.intent.actor
-    {
+    if principal.tenant != intent.tenant_id || principal.subject != intent.actor {
         return Err(ExecutorError::ActorAuthenticationFailed(String::from(
             "authenticated principal is not bound to intent actor and tenant",
         )));
     }
+    Ok(())
+}
+
+pub(crate) async fn authorize_principal(
+    validated: &ValidatedIntent,
+    principal: &AuthenticatedPrincipal,
+    authorizer: &dyn Authorizer,
+) -> Result<(), ExecutorError> {
+    check_principal_binding(&validated.intent, principal)?;
     authorizer
         .authorize(AuthorizationContext {
             principal,

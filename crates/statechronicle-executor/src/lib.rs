@@ -11,6 +11,8 @@
 /// The validation pipeline (protocol §18.1).
 pub mod pipeline;
 
+/// Policy-bound v1 actor intent authentication.
+pub mod intent_v1;
 /// Authenticated mutation preparation without persistence.
 pub mod preparation;
 
