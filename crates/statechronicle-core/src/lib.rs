@@ -20,6 +20,8 @@ pub mod digest;
 pub mod signature;
 /// Canonical component framing for the Ed25519 and ML-DSA-65 hybrid suite.
 pub mod signature_hybrid;
+/// Shared cryptographic dispatch for independently resolved signature policy.
+pub mod signature_operation;
 /// Suite-neutral signing and verification provider contracts.
 pub mod signature_provider;
 /// Canonical transcript construction for versioned signatures.
