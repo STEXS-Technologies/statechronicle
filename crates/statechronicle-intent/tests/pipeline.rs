@@ -127,6 +127,16 @@ fn signed_intent_roundtrips_through_bcs_with_empty_inputs() {
     };
     let envelope = Signed::new(validated.intent, block);
 
+    assert_eq!(
+        bcs::to_bytes(&envelope).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/signed-intent.bcs").as_slice(),
+        "signed-intent.bcs compatibility",
+    );
+    assert_eq!(
+        serde_json::to_vec(&envelope).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/signed-intent.json").as_slice(),
+        "signed-intent.json compatibility",
+    );
     let envelope_bytes = canonicalize(&envelope).unwrap();
     let decoded: Signed<statechronicle_domain::intent::Intent> =
         bcs::from_bytes(&envelope_bytes).unwrap();

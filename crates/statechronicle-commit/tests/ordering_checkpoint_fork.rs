@@ -162,6 +162,16 @@ fn global_checkpoint_lifecycle() {
     // Sign, verify, tamper → fail.
     let key = fixed_key();
     let signed = sign_global_checkpoint(&checkpoint, &key, checkpoint_key_id()).unwrap();
+    assert_eq!(
+        bcs::to_bytes(&signed).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/signed-global-checkpoint.bcs").as_slice(),
+        "signed-global-checkpoint.bcs compatibility",
+    );
+    assert_eq!(
+        serde_json::to_vec(&signed).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/signed-global-checkpoint.json").as_slice(),
+        "signed-global-checkpoint.json compatibility",
+    );
     assert!(verify_global_checkpoint(&signed, &key.verifying_key()).is_ok());
 
     let mut tampered = signed;

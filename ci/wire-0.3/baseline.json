@@ -1,0 +1,355 @@
+{
+  "release": "v0.3.0",
+  "tag": "5b1fdc0f9c365e74421ac8f6f1acca4659ed5d7c",
+  "commit": "9ed64a5a5ece51fa2cd5929119cbe21e1e34f3f4",
+  "tree": "a90cbf3a25bd543492a66394ed5faa3c0711e683",
+  "git_archive_tar_sha256": "817c7f00a59de8a5209e3b5b0bf60701f4fab7d8e2cd46d7669fc8dd4a01010b",
+  "cargo_lock_sha256": "c18d97d3c26e7254c05488f98ed4df2e14ce2777a3b4ea9fef86d5c060f350db",
+  "toolchain_manifest_sha256": "97aee46983c08cdc8ad8323003a8291d0e3fed998465da02ed29003eb2dcc572",
+  "toolchain": "1.100.0",
+  "msrv": "1.88",
+  "workspace_packages": {
+    "statechronicle": {
+      "version": "0.3.0",
+      "workspace_dependencies": [
+        [
+          "statechronicle-accumulator",
+          "normal"
+        ],
+        [
+          "statechronicle-commit",
+          "normal"
+        ],
+        [
+          "statechronicle-core",
+          "normal"
+        ],
+        [
+          "statechronicle-domain",
+          "normal"
+        ],
+        [
+          "statechronicle-executor",
+          "normal"
+        ],
+        [
+          "statechronicle-index",
+          "normal"
+        ],
+        [
+          "statechronicle-intent",
+          "normal"
+        ],
+        [
+          "statechronicle-portable",
+          "normal"
+        ],
+        [
+          "statechronicle-ports",
+          "normal"
+        ],
+        [
+          "statechronicle-profile",
+          "normal"
+        ],
+        [
+          "statechronicle-profiles",
+          "normal"
+        ],
+        [
+          "statechronicle-proof",
+          "normal"
+        ]
+      ],
+      "registry_archive_sha256": "a4a4b4b8168aa520ca94ada8b3db2ac970671298ec1c5fe09f844c2af2ff237a",
+      "registry_archive_bytes": 180491
+    },
+    "statechronicle-accumulator": {
+      "version": "0.3.0",
+      "workspace_dependencies": [
+        [
+          "statechronicle-core",
+          "normal"
+        ],
+        [
+          "statechronicle-domain",
+          "normal"
+        ]
+      ],
+      "registry_archive_sha256": "3e3dd77ffffb1a3b230718f40244e151648c1d1be1b390f22a58468fe1e442dc",
+      "registry_archive_bytes": 40551
+    },
+    "statechronicle-commit": {
+      "version": "0.3.0",
+      "workspace_dependencies": [
+        [
+          "statechronicle-accumulator",
+          "normal"
+        ],
+        [
+          "statechronicle-core",
+          "normal"
+        ],
+        [
+          "statechronicle-domain",
+          "normal"
+        ],
+        [
+          "statechronicle-intent",
+          "normal"
+        ],
+        [
+          "statechronicle-ports",
+          "normal"
+        ]
+      ],
+      "registry_archive_sha256": "847d989701260499330a3499dbd128cd6a2699b0f1381dca05166c4f501021cc",
+      "registry_archive_bytes": 58591
+    },
+    "statechronicle-core": {
+      "version": "0.3.0",
+      "workspace_dependencies": [],
+      "registry_archive_sha256": "4e0fdd98d51d9767d46002aacaf090bfaf8b9bab3283f51f08af207e260128dd",
+      "registry_archive_bytes": 30092
+    },
+    "statechronicle-domain": {
+      "version": "0.3.0",
+      "workspace_dependencies": [
+        [
+          "statechronicle-core",
+          "normal"
+        ]
+      ],
+      "registry_archive_sha256": "4952bbde7371ad656d666a7eef0ab47c5974c657693053b61469070f507f9624",
+      "registry_archive_bytes": 40115
+    },
+    "statechronicle-executor": {
+      "version": "0.3.0",
+      "workspace_dependencies": [
+        [
+          "statechronicle-accumulator",
+          "normal"
+        ],
+        [
+          "statechronicle-core",
+          "normal"
+        ],
+        [
+          "statechronicle-domain",
+          "normal"
+        ],
+        [
+          "statechronicle-intent",
+          "normal"
+        ],
+        [
+          "statechronicle-ports",
+          "normal"
+        ],
+        [
+          "statechronicle-profiles",
+          "normal"
+        ]
+      ],
+      "registry_archive_sha256": "4b28e78647641db0b7c2d83a2b736d60f4b3365582ff3e74dfbcb073bf69ff24",
+      "registry_archive_bytes": 69954
+    },
+    "statechronicle-fuzz": {
+      "version": "0.0.0",
+      "workspace_dependencies": [
+        [
+          "statechronicle",
+          "normal"
+        ],
+        [
+          "statechronicle-accumulator",
+          "normal"
+        ],
+        [
+          "statechronicle-commit",
+          "normal"
+        ],
+        [
+          "statechronicle-core",
+          "normal"
+        ],
+        [
+          "statechronicle-domain",
+          "normal"
+        ],
+        [
+          "statechronicle-executor",
+          "normal"
+        ],
+        [
+          "statechronicle-index",
+          "normal"
+        ],
+        [
+          "statechronicle-intent",
+          "normal"
+        ],
+        [
+          "statechronicle-portable",
+          "normal"
+        ],
+        [
+          "statechronicle-profiles",
+          "normal"
+        ],
+        [
+          "statechronicle-proof",
+          "normal"
+        ]
+      ]
+    },
+    "statechronicle-index": {
+      "version": "0.3.0",
+      "workspace_dependencies": [
+        [
+          "statechronicle-commit",
+          "normal"
+        ],
+        [
+          "statechronicle-core",
+          "normal"
+        ],
+        [
+          "statechronicle-domain",
+          "normal"
+        ],
+        [
+          "statechronicle-ports",
+          "normal"
+        ],
+        [
+          "statechronicle-profiles",
+          "normal"
+        ],
+        [
+          "statechronicle-proof",
+          "normal"
+        ]
+      ],
+      "registry_archive_sha256": "c7af0b1124bb33f077674dcb2f86c0cde5b432a3969fda1ddb8551f3eb600d73",
+      "registry_archive_bytes": 36718
+    },
+    "statechronicle-intent": {
+      "version": "0.3.0",
+      "workspace_dependencies": [
+        [
+          "statechronicle-core",
+          "normal"
+        ],
+        [
+          "statechronicle-domain",
+          "normal"
+        ]
+      ],
+      "registry_archive_sha256": "cca530ef8bd85073a94f5654e391a097e375f09c6db57816b050d002aa9a9f6c",
+      "registry_archive_bytes": 22707
+    },
+    "statechronicle-portable": {
+      "version": "0.3.0",
+      "workspace_dependencies": [
+        [
+          "statechronicle-accumulator",
+          "dev"
+        ],
+        [
+          "statechronicle-core",
+          "dev"
+        ],
+        [
+          "statechronicle-domain",
+          "dev"
+        ],
+        [
+          "statechronicle-profile",
+          "normal"
+        ]
+      ],
+      "registry_archive_sha256": "3605cddfe749bbe5f8853d419ba55aea50c5c76a82f58006e5fb4c4d9233376f",
+      "registry_archive_bytes": 16984
+    },
+    "statechronicle-ports": {
+      "version": "0.3.0",
+      "workspace_dependencies": [
+        [
+          "statechronicle-accumulator",
+          "normal"
+        ],
+        [
+          "statechronicle-core",
+          "normal"
+        ],
+        [
+          "statechronicle-domain",
+          "normal"
+        ]
+      ],
+      "registry_archive_sha256": "f2529dcfbed078c82e02d86321556c95290cc2a8804d787148f7ec6c72c5dca4",
+      "registry_archive_bytes": 36583
+    },
+    "statechronicle-profile": {
+      "version": "0.3.0",
+      "workspace_dependencies": [],
+      "registry_archive_sha256": "9931e2d74d3b75223517c1714708014ceb51b15eaec140dec8d79cf56612be56",
+      "registry_archive_bytes": 2935
+    },
+    "statechronicle-profiles": {
+      "version": "0.3.0",
+      "workspace_dependencies": [
+        [
+          "statechronicle-accumulator",
+          "normal"
+        ],
+        [
+          "statechronicle-core",
+          "normal"
+        ],
+        [
+          "statechronicle-domain",
+          "normal"
+        ],
+        [
+          "statechronicle-profile",
+          "normal"
+        ]
+      ],
+      "registry_archive_sha256": "b0ae4ae03e5d99df55f17afe4d9474ee4e7e5e3d7722aea61732d9dbb30ae46e",
+      "registry_archive_bytes": 80178
+    },
+    "statechronicle-proof": {
+      "version": "0.3.0",
+      "workspace_dependencies": [
+        [
+          "statechronicle-accumulator",
+          "normal"
+        ],
+        [
+          "statechronicle-commit",
+          "dev"
+        ],
+        [
+          "statechronicle-core",
+          "normal"
+        ],
+        [
+          "statechronicle-domain",
+          "normal"
+        ],
+        [
+          "statechronicle-ports",
+          "normal"
+        ],
+        [
+          "statechronicle-profiles",
+          "normal"
+        ]
+      ],
+      "registry_archive_sha256": "1c4821e3814ec26784a64449dcae6f312b2a59892e906d361774fbb3960f4235",
+      "registry_archive_bytes": 59689
+    }
+  }
+}

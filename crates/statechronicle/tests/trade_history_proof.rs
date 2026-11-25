@@ -690,6 +690,16 @@ async fn history_and_proof_for_a_settled_two_tenant_trade() {
         .await
         .unwrap()
         .expect("proof should be present");
+    assert_eq!(
+        bcs::to_bytes(&proof).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/cross-tenant-trade-proof.bcs").as_slice(),
+        "cross-tenant-trade-proof.bcs compatibility",
+    );
+    assert_eq!(
+        serde_json::to_vec(&proof).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/cross-tenant-trade-proof.json").as_slice(),
+        "cross-tenant-trade-proof.json compatibility",
+    );
     assert_eq!(proof.trade_id, TRADE);
     assert_eq!(proof.summary.trade_id, TRADE);
     assert_eq!(proof.summary.status, TradeStatus::Settled);
@@ -1349,6 +1359,19 @@ async fn requested_settlement_facts_require_authenticated_event_history() {
     };
     let verified = verify_settlement_history(&expected, &witnesses, trusted_key).unwrap();
     assert_eq!(verified.claim(), &expected);
+    let witness_wire = witnesses
+        .each_ref()
+        .map(|witness| (witness.commit, witness.events));
+    assert_eq!(
+        bcs::to_bytes(&witness_wire).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/cross-tenant-settlement-witnesses.bcs").as_slice(),
+        "cross-tenant-settlement-witnesses.bcs compatibility",
+    );
+    assert_eq!(
+        serde_json::to_vec(&witness_wire).unwrap(),
+        include_bytes!("fixtures/wire-v0.3.0/cross-tenant-settlement-witnesses.json").as_slice(),
+        "cross-tenant-settlement-witnesses.json compatibility",
+    );
     let mut reordered = witnesses;
     reordered.reverse();
     verify_settlement_history(&expected, &reordered, trusted_key).unwrap();
