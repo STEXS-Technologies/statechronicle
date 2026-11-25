@@ -16,6 +16,7 @@ statechronicle-core = { workspace = true }
 statechronicle-domain = { workspace = true }
 statechronicle-accumulator = { workspace = true }
 statechronicle-ports = { workspace = true }
+statechronicle-commit = { workspace = true }
 chrono = { workspace = true }
 ed25519-dalek = { workspace = true }
 serde = { workspace = true }
@@ -27,7 +28,6 @@ thiserror = { workspace = true }
 async-trait = { workspace = true }
 hex = { workspace = true }
 proptest = { workspace = true }
-statechronicle-commit = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
 
 [lints]

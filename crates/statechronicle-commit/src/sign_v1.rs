@@ -204,6 +204,16 @@ pub fn sign_commit_v1(
     sign_body(body, context, signer)
 }
 
+/// Decodes a v1 tenant commit and validates its canonical body encoding.
+///
+/// The result still requires signature and policy verification.
+///
+/// # Errors
+/// Rejects malformed envelope bytes, schema or scope, and noncanonical bodies.
+pub fn decode_commit_v1(record: &[u8]) -> Result<Commit, SignatureError> {
+    decode_body(decode_v1_envelope(record, SignaturePurpose::TenantCommit)?)
+}
+
 /// Verifies and decodes a standalone v1 tenant commit envelope.
 ///
 /// # Errors

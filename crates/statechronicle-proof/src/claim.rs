@@ -6,6 +6,7 @@
 
 use ed25519_dalek::VerifyingKey;
 use statechronicle_accumulator::key::StateKey;
+use statechronicle_core::digest::ContentDigest;
 use statechronicle_domain::{
     commit::Commit,
     ids::CommitId,
@@ -43,6 +44,36 @@ pub struct ExpectedClaim {
     subject: Option<SubjectId>,
     key: StateKey,
     assertion: Assertion,
+}
+
+/// Caller-selected pin for one exact v1 commit envelope.
+///
+/// The digest must come from independently retained commit evidence; deriving
+/// it from the proof's own `signed_commit_record` would not pin the record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExpectedCommitV1 {
+    commit_id: CommitId,
+    signed_record_digest: ContentDigest,
+}
+
+impl ExpectedCommitV1 {
+    /// Pins a commit id and the digest of its independently retained exact envelope.
+    pub const fn new(commit_id: CommitId, signed_record_digest: ContentDigest) -> Self {
+        Self {
+            commit_id,
+            signed_record_digest,
+        }
+    }
+
+    /// Independently expected canonical commit id.
+    pub const fn commit_id(&self) -> &CommitId {
+        &self.commit_id
+    }
+
+    /// Digest of the independently retained exact signed envelope bytes.
+    pub const fn signed_record_digest(&self) -> &ContentDigest {
+        &self.signed_record_digest
+    }
 }
 
 impl ExpectedClaim {
