@@ -47,6 +47,7 @@ use statechronicle_ports::authorization::{
 };
 use statechronicle_ports::intent_store::{IntentStore, IntentStoreError};
 use statechronicle_ports::key_registry::KeyRegistry;
+use statechronicle_ports::signature_policy::SignaturePolicy;
 use statechronicle_ports::state_index::StateIndex;
 use statechronicle_ports::tenant_store::TenantStore;
 use statechronicle_ports::transaction_manager::{TransactionManager, TransactionManagerError};
@@ -58,7 +59,7 @@ use statechronicle_profiles::registry::ProfileRegistry;
 use crate::atomicity;
 use crate::conflict;
 use crate::error::{ExecutorBuildError, ExecutorError, PortsBuildError};
-use crate::preparation::{PreparedBatch, PreparedMutation};
+use crate::preparation::{PreparedBatch, PreparedMutation, PreparedMutationV1};
 #[cfg(test)]
 use statechronicle_profiles::resource::{
     destination_holder, holder_for, is_transfer_operation, subject_for,
@@ -586,6 +587,22 @@ impl Executor {
     ) -> Result<PreparedMutation, ExecutorError> {
         self.evaluation()
             .prepare_player(validated, principal, authorizer, key_registry)
+            .await
+    }
+
+    /// Authenticates a v1 request and prepares its complete transition without persistence.
+    ///
+    /// # Errors
+    /// Refuses invalid signature policy, authorization, or transition inputs.
+    pub async fn prepare_player_v1<'record>(
+        &self,
+        record: &'record [u8],
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedMutationV1<'record>, ExecutorError> {
+        self.evaluation()
+            .prepare_player_v1(record, principal, authorizer, policy)
             .await
     }
 
@@ -1412,6 +1429,22 @@ impl Preparer {
     ) -> Result<PreparedMutation, ExecutorError> {
         self.evaluation()
             .prepare_player(validated, principal, authorizer, key_registry)
+            .await
+    }
+
+    /// Authenticates a v1 request and prepares its complete transition without persistence.
+    ///
+    /// # Errors
+    /// Refuses invalid signature policy, authorization, or transition inputs.
+    pub async fn prepare_player_v1<'record>(
+        &self,
+        record: &'record [u8],
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedMutationV1<'record>, ExecutorError> {
+        self.evaluation()
+            .prepare_player_v1(record, principal, authorizer, policy)
             .await
     }
 

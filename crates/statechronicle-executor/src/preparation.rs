@@ -12,6 +12,47 @@ use statechronicle_domain::event::Event;
 use statechronicle_intent::validated::ValidatedIntent;
 use statechronicle_ports::authorization::AuthenticatedPrincipal;
 
+use crate::intent_v1::AuthenticatedIntentV1;
+
+/// Read-only mutation plan authenticated from a v1 actor-intent envelope.
+///
+/// The signed record remains borrowed and immutable for the life of the plan.
+#[derive(Debug)]
+pub struct PreparedMutationV1<'record> {
+    authenticated: AuthenticatedIntentV1<'record>,
+    principal: AuthenticatedPrincipal,
+    events: Vec<Event>,
+}
+
+impl<'record> PreparedMutationV1<'record> {
+    pub(crate) fn new(
+        authenticated: AuthenticatedIntentV1<'record>,
+        principal: &AuthenticatedPrincipal,
+        events: Vec<Event>,
+    ) -> Self {
+        Self {
+            authenticated,
+            principal: principal.clone(),
+            events,
+        }
+    }
+
+    /// Structurally validated intent with its original v1 evidence.
+    pub const fn authenticated(&self) -> &AuthenticatedIntentV1<'record> {
+        &self.authenticated
+    }
+
+    /// Principal authorized at preparation time.
+    pub const fn principal(&self) -> &AuthenticatedPrincipal {
+        &self.principal
+    }
+
+    /// Complete event set produced by the existing transition evaluator.
+    pub fn events(&self) -> &[Event] {
+        &self.events
+    }
+}
+
 /// An owned event plan produced by [`Preparer::prepare_player`] or
 /// [`crate::pipeline::Executor::prepare_player`].
 ///

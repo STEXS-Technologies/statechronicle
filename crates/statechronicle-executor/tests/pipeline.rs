@@ -1866,6 +1866,30 @@ async fn v1_intent_ingress_binds_principal_policy_and_exact_bytes() {
     assert_eq!(authenticated.validated().intent, request.intent);
     assert_eq!(authenticated.record(), record);
 
+    let harness = Harness::new(FakeTrustGrant::allow());
+    let prepared = harness
+        .executor
+        .prepare_player_v1(&record, &principal, &AllowAuthorizer, &policy)
+        .await
+        .unwrap();
+    assert_eq!(prepared.events().len(), 1);
+    assert_eq!(prepared.principal(), &principal);
+    assert_eq!(prepared.authenticated().record(), record);
+    assert_eq!(
+        prepared.authenticated().body_digest(),
+        authenticated.body_digest()
+    );
+    assert!(
+        IntentStore::get_intent(
+            &harness.intent_store,
+            &principal.tenant,
+            &request.intent.intent_id
+        )
+        .await
+        .unwrap()
+        .is_none()
+    );
+
     let another_actor = AuthenticatedPrincipal {
         subject: SubjectId(String::from("bob")),
         ..principal.clone()

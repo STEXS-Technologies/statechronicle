@@ -37,6 +37,27 @@ impl Evaluation<'_> {
         Ok(PreparedMutation::new(request, principal, events)?)
     }
 
+    pub(super) async fn prepare_player_v1<'record>(
+        &self,
+        record: &'record [u8],
+        principal: &AuthenticatedPrincipal,
+        authorizer: &dyn Authorizer,
+        policy: &dyn SignaturePolicy,
+    ) -> Result<PreparedMutationV1<'record>, ExecutorError> {
+        let authenticated = crate::intent_v1::authenticate_player_intent_v1(
+            record,
+            principal,
+            authorizer,
+            policy,
+            (self.now)(),
+        )
+        .await?;
+        let events = self
+            .execute_inner(authenticated.validated(), false, IntentHandling::Prepare)
+            .await?;
+        Ok(PreparedMutationV1::new(authenticated, principal, events))
+    }
+
     pub(super) async fn prepare_player_batch(
         &self,
         items: &[PlayerBatchItem<'_>],
