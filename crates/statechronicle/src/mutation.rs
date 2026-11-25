@@ -17,6 +17,11 @@ pub use statechronicle_executor::preparation::{
 };
 
 use statechronicle_commit::durable::commit_verified;
+pub use statechronicle_commit::durable_v1::DurableOutcomeV1;
+pub use statechronicle_commit::durable_v1::{
+    CommittedMutationV1, MutationTrustV1, RecoveryOutcomeV1, recover_v1,
+};
+use statechronicle_commit::durable_v1::{DurableCommitRequestV1, commit_verified_v1};
 use statechronicle_commit::error::CommitError;
 use statechronicle_commit::persist::{
     CommittedEvent, DurableCommitRequest, SignedCommitVerifier, projections_for,
@@ -37,6 +42,7 @@ use statechronicle_domain::state::StateProjection;
 use statechronicle_domain::tenant::TenantId;
 use statechronicle_ports::authorization::Authorizer;
 use statechronicle_ports::ledger_store::{LedgerRecovery, OutboxRecord};
+use statechronicle_ports::ledger_v1::LedgerRecoveryV1;
 
 /// An owned signed plan whose events and principal come only from a protected
 /// [`PreparedMutation`]. The commit root/count and tenant are bound
@@ -223,6 +229,37 @@ impl<'record> SignedMutationV1<'record> {
             projections,
             outbox,
         })
+    }
+
+    /// Atomically commits this exact signed plan and verifies original readback.
+    ///
+    /// # Errors
+    /// Returns typed policy, storage, and reconciliation failures. Retain this
+    /// plan and its original identity when the outcome is unknown.
+    pub async fn commit<S: LedgerRecoveryV1 + ?Sized>(
+        &self,
+        ledger: &S,
+        authorizer: &dyn Authorizer,
+        trust: &MutationTrustV1<'_>,
+    ) -> Result<DurableOutcomeV1, DurableError> {
+        if trust.principal != self.prepared.principal() {
+            return Err(DurableError::Rejected(CommitError::Store(String::from(
+                "v1 commit principal differs from the prepared principal",
+            ))));
+        }
+        commit_verified_v1(
+            ledger,
+            authorizer,
+            trust,
+            DurableCommitRequestV1 {
+                intent_record: self.prepared.authenticated().record(),
+                commit_record: &self.commit_record,
+                entries: &entries(self.prepared.events()),
+                projections: &self.projections,
+                outbox: &self.outbox,
+            },
+        )
+        .await
     }
 
     /// Protected request, authenticated principal, and complete events.

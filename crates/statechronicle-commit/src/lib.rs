@@ -29,6 +29,9 @@ pub mod persist;
 
 /// Verified durable outcomes and authoritative recovery.
 pub mod durable;
+/// Exact-byte durable write and recovery for versioned mutations.
+pub mod durable_v1;
+mod durable_write_v1;
 
 /// Verified atomic batch outcomes and complete original-group recovery.
 pub mod durable_batch;

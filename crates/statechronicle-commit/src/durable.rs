@@ -35,6 +35,14 @@ pub struct MutationIdentity {
 }
 
 impl MutationIdentity {
+    pub(crate) fn with_digest(intent: &Intent, payload_digest: ContentDigest) -> Self {
+        Self {
+            tenant: intent.tenant_id.clone(),
+            intent_id: intent.intent_id.clone(),
+            payload_digest,
+        }
+    }
+
     pub(crate) fn from_intent(intent: &Intent) -> Result<Self, CommitError> {
         Ok(Self {
             tenant: intent.tenant_id.clone(),
@@ -189,6 +197,49 @@ pub(crate) fn transaction_error(
         | LedgerStoreError::Closed
         | LedgerStoreError::Invariant(_)) => DurableError::Corrupt(error.to_string()),
     }
+}
+
+pub(crate) fn classify_single_write(
+    decision: TransactionDecision,
+    expected_commit: &CommitId,
+    identity: &MutationIdentity,
+) -> Result<(bool, CommitId), DurableError> {
+    match decision {
+        TransactionDecision::Committed => Ok((true, expected_commit.clone())),
+        TransactionDecision::Replay(commit_id) => Ok((false, commit_id)),
+        TransactionDecision::Conflict => Err(DurableError::PayloadConflict),
+        TransactionDecision::InProgress {
+            attempt_id,
+            lease_expires_at_unix,
+        } => Err(DurableError::InProgress {
+            identity: identity.clone(),
+            attempt_id,
+            lease_expires_at_unix,
+        }),
+    }
+}
+
+pub(crate) fn confirm_single_readback<T>(
+    result: Result<Option<T>, DurableError>,
+    identity: MutationIdentity,
+    effects_match: impl FnOnce(&T) -> bool,
+) -> Result<T, DurableError> {
+    let source = match result {
+        Ok(Some(receipt)) if effects_match(&receipt) => return Ok(receipt),
+        Ok(Some(_)) => LedgerStoreError::Invariant(String::from(
+            "readback differs from acknowledged mutation effects",
+        )),
+        Ok(None) => LedgerStoreError::Invariant(String::from(
+            "finalized mutation missing from authoritative readback",
+        )),
+        Err(DurableError::Unavailable(source) | DurableError::Conflict(source)) => source,
+        Err(error) => LedgerStoreError::Invariant(error.to_string()),
+    };
+    Err(DurableError::Unknown {
+        identity,
+        source,
+        rollback_error: None,
+    })
 }
 
 fn verify_record(
@@ -378,21 +429,8 @@ pub async fn commit_verified<S: LedgerRecovery + ?Sized>(
     let decision = write_transaction(ledger, &request, &tenant, &events)
         .await
         .map_err(|failure| transaction_error(identity.clone(), failure))?;
-    let (committed, original_id) = match decision {
-        TransactionDecision::Committed => (true, request.commit.body.commit_id.clone()),
-        TransactionDecision::Replay(commit_id) => (false, commit_id),
-        TransactionDecision::Conflict => return Err(DurableError::PayloadConflict),
-        TransactionDecision::InProgress {
-            attempt_id,
-            lease_expires_at_unix,
-        } => {
-            return Err(DurableError::InProgress {
-                identity,
-                attempt_id,
-                lease_expires_at_unix,
-            });
-        }
-    };
+    let (committed, original_id) =
+        classify_single_write(decision, &request.commit.body.commit_id, &identity)?;
     let result = lookup(
         ledger,
         verifier,
@@ -402,49 +440,22 @@ pub async fn commit_verified<S: LedgerRecovery + ?Sized>(
         Some(&original_id),
     )
     .await;
-    match result {
-        Ok(RecoveryOutcome::Committed(receipt)) => {
-            if committed
-                && (receipt.record.commit != *request.commit
-                    || receipt.record.events != events
-                    || receipt.record.outbox != request.outbox)
-            {
-                return Err(DurableError::Unknown {
-                    identity,
-                    source: LedgerStoreError::Invariant(String::from(
-                        "readback differs from acknowledged mutation effects",
-                    )),
-                    rollback_error: None,
-                });
-            }
-            Ok(if committed {
-                DurableOutcome::Committed(receipt)
-            } else {
-                DurableOutcome::Replay(receipt)
-            })
-        }
-        Err(DurableError::Unavailable(source) | DurableError::Conflict(source)) => {
-            Err(DurableError::Unknown {
-                identity,
-                source,
-                rollback_error: None,
-            })
-        }
-        // An acknowledged write or finalized replay claim cannot be turned into
-        // safe failure by missing or inconsistent readback evidence.
-        Err(error) => Err(DurableError::Unknown {
-            identity,
-            source: LedgerStoreError::Invariant(error.to_string()),
-            rollback_error: None,
+    let receipt = confirm_single_readback(
+        result.map(|outcome| match outcome {
+            RecoveryOutcome::Committed(receipt) => Some(receipt),
+            RecoveryOutcome::NotFound(_) | RecoveryOutcome::InProgress { .. } => None,
         }),
-        Ok(RecoveryOutcome::NotFound(_) | RecoveryOutcome::InProgress { .. }) => {
-            Err(DurableError::Unknown {
-                identity,
-                source: LedgerStoreError::Invariant(String::from(
-                    "finalized mutation missing from authoritative readback",
-                )),
-                rollback_error: None,
-            })
-        }
-    }
+        identity,
+        |receipt| {
+            !committed
+                || (receipt.record.commit == *request.commit
+                    && receipt.record.events == events
+                    && receipt.record.outbox == request.outbox)
+        },
+    )?;
+    Ok(if committed {
+        DurableOutcome::Committed(receipt)
+    } else {
+        DurableOutcome::Replay(receipt)
+    })
 }

@@ -23,7 +23,7 @@
 use std::collections::BTreeSet;
 
 use statechronicle_core::canonicalize::canonicalize_and_digest;
-use statechronicle_core::digest::hash_bytes;
+use statechronicle_core::digest::{ContentDigest, hash_bytes};
 use statechronicle_core::limits::{
     MAX_COMMIT_BYTES, MAX_EVENT_BATCH_BYTES, MAX_EVENTS_PER_COMMIT, MAX_ID_LENGTH,
     MAX_OUTBOX_PAYLOAD_BYTES, MAX_QUOTA_KEY_BYTES, check_size,
@@ -31,6 +31,7 @@ use statechronicle_core::limits::{
 use statechronicle_domain::commit::{COMMIT_SCHEMA, Commit, ProfileId, ScopeKind};
 use statechronicle_domain::event::{EVENT_SCHEMA, Event};
 use statechronicle_domain::ids::{CommitId, EventId, IntentId};
+use statechronicle_domain::intent::Intent;
 use statechronicle_domain::resource_state::ResourceState;
 use statechronicle_domain::signed::Signed;
 use statechronicle_domain::state::StateProjection;
@@ -47,6 +48,7 @@ use statechronicle_ports::event_store::EventStore;
 use statechronicle_ports::ledger_store::{
     IdempotencyClaim, LedgerStore, LedgerStoreError, LedgerTransaction, OutboxRecord,
 };
+use statechronicle_ports::ledger_v1::RetainMutationV1;
 use statechronicle_ports::observability::{MetricsSink, MutationMetric, MutationOutcome};
 use statechronicle_ports::state_index::StateIndex;
 
@@ -381,6 +383,59 @@ pub(crate) async fn write_transaction<S: LedgerStore + ?Sized>(
     tenant: &TenantId,
     events: &[Event],
 ) -> Result<TransactionDecision, TransactionFailure> {
+    write_single_transaction(
+        ledger,
+        SingleMutationWrite {
+            intent: request.intent,
+            payload_digest: request.payload_digest,
+            commit: CommitWrite::Legacy(request.commit),
+            projections: request.projections,
+            outbox: request.outbox,
+        },
+        tenant,
+        events,
+    )
+    .await
+}
+
+pub(crate) enum CommitWrite<'request> {
+    Legacy(&'request Signed<Commit>),
+    V1(RetainMutationV1<'request>),
+}
+
+impl CommitWrite<'_> {
+    const fn id(&self) -> &CommitId {
+        match self {
+            Self::Legacy(commit) => &commit.body.commit_id,
+            Self::V1(record) => &record.commit.commit_id,
+        }
+    }
+
+    async fn append(
+        &self,
+        transaction: &mut dyn LedgerTransaction,
+    ) -> Result<(), LedgerStoreError> {
+        match self {
+            Self::Legacy(commit) => transaction.append_commit(commit).await,
+            Self::V1(record) => transaction.append_commit_v1(*record).await,
+        }
+    }
+}
+
+pub(crate) struct SingleMutationWrite<'request> {
+    pub(crate) intent: &'request Intent,
+    pub(crate) payload_digest: &'request ContentDigest,
+    pub(crate) commit: CommitWrite<'request>,
+    pub(crate) projections: &'request [StateProjection],
+    pub(crate) outbox: &'request [OutboxRecord],
+}
+
+pub(crate) async fn write_single_transaction<S: LedgerStore + ?Sized>(
+    ledger: &S,
+    request: SingleMutationWrite<'_>,
+    tenant: &TenantId,
+    events: &[Event],
+) -> Result<TransactionDecision, TransactionFailure> {
     let mut transaction = ledger
         .begin(tenant)
         .await
@@ -420,7 +475,7 @@ pub(crate) async fn write_transaction<S: LedgerStore + ?Sized>(
     if let Err(error) = transaction.append_events(events).await {
         return Err(abort(transaction, error).await);
     }
-    if let Err(error) = transaction.append_commit(request.commit).await {
+    if let Err(error) = request.commit.append(transaction.as_mut()).await {
         return Err(abort(transaction, error).await);
     }
     for projection in request.projections {
@@ -438,7 +493,7 @@ pub(crate) async fn write_transaction<S: LedgerStore + ?Sized>(
             tenant,
             &request.intent.intent_id,
             &attempt_id,
-            &request.commit.body.commit_id,
+            request.commit.id(),
         )
         .await
     {

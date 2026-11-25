@@ -29,6 +29,7 @@ pub struct LedgerMutationV1 {
 }
 
 /// Commit and original intent evidence to retain with one fenced transaction.
+#[derive(Clone, Copy)]
 pub struct RetainMutationV1<'record> {
     /// Validated commit body used to advance the canonical scope head.
     pub commit: &'record Commit,

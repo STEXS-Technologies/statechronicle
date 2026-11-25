@@ -915,7 +915,9 @@ async fn protected_v1_plan_binds_exact_intent_and_commit_records() {
     };
     use statechronicle::domain::commit::COMMIT_SCHEMA;
     use statechronicle::intent::{sign_v1::sign_intent_v1, v1_body::INTENT_V1_SCHEMA};
-    use statechronicle::mutation::SignedMutationV1;
+    use statechronicle::mutation::{
+        DurableOutcomeV1, MutationTrustV1, RecoveryOutcomeV1, SignedMutationV1, recover_v1,
+    };
     use statechronicle::ports::{
         key_registry::KeyRegistryError,
         signature_policy::{
@@ -923,15 +925,23 @@ async fn protected_v1_plan_binds_exact_intent_and_commit_records() {
         },
     };
 
-    struct ActorPolicy(std::sync::Arc<Ed25519Verifier>, KeySetId);
+    struct TestPolicy {
+        actor: std::sync::Arc<Ed25519Verifier>,
+        commit: std::sync::Arc<Ed25519Verifier>,
+    }
 
     #[async_trait::async_trait]
-    impl SignaturePolicy for ActorPolicy {
+    impl SignaturePolicy for TestPolicy {
         async fn resolve(
             &self,
-            _query: SignaturePolicyQuery<'_>,
+            query: SignaturePolicyQuery<'_>,
         ) -> Result<ResolvedSignaturePolicy, KeyRegistryError> {
-            ResolvedSignatureV1::new(self.0.clone(), self.1, 64)
+            let (provider, key) = match query.authority.purpose() {
+                SignaturePurpose::ActorIntent => (&self.actor, KeySetId([3; 32])),
+                SignaturePurpose::TenantCommit => (&self.commit, KeySetId([4; 32])),
+                SignaturePurpose::GlobalCheckpoint => return Err(KeyRegistryError::NotTrusted),
+            };
+            ResolvedSignatureV1::new(provider.clone(), key, 64)
                 .map(ResolvedSignaturePolicy::V1)
                 .map_err(|_configuration_error| KeyRegistryError::NotTrusted)
         }
@@ -956,7 +966,15 @@ async fn protected_v1_plan_binds_exact_intent_and_commit_records() {
         actor_key_set_id,
         SignaturePurpose::ActorIntent,
     );
-    let policy = ActorPolicy(std::sync::Arc::new(actor_verifier), actor_key_set_id);
+    let commit_key_set_id = KeySetId([4; 32]);
+    let policy = TestPolicy {
+        actor: std::sync::Arc::new(actor_verifier),
+        commit: std::sync::Arc::new(Ed25519Verifier::new(
+            &key.verifying_key(),
+            commit_key_set_id,
+            SignaturePurpose::TenantCommit,
+        )),
+    };
     let record = sign_intent_v1(intent, &actor_context, &actor_signer).unwrap();
     let prepared = harness
         .executor
@@ -964,7 +982,6 @@ async fn protected_v1_plan_binds_exact_intent_and_commit_records() {
         .await
         .unwrap();
     let (commit, _) = harness.commit_events(prepared.events());
-    let commit_key_set_id = KeySetId([4; 32]);
     let commit_signer = Ed25519Signer::new(&key, commit_key_set_id, SignaturePurpose::TenantCommit);
     let commit_context = SignatureContext {
         suite: commit_signer.suite(),
@@ -997,4 +1014,56 @@ async fn protected_v1_plan_binds_exact_intent_and_commit_records() {
         commit.body
     );
     assert_eq!(signed.projections().len(), 1);
+
+    let trust = MutationTrustV1 {
+        principal,
+        commit_authority: &commit.body.executor,
+        signature_policy: &policy,
+        now: commit.body.created_at,
+    };
+    let interrupted = MemoryLedger {
+        faults: vec![ledger::Step::CommitRow],
+        ..MemoryLedger::default()
+    };
+    assert!(matches!(
+        signed.commit(&interrupted, &Allow, &trust).await,
+        Err(DurableError::Unavailable(_))
+    ));
+    assert!(interrupted.data.lock().unwrap().events.is_empty());
+    assert!(interrupted.reservations.lock().unwrap().is_empty());
+
+    let ledger = MemoryLedger {
+        lose_commit_response: true,
+        ..MemoryLedger::default()
+    };
+    assert!(matches!(
+        signed.commit(&ledger, &Allow, &trust).await,
+        Err(DurableError::Unknown { .. })
+    ));
+    let reopened = MemoryLedger {
+        lose_commit_response: false,
+        ..ledger
+    };
+    let recovered = recover_v1(&reopened, &Allow, &trust, &record)
+        .await
+        .unwrap();
+    let RecoveryOutcomeV1::Committed(receipt) = recovered else {
+        panic!("missing original v1 mutation");
+    };
+    assert_eq!(receipt.record().intent_record, record);
+    assert_eq!(receipt.record().commit_record, signed.commit_record());
+    assert_eq!(receipt.record().events, signed.prepared().events());
+    assert!(matches!(
+        signed.commit(&reopened, &Allow, &trust).await.unwrap(),
+        DurableOutcomeV1::Replay(_)
+    ));
+    {
+        let mut stored = reopened.data.lock().unwrap();
+        let original = stored.mutations_v1.values_mut().next().unwrap();
+        original.commit_record.pop().unwrap();
+    }
+    assert!(matches!(
+        recover_v1(&reopened, &Allow, &trust, &record).await,
+        Err(DurableError::Corrupt(_))
+    ));
 }
