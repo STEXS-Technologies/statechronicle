@@ -53,5 +53,14 @@ proof verification, protected durable writes, replay, and recovery. Durable
 measurements used in-memory adapters. The archive identifies the measured
 revisions and distinguishes individual-operation timings from batch averages.
 
-Exact-tag measurements for isolated Ed25519 sign/verify, matched workflow
-latency and allocations, and independent consumer compilation remain open.
+The standalone consumer compiles against exactly the published v0.3.0
+packages. It exercises default Ed25519 commit signing and the caller-supplied
+`CommitSigner` contract.
+
+```sh
+cargo test --manifest-path ci/wire-0.3/consumer/Cargo.toml --locked
+```
+
+Exact-tag measurements for isolated Ed25519 sign/verify and matched workflow
+latency and allocations remain open. The same consumer source must also
+compile and pass against the candidate.
