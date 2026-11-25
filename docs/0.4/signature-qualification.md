@@ -249,3 +249,41 @@ control. The glibc interposer counts successful `malloc`, `calloc`, and
 
 The proof sizing check now counts serialized bytes directly. This removes
 the temporary BCS vector while preserving the proof size limit.
+
+
+## V1 durable workflow latency
+
+The existing protected mutation and batch integration fixtures were
+timed on source `c6e3a63` with the reproducible
+[instrumentation patch](durable-benchmark.patch). The patch only adds test
+timing and leaves release library files unchanged. Use a detached checkout
+of the measured source.
+
+```sh
+git apply --unidiff-zero /path/to/durable-benchmark.patch
+STATECHRONICLE_DURABLE_BENCH=1 cargo +1.100.0 test --release --locked \
+  -p statechronicle --test durable_recovery \
+  protected_v1_plan_binds_exact_intent_and_commit_records -- --nocapture
+STATECHRONICLE_DURABLE_BENCH=1 cargo +1.100.0 test --release --locked \
+  -p statechronicle --test durable_batch \
+  v1_batch_recovers_the_full_exact_group_after_lost_ack -- --nocapture
+```
+
+Three runs on logical CPU 3 each timed 31 calls per operation with
+nearest-rank percentiles. The reported values are medians of the three
+run percentiles. [Per-call samples](durable-v1-c6e3a63.csv)
+
+| Fixture | Operation | p50 µs | p95 µs | p99 µs |
+| --- | --- | ---: | ---: | ---: |
+| One-event mutation | Commit | 423.3 | 713.5 | 901.2 |
+| One-event mutation | Exact recovery | 139.1 | 276.6 | 448.5 |
+| Two-member batch | Commit | 823.6 | 1152.0 | 1412.1 |
+| Two-member batch | Exact recovery | 251.1 | 459.1 | 501.1 |
+
+
+Each timed commit starts with a prepared and signed plan. It includes
+verification, writes, and readback using the reference in-memory ledger.
+Recovery measures exact readback from that same ledger after the commit.
+These measurements cover one- and two-event fixtures on the shared runner.
+They exclude provider queueing, application preparation, production storage,
+and the larger event counts.

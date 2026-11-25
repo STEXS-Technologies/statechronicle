@@ -1,0 +1,71 @@
+diff --git a/crates/statechronicle/tests/common/mod.rs b/crates/statechronicle/tests/common/mod.rs
+index 1d09c74..0311f65 100644
+--- a/crates/statechronicle/tests/common/mod.rs
++++ b/crates/statechronicle/tests/common/mod.rs
+@@ -4,0 +5,22 @@ pub use harness::*;
++
++/// Emits reproducible raw latency samples and nearest-rank percentiles for
++/// opt-in release measurements in the durable integration fixtures.
++pub fn report_benchmark(name: &str, samples: &[u128]) {
++    let mut sorted = samples.to_vec();
++    sorted.sort_unstable();
++    let percentile = |rank: usize| {
++        let index = sorted
++            .len()
++            .saturating_mul(rank)
++            .div_ceil(100)
++            .saturating_sub(1);
++        sorted.get(index).copied().unwrap_or_default()
++    };
++    println!(
++        "BENCH,{name},n={},p50_ns={},p95_ns={},p99_ns={},raw_ns={samples:?}",
++        sorted.len(),
++        percentile(50),
++        percentile(95),
++        percentile(99),
++    );
++}
+diff --git a/crates/statechronicle/tests/durable_batch.rs b/crates/statechronicle/tests/durable_batch.rs
+index 293ec37..f51afc5 100644
+--- a/crates/statechronicle/tests/durable_batch.rs
++++ b/crates/statechronicle/tests/durable_batch.rs
+@@ -726,0 +727,17 @@ async fn v1_batch_recovers_the_full_exact_group_after_lost_ack() {
++    if std::env::var_os("STATECHRONICLE_DURABLE_BENCH").is_some() {
++        const SAMPLES: usize = 31;
++        let mut commit_ns = Vec::with_capacity(SAMPLES);
++        let mut recovery_ns = Vec::with_capacity(SAMPLES);
++        for _ in 0..SAMPLES {
++            let ledger = MemoryLedger::default();
++            let start = std::time::Instant::now();
++            signed.commit(&ledger, &Allow, &trust).await.unwrap();
++            commit_ns.push(start.elapsed().as_nanos());
++
++            let start = std::time::Instant::now();
++            signed.recover(&ledger, &Allow, &trust).await.unwrap();
++            recovery_ns.push(start.elapsed().as_nanos());
++        }
++        common::report_benchmark("v1_batch_2_events_commit", &commit_ns);
++        common::report_benchmark("v1_batch_2_events_exact_recovery", &recovery_ns);
++    }
+diff --git a/crates/statechronicle/tests/durable_recovery.rs b/crates/statechronicle/tests/durable_recovery.rs
+index 27f3cc0..b9ec306 100644
+--- a/crates/statechronicle/tests/durable_recovery.rs
++++ b/crates/statechronicle/tests/durable_recovery.rs
+@@ -1099,0 +1100,17 @@ async fn protected_v1_plan_binds_exact_intent_and_commit_records() {
++    if std::env::var_os("STATECHRONICLE_DURABLE_BENCH").is_some() {
++        const SAMPLES: usize = 31;
++        let mut commit_ns = Vec::with_capacity(SAMPLES);
++        let mut recovery_ns = Vec::with_capacity(SAMPLES);
++        for _ in 0..SAMPLES {
++            let ledger = MemoryLedger::default();
++            let start = std::time::Instant::now();
++            signed.commit(&ledger, &Allow, &trust).await.unwrap();
++            commit_ns.push(start.elapsed().as_nanos());
++
++            let start = std::time::Instant::now();
++            recover_v1(&ledger, &Allow, &trust, &record).await.unwrap();
++            recovery_ns.push(start.elapsed().as_nanos());
++        }
++        common::report_benchmark("v1_mutation_1_event_commit", &commit_ns);
++        common::report_benchmark("v1_mutation_1_event_exact_recovery", &recovery_ns);
++    }
