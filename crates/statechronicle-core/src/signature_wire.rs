@@ -1,7 +1,9 @@
-//! Bounded borrowed decoder for the v1 BCS signature envelope.
+//! Bounded encoder and borrowed decoder for the v1 BCS signature envelope.
 //!
 //! This module validates only envelope framing and bounded byte fields. Typed
 //! body decoding and cryptographic dispatch belong to higher protocol layers.
+
+use serde::{Serialize, Serializer};
 
 use crate::limits::{MAX_COMMIT_BYTES, MAX_INTENT_BYTES};
 use crate::signature_provider::{
@@ -24,6 +26,14 @@ pub const MAX_V1_MIXED_RECORD_BYTES: usize = MAX_V1_ENVELOPE_BYTES + 1;
 
 const ENVELOPE_SCHEMA: &str = "statechronicle.signed.v1";
 
+pub(crate) struct BcsBytes<'input>(pub(crate) &'input [u8]);
+
+impl Serialize for BcsBytes<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bytes(self.0)
+    }
+}
+
 /// Borrowed fields from a validated v1 envelope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct V1SignedEnvelope<'input> {
@@ -35,6 +45,61 @@ pub struct V1SignedEnvelope<'input> {
     pub key_set_id: &'input [u8; 32],
     /// Bounded signature payload. Suite-specific decoding is performed later.
     pub signature: &'input [u8],
+}
+
+/// Encodes a v1 signature envelope in canonical BCS.
+///
+/// The caller provides canonical body bytes for the selected purpose.
+///
+/// # Errors
+/// Returns an encoding error for an invalid suite identifier and a capacity
+/// error if a field exceeds its format bounds.
+pub fn encode_v1_envelope(
+    envelope: V1SignedEnvelope<'_>,
+    purpose: SignaturePurpose,
+) -> Result<Vec<u8>, SignatureError> {
+    encode_envelope(envelope, purpose, &[])
+}
+
+/// Encodes a v1 envelope with the mixed record version discriminator.
+///
+/// # Errors
+/// Returns the same errors as [`encode_v1_envelope`].
+pub fn encode_mixed_v1_record(
+    envelope: V1SignedEnvelope<'_>,
+    purpose: SignaturePurpose,
+) -> Result<Vec<u8>, SignatureError> {
+    encode_envelope(envelope, purpose, &[0x01])
+}
+
+fn encode_envelope(
+    envelope: V1SignedEnvelope<'_>,
+    purpose: SignaturePurpose,
+    prefix: &[u8],
+) -> Result<Vec<u8>, SignatureError> {
+    check_record_size(envelope.body.len(), body_limit(purpose))?;
+    check_record_size(envelope.signature.len(), MAX_SIGNATURE_BYTES)?;
+    validate_suite_id(envelope.suite_id)?;
+    let capacity = envelope
+        .body
+        .len()
+        .saturating_add(envelope.signature.len())
+        .saturating_add(MAX_V1_ENVELOPE_OVERHEAD_BYTES)
+        .saturating_add(prefix.len());
+    let mut bytes = Vec::with_capacity(capacity);
+    bytes.extend_from_slice(prefix);
+    bcs::serialize_into(
+        &mut bytes,
+        &(
+            ENVELOPE_SCHEMA,
+            BcsBytes(envelope.body),
+            envelope.suite_id,
+            envelope.key_set_id,
+            BcsBytes(envelope.signature),
+        ),
+    )
+    .map_err(|_encoding_error| SignatureError::MalformedEncoding)?;
+    Ok(bytes)
 }
 
 /// Decodes a standalone v1 envelope without copying its body or signature.
@@ -197,6 +262,26 @@ mod tests {
     use super::*;
 
     const PURPOSE: SignaturePurpose = SignaturePurpose::TenantCommit;
+
+    #[test]
+    fn encodes_independent_layout_vectors() {
+        let purpose = SignaturePurpose::TenantCommit;
+        let envelope = decode_v1_envelope(
+            include_bytes!("../tests/fixtures/signature-v1/positive_v1_envelope_layout.bin"),
+            purpose,
+        )
+        .unwrap();
+        assert_eq!(
+            encode_v1_envelope(envelope, purpose).unwrap(),
+            include_bytes!("../tests/fixtures/signature-v1/positive_v1_envelope_layout.bin")
+                .as_slice()
+        );
+        assert_eq!(
+            encode_mixed_v1_record(envelope, purpose).unwrap(),
+            include_bytes!("../tests/fixtures/signature-v1/positive_mixed_record_v1_layout.bin")
+                .as_slice()
+        );
+    }
 
     #[test]
     fn decodes_borrowed_independent_envelope_fixture() {

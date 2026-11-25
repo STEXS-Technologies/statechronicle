@@ -1,21 +1,11 @@
 //! Canonical v1 transcript encoding for typed signing and verification paths.
 
-use serde::{Serialize, Serializer};
-
 use crate::signature_provider::{KeySetId, SignatureError, SignaturePurpose, SignatureSuiteId};
 
-use crate::signature_wire::body_limit;
+use crate::signature_wire::{BcsBytes, body_limit};
 
 const DOMAIN: &[u8] = b"statechronicle.signature.v1\0";
 const MAX_SCHEMA_BYTES: usize = 128;
-
-struct Bytes<'input>(&'input [u8]);
-
-impl Serialize for Bytes<'_> {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_bytes(self.0)
-    }
-}
 
 /// Builds the signature transcript defined by ADR-009.
 ///
@@ -45,11 +35,11 @@ pub fn signature_transcript(
     // BCS sequences use minimal ULEB128 lengths. Serialize byte slices as
     // byte vectors so the body is copied in one write.
     let fields = (
-        Bytes(&[purpose as u8]),
-        Bytes(expected_schema.as_bytes()),
-        Bytes(suite.as_str().as_bytes()),
-        Bytes(&key_set_id.0),
-        Bytes(canonical_body),
+        BcsBytes(&[purpose as u8]),
+        BcsBytes(expected_schema.as_bytes()),
+        BcsBytes(suite.as_str().as_bytes()),
+        BcsBytes(&key_set_id.0),
+        BcsBytes(canonical_body),
     );
     let mut transcript = Vec::with_capacity(
         canonical_body.len().saturating_add(
